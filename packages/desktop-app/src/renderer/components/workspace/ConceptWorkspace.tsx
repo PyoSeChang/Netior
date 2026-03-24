@@ -91,6 +91,25 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
   const renderNodes = useMemo(() => toRenderNodes(nodes), [nodes]);
   const renderEdges = useMemo(() => toRenderEdges(edges), [edges]);
 
+  // --- Keyboard shortcuts ---
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Delete selected nodes
+      if (e.key === 'Delete' && selectedIds.size > 0) {
+        e.preventDefault();
+        selectedIds.forEach((id) => removeNode(id));
+        setSelectedIds(new Set());
+      }
+      // Ctrl+A: select all
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        setSelectedIds(new Set(renderNodes.map((n) => n.id)));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedIds, renderNodes, removeNode]);
+
   // --- Mouse interaction ---
 
   const handleWheel = useCallback((e: React.WheelEvent) => {

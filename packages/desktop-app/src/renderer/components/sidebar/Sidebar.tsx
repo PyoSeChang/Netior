@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { Layout, FolderTree } from 'lucide-react';
+import { Layout, FolderTree, Search } from 'lucide-react';
 import type { Project } from '@moc/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useFileStore } from '../../stores/file-store';
 import { useUIStore } from '../../stores/ui-store';
 import { CanvasList } from './CanvasList';
 import { FileTree } from './FileTree';
+import { ConceptSearch } from './ConceptSearch';
 import { ScrollArea } from '../ui/ScrollArea';
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
   const tabs = [
     { key: 'canvases' as const, icon: Layout, label: 'Canvases' },
     { key: 'files' as const, icon: FolderTree, label: 'Files' },
+    { key: 'search' as const, icon: Search, label: 'Search' },
   ];
 
   return (
@@ -56,6 +58,7 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
         <div className="py-2">
           {sidebarView === 'canvases' && <CanvasList projectId={project.id} />}
           {sidebarView === 'files' && <FileTree nodes={fileTree} onFileClick={handleFileClick} />}
+          {sidebarView === 'search' && <ConceptSearch />}
         </div>
       </ScrollArea>
     </div>
