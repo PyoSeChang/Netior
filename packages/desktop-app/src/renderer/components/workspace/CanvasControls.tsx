@@ -1,6 +1,7 @@
 import React from 'react';
 import { Eye, Pencil, ZoomIn, ZoomOut, Maximize, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
+import { useI18n } from '../../hooks/useI18n';
 
 interface CanvasControlsProps {
   mode: 'browse' | 'edit';
@@ -27,10 +28,12 @@ export function CanvasControls({
   onNavigateBack,
   onNavigateForward,
 }: CanvasControlsProps): JSX.Element {
+  const { t } = useI18n();
+
   return (
     <div className="absolute right-2 top-2 z-30 flex items-center gap-1 rounded-lg border border-subtle bg-surface-panel px-1.5 py-1 shadow-sm">
       {/* Mode toggle */}
-      <Tooltip content={mode === 'browse' ? '수정 모드' : '탐색 모드'} position="bottom">
+      <Tooltip content={mode === 'browse' ? t('canvas.editMode') : t('canvas.browseMode')} position="bottom">
         <button
           className={`rounded p-1 transition-colors ${
             mode === 'edit'
@@ -48,7 +51,7 @@ export function CanvasControls({
       {/* Navigation (browse mode) */}
       {mode === 'browse' && (
         <>
-          <Tooltip content="뒤로" position="bottom">
+          <Tooltip content={t('canvas.navBack')} position="bottom">
             <button
               className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default disabled:opacity-30 disabled:cursor-not-allowed"
               disabled={!canGoBack}
@@ -57,7 +60,7 @@ export function CanvasControls({
               <ChevronLeft size={14} />
             </button>
           </Tooltip>
-          <Tooltip content="앞으로" position="bottom">
+          <Tooltip content={t('canvas.navForward')} position="bottom">
             <button
               className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default disabled:opacity-30 disabled:cursor-not-allowed"
               disabled={!canGoForward}
@@ -71,7 +74,7 @@ export function CanvasControls({
       )}
 
       {/* Zoom controls */}
-      <Tooltip content="축소" position="bottom">
+      <Tooltip content={t('canvas.zoomOut')} position="bottom">
         <button
           className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default"
           onClick={onZoomOut}
@@ -84,7 +87,7 @@ export function CanvasControls({
         {Math.round(zoom * 100)}%
       </span>
 
-      <Tooltip content="확대" position="bottom">
+      <Tooltip content={t('canvas.zoomIn')} position="bottom">
         <button
           className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default"
           onClick={onZoomIn}
@@ -93,7 +96,7 @@ export function CanvasControls({
         </button>
       </Tooltip>
 
-      <Tooltip content="화면에 맞추기" position="bottom">
+      <Tooltip content={t('canvas.fitToScreen')} position="bottom">
         <button
           className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default"
           onClick={onFitToScreen}

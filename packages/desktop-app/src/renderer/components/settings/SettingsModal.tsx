@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal } from '../ui/Modal';
 import { useSettingsStore, AVAILABLE_CONCEPTS } from '../../stores/settings-store';
+import { useI18n } from '../../hooks/useI18n';
 
 interface SettingsModalProps {
   open: boolean;
@@ -8,15 +9,16 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Element {
+  const { t } = useI18n();
   const { themeConcept, themeMode, locale, setThemeConcept, setThemeMode, setLocale } =
     useSettingsStore();
 
   return (
-    <Modal open={open} onClose={onClose} title="Settings" width={420}>
+    <Modal open={open} onClose={onClose} title={t('settings.title')} width={420}>
       <div className="flex flex-col gap-5">
         {/* Theme Mode */}
         <div>
-          <label className="mb-2 block text-xs font-medium text-secondary">Mode</label>
+          <label className="mb-2 block text-xs font-medium text-secondary">{t('settings.mode')}</label>
           <div className="flex gap-2">
             {(['dark', 'light'] as const).map((mode) => (
               <button
@@ -28,7 +30,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                 }`}
                 onClick={() => setThemeMode(mode)}
               >
-                {mode === 'dark' ? 'Dark' : 'Light'}
+                {mode === 'dark' ? t('settings.dark') : t('settings.light')}
               </button>
             ))}
           </div>
@@ -36,7 +38,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
 
         {/* Theme Concept */}
         <div>
-          <label className="mb-2 block text-xs font-medium text-secondary">Theme</label>
+          <label className="mb-2 block text-xs font-medium text-secondary">{t('settings.theme')}</label>
           <div className="grid grid-cols-4 gap-2">
             {AVAILABLE_CONCEPTS.map((concept) => (
               <button
@@ -56,7 +58,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
 
         {/* Language */}
         <div>
-          <label className="mb-2 block text-xs font-medium text-secondary">Language</label>
+          <label className="mb-2 block text-xs font-medium text-secondary">{t('settings.language')}</label>
           <div className="flex gap-2">
             {([
               { key: 'ko' as const, label: '한국어' },

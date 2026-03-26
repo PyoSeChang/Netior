@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
+import { useI18n } from '../../hooks/useI18n';
 
 interface CanvasContextMenuProps {
   x: number;
@@ -9,6 +10,7 @@ interface CanvasContextMenuProps {
 }
 
 export function CanvasContextMenu({ x, y, onCreateConcept, onClose }: CanvasContextMenuProps): JSX.Element {
+  const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function CanvasContextMenu({ x, y, onCreateConcept, onClose }: CanvasCont
         }}
       >
         <Plus size={14} />
-        Concept 만들기
+        {t('canvas.createConcept')}
       </button>
     </div>
   );

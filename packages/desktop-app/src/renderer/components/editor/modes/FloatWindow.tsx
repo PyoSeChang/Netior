@@ -4,6 +4,8 @@ import type { EditorTab } from '@moc/shared/types';
 import { useEditorStore } from '../../../stores/editor-store';
 import { EditorViewModeSwitch } from '../EditorViewModeSwitch';
 import { EditorContent } from '../EditorContent';
+import { useI18n } from '../../../hooks/useI18n';
+import { IconButton } from '../../ui/IconButton';
 
 interface FloatWindowProps {
   tab: EditorTab;
@@ -12,6 +14,7 @@ interface FloatWindowProps {
 }
 
 export function FloatWindow({ tab, isActive, onActivate }: FloatWindowProps): JSX.Element {
+  const { t } = useI18n();
   const { updateFloatRect, setViewMode, toggleMinimize, closeTab } = useEditorStore();
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const resizeRef = useRef<{ startX: number; startY: number; origW: number; origH: number } | null>(null);
@@ -86,8 +89,8 @@ export function FloatWindow({ tab, isActive, onActivate }: FloatWindowProps): JS
 
   return (
     <div
-      className={`fixed flex flex-col overflow-hidden rounded-lg border shadow-lg ${
-        isActive ? 'z-50 border-accent shadow-xl' : 'z-40 border-default'
+      className={`fixed flex flex-col overflow-hidden rounded-lg shadow-lg ${
+        isActive ? 'z-50 shadow-xl' : 'z-40'
       } bg-surface-panel`}
       style={{
         left: tab.floatRect.x,
@@ -114,13 +117,14 @@ export function FloatWindow({ tab, isActive, onActivate }: FloatWindowProps): JS
           onMinimize={() => toggleMinimize(tab.id)}
         />
 
-        <button
-          className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
+        <IconButton
+          label={t('common.close')}
+          className="w-7 h-7"
           onClick={() => closeTab(tab.id)}
-          title="Close"
+          tooltipPosition="bottom"
         >
           <X size={14} />
-        </button>
+        </IconButton>
       </div>
 
       {/* Content */}

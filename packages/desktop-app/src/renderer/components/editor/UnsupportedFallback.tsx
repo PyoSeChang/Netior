@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useI18n } from '../../hooks/useI18n';
 
 interface UnsupportedFallbackProps {
   filePath: string;
@@ -8,12 +9,13 @@ interface UnsupportedFallbackProps {
 }
 
 export function UnsupportedFallback({ filePath, absolutePath }: UnsupportedFallbackProps): JSX.Element {
+  const { t } = useI18n();
   const ext = filePath.split('.').pop() ?? '';
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-surface-base">
       <p className="text-sm text-muted">
-        <span className="font-mono text-default">.{ext}</span> files cannot be previewed
+        {t('editor.cannotPreview', { ext })}
       </p>
       <Button
         variant="secondary"
@@ -24,7 +26,7 @@ export function UnsupportedFallback({ filePath, absolutePath }: UnsupportedFallb
         }}
       >
         <ExternalLink size={14} className="mr-1" />
-        Open in External App
+        {t('editor.openExternal')}
       </Button>
     </div>
   );

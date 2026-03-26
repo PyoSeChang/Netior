@@ -8,25 +8,64 @@
     "rename": "Rename",
     "open": "Open",
     "close": "Close",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "noResults": "No results",
+    "add": "Add",
+    "minimize": "Minimize",
+    "restore": "Restore {title}"
   },
   "project": {
     "create": "Create Project",
     "name": "Project Name",
     "selectFolder": "Select Folder",
     "noProjects": "No projects",
-    "deleteConfirm": "Delete this project?"
+    "deleteConfirm": "Delete this project?",
+    "newProject": "New Project",
+    "noProjectsYet": "No projects yet",
+    "createFirst": "Create your first project",
+    "deleteTitle": "Delete Project",
+    "deleteMessage": "This will remove the project reference. Files in the folder will not be deleted.",
+    "folder": "Project Folder",
+    "namePlaceholder": "My Project",
+    "folderPlaceholder": "Select a folder..."
   },
   "canvas": {
     "create": "Create Canvas",
     "name": "Canvas Name",
-    "defaultName": "New Canvas"
+    "defaultName": "New Canvas",
+    "editMode": "Edit Mode",
+    "browseMode": "Browse Mode",
+    "navBack": "Back",
+    "navForward": "Forward",
+    "undo": "Undo",
+    "redo": "Redo",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "fitToScreen": "Fit to Screen",
+    "backToOverview": "Back to Overview",
+    "searchPlaceholder": "Search...",
+    "allTypes": "All Types",
+    "canvases": "Canvases",
+    "namePlaceholder": "Canvas name",
+    "navigateBack": "Navigate back",
+    "createConcept": "Create Concept",
+    "openSubCanvas": "Open Sub Canvas",
+    "createSubCanvas": "Create Sub Canvas"
   },
   "concept": {
     "create": "Create Concept",
     "defaultTitle": "New Concept",
     "attachFile": "Attach File",
-    "detachFile": "Detach File"
+    "detachFile": "Detach File",
+    "title": "Title",
+    "titlePlaceholder": "Concept title",
+    "icon": "Icon (Emoji)",
+    "color": "Color",
+    "editTitleHint": "Double-click to edit title",
+    "noFiles": "No files linked to this concept",
+    "selectFile": "Select a file",
+    "searchPlaceholder": "Search concepts..."
   },
   "edge": {
     "connect": "Connect",
@@ -34,6 +73,32 @@
   },
   "editor": {
     "unsaved": "Unsaved changes",
-    "openExternal": "Open in External App"
+    "openExternal": "Open in External App",
+    "noFileSelected": "No file selected",
+    "cannotPreview": ".{ext} files cannot be previewed",
+    "modeFloat": "Float",
+    "modeFull": "Full",
+    "modeSide": "Side",
+    "modeDetached": "Detached"
+  },
+  "settings": {
+    "title": "Settings",
+    "mode": "Mode",
+    "dark": "Dark",
+    "light": "Light",
+    "theme": "Theme",
+    "language": "Language"
+  },
+  "sidebar": {
+    "canvases": "Canvases",
+    "files": "Files",
+    "search": "Search",
+    "directories": "Directories",
+    "noDirectories": "No directories added",
+    "addDirectoriesToModule": "Add directories to a module",
+    "noModules": "No modules",
+    "noModule": "No module",
+    "moduleName": "Module name",
+    "addModule": "Add module"
   }
 }

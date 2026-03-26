@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFileStore } from '../../stores/file-store';
 import { useUIStore } from '../../stores/ui-store';
+import { useI18n } from '../../hooks/useI18n';
 import { EditorTabBar } from './EditorTabBar';
 import { MarkdownEditor } from './MarkdownEditor';
 import { PlainTextEditor } from './PlainTextEditor';
@@ -8,6 +9,7 @@ import { ImageViewer } from './ImageViewer';
 import { UnsupportedFallback } from './UnsupportedFallback';
 
 export function EditorDock(): JSX.Element | null {
+  const { t } = useI18n();
   const { editorDockOpen } = useUIStore();
   const { openFiles, activeFilePath, setActiveFile, closeFile, updateContent, saveFile } = useFileStore();
 
@@ -50,7 +52,7 @@ export function EditorDock(): JSX.Element | null {
           </>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted">
-            No file selected
+            {t('editor.noFileSelected')}
           </div>
         )}
       </div>

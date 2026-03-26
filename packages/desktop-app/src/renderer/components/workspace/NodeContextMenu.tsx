@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { Layers, Plus, Trash2 } from 'lucide-react';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { canvasService } from '../../services';
+import { useI18n } from '../../hooks/useI18n';
 
 interface NodeContextMenuProps {
   x: number;
@@ -20,6 +21,7 @@ export function NodeContextMenu({
   hasSubCanvas,
   onClose,
 }: NodeContextMenuProps): JSX.Element {
+  const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
   const { drillInto, removeNode, currentCanvas, openCanvas, nodes } =
     useCanvasStore();
@@ -82,7 +84,7 @@ export function NodeContextMenu({
           onClick={handleDrillInto}
         >
           <Layers size={14} />
-          하위 캔버스 열기
+          {t('canvas.openSubCanvas')}
         </button>
       ) : (
         <button
@@ -90,7 +92,7 @@ export function NodeContextMenu({
           onClick={handleCreateSubCanvas}
         >
           <Plus size={14} />
-          하위 캔버스 만들기
+          {t('canvas.createSubCanvas')}
         </button>
       )}
       <button
@@ -98,7 +100,7 @@ export function NodeContextMenu({
         onClick={handleDelete}
       >
         <Trash2 size={14} />
-        삭제
+        {t('common.delete')}
       </button>
     </div>
   );

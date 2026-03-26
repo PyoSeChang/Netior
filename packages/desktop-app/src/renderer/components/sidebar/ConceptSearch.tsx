@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import { useConceptStore } from '../../stores/concept-store';
+import { useI18n } from '../../hooks/useI18n';
 
 export function ConceptSearch(): JSX.Element {
+  const { t } = useI18n();
   const { concepts } = useConceptStore();
   const [query, setQuery] = useState('');
 
@@ -18,12 +20,12 @@ export function ConceptSearch(): JSX.Element {
           className="w-full rounded border border-subtle bg-input py-1 pl-7 pr-2 text-xs text-default outline-none focus:border-accent"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search concepts..."
+          placeholder={t('concept.searchPlaceholder')}
         />
       </div>
       <div className="flex flex-col gap-0.5">
         {filtered.length === 0 ? (
-          <span className="px-1 py-2 text-xs text-muted">No results</span>
+          <span className="px-1 py-2 text-xs text-muted">{t('common.noResults')}</span>
         ) : (
           filtered.map((c) => (
             <div

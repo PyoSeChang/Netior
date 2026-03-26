@@ -3,8 +3,10 @@ import { FolderOpen, Plus, X } from 'lucide-react';
 import { useModuleStore } from '../../stores/module-store';
 import { fsService } from '../../services';
 import { Tooltip } from '../ui/Tooltip';
+import { useI18n } from '../../hooks/useI18n';
 
 export function ModuleManager(): JSX.Element | null {
+  const { t } = useI18n();
   const { activeModuleId, directories, addDirectory, removeDirectory } = useModuleStore();
 
   if (!activeModuleId) return null;
@@ -28,7 +30,7 @@ export function ModuleManager(): JSX.Element | null {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between px-2 py-1">
-        <span className="text-xs font-medium text-secondary">Directories</span>
+        <span className="text-xs font-medium text-secondary">{t('sidebar.directories')}</span>
         <button
           className="rounded p-0.5 text-muted hover:bg-surface-hover hover:text-default"
           onClick={handleAddDirectory}
@@ -54,7 +56,7 @@ export function ModuleManager(): JSX.Element | null {
 
       {directories.length === 0 && (
         <div className="px-2 py-2 text-center text-xs text-muted">
-          No directories added
+          {t('sidebar.noDirectories')}
         </div>
       )}
     </div>

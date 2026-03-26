@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import type { EditorTab } from '@moc/shared/types';
 import { useEditorStore } from '../../stores/editor-store';
 import { fsService } from '../../services';
+import { useI18n } from '../../hooks/useI18n';
 import { MarkdownEditor } from './MarkdownEditor';
 import { PlainTextEditor } from './PlainTextEditor';
 import { ImageViewer } from './ImageViewer';
@@ -13,6 +14,7 @@ interface FileEditorProps {
 }
 
 export function FileEditor({ tab }: FileEditorProps): JSX.Element {
+  const { t } = useI18n();
   const { setDirty } = useEditorStore();
   const [content, setContent] = useState('');
   const [loaded, setLoaded] = useState(false);
@@ -46,7 +48,7 @@ export function FileEditor({ tab }: FileEditorProps): JSX.Element {
   }, [filePath, content, tab.id, setDirty]);
 
   if (!loaded) {
-    return <div className="flex h-full items-center justify-center text-xs text-muted">Loading...</div>;
+    return <div className="flex h-full items-center justify-center text-xs text-muted">{t('common.loading')}</div>;
   }
 
   return renderEditor(editorType, { content, filePath, onChange: handleChange, onSave: handleSave });

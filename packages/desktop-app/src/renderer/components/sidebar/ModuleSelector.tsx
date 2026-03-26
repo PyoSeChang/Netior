@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Package, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { useModuleStore } from '../../stores/module-store';
+import { useI18n } from '../../hooks/useI18n';
 
 interface ModuleSelectorProps {
   projectId: string;
 }
 
 export function ModuleSelector({ projectId }: ModuleSelectorProps): JSX.Element {
+  const { t } = useI18n();
   const { modules, activeModuleId, setActiveModule, createModule, deleteModule, updateModule } =
     useModuleStore();
 
@@ -88,7 +90,7 @@ export function ModuleSelector({ projectId }: ModuleSelectorProps): JSX.Element 
       >
         <Package size={12} className="shrink-0 text-secondary" />
         <span className="flex-1 truncate text-left">
-          {activeModule ? activeModule.name : 'No module'}
+          {activeModule ? activeModule.name : t('sidebar.noModule')}
         </span>
         <ChevronDown
           size={12}
@@ -143,7 +145,7 @@ export function ModuleSelector({ projectId }: ModuleSelectorProps): JSX.Element 
             ))}
 
             {modules.length === 0 && !creating && (
-              <div className="px-2 py-2 text-center text-xs text-muted">No modules</div>
+              <div className="px-2 py-2 text-center text-xs text-muted">{t('sidebar.noModules')}</div>
             )}
           </div>
 
@@ -161,7 +163,7 @@ export function ModuleSelector({ projectId }: ModuleSelectorProps): JSX.Element 
                     setNewName('');
                   }
                 }}
-                placeholder="Module name"
+                placeholder={t('sidebar.moduleName')}
                 autoFocus
               />
             </div>
@@ -171,7 +173,7 @@ export function ModuleSelector({ projectId }: ModuleSelectorProps): JSX.Element 
               onClick={() => setCreating(true)}
             >
               <Plus size={12} />
-              <span>Add module</span>
+              <span>{t('sidebar.addModule')}</span>
             </button>
           )}
         </div>

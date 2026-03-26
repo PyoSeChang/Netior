@@ -5,6 +5,7 @@ import { conceptFileService, conceptService } from '../../services';
 import { useFileStore } from '../../stores/file-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
+import { useI18n } from '../../hooks/useI18n';
 import { MarkdownEditor } from './MarkdownEditor';
 import { PlainTextEditor } from './PlainTextEditor';
 import { ImageViewer } from './ImageViewer';
@@ -15,6 +16,7 @@ interface ConceptEditorProps {
 }
 
 export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
+  const { t } = useI18n();
   const [files, setFiles] = useState<ConceptFile[]>([]);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(tab.title);
@@ -92,28 +94,6 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-subtle px-3 py-2">
-        {editingTitle ? (
-          <input
-            className="flex-1 rounded bg-surface-base px-1 text-sm text-default outline-none ring-1 ring-accent"
-            value={titleValue}
-            onChange={(e) => setTitleValue(e.target.value)}
-            onBlur={handleTitleSubmit}
-            onKeyDown={handleTitleKeyDown}
-            autoFocus
-          />
-        ) : (
-          <span
-            className="flex-1 cursor-pointer truncate text-sm font-medium text-default hover:text-accent"
-            onDoubleClick={() => setEditingTitle(true)}
-            title="Double-click to edit title"
-          >
-            {tab.title}
-          </span>
-        )}
-      </div>
-
       {/* File list */}
       {files.length > 0 && (
         <div className="flex shrink-0 items-center gap-0 overflow-x-auto border-b border-subtle bg-surface-panel">
@@ -167,7 +147,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           </>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted">
-            {files.length === 0 ? 'No files linked to this concept' : 'Select a file'}
+            {files.length === 0 ? t('concept.noFiles') : t('concept.selectFile')}
           </div>
         )}
       </div>

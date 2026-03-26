@@ -75,7 +75,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, position = 'top', cla
           <div
             ref={tooltipRef}
             className="fixed whitespace-nowrap px-3 py-1 text-xs text-default bg-surface-card border border-default rounded-md shadow-lg pointer-events-none"
-            style={{ top: 0, left: 0, visibility: 'hidden', zIndex: 9000 }}
+            style={{ top: 0, left: 0, visibility: 'hidden', zIndex: 10100 }}
           >
             {content}
           </div>,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown, File, Folder } from 'lucide-react';
 import type { FileTreeNode } from '@moc/shared/types';
+import { useI18n } from '../../hooks/useI18n';
 
 interface FileTreeProps {
   nodes: FileTreeNode[];
@@ -50,11 +51,13 @@ function FileTreeItem({
 }
 
 export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
+  const { t } = useI18n();
+
   return (
     <div className="flex flex-col gap-0.5 px-1">
-      <span className="px-2 py-1 text-xs font-medium text-secondary">Files</span>
+      <span className="px-2 py-1 text-xs font-medium text-secondary">{t('sidebar.files')}</span>
       {nodes.length === 0 ? (
-        <span className="px-2 text-xs text-muted">Add directories to a module</span>
+        <span className="px-2 text-xs text-muted">{t('sidebar.addDirectoriesToModule')}</span>
       ) : (
         nodes.map((node) => (
           <FileTreeItem key={node.path} node={node} depth={0} onFileClick={onFileClick} />

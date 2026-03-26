@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Layout } from 'lucide-react';
 import { useCanvasStore } from '../../stores/canvas-store';
+import { useI18n } from '../../hooks/useI18n';
 
 interface CanvasListProps {
   projectId: string;
 }
 
 export function CanvasList({ projectId }: CanvasListProps): JSX.Element {
+  const { t } = useI18n();
   const { canvases, currentCanvas, createCanvas, openCanvas, deleteCanvas } = useCanvasStore();
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -22,7 +24,7 @@ export function CanvasList({ projectId }: CanvasListProps): JSX.Element {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between px-2 py-1">
-        <span className="text-xs font-medium text-secondary">Canvases</span>
+        <span className="text-xs font-medium text-secondary">{t('sidebar.canvases')}</span>
         <button
           className="rounded p-0.5 text-muted hover:bg-surface-hover hover:text-default"
           onClick={() => setCreating(true)}
@@ -41,7 +43,7 @@ export function CanvasList({ projectId }: CanvasListProps): JSX.Element {
               if (e.key === 'Enter') handleCreate();
               if (e.key === 'Escape') { setCreating(false); setNewName(''); }
             }}
-            placeholder="Canvas name"
+            placeholder={t('canvas.namePlaceholder')}
             autoFocus
           />
         </div>

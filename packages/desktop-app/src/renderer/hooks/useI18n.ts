@@ -1,14 +1,15 @@
 import { useCallback } from 'react';
-import { translate, type TranslationKey, type Locale } from '@moc/shared/i18n';
-
-const currentLocale: Locale = 'ko';
+import { translate, type TranslationKey } from '@moc/shared/i18n';
+import { useSettingsStore } from '../stores/settings-store';
 
 export function useI18n() {
+  const locale = useSettingsStore((s) => s.locale);
+
   const t = useCallback(
     (key: TranslationKey, params?: Record<string, string | number>) =>
-      translate(currentLocale, key, params),
-    [],
+      translate(locale, key, params),
+    [locale],
   );
 
-  return { t, locale: currentLocale };
+  return { t, locale };
 }

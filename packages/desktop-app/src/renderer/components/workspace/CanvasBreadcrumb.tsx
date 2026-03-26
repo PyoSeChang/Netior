@@ -1,10 +1,13 @@
 import React from 'react';
 import { ChevronRight, ArrowLeft } from 'lucide-react';
 import { useCanvasStore } from '../../stores/canvas-store';
+import { useI18n } from '../../hooks/useI18n';
 
 export function CanvasBreadcrumb(): JSX.Element | null {
   const { breadcrumbs, canvasHistory, navigateToBreadcrumb, navigateBack } =
     useCanvasStore();
+
+  const { t } = useI18n();
 
   if (breadcrumbs.length <= 1) return null;
 
@@ -14,7 +17,7 @@ export function CanvasBreadcrumb(): JSX.Element | null {
         className="flex items-center justify-center rounded p-0.5 text-text-secondary hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
         disabled={canvasHistory.length === 0}
         onClick={() => navigateBack()}
-        aria-label="Navigate back"
+        aria-label={t('canvas.navigateBack')}
       >
         <ArrowLeft size={14} />
       </button>

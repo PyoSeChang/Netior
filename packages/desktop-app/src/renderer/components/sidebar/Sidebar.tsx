@@ -6,6 +6,7 @@ import { useFileStore } from '../../stores/file-store';
 import { useModuleStore } from '../../stores/module-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useUIStore } from '../../stores/ui-store';
+import { useI18n } from '../../hooks/useI18n';
 // Note: EditorDock is replaced by the generic editor system (editor-store + EditorContent)
 import { CanvasList } from './CanvasList';
 import { FileTree } from './FileTree';
@@ -19,6 +20,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ project }: SidebarProps): JSX.Element {
+  const { t } = useI18n();
   const { sidebarView, setSidebarView } = useUIStore();
   const { loadFileTree, fileTree } = useFileStore();
   const { loadCanvases } = useCanvasStore();
@@ -46,9 +48,9 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
   };
 
   const tabs = [
-    { key: 'canvases' as const, icon: Layout, label: 'Canvases' },
-    { key: 'files' as const, icon: FolderTree, label: 'Files' },
-    { key: 'search' as const, icon: Search, label: 'Search' },
+    { key: 'canvases' as const, icon: Layout, label: t('sidebar.canvases') },
+    { key: 'files' as const, icon: FolderTree, label: t('sidebar.files') },
+    { key: 'search' as const, icon: Search, label: t('sidebar.search') },
   ];
 
   return (
