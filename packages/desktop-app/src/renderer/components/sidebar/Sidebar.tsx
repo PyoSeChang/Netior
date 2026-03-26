@@ -1,16 +1,13 @@
 import React, { useEffect } from 'react';
-import { Layout, FolderTree, Search } from 'lucide-react';
+import { Layout, FolderTree } from 'lucide-react';
 import type { Project } from '@moc/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useFileStore } from '../../stores/file-store';
 import { useModuleStore } from '../../stores/module-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useUIStore } from '../../stores/ui-store';
-import { useI18n } from '../../hooks/useI18n';
-// Note: EditorDock is replaced by the generic editor system (editor-store + EditorContent)
 import { CanvasList } from './CanvasList';
 import { FileTree } from './FileTree';
-import { ConceptSearch } from './ConceptSearch';
 import { ModuleSelector } from './ModuleSelector';
 import { ModuleManager } from './ModuleManager';
 import { ScrollArea } from '../ui/ScrollArea';
@@ -20,8 +17,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ project }: SidebarProps): JSX.Element {
-  const { t } = useI18n();
-  const { sidebarView, setSidebarView } = useUIStore();
+  const { sidebarView, setSidebarView, sidebarWidth } = useUIStore();
   const { loadFileTree, fileTree } = useFileStore();
   const { loadCanvases } = useCanvasStore();
   const { loadModules, directories } = useModuleStore();
@@ -31,7 +27,6 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
     loadModules(project.id);
   }, [project.id, loadCanvases, loadModules]);
 
-  // Reload file trees when active module's directories change
   useEffect(() => {
     if (directories.length > 0) {
       loadFileTree(directories.map((d) => d.dir_path));
@@ -48,13 +43,15 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
   };
 
   const tabs = [
-    { key: 'canvases' as const, icon: Layout, label: t('sidebar.canvases') },
-    { key: 'files' as const, icon: FolderTree, label: t('sidebar.files') },
-    { key: 'search' as const, icon: Search, label: t('sidebar.search') },
+    { key: 'canvases' as const, icon: Layout },
+    { key: 'files' as const, icon: FolderTree },
   ];
 
   return (
-    <div className="flex h-full w-56 shrink-0 flex-col border-r border-subtle bg-surface-panel">
+    <div
+      className="flex h-full shrink-0 flex-col border-r border-subtle bg-surface-panel"
+      style={{ width: sidebarWidth }}
+    >
       {/* Tab bar */}
       <div className="flex border-b border-subtle">
         {tabs.map(({ key, icon: Icon }) => (
@@ -84,7 +81,6 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
               <FileTree nodes={fileTree} onFileClick={handleFileClick} />
             </>
           )}
-          {sidebarView === 'search' && <ConceptSearch />}
         </div>
       </ScrollArea>
     </div>
