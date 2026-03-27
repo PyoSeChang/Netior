@@ -8,7 +8,7 @@ import { Tooltip } from '../ui/Tooltip';
 interface EditorViewModeSwitchProps {
   currentMode: EditorViewMode;
   onModeChange: (mode: EditorViewMode) => void;
-  onMinimize: () => void;
+  onMinimize?: () => void;
 }
 
 const MODE_BUTTONS: { mode: EditorViewMode; icon: typeof Maximize2; titleKey: TranslationKey }[] = [
@@ -41,14 +41,16 @@ export function EditorViewModeSwitch({
           </button>
         </Tooltip>
       ))}
-      <Tooltip content={t('common.minimize')} position="bottom">
-        <button
-          className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
-          onClick={onMinimize}
-        >
-          <Minus size={14} />
-        </button>
-      </Tooltip>
+      {onMinimize && (
+        <Tooltip content={t('common.minimize')} position="bottom">
+          <button
+            className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
+            onClick={onMinimize}
+          >
+            <Minus size={14} />
+          </button>
+        </Tooltip>
+      )}
     </div>
   );
 }

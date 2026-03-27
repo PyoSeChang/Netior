@@ -1,11 +1,12 @@
 import React, { useCallback, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, GripVertical } from 'lucide-react';
 import type { EditorTab } from '@moc/shared/types';
 import { useEditorStore } from '../../../stores/editor-store';
 import { EditorViewModeSwitch } from '../EditorViewModeSwitch';
 import { EditorContent } from '../EditorContent';
 import { useI18n } from '../../../hooks/useI18n';
 import { IconButton } from '../../ui/IconButton';
+import { setTabDragData } from '../../../hooks/useTabDrag';
 
 interface FloatWindowProps {
   tab: EditorTab;
@@ -21,8 +22,9 @@ export function FloatWindow({ tab, isActive, onActivate }: FloatWindowProps): JS
 
   const handleDragStart = useCallback(
     (e: React.MouseEvent) => {
-      // Ignore if clicking on a button
+      // Ignore if clicking on a button or the drag handle
       if ((e.target as HTMLElement).closest('button')) return;
+      if ((e.target as HTMLElement).closest('[data-tab-drag]')) return;
       e.preventDefault();
       onActivate();
 
@@ -103,9 +105,19 @@ export function FloatWindow({ tab, isActive, onActivate }: FloatWindowProps): JS
     >
       {/* Title bar */}
       <div
-        className="flex shrink-0 cursor-grab items-center gap-2 border-b border-subtle bg-surface-card px-2 py-1.5 active:cursor-grabbing"
+        className="flex shrink-0 cursor-grab items-center gap-1 border-b border-subtle bg-surface-card px-2 py-1.5 active:cursor-grabbing"
         onMouseDown={handleDragStart}
       >
+        {/* Drag handle for tab mode conversion (float → side/full) */}
+        <div
+          data-tab-drag
+          draggable
+          onDragStart={(e) => setTabDragData(e, tab.id)}
+          className="shrink-0 cursor-grab text-muted hover:text-default"
+        >
+          <GripVertical size={14} />
+        </div>
+
         <span className="flex-1 truncate text-xs font-medium text-default">
           {tab.title}
           {tab.isDirty && <span className="ml-1 text-accent">*</span>}

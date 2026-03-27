@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 
 const electronAPI = {
   window: {
@@ -73,6 +73,20 @@ const electronAPI = {
   config: {
     get: (key: string) => ipcRenderer.invoke('config:get', key),
     set: (key: string, value: unknown) => ipcRenderer.invoke('config:set', key, value),
+  },
+  editor: {
+    detach: (tabId: string, title: string) => ipcRenderer.invoke('editor:detach', tabId, title),
+    reattach: (tabId: string, mode: string) => ipcRenderer.send('editor:reattach', tabId, mode),
+    onDetachedClosed: (callback: (tabId: string) => void) => {
+      const handler = (_event: IpcRendererEvent, tabId: string) => callback(tabId);
+      ipcRenderer.on('editor:detached-closed', handler);
+      return () => { ipcRenderer.removeListener('editor:detached-closed', handler); };
+    },
+    onReattachToMode: (callback: (tabId: string, mode: string) => void) => {
+      const handler = (_event: IpcRendererEvent, tabId: string, mode: string) => callback(tabId, mode);
+      ipcRenderer.on('editor:reattach-to-mode', handler);
+      return () => { ipcRenderer.removeListener('editor:reattach-to-mode', handler); };
+    },
   },
 };
 

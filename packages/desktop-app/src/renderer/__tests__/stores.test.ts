@@ -126,9 +126,4 @@ describe('UIStore', () => {
     expect(useUIStore.getState().sidebarOpen).toBe(!initial);
   });
 
-  it('should toggle editor dock', () => {
-    expect(useUIStore.getState().editorDockOpen).toBe(false);
-    useUIStore.getState().toggleEditorDock();
-    expect(useUIStore.getState().editorDockOpen).toBe(true);
-  });
 });

@@ -209,6 +209,23 @@ export interface CanvasBreadcrumbItem {
 export type EditorViewMode = 'float' | 'full' | 'side' | 'detached';
 export type EditorTabType = 'concept' | 'file';
 
+// Split layout tree for side/full editor panes
+export type SplitDirection = 'horizontal' | 'vertical';
+
+export interface SplitLeaf {
+  type: 'leaf';
+  tabId: string;
+}
+
+export interface SplitBranch {
+  type: 'branch';
+  direction: SplitDirection;
+  ratio: number;
+  children: [SplitNode, SplitNode];
+}
+
+export type SplitNode = SplitLeaf | SplitBranch;
+
 export interface EditorTab {
   id: string;
   type: EditorTabType;
