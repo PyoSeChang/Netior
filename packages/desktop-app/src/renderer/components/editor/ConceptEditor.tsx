@@ -6,10 +6,8 @@ import { useFileStore } from '../../stores/file-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
-import { MarkdownEditor } from './MarkdownEditor';
-import { PlainTextEditor } from './PlainTextEditor';
-import { ImageViewer } from './ImageViewer';
-import { UnsupportedFallback } from './UnsupportedFallback';
+import { renderEditor } from './FileEditor';
+import { getEditorType, getMonacoLanguage } from './editor-utils';
 
 interface ConceptEditorProps {
   tab: EditorTab;
@@ -27,12 +25,10 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
 
   const rootDir = currentProject?.root_dir ?? '';
 
-  // Load concept files
   useEffect(() => {
     conceptFileService.getByConcept(tab.targetId).then(setFiles).catch(() => {});
   }, [tab.targetId]);
 
-  // Auto-open first file if none active
   useEffect(() => {
     if (!tab.activeFilePath && files.length > 0 && rootDir) {
       const first = files[0].file_path;
@@ -94,7 +90,6 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* File list */}
       {files.length > 0 && (
         <div className="flex shrink-0 items-center gap-0 overflow-x-auto border-b border-subtle bg-surface-panel">
           {files.map((f) => {
@@ -117,34 +112,17 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
         </div>
       )}
 
-      {/* Active file editor */}
       <div className="flex-1 overflow-hidden">
         {activeFile ? (
-          <>
-            {activeFile.editorType === 'markdown' && (
-              <MarkdownEditor
-                content={activeFile.content}
-                onChange={handleContentChange}
-                onSave={handleSave}
-              />
-            )}
-            {activeFile.editorType === 'plain-text' && (
-              <PlainTextEditor
-                content={activeFile.content}
-                onChange={handleContentChange}
-                onSave={handleSave}
-              />
-            )}
-            {activeFile.editorType === 'image' && (
-              <ImageViewer absolutePath={activeFile.absolutePath} />
-            )}
-            {activeFile.editorType === 'unsupported' && (
-              <UnsupportedFallback
-                filePath={activeFile.filePath}
-                absolutePath={activeFile.absolutePath}
-              />
-            )}
-          </>
+          renderEditor(
+            getEditorType(activeFile.filePath),
+            {
+              content: activeFile.content,
+              filePath: activeFile.absolutePath,
+              onChange: handleContentChange,
+              onSave: handleSave,
+            },
+          )
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted">
             {files.length === 0 ? t('concept.noFiles') : t('concept.selectFile')}

@@ -3,11 +3,11 @@ import type { EditorTab } from '@moc/shared/types';
 import { useEditorStore } from '../../stores/editor-store';
 import { fsService } from '../../services';
 import { useI18n } from '../../hooks/useI18n';
-import { MarkdownEditor } from './MarkdownEditor';
-import { PlainTextEditor } from './PlainTextEditor';
+import { CodeEditor } from './CodeEditor';
 import { ImageViewer } from './ImageViewer';
+import { PdfViewer } from './PdfViewer';
 import { UnsupportedFallback } from './UnsupportedFallback';
-import { getEditorType, type EditorType } from './editor-utils';
+import { getEditorType, getMonacoLanguage, type EditorType } from './editor-utils';
 
 interface FileEditorProps {
   tab: EditorTab;
@@ -24,7 +24,7 @@ export function FileEditor({ tab }: FileEditorProps): JSX.Element {
 
   useEffect(() => {
     setLoaded(false);
-    if (editorType === 'markdown' || editorType === 'plain-text') {
+    if (editorType === 'code') {
       fsService.readFile(filePath).then((c) => {
         setContent(c);
         setLoaded(true);
@@ -54,17 +54,24 @@ export function FileEditor({ tab }: FileEditorProps): JSX.Element {
   return renderEditor(editorType, { content, filePath, onChange: handleChange, onSave: handleSave });
 }
 
-function renderEditor(
+export function renderEditor(
   type: EditorType,
   props: { content: string; filePath: string; onChange: (c: string) => void; onSave: () => void },
 ): JSX.Element {
   switch (type) {
-    case 'markdown':
-      return <MarkdownEditor content={props.content} onChange={props.onChange} onSave={props.onSave} />;
-    case 'plain-text':
-      return <PlainTextEditor content={props.content} onChange={props.onChange} onSave={props.onSave} />;
+    case 'code':
+      return (
+        <CodeEditor
+          content={props.content}
+          language={getMonacoLanguage(props.filePath)}
+          onChange={props.onChange}
+          onSave={props.onSave}
+        />
+      );
     case 'image':
       return <ImageViewer absolutePath={props.filePath} />;
+    case 'pdf':
+      return <PdfViewer absolutePath={props.filePath} />;
     default:
       return <UnsupportedFallback filePath={props.filePath} absolutePath={props.filePath} />;
   }

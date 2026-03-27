@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import type { FileTreeNode } from '@moc/shared/types';
 import { fsService } from '../services';
+import { getEditorType, type EditorType } from '../components/editor/editor-utils';
 
-export type EditorType = 'markdown' | 'plain-text' | 'image' | 'pdf' | 'unsupported';
+export type { EditorType };
 
 export interface OpenFile {
   filePath: string;
@@ -10,20 +11,6 @@ export interface OpenFile {
   editorType: EditorType;
   content: string;
   isDirty: boolean;
-}
-
-const EDITOR_MAP: Record<string, EditorType> = {
-  md: 'markdown', mdx: 'markdown',
-  txt: 'plain-text', json: 'plain-text', yaml: 'plain-text', yml: 'plain-text',
-  csv: 'plain-text', xml: 'plain-text', html: 'plain-text', css: 'plain-text',
-  js: 'plain-text', ts: 'plain-text', tsx: 'plain-text', jsx: 'plain-text',
-  png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', svg: 'image', webp: 'image',
-  pdf: 'pdf',
-};
-
-function getEditorType(filePath: string): EditorType {
-  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
-  return EDITOR_MAP[ext] ?? 'unsupported';
 }
 
 interface FileStore {
@@ -82,7 +69,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const editorType = getEditorType(relativePath);
 
     let content = '';
-    if (editorType === 'markdown' || editorType === 'plain-text') {
+    if (editorType === 'code') {
       try {
         content = await fsService.readFile(absolutePath);
       } catch {
