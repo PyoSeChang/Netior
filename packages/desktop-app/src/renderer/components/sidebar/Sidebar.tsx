@@ -50,10 +50,8 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
           {sidebarView === 'canvases' && <CanvasList projectId={project.id} />}
           {sidebarView === 'files' && (
             <>
-              <ModuleSelector projectId={project.id} />
-              <FileTree
-                nodes={fileTree}
-                onFileClick={handleFileClick}
+              <ModuleSelector
+                projectId={project.id}
                 onAddDirectory={async () => {
                   const { activeModuleId, addDirectory } = useModuleStore.getState();
                   if (!activeModuleId) return;
@@ -62,6 +60,7 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
                   if (dirPath) await addDirectory({ module_id: activeModuleId, dir_path: dirPath });
                 }}
               />
+              <FileTree nodes={fileTree} onFileClick={handleFileClick} />
             </>
           )}
         </div>

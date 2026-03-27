@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Package, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { Package, Plus, Trash2, ChevronDown, FolderPlus } from 'lucide-react';
 import { useModuleStore } from '../../stores/module-store';
 import { useI18n } from '../../hooks/useI18n';
 
 interface ModuleSelectorProps {
   projectId: string;
+  onAddDirectory?: () => void;
 }
 
-export function ModuleSelector({ projectId }: ModuleSelectorProps): JSX.Element {
+export function ModuleSelector({ projectId, onAddDirectory }: ModuleSelectorProps): JSX.Element {
   const { t } = useI18n();
   const { modules, activeModuleId, setActiveModule, createModule, deleteModule, updateModule } =
     useModuleStore();
@@ -82,10 +83,10 @@ export function ModuleSelector({ projectId }: ModuleSelectorProps): JSX.Element 
   };
 
   return (
-    <div ref={dropdownRef} className="relative px-2 py-1.5">
-      {/* Header / trigger */}
+    <div ref={dropdownRef} className="relative flex items-center gap-0.5 px-2 py-1.5">
+      {/* Module selector */}
       <button
-        className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-default transition-colors hover:bg-surface-hover"
+        className="flex flex-1 items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-default transition-colors hover:bg-surface-hover"
         onClick={() => setOpen((v) => !v)}
       >
         <Package size={12} className="shrink-0 text-secondary" />
@@ -97,6 +98,16 @@ export function ModuleSelector({ projectId }: ModuleSelectorProps): JSX.Element 
           className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`}
         />
       </button>
+      {/* Add directory */}
+      {onAddDirectory && activeModuleId && (
+        <button
+          className="shrink-0 rounded p-1 text-muted hover:bg-surface-hover hover:text-default"
+          onClick={onAddDirectory}
+          title="Add directory"
+        >
+          <FolderPlus size={14} />
+        </button>
+      )}
 
       {/* Dropdown */}
       {open && (

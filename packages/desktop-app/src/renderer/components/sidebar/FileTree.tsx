@@ -54,32 +54,9 @@ function FileTreeItem({
 export function FileTree({ nodes, onFileClick, onAddDirectory }: FileTreeProps): JSX.Element {
   return (
     <div className="flex flex-col gap-0.5 px-1">
-      {nodes.length === 0 && onAddDirectory ? (
-        <button
-          className="mx-2 mt-2 flex items-center justify-center gap-1.5 rounded border border-dashed border-subtle px-3 py-3 text-xs text-muted transition-colors hover:border-default hover:text-default"
-          onClick={onAddDirectory}
-        >
-          <FolderPlus size={14} />
-          <span>Add directory</span>
-        </button>
-      ) : (
-        <>
-          {nodes.map((node) => (
-            <FileTreeItem key={node.path} node={node} depth={0} onFileClick={onFileClick} />
-          ))}
-          {onAddDirectory && (
-            <Tooltip content="Add directory" position="right">
-              <button
-                className="mx-2 mt-1 flex items-center gap-1 rounded px-1 py-0.5 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-default"
-                onClick={onAddDirectory}
-              >
-                <FolderPlus size={12} />
-                <span>Add directory</span>
-              </button>
-            </Tooltip>
-          )}
-        </>
-      )}
+      {nodes.map((node) => (
+        <FileTreeItem key={node.path} node={node} depth={0} onFileClick={onFileClick} />
+      ))}
     </div>
   );
 }
