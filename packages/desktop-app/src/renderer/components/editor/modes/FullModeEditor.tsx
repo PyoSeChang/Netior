@@ -1,77 +1,88 @@
-import React, { useCallback } from 'react';
-import type { EditorTab } from '@moc/shared/types';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { SplitLeaf, EditorTab } from '@moc/shared/types';
 import { useEditorStore } from '../../../stores/editor-store';
 import { EditorViewModeSwitch } from '../EditorViewModeSwitch';
 import { EditorContent } from '../EditorContent';
 import { EditorTabStrip } from '../EditorTabStrip';
 import { SplitPaneRenderer } from '../SplitPaneRenderer';
 import { DropZoneOverlay } from '../DropZoneOverlay';
-import type { DropResult } from '../DropZoneOverlay';
+import { isTabDrag } from '../../../hooks/useTabDrag';
 
-interface FullModeEditorProps {
-  tab: EditorTab;
-}
+export function FullModeEditor(): JSX.Element | null {
+  const {
+    tabs, activeTabId, fullLayout,
+    setActiveTab, closeTab, setViewMode, toggleMinimize,
+    updateSplitRatio, splitTab, moveTabToPane,
+  } = useEditorStore();
+  const [isDragging, setIsDragging] = useState(false);
 
-export function FullModeEditor({ tab }: FullModeEditorProps): JSX.Element {
-  const { tabs, fullLayout, setActiveTab, closeTab, setViewMode, toggleMinimize, updateSplitRatio, splitTab } = useEditorStore();
-
-  const fullTabs = tabs.filter((t) => t.viewMode === 'full' && !t.isMinimized);
-  const hasFullSplit = fullLayout && fullLayout.type === 'branch';
+  useEffect(() => {
+    const reset = () => setIsDragging(false);
+    document.addEventListener('dragend', reset);
+    return () => document.removeEventListener('dragend', reset);
+  }, []);
 
   const renderFullLeaf = useCallback(
-    (tabId: string) => {
-      const t = tabs.find((tab) => tab.id === tabId);
-      if (!t) return null;
-      return <EditorContent tab={t} />;
+    (leaf: SplitLeaf) => {
+      const leafTabs = leaf.tabIds
+        .map((id) => tabs.find((t) => t.id === id))
+        .filter((t): t is EditorTab => t != null);
+      const activeTab = leafTabs.find((t) => t.id === leaf.activeTabId) ?? leafTabs[0];
+
+      return (
+        <div className="flex h-full flex-col overflow-hidden">
+          <EditorTabStrip
+            tabs={leafTabs}
+            activeTabId={leaf.activeTabId}
+            onActivate={setActiveTab}
+            onClose={closeTab}
+            onTabDrop={(droppedId) => moveTabToPane(droppedId, leaf.activeTabId, 'full')}
+            rightSlot={
+              <EditorViewModeSwitch
+                currentMode="full"
+                onModeChange={(mode) => setViewMode(leaf.activeTabId, mode)}
+                onMinimize={() => toggleMinimize(leaf.activeTabId)}
+              />
+            }
+          />
+          <div className="relative flex-1 overflow-hidden">
+            {activeTab && <EditorContent tab={activeTab} />}
+            <DropZoneOverlay
+              onDrop={(result) => {
+                setIsDragging(false);
+                if (result.zone === 'center') {
+                  moveTabToPane(result.tabId, leaf.activeTabId, 'full');
+                } else {
+                  const targetId = leaf.tabIds.find((id) => id !== result.tabId) ?? leaf.activeTabId;
+                  if (targetId !== result.tabId || leaf.tabIds.length > 1) {
+                    splitTab(targetId, result.tabId, result.direction, result.position);
+                  }
+                }
+              }}
+              active={isDragging}
+            />
+          </div>
+        </div>
+      );
     },
-    [tabs],
+    [tabs, isDragging, setActiveTab, closeTab, setViewMode, toggleMinimize, moveTabToPane, splitTab],
   );
 
-  const handleFullTabDrop = useCallback((tabId: string) => {
-    setViewMode(tabId, 'full');
-    setActiveTab(tabId);
-  }, [setViewMode, setActiveTab]);
-
-  const handleFullDrop = useCallback((result: DropResult) => {
-    if (result.zone === 'center') {
-      setViewMode(result.tabId, 'full');
-      setActiveTab(result.tabId);
-    } else {
-      setViewMode(result.tabId, 'full');
-      splitTab(tab.id, result.tabId, result.direction, result.position);
-    }
-  }, [tab.id, setViewMode, setActiveTab, splitTab]);
+  if (!fullLayout) return null;
 
   return (
-    <div className="flex h-full w-full flex-col bg-surface-panel">
-      <EditorTabStrip
-        tabs={fullTabs}
-        activeTabId={tab.id}
-        onActivate={setActiveTab}
-        onClose={closeTab}
-        onTabDrop={handleFullTabDrop}
-        rightSlot={
-          <EditorViewModeSwitch
-            currentMode={tab.viewMode}
-            onModeChange={(mode) => setViewMode(tab.id, mode)}
-            onMinimize={() => toggleMinimize(tab.id)}
-          />
-        }
+    <div
+      className="flex h-full w-full bg-surface-panel"
+      onDragEnter={(e) => { if (isTabDrag(e)) setIsDragging(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+      onDrop={() => setIsDragging(false)}
+    >
+      <SplitPaneRenderer
+        node={fullLayout}
+        mode="full"
+        renderLeaf={renderFullLeaf}
+        onRatioChange={updateSplitRatio}
       />
-
-      <div className="relative flex-1 overflow-hidden">
-        {hasFullSplit && fullLayout ? (
-          <SplitPaneRenderer
-            node={fullLayout}
-            mode="full"
-            renderLeaf={renderFullLeaf}
-            onRatioChange={updateSplitRatio}
-          />
-        ) : (
-          <EditorContent tab={tab} />
-        )}
-        <DropZoneOverlay onDrop={handleFullDrop} />
-      </div>
     </div>
   );
 }

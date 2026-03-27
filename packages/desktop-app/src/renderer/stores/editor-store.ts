@@ -13,7 +13,7 @@ interface EditorStore {
   tabs: EditorTab[];
   activeTabId: string | null;
 
-  // Split layout trees for side/full panes
+  // Split layout trees for side/full panes (each leaf holds its own tab list)
   sideLayout: SplitNode | null;
   fullLayout: SplitNode | null;
 
@@ -34,7 +34,7 @@ interface EditorStore {
 
   // Split layout operations
   splitTab: (targetTabId: string, newTabId: string, direction: SplitDirection, position: 'before' | 'after') => void;
-  unsplitTab: (tabId: string) => void;
+  moveTabToPane: (tabId: string, targetPaneTabId: string, mode: 'side' | 'full') => void;
   updateSplitRatio: (mode: 'side' | 'full', path: number[], ratio: number) => void;
 
   clear: () => void;
@@ -63,12 +63,103 @@ function makeTabId(type: EditorTabType, targetId: string): string {
 
 // ── Split layout tree helpers ──
 
-function findAndReplace(node: SplitNode, targetTabId: string, replacement: SplitNode): SplitNode | null {
+export function containsTab(node: SplitNode, tabId: string): boolean {
+  if (node.type === 'leaf') return node.tabIds.includes(tabId);
+  return containsTab(node.children[0], tabId) || containsTab(node.children[1], tabId);
+}
+
+function findLeafWithTab(node: SplitNode, tabId: string): SplitLeaf | null {
+  if (node.type === 'leaf') return node.tabIds.includes(tabId) ? node : null;
+  return findLeafWithTab(node.children[0], tabId) || findLeafWithTab(node.children[1], tabId);
+}
+
+function getFirstLeaf(node: SplitNode): SplitLeaf {
+  if (node.type === 'leaf') return node;
+  return getFirstLeaf(node.children[0]);
+}
+
+/** Returns the focused tab id in the layout (global active if present, else first leaf's active) */
+export function getActiveTabFromLayout(layout: SplitNode, globalActiveTabId: string | null): string {
+  if (globalActiveTabId && containsTab(layout, globalActiveTabId)) {
+    return globalActiveTabId;
+  }
+  return getFirstLeaf(layout).activeTabId;
+}
+
+function setActiveInLeaf(node: SplitNode, tabId: string): SplitNode {
   if (node.type === 'leaf') {
-    return node.tabId === targetTabId ? replacement : null;
+    if (!node.tabIds.includes(tabId)) return node;
+    return node.activeTabId === tabId ? node : { ...node, activeTabId: tabId };
+  }
+  const newChildren = [...node.children] as [SplitNode, SplitNode];
+  newChildren[0] = setActiveInLeaf(node.children[0], tabId);
+  newChildren[1] = setActiveInLeaf(node.children[1], tabId);
+  if (newChildren[0] === node.children[0] && newChildren[1] === node.children[1]) return node;
+  return { ...node, children: newChildren };
+}
+
+/** Remove a tab from the tree. If a leaf becomes empty, collapse it. */
+function removeTabFromTree(node: SplitNode, tabId: string): SplitNode | null {
+  if (node.type === 'leaf') {
+    if (!node.tabIds.includes(tabId)) return node;
+    const newTabIds = node.tabIds.filter((id) => id !== tabId);
+    if (newTabIds.length === 0) return null;
+    return {
+      ...node,
+      tabIds: newTabIds,
+      activeTabId: node.activeTabId === tabId ? newTabIds[newTabIds.length - 1] : node.activeTabId,
+    };
+  }
+  const [left, right] = node.children;
+  const newLeft = removeTabFromTree(left, tabId);
+  if (newLeft !== left) {
+    if (!newLeft) return right;
+    return { ...node, children: [newLeft, right] };
+  }
+  const newRight = removeTabFromTree(right, tabId);
+  if (newRight !== right) {
+    if (!newRight) return left;
+    return { ...node, children: [left, newRight] };
+  }
+  return node;
+}
+
+/** Add a tab to the leaf identified by targetLeafTabId */
+function addTabToLeaf(node: SplitNode, targetLeafTabId: string, newTabId: string): SplitNode {
+  if (node.type === 'leaf') {
+    if (!node.tabIds.includes(targetLeafTabId)) return node;
+    if (node.tabIds.includes(newTabId)) return { ...node, activeTabId: newTabId };
+    return { ...node, tabIds: [...node.tabIds, newTabId], activeTabId: newTabId };
+  }
+  const newLeft = addTabToLeaf(node.children[0], targetLeafTabId, newTabId);
+  if (newLeft !== node.children[0]) return { ...node, children: [newLeft, node.children[1]] };
+  const newRight = addTabToLeaf(node.children[1], targetLeafTabId, newTabId);
+  if (newRight !== node.children[1]) return { ...node, children: [node.children[0], newRight] };
+  return node;
+}
+
+/** Split the leaf containing targetTabId: original leaf keeps its tabs, new leaf gets newTabId */
+function splitLeafContaining(
+  node: SplitNode,
+  targetTabId: string,
+  newTabId: string,
+  direction: SplitDirection,
+  position: 'before' | 'after',
+): SplitNode | null {
+  if (node.type === 'leaf') {
+    if (!node.tabIds.includes(targetTabId)) return null;
+    const newLeaf: SplitLeaf = { type: 'leaf', tabIds: [newTabId], activeTabId: newTabId };
+    const origLeaf: SplitLeaf = { ...node, activeTabId: targetTabId };
+    const branch: SplitBranch = {
+      type: 'branch',
+      direction,
+      ratio: 0.5,
+      children: position === 'before' ? [newLeaf, origLeaf] : [origLeaf, newLeaf],
+    };
+    return branch;
   }
   for (let i = 0; i < 2; i++) {
-    const result = findAndReplace(node.children[i], targetTabId, replacement);
+    const result = splitLeafContaining(node.children[i], targetTabId, newTabId, direction, position);
     if (result) {
       const newChildren = [...node.children] as [SplitNode, SplitNode];
       newChildren[i] = result;
@@ -76,30 +167,6 @@ function findAndReplace(node: SplitNode, targetTabId: string, replacement: Split
     }
   }
   return null;
-}
-
-function removeLeaf(node: SplitNode, tabId: string): SplitNode | null {
-  if (node.type === 'leaf') {
-    return node.tabId === tabId ? null : node;
-  }
-  const [left, right] = node.children;
-  if (left.type === 'leaf' && left.tabId === tabId) return right;
-  if (right.type === 'leaf' && right.tabId === tabId) return left;
-
-  const newLeft = removeLeaf(left, tabId);
-  if (newLeft !== left) {
-    return newLeft ? { ...node, children: [newLeft, right] } : right;
-  }
-  const newRight = removeLeaf(right, tabId);
-  if (newRight !== right) {
-    return newRight ? { ...node, children: [left, newRight] } : left;
-  }
-  return node;
-}
-
-function containsTab(node: SplitNode, tabId: string): boolean {
-  if (node.type === 'leaf') return node.tabId === tabId;
-  return containsTab(node.children[0], tabId) || containsTab(node.children[1], tabId);
 }
 
 function updateRatioAtPath(node: SplitNode, path: number[], ratio: number): SplitNode {
@@ -123,17 +190,16 @@ function setLayoutForMode(mode: EditorViewMode, layout: SplitNode | null): Parti
   return mode === 'side' ? { sideLayout: layout } : { fullLayout: layout };
 }
 
-function addTabToLayout(layout: SplitNode | null, tabId: string): SplitNode {
-  if (!layout) return { type: 'leaf', tabId };
-  // If already in layout, no change
-  if (containsTab(layout, tabId)) return layout;
-  // Default: horizontal split appending to the right
-  return {
-    type: 'branch',
-    direction: 'horizontal',
-    ratio: 0.5,
-    children: [layout, { type: 'leaf', tabId }],
-  };
+/** Remove tabId from the layout of oldMode (if present) */
+function removeFromLayout(state: EditorStore, oldMode: EditorViewMode, tabId: string): Partial<EditorStore> {
+  const update: Partial<EditorStore> = {};
+  if (oldMode === 'side' && state.sideLayout && containsTab(state.sideLayout, tabId)) {
+    update.sideLayout = removeTabFromTree(state.sideLayout, tabId);
+  }
+  if (oldMode === 'full' && state.fullLayout && containsTab(state.fullLayout, tabId)) {
+    update.fullLayout = removeTabFromTree(state.fullLayout, tabId);
+  }
+  return update;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -149,7 +215,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     // Reuse existing tab
     const existing = tabs.find((t) => t.id === tabId);
     if (existing) {
+      const layoutUpdate: Partial<EditorStore> = {};
+      const { sideLayout, fullLayout } = get();
+      if (sideLayout && containsTab(sideLayout, tabId)) {
+        layoutUpdate.sideLayout = setActiveInLeaf(sideLayout, tabId);
+      }
+      if (fullLayout && containsTab(fullLayout, tabId)) {
+        layoutUpdate.fullLayout = setActiveInLeaf(fullLayout, tabId);
+      }
       set({
+        ...layoutUpdate,
         activeTabId: tabId,
         tabs: tabs.map((t) => (t.id === tabId ? { ...t, isMinimized: false } : t)),
       });
@@ -169,10 +244,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const floatCount = tabs.filter((t) => t.viewMode === 'float' && !t.isMinimized).length;
     const stagger = floatCount * FLOAT_STAGGER;
 
-    // Resolve view mode:
-    // - Explicit viewMode param takes priority
-    // - Prefs float/detached → use as-is (independent windows)
-    // - Otherwise → follow current panel mode (side if any side tabs exist, else full if any full tabs, else side as default)
+    // Resolve view mode
     let resolvedMode: EditorViewMode;
     if (viewMode) {
       resolvedMode = viewMode;
@@ -181,7 +253,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       if (savedMode === 'float') {
         resolvedMode = 'float';
       } else {
-        // Follow current panel mode
         const hasSide = tabs.some((t) => t.viewMode === 'side' && !t.isMinimized);
         const hasFull = tabs.some((t) => t.viewMode === 'full' && !t.isMinimized);
         resolvedMode = hasFull ? 'full' : hasSide ? 'side' : 'side';
@@ -206,16 +277,32 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       activeFilePath: null,
     };
 
-    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tabId }));
+    // For side/full: add to the focused leaf in the layout tree
+    if (resolvedMode === 'side' || resolvedMode === 'full') {
+      let layout = getLayoutForMode(get(), resolvedMode);
+      if (!layout) {
+        layout = { type: 'leaf', tabIds: [tabId], activeTabId: tabId };
+      } else {
+        const { activeTabId: currentActive } = get();
+        const focusedLeaf = currentActive ? findLeafWithTab(layout, currentActive) : null;
+        const targetLeafTabId = focusedLeaf ? focusedLeaf.activeTabId : getFirstLeaf(layout).activeTabId;
+        layout = addTabToLeaf(layout, targetLeafTabId, tabId);
+      }
+      set((s) => ({
+        ...setLayoutForMode(resolvedMode, layout),
+        tabs: [...s.tabs, tab],
+        activeTabId: tabId,
+      }));
+    } else {
+      set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tabId }));
+    }
   },
 
   closeTab: (tabId) => {
     const tab = get().tabs.find((t) => t.id === tabId);
-    // Kill PTY session for terminal tabs
     if (tab && tab.type === 'terminal') {
       window.electron.terminal.kill(tab.targetId).catch(() => {});
     }
-    // Save prefs before closing (concept tabs)
     if (tab && tab.type === 'concept') {
       editorPrefsService.upsert(tab.targetId, {
         view_mode: tab.viewMode,
@@ -233,10 +320,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const layoutUpdate: Partial<EditorStore> = {};
     const { sideLayout, fullLayout } = get();
     if (sideLayout && containsTab(sideLayout, tabId)) {
-      layoutUpdate.sideLayout = removeLeaf(sideLayout, tabId);
+      layoutUpdate.sideLayout = removeTabFromTree(sideLayout, tabId);
     }
     if (fullLayout && containsTab(fullLayout, tabId)) {
-      layoutUpdate.fullLayout = removeLeaf(fullLayout, tabId);
+      layoutUpdate.fullLayout = removeTabFromTree(fullLayout, tabId);
     }
 
     set((s) => {
@@ -249,7 +336,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     });
   },
 
-  setActiveTab: (tabId) => set({ activeTabId: tabId }),
+  setActiveTab: (tabId) => {
+    const layoutUpdate: Partial<EditorStore> = {};
+    const { sideLayout, fullLayout } = get();
+    if (sideLayout && containsTab(sideLayout, tabId)) {
+      layoutUpdate.sideLayout = setActiveInLeaf(sideLayout, tabId);
+    }
+    if (fullLayout && containsTab(fullLayout, tabId)) {
+      layoutUpdate.fullLayout = setActiveInLeaf(fullLayout, tabId);
+    }
+    set({ ...layoutUpdate, activeTabId: tabId });
+  },
 
   setViewMode: (tabId, mode) => {
     const oldTab = get().tabs.find((t) => t.id === tabId);
@@ -257,60 +354,41 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     const oldMode = oldTab.viewMode;
 
-    // Detached mode: extract single tab to a separate Electron window
+    // Detached mode
     if (mode === 'detached') {
       window.electron.editor.detach(tabId, oldTab.title);
-      const layoutUpdate: Partial<EditorStore> = {};
-      const { sideLayout, fullLayout } = get();
-      if (oldMode === 'side' && sideLayout && containsTab(sideLayout, tabId)) {
-        layoutUpdate.sideLayout = removeLeaf(sideLayout, tabId);
-      }
-      if (oldMode === 'full' && fullLayout && containsTab(fullLayout, tabId)) {
-        layoutUpdate.fullLayout = removeLeaf(fullLayout, tabId);
-      }
+      const layoutUpdate = removeFromLayout(get(), oldMode, tabId);
       set((s) => ({
         ...layoutUpdate,
         tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: 'detached' } : t)),
       }));
-      if (oldTab.type === 'concept') {
-        debouncedSavePrefs(oldTab.targetId, { view_mode: mode });
-      }
+      if (oldTab.type === 'concept') debouncedSavePrefs(oldTab.targetId, { view_mode: mode });
       return;
     }
 
-    // Float mode: extract single tab only
+    // Float mode
     if (mode === 'float') {
-      const layoutUpdate: Partial<EditorStore> = {};
-      const { sideLayout, fullLayout } = get();
-      if (oldMode === 'side' && sideLayout && containsTab(sideLayout, tabId)) {
-        layoutUpdate.sideLayout = removeLeaf(sideLayout, tabId);
-      }
-      if (oldMode === 'full' && fullLayout && containsTab(fullLayout, tabId)) {
-        layoutUpdate.fullLayout = removeLeaf(fullLayout, tabId);
-      }
+      const layoutUpdate = removeFromLayout(get(), oldMode, tabId);
       set((s) => ({
         ...layoutUpdate,
         tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: 'float' } : t)),
       }));
-      if (oldTab.type === 'concept') {
-        debouncedSavePrefs(oldTab.targetId, { view_mode: mode });
-      }
+      if (oldTab.type === 'concept') debouncedSavePrefs(oldTab.targetId, { view_mode: mode });
       return;
     }
 
-    // full ↔ side: group switch — all tabs in oldMode move together
+    // full ↔ side: group switch — all tabs in oldMode move together, layout tree transfers
     if ((oldMode === 'side' || oldMode === 'full') && (mode === 'side' || mode === 'full') && oldMode !== mode) {
-      const tabsInOldMode = get().tabs.filter((t) => t.viewMode === oldMode && !t.isMinimized);
+      const tabsInOldMode = get().tabs.filter((t) => t.viewMode === oldMode);
       const tabIds = tabsInOldMode.map((t) => t.id);
 
-      // Transfer the entire layout tree from old mode to new mode
       const { sideLayout, fullLayout } = get();
       const layoutUpdate: Partial<EditorStore> = {};
       if (oldMode === 'side') {
-        layoutUpdate.fullLayout = sideLayout; // move layout tree to full
+        layoutUpdate.fullLayout = sideLayout;
         layoutUpdate.sideLayout = null;
       } else {
-        layoutUpdate.sideLayout = fullLayout; // move layout tree to side
+        layoutUpdate.sideLayout = fullLayout;
         layoutUpdate.fullLayout = null;
       }
 
@@ -319,23 +397,34 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         tabs: s.tabs.map((t) => (tabIds.includes(t.id) ? { ...t, viewMode: mode } : t)),
       }));
 
-      // Save prefs for concept tabs
       tabsInOldMode.forEach((t) => {
-        if (t.type === 'concept') {
-          debouncedSavePrefs(t.targetId, { view_mode: mode });
-        }
+        if (t.type === 'concept') debouncedSavePrefs(t.targetId, { view_mode: mode });
       });
       return;
     }
 
     // Default: single tab joining side or full from float/detached/other
-    set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: mode } : t)),
-    }));
-
-    if (oldTab.type === 'concept') {
-      debouncedSavePrefs(oldTab.targetId, { view_mode: mode });
+    if (mode === 'side' || mode === 'full') {
+      let layout = getLayoutForMode(get(), mode);
+      if (!layout) {
+        layout = { type: 'leaf', tabIds: [tabId], activeTabId: tabId };
+      } else {
+        const { activeTabId: currentActive } = get();
+        const focusedLeaf = currentActive ? findLeafWithTab(layout, currentActive) : null;
+        const targetLeafTabId = focusedLeaf ? focusedLeaf.activeTabId : getFirstLeaf(layout).activeTabId;
+        layout = addTabToLeaf(layout, targetLeafTabId, tabId);
+      }
+      set((s) => ({
+        ...setLayoutForMode(mode, layout),
+        tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: mode, isMinimized: false } : t)),
+      }));
+    } else {
+      set((s) => ({
+        tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: mode } : t)),
+      }));
     }
+
+    if (oldTab.type === 'concept') debouncedSavePrefs(oldTab.targetId, { view_mode: mode });
   },
 
   toggleMinimize: (tabId) => {
@@ -345,7 +434,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const mode = tab.viewMode;
     const newMinimized = !tab.isMinimized;
 
-    // side/full: minimize/restore ALL tabs in the same mode together
     if (mode === 'side' || mode === 'full') {
       set((s) => ({
         tabs: s.tabs.map((t) =>
@@ -353,7 +441,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         ),
       }));
     } else {
-      // float/detached: individual toggle
       set((s) => ({
         tabs: s.tabs.map((t) =>
           t.id === tabId ? { ...t, isMinimized: newMinimized } : t,
@@ -414,49 +501,75 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   // ── Split layout operations ──
 
   splitTab: (targetTabId, newTabId, direction, position) => {
+    if (targetTabId === newTabId) return;
+
     const targetTab = get().tabs.find((t) => t.id === targetTabId);
     if (!targetTab) return;
 
     const mode = targetTab.viewMode;
     if (mode !== 'side' && mode !== 'full') return;
 
-    const layout = getLayoutForMode(get(), mode);
+    let layout = getLayoutForMode(get(), mode);
     if (!layout) return;
 
-    // Also set the new tab's viewMode to match
     const newTab = get().tabs.find((t) => t.id === newTabId);
-    const tabUpdate = newTab && newTab.viewMode !== mode
-      ? { tabs: get().tabs.map((t) => (t.id === newTabId ? { ...t, viewMode: mode } : t)) }
-      : {};
+    if (!newTab) return;
 
-    const newLeaf: SplitLeaf = { type: 'leaf', tabId: newTabId };
-    const newBranch: SplitBranch = {
-      type: 'branch',
-      direction,
-      ratio: 0.5,
-      children: position === 'before'
-        ? [newLeaf, { type: 'leaf', tabId: targetTabId }]
-        : [{ type: 'leaf', tabId: targetTabId }, newLeaf],
-    };
+    // Remove newTab from this layout if already present (it gets its own leaf)
+    if (containsTab(layout, newTabId)) {
+      const result = removeTabFromTree(layout, newTabId);
+      if (!result) return;
+      layout = result;
+    }
 
-    const newLayout = findAndReplace(layout, targetTabId, newBranch);
+    // Remove from old mode's layout if different
+    const oldLayoutUpdate: Partial<EditorStore> = {};
+    if (newTab.viewMode !== mode && (newTab.viewMode === 'side' || newTab.viewMode === 'full')) {
+      Object.assign(oldLayoutUpdate, removeFromLayout(get(), newTab.viewMode, newTabId));
+    }
+
+    const newLayout = splitLeafContaining(layout, targetTabId, newTabId, direction, position);
     if (newLayout) {
-      set({ ...setLayoutForMode(mode, newLayout), ...tabUpdate });
+      set((s) => ({
+        ...oldLayoutUpdate,
+        ...setLayoutForMode(mode, newLayout),
+        tabs: s.tabs.map((t) => (t.id === newTabId ? { ...t, viewMode: mode, isMinimized: false } : t)),
+        activeTabId: newTabId,
+      }));
     }
   },
 
-  unsplitTab: (tabId) => {
-    const { sideLayout, fullLayout } = get();
-    const layoutUpdate: Partial<EditorStore> = {};
+  moveTabToPane: (tabId, targetPaneTabId, mode) => {
+    if (tabId === targetPaneTabId) return;
 
-    if (sideLayout && containsTab(sideLayout, tabId)) {
-      layoutUpdate.sideLayout = removeLeaf(sideLayout, tabId);
-    }
-    if (fullLayout && containsTab(fullLayout, tabId)) {
-      layoutUpdate.fullLayout = removeLeaf(fullLayout, tabId);
+    let layout = getLayoutForMode(get(), mode);
+    if (!layout) return;
+
+    const tab = get().tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+
+    // Remove from old mode's layout if different
+    const oldLayoutUpdate: Partial<EditorStore> = {};
+    if (tab.viewMode !== mode && (tab.viewMode === 'side' || tab.viewMode === 'full')) {
+      Object.assign(oldLayoutUpdate, removeFromLayout(get(), tab.viewMode, tabId));
     }
 
-    set(layoutUpdate);
+    // Remove from current position in same layout (if present, e.g. moving between panes)
+    if (containsTab(layout, tabId)) {
+      const result = removeTabFromTree(layout, tabId);
+      if (!result) return;
+      layout = result;
+    }
+
+    // Add to target leaf
+    layout = addTabToLeaf(layout, targetPaneTabId, tabId);
+
+    set((s) => ({
+      ...oldLayoutUpdate,
+      ...setLayoutForMode(mode, layout!),
+      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: mode, isMinimized: false } : t)),
+      activeTabId: tabId,
+    }));
   },
 
   updateSplitRatio: (mode, path, ratio) => {

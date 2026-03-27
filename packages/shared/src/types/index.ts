@@ -328,7 +328,8 @@ export type SplitDirection = 'horizontal' | 'vertical';
 
 export interface SplitLeaf {
   type: 'leaf';
-  tabId: string;
+  tabIds: string[];
+  activeTabId: string;
 }
 
 export interface SplitBranch {

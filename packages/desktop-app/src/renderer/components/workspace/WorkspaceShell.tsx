@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { Project, EditorViewMode } from '@moc/shared/types';
+import type { Project, EditorViewMode, SplitLeaf, EditorTab } from '@moc/shared/types';
 import { ActivityBar } from '../sidebar/ActivityBar';
 import { Sidebar } from '../sidebar/Sidebar';
 import { ConceptWorkspace } from './ConceptWorkspace';
@@ -12,8 +12,7 @@ import { EditorContent } from '../editor/EditorContent';
 import { EditorTabStrip } from '../editor/EditorTabStrip';
 import { SplitPaneRenderer } from '../editor/SplitPaneRenderer';
 import { DropZoneOverlay } from '../editor/DropZoneOverlay';
-import type { DropResult } from '../editor/DropZoneOverlay';
-import { useEditorStore } from '../../stores/editor-store';
+import { useEditorStore, getActiveTabFromLayout } from '../../stores/editor-store';
 import { useUIStore } from '../../stores/ui-store';
 import { isTabDrag, getTabDragData } from '../../hooks/useTabDrag';
 
@@ -27,7 +26,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
   const sideLayout = useEditorStore((s) => s.sideLayout);
   const {
     setActiveTab, closeTab, setViewMode, toggleMinimize,
-    updateSideSplitRatio, updateSplitRatio, splitTab, updateFloatRect,
+    updateSideSplitRatio, updateSplitRatio, splitTab, moveTabToPane, updateFloatRect,
   } = useEditorStore();
   const { sidebarOpen, setSidebarWidth } = useUIStore();
 
@@ -35,7 +34,6 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
   useEffect(() => {
     const cleanupClosed = window.electron.editor.onDetachedClosed((tabId: string) => {
       const tab = useEditorStore.getState().tabs.find((t) => t.id === tabId);
-      // Only close if still in detached mode (not already reattached)
       if (tab?.viewMode === 'detached') {
         closeTab(tabId);
       }
@@ -51,15 +49,25 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
   const isFullMode = activeTab && !activeTab.isMinimized && activeTab.viewMode === 'full';
-  const sideTabs = tabs.filter((t) => t.viewMode === 'side' && !t.isMinimized);
-  const hasSideEditor = !isFullMode && sideTabs.length > 0;
+  const hasSideEditor = !isFullMode && sideLayout !== null
+    && tabs.some((t) => t.viewMode === 'side' && !t.isMinimized);
 
-  const activeSideTab = hasSideEditor
-    ? (sideTabs.find((t) => t.id === activeTabId) ?? sideTabs[0])
-    : null;
+  // Derive the side active tab for canvas-editor split ratio
+  const sideActiveTabId = sideLayout ? getActiveTabFromLayout(sideLayout, activeTabId) : null;
+  const sideActiveTab = sideActiveTabId ? tabs.find((t) => t.id === sideActiveTabId) : null;
 
-  // Track if a tab drag is happening (for showing side drop hint when no side editor)
+  // Track if a tab drag is happening
   const [showSideDropHint, setShowSideDropHint] = useState(false);
+  const [isTabDragging, setIsTabDragging] = useState(false);
+
+  useEffect(() => {
+    const resetDragState = () => {
+      setIsTabDragging(false);
+      setShowSideDropHint(false);
+    };
+    document.addEventListener('dragend', resetDragState);
+    return () => document.removeEventListener('dragend', resetDragState);
+  }, []);
 
   // Side editor split drag (canvas ↔ side panel)
   const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -67,7 +75,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
 
   const handleEditorSplitDragStart = useCallback(
     (e: React.MouseEvent) => {
-      if (!activeSideTab) return;
+      if (!sideActiveTab) return;
       e.preventDefault();
       editorDraggingRef.current = true;
 
@@ -75,7 +83,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
         if (!editorDraggingRef.current || !editorContainerRef.current) return;
         const rect = editorContainerRef.current.getBoundingClientRect();
         const ratio = (ev.clientX - rect.left) / rect.width;
-        updateSideSplitRatio(activeSideTab.id, ratio);
+        updateSideSplitRatio(sideActiveTab.id, ratio);
       };
 
       const handleUp = () => {
@@ -87,7 +95,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
     },
-    [activeSideTab, updateSideSplitRatio],
+    [sideActiveTab, updateSideSplitRatio],
   );
 
   // Sidebar resize drag
@@ -116,31 +124,80 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
     [setSidebarWidth],
   );
 
-  const splitRatio = activeSideTab?.sideSplitRatio ?? 0.5;
+  const splitRatio = sideActiveTab?.sideSplitRatio ?? 0.5;
 
-  // Render a leaf in the side split layout
+  // Render a leaf in the side split layout (each leaf gets its own tab strip + drop zone)
   const renderSideLeaf = useCallback(
-    (tabId: string) => {
-      const tab = tabs.find((t) => t.id === tabId);
-      if (!tab) return null;
-      return <EditorContent tab={tab} />;
+    (leaf: SplitLeaf) => {
+      const leafTabs = leaf.tabIds
+        .map((id) => tabs.find((t) => t.id === id))
+        .filter((t): t is EditorTab => t != null);
+      const activeLeafTab = leafTabs.find((t) => t.id === leaf.activeTabId) ?? leafTabs[0];
+
+      return (
+        <div className="flex h-full flex-col overflow-hidden">
+          <EditorTabStrip
+            tabs={leafTabs}
+            activeTabId={leaf.activeTabId}
+            onActivate={setActiveTab}
+            onClose={closeTab}
+            onTabDrop={(droppedId) => moveTabToPane(droppedId, leaf.activeTabId, 'side')}
+            rightSlot={
+              <EditorViewModeSwitch
+                currentMode="side"
+                onModeChange={(mode) => setViewMode(leaf.activeTabId, mode)}
+                onMinimize={() => toggleMinimize(leaf.activeTabId)}
+              />
+            }
+          />
+          <div className="relative flex-1 overflow-hidden">
+            {activeLeafTab && <EditorContent tab={activeLeafTab} />}
+            <DropZoneOverlay
+              onDrop={(result) => {
+                setIsTabDragging(false);
+                if (result.zone === 'center') {
+                  moveTabToPane(result.tabId, leaf.activeTabId, 'side');
+                } else {
+                  const targetId = leaf.tabIds.find((id) => id !== result.tabId) ?? leaf.activeTabId;
+                  if (targetId !== result.tabId || leaf.tabIds.length > 1) {
+                    splitTab(targetId, result.tabId, result.direction, result.position);
+                  }
+                }
+              }}
+              active={isTabDragging}
+            />
+          </div>
+        </div>
+      );
     },
-    [tabs],
+    [tabs, isTabDragging, setActiveTab, closeTab, setViewMode, toggleMinimize, moveTabToPane, splitTab],
   );
 
-  const hasSideSplit = sideLayout && sideLayout.type === 'branch';
+  // Global drag tracking for drop zone activation
+  const handleShellDragEnter = useCallback((e: React.DragEvent) => {
+    if (isTabDrag(e)) setIsTabDragging(true);
+  }, []);
+
+  const handleShellDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsTabDragging(false);
+    setShowSideDropHint(false);
+  }, []);
+
+  const handleShellDrop = useCallback(() => {
+    setIsTabDragging(false);
+    setShowSideDropHint(false);
+  }, []);
 
   // Canvas area: drop → float mode
   const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
     if (!isTabDrag(e)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    // Show side drop hint if no side editor
     if (!hasSideEditor) setShowSideDropHint(true);
   }, [hasSideEditor]);
 
   const handleCanvasDragLeave = useCallback((e: React.DragEvent) => {
-    // Don't hide hint when moving to child elements (e.g. the hint div itself)
     if (e.currentTarget.contains(e.relatedTarget as Node)) return;
     setShowSideDropHint(false);
   }, []);
@@ -148,6 +205,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
   const handleCanvasDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setShowSideDropHint(false);
+    setIsTabDragging(false);
     const tabId = getTabDragData(e);
     if (!tabId) return;
     setViewMode(tabId, 'float');
@@ -161,26 +219,6 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
     setShowSideDropHint(false);
     const tabId = getTabDragData(e);
     if (!tabId) return;
-    setViewMode(tabId, 'side');
-    setActiveTab(tabId);
-  }, [setViewMode, setActiveTab]);
-
-  // Side panel drop zone: split within side
-  const handleSideDrop = useCallback((result: DropResult) => {
-    if (result.zone === 'center') {
-      // Just switch to side mode (join tab strip, no split)
-      setViewMode(result.tabId, 'side');
-      setActiveTab(result.tabId);
-    } else if (activeSideTab) {
-      // First ensure the tab is in side mode
-      setViewMode(result.tabId, 'side');
-      // Then split relative to the active side tab
-      splitTab(activeSideTab.id, result.tabId, result.direction, result.position);
-    }
-  }, [activeSideTab, setViewMode, setActiveTab, splitTab]);
-
-  // Side tab strip: dropping a tab joins the side panel
-  const handleSideTabDrop = useCallback((tabId: string) => {
     setViewMode(tabId, 'side');
     setActiveTab(tabId);
   }, [setViewMode, setActiveTab]);
@@ -200,9 +238,15 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
         </>
       )}
 
-      <div ref={editorContainerRef} className="flex flex-1 overflow-hidden">
+      <div
+        ref={editorContainerRef}
+        className="flex flex-1 overflow-hidden"
+        onDragEnter={handleShellDragEnter}
+        onDragLeave={handleShellDragLeave}
+        onDrop={handleShellDrop}
+      >
         {isFullMode ? (
-          <FullModeEditor tab={activeTab} />
+          <FullModeEditor />
         ) : (
           <>
             {/* Canvas area */}
@@ -216,7 +260,6 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
               <CanvasBreadcrumb />
               <ConceptWorkspace projectId={project.id} />
 
-              {/* Side drop hint (right edge) when no side editor exists */}
               {showSideDropHint && !hasSideEditor && (
                 <div
                   className="absolute right-0 top-0 bottom-0 w-16 bg-accent/20 border-l-2 border-accent transition-all flex items-center justify-center"
@@ -229,7 +272,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
             </div>
 
             {/* Side editor */}
-            {hasSideEditor && activeSideTab && (
+            {hasSideEditor && sideLayout && (
               <>
                 <div
                   className="shrink-0 cursor-col-resize bg-border-subtle hover:bg-accent"
@@ -237,37 +280,15 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
                   onMouseDown={handleEditorSplitDragStart}
                 />
                 <div
-                  className="relative flex flex-col overflow-hidden bg-surface-panel"
+                  className="flex flex-col overflow-hidden bg-surface-panel"
                   style={{ width: `${(1 - splitRatio) * 100}%` }}
                 >
-                  <EditorTabStrip
-                    tabs={sideTabs}
-                    activeTabId={activeSideTab.id}
-                    onActivate={setActiveTab}
-                    onClose={closeTab}
-                    onTabDrop={handleSideTabDrop}
-                    rightSlot={
-                      <EditorViewModeSwitch
-                        currentMode={activeSideTab.viewMode}
-                        onModeChange={(mode) => setViewMode(activeSideTab.id, mode)}
-                        onMinimize={() => toggleMinimize(activeSideTab.id)}
-                      />
-                    }
+                  <SplitPaneRenderer
+                    node={sideLayout}
+                    mode="side"
+                    renderLeaf={renderSideLeaf}
+                    onRatioChange={updateSplitRatio}
                   />
-                  <div className="relative flex-1 overflow-hidden">
-                    {hasSideSplit && sideLayout ? (
-                      <SplitPaneRenderer
-                        node={sideLayout}
-                        mode="side"
-                        renderLeaf={renderSideLeaf}
-                        onRatioChange={updateSplitRatio}
-                      />
-                    ) : (
-                      <EditorContent tab={activeSideTab} />
-                    )}
-                    {/* Drop zone overlay for splitting within side panel */}
-                    <DropZoneOverlay onDrop={handleSideDrop} />
-                  </div>
                 </div>
               </>
             )}

@@ -13,8 +13,8 @@ export interface DropResult {
 
 interface DropZoneOverlayProps {
   onDrop: (result: DropResult) => void;
-  /** If true, only show the center zone (no split indicators) */
   centerOnly?: boolean;
+  active: boolean;
 }
 
 function zoneToSplit(zone: DropZone): { direction: SplitDirection; position: 'before' | 'after' } {
@@ -34,7 +34,6 @@ function getZone(e: React.DragEvent<HTMLDivElement>, centerOnly?: boolean): Drop
   const x = (e.clientX - rect.left) / rect.width;
   const y = (e.clientY - rect.top) / rect.height;
 
-  // Edge threshold: 25% from each edge
   const threshold = 0.25;
 
   if (y < threshold) return 'top';
@@ -44,9 +43,8 @@ function getZone(e: React.DragEvent<HTMLDivElement>, centerOnly?: boolean): Drop
   return 'center';
 }
 
-export function DropZoneOverlay({ onDrop, centerOnly }: DropZoneOverlayProps): JSX.Element {
+export function DropZoneOverlay({ onDrop, centerOnly, active }: DropZoneOverlayProps): JSX.Element | null {
   const [activeZone, setActiveZone] = useState<DropZone | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -55,16 +53,13 @@ export function DropZoneOverlay({ onDrop, centerOnly }: DropZoneOverlayProps): J
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
       setActiveZone(getZone(e, centerOnly));
-      setIsDragOver(true);
     },
     [centerOnly],
   );
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    // Only handle leaving the overlay itself, not its children
     if (e.currentTarget.contains(e.relatedTarget as Node)) return;
     setActiveZone(null);
-    setIsDragOver(false);
   }, []);
 
   const handleDrop = useCallback(
@@ -79,53 +74,39 @@ export function DropZoneOverlay({ onDrop, centerOnly }: DropZoneOverlayProps): J
       onDrop({ tabId, zone, direction, position });
 
       setActiveZone(null);
-      setIsDragOver(false);
     },
     [onDrop, centerOnly],
   );
 
-  if (!isDragOver && !activeZone) {
-    // Invisible overlay that catches dragenter
-    return (
-      <div
-        className="absolute inset-0 z-20"
-        onDragOver={handleDragOver}
-        onDragEnter={(e) => { if (isTabDrag(e)) setIsDragOver(true); }}
-      />
-    );
-  }
+  // Only render when a drag is active
+  if (!active) return null;
 
   return (
     <div
-      className="absolute inset-0 z-20"
+      className="absolute inset-0 z-20 pointer-events-none"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {centerOnly ? (
-        <div className={`absolute inset-0 transition-colors ${
+        <div className={`absolute inset-0 pointer-events-auto transition-colors ${
           activeZone === 'center' ? 'bg-accent/20 border-2 border-accent' : ''
         }`} />
       ) : (
         <>
-          {/* Top */}
-          <div className={`absolute inset-x-0 top-0 h-1/4 transition-colors ${
+          <div className={`absolute inset-x-0 top-0 h-1/4 pointer-events-auto transition-colors ${
             activeZone === 'top' ? 'bg-accent/20 border-b-2 border-accent' : ''
           }`} />
-          {/* Bottom */}
-          <div className={`absolute inset-x-0 bottom-0 h-1/4 transition-colors ${
+          <div className={`absolute inset-x-0 bottom-0 h-1/4 pointer-events-auto transition-colors ${
             activeZone === 'bottom' ? 'bg-accent/20 border-t-2 border-accent' : ''
           }`} />
-          {/* Left */}
-          <div className={`absolute inset-y-0 left-0 w-1/4 transition-colors ${
+          <div className={`absolute inset-y-0 left-0 w-1/4 pointer-events-auto transition-colors ${
             activeZone === 'left' ? 'bg-accent/20 border-r-2 border-accent' : ''
           }`} />
-          {/* Right */}
-          <div className={`absolute inset-y-0 right-0 w-1/4 transition-colors ${
+          <div className={`absolute inset-y-0 right-0 w-1/4 pointer-events-auto transition-colors ${
             activeZone === 'right' ? 'bg-accent/20 border-l-2 border-accent' : ''
           }`} />
-          {/* Center */}
-          <div className={`absolute left-1/4 right-1/4 top-1/4 bottom-1/4 transition-colors ${
+          <div className={`absolute left-1/4 right-1/4 top-1/4 bottom-1/4 pointer-events-auto transition-colors ${
             activeZone === 'center' ? 'bg-accent/10 border-2 border-dashed border-accent' : ''
           }`} />
         </>

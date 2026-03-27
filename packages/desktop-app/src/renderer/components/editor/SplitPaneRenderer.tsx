@@ -1,11 +1,11 @@
 import React, { useCallback, useRef } from 'react';
-import type { SplitNode } from '@moc/shared/types';
+import type { SplitNode, SplitLeaf } from '@moc/shared/types';
 
 interface SplitPaneRendererProps {
   node: SplitNode;
   mode: 'side' | 'full';
   path?: number[];
-  renderLeaf: (tabId: string) => React.ReactNode;
+  renderLeaf: (leaf: SplitLeaf) => React.ReactNode;
   onRatioChange: (mode: 'side' | 'full', path: number[], ratio: number) => void;
 }
 
@@ -17,7 +17,7 @@ export function SplitPaneRenderer({
   onRatioChange,
 }: SplitPaneRendererProps): JSX.Element {
   if (node.type === 'leaf') {
-    return <div className="h-full w-full overflow-hidden">{renderLeaf(node.tabId)}</div>;
+    return <div className="h-full w-full overflow-hidden">{renderLeaf(node)}</div>;
   }
 
   const isHorizontal = node.direction === 'horizontal';
@@ -101,10 +101,10 @@ function SplitHandle({ direction, mode, path, onRatioChange }: SplitHandleProps)
 
   return (
     <div
-      className={`shrink-0 bg-border-subtle hover:bg-accent transition-colors ${
-        direction === 'horizontal' ? 'cursor-col-resize' : 'cursor-row-resize'
+      className={`shrink-0 bg-border-default hover:bg-accent transition-colors ${
+        direction === 'horizontal' ? 'cursor-col-resize border-x border-border-strong' : 'cursor-row-resize border-y border-border-strong'
       }`}
-      style={direction === 'horizontal' ? { width: 4 } : { height: 4 }}
+      style={direction === 'horizontal' ? { width: 6 } : { height: 6 }}
       onMouseDown={handleMouseDown}
     />
   );
