@@ -13,18 +13,30 @@ export interface OpenFile {
   isDirty: boolean;
 }
 
+export type ClipboardAction = 'copy' | 'cut';
+
+interface ClipboardState {
+  path: string;
+  action: ClipboardAction;
+}
+
 interface FileStore {
   fileTree: FileTreeNode[];
   openFiles: OpenFile[];
   activeFilePath: string | null;
   loading: boolean;
+  clipboard: ClipboardState | null;
+  rootDirs: string[];
 
   loadFileTree: (rootDirs: string | string[]) => Promise<void>;
+  refreshFileTree: () => Promise<void>;
   openFile: (relativePath: string, rootDir: string) => Promise<void>;
   closeFile: (filePath: string) => void;
   setActiveFile: (filePath: string) => void;
   updateContent: (filePath: string, content: string) => void;
   saveFile: (filePath: string) => Promise<void>;
+  setClipboard: (path: string, action: ClipboardAction) => void;
+  clearClipboard: () => void;
   clear: () => void;
 }
 
@@ -33,20 +45,21 @@ export const useFileStore = create<FileStore>((set, get) => ({
   openFiles: [],
   activeFilePath: null,
   loading: false,
+  clipboard: null,
+  rootDirs: [],
 
   loadFileTree: async (rootDirs) => {
-    set({ loading: true });
+    const dirs = Array.isArray(rootDirs) ? rootDirs : [rootDirs];
+    set({ loading: true, rootDirs: dirs });
     try {
-      const dirs = Array.isArray(rootDirs) ? rootDirs : [rootDirs];
       const trees = await Promise.all(dirs.map((d) => fsService.readDir(d)));
-      // Merge: each directory becomes a top-level node
       const fileTree = dirs.length === 1
         ? trees[0]
         : dirs.map((dirPath, i) => {
             const name = dirPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || dirPath;
             return {
               name,
-              path: dirPath,
+              path: dirPath.replace(/\\/g, '/'),
               type: 'directory' as const,
               children: trees[i],
             };
@@ -54,6 +67,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set({ fileTree });
     } finally {
       set({ loading: false });
+    }
+  },
+
+  refreshFileTree: async () => {
+    const { rootDirs } = get();
+    if (rootDirs.length > 0) {
+      await get().loadFileTree(rootDirs);
     }
   },
 
@@ -116,5 +136,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }));
   },
 
-  clear: () => set({ fileTree: [], openFiles: [], activeFilePath: null }),
+  setClipboard: (path, action) => set({ clipboard: { path, action } }),
+  clearClipboard: () => set({ clipboard: null }),
+
+  clear: () => set({ fileTree: [], openFiles: [], activeFilePath: null, clipboard: null, rootDirs: [] }),
 }));

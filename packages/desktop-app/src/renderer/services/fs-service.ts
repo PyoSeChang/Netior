@@ -26,4 +26,40 @@ export async function openFileDialog(filters?: { name: string; extensions: strin
   return result ? (result as string[])[0] : null;
 }
 
-export const fsService = { readDir, readFile, writeFile, openFolderDialog, openFileDialog };
+export async function renameItem(oldPath: string, newPath: string): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.rename(oldPath, newPath));
+}
+
+export async function deleteItem(targetPath: string): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.delete(targetPath));
+}
+
+export async function createFile(filePath: string): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.createFile(filePath));
+}
+
+export async function createDir(dirPath: string): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.createDir(dirPath));
+}
+
+export async function copyItem(src: string, dest: string): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.copy(src, dest));
+}
+
+export async function moveItem(src: string, dest: string): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.move(src, dest));
+}
+
+export async function showInExplorer(targetPath: string): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.showInExplorer(targetPath));
+}
+
+export async function existsItem(targetPath: string): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.exists(targetPath));
+}
+
+export const fsService = {
+  readDir, readFile, writeFile, openFolderDialog, openFileDialog,
+  renameItem, deleteItem, createFile, createDir, copyItem, moveItem,
+  showInExplorer, existsItem,
+};

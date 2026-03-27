@@ -94,6 +94,15 @@ const electronAPI = {
       ipcRenderer.invoke('fs:writeFile', filePath, content),
     openDialog: (options?: Record<string, unknown>) =>
       ipcRenderer.invoke('fs:openDialog', options),
+    rename: (oldPath: string, newPath: string) =>
+      ipcRenderer.invoke('fs:rename', oldPath, newPath),
+    delete: (targetPath: string) => ipcRenderer.invoke('fs:delete', targetPath),
+    createFile: (filePath: string) => ipcRenderer.invoke('fs:createFile', filePath),
+    createDir: (dirPath: string) => ipcRenderer.invoke('fs:createDir', dirPath),
+    copy: (src: string, dest: string) => ipcRenderer.invoke('fs:copy', src, dest),
+    move: (src: string, dest: string) => ipcRenderer.invoke('fs:move', src, dest),
+    showInExplorer: (targetPath: string) => ipcRenderer.invoke('fs:showInExplorer', targetPath),
+    exists: (targetPath: string) => ipcRenderer.invoke('fs:exists', targetPath),
   },
   config: {
     get: (key: string) => ipcRenderer.invoke('config:get', key),
