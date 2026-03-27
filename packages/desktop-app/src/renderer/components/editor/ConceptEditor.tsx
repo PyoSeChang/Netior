@@ -1,142 +1,181 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import type { EditorTab } from '@moc/shared/types';
-import type { ConceptFile } from '@moc/shared/types';
-import { conceptFileService, conceptService } from '../../services';
-import { useFileStore } from '../../stores/file-store';
+import type { EditorTab, ConceptFile } from '@moc/shared/types';
+import { Eye, Bot, Paperclip } from 'lucide-react';
+import { conceptFileService } from '../../services';
+import { useConceptStore } from '../../stores/concept-store';
+import { useArchetypeStore } from '../../stores/archetype-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
-import { useI18n } from '../../hooks/useI18n';
-import { renderEditor } from './FileEditor';
-import { getEditorType, getMonacoLanguage } from './editor-utils';
+import { ScrollArea } from '../ui/ScrollArea';
+import { Badge } from '../ui/Badge';
 import { ConceptPropertiesPanel } from './ConceptPropertiesPanel';
-import { useConceptStore } from '../../stores/concept-store';
+import { ConceptBodyEditor } from './ConceptBodyEditor';
+import { ConceptAgentView } from './ConceptAgentView';
+import { ContentEditableEditor } from './ContentEditableEditor';
+
+type ConceptViewMode = 'human' | 'agent';
 
 interface ConceptEditorProps {
   tab: EditorTab;
 }
 
+// --- Title editor (inline contentEditable) ---
+
+function ConceptTitleEditor({ conceptId, title }: { conceptId: string; title: string }): JSX.Element {
+  const updateConcept = useConceptStore((s) => s.updateConcept);
+  const { updateTitle } = useEditorStore();
+
+  const handleChange = useCallback(
+    (newTitle: string) => {
+      const trimmed = newTitle.trim();
+      if (trimmed && trimmed !== title) {
+        updateConcept(conceptId, { title: trimmed });
+        // Sync editor tab title
+        const tabId = `concept:${conceptId}`;
+        updateTitle(tabId, trimmed);
+      }
+    },
+    [conceptId, title, updateConcept, updateTitle],
+  );
+
+  return (
+    <ContentEditableEditor
+      value={title}
+      onChange={handleChange}
+      placeholder="Untitled"
+      className="text-2xl font-bold text-default"
+      singleLine
+    />
+  );
+}
+
+// --- Main editor ---
+
 export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
-  const { t } = useI18n();
+  const [viewMode, setViewMode] = useState<ConceptViewMode>('human');
   const [files, setFiles] = useState<ConceptFile[]>([]);
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleValue, setTitleValue] = useState(tab.title);
-  const concept = useConceptStore((s) => s.concepts.find((c) => c.id === tab.targetId));
 
-  const { openFile, openFiles, updateContent, saveFile } = useFileStore();
-  const { setActiveFile, setDirty } = useEditorStore();
   const currentProject = useProjectStore((s) => s.currentProject);
-
   const rootDir = currentProject?.root_dir ?? '';
 
+  // Ensure concepts are loaded in the store
+  const concepts = useConceptStore((s) => s.concepts);
+  const loadByProject = useConceptStore((s) => s.loadByProject);
+  const concept = concepts.find((c) => c.id === tab.targetId);
+
+  useEffect(() => {
+    if (concepts.length === 0 && currentProject) {
+      loadByProject(currentProject.id);
+    }
+  }, [concepts.length, currentProject, loadByProject]);
+
+  const archetype = useArchetypeStore((s) =>
+    concept?.archetype_id ? s.archetypes.find((a) => a.id === concept.archetype_id) : undefined,
+  );
+
+  // Load attached files
   useEffect(() => {
     conceptFileService.getByConcept(tab.targetId).then(setFiles).catch(() => {});
   }, [tab.targetId]);
 
-  useEffect(() => {
-    if (!tab.activeFilePath && files.length > 0 && rootDir) {
-      const first = files[0].file_path;
-      openFile(first, rootDir).then(() => {
-        setActiveFile(tab.id, first);
-      });
-    }
-  }, [files, tab.activeFilePath, tab.id, rootDir, openFile, setActiveFile]);
-
-  const handleFileSelect = useCallback(
+  // Open attached file as a separate file tab
+  const handleFileClick = useCallback(
     (filePath: string) => {
-      if (rootDir) {
-        openFile(filePath, rootDir).then(() => {
-          setActiveFile(tab.id, filePath);
-        });
-      }
-    },
-    [rootDir, openFile, setActiveFile, tab.id],
-  );
-
-  const handleTitleSubmit = useCallback(() => {
-    setEditingTitle(false);
-    const trimmed = titleValue.trim();
-    if (trimmed && trimmed !== tab.title) {
-      conceptService.update(tab.targetId, { title: trimmed }).catch(() => {});
-    }
-  }, [titleValue, tab.title, tab.targetId]);
-
-  const handleTitleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') handleTitleSubmit();
-      if (e.key === 'Escape') {
-        setTitleValue(tab.title);
-        setEditingTitle(false);
-      }
-    },
-    [handleTitleSubmit, tab.title],
-  );
-
-  const activeFile = openFiles.find((f) => f.filePath === tab.activeFilePath);
-
-  const handleContentChange = useCallback(
-    (content: string) => {
-      if (tab.activeFilePath) {
-        updateContent(tab.activeFilePath, content);
-        setDirty(tab.id, true);
-      }
-    },
-    [tab.activeFilePath, tab.id, updateContent, setDirty],
-  );
-
-  const handleSave = useCallback(() => {
-    if (tab.activeFilePath) {
-      saveFile(tab.activeFilePath).then(() => {
-        setDirty(tab.id, false);
+      if (!rootDir) return;
+      const absolutePath = `${rootDir}/${filePath}`;
+      const fileName = filePath.replace(/\\/g, '/').split('/').pop() ?? filePath;
+      useEditorStore.getState().openTab({
+        type: 'file',
+        targetId: absolutePath,
+        title: fileName,
       });
-    }
-  }, [tab.activeFilePath, tab.id, saveFile, setDirty]);
+    },
+    [rootDir],
+  );
+
+  if (!concept) {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-muted">
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Properties panel */}
-      {concept?.archetype_id && (
-        <ConceptPropertiesPanel conceptId={tab.targetId} archetypeId={concept.archetype_id} />
-      )}
-      {/* File list */}
-      {files.length > 0 && (
-        <div className="flex shrink-0 items-center gap-0 overflow-x-auto border-b border-subtle bg-surface-panel">
-          {files.map((f) => {
-            const name = f.file_path.split('/').pop() ?? f.file_path;
-            const isActive = f.file_path === tab.activeFilePath;
-            return (
-              <button
-                key={f.id}
-                className={`shrink-0 px-3 py-1.5 text-xs transition-colors ${
-                  isActive
-                    ? 'bg-surface-base text-default'
-                    : 'text-muted hover:bg-surface-hover hover:text-default'
-                }`}
-                onClick={() => handleFileSelect(f.file_path)}
-              >
-                {name}
-              </button>
-            );
-          })}
+      {/* View mode toggle */}
+      <div className="flex shrink-0 items-center border-b border-subtle bg-surface-panel px-2">
+        <button
+          className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors ${
+            viewMode === 'human' ? 'text-accent border-b-2 border-accent' : 'text-muted hover:text-default'
+          }`}
+          onClick={() => setViewMode('human')}
+        >
+          <Eye size={12} />
+          Human
+        </button>
+        <button
+          className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors ${
+            viewMode === 'agent' ? 'text-accent border-b-2 border-accent' : 'text-muted hover:text-default'
+          }`}
+          onClick={() => setViewMode('agent')}
+        >
+          <Bot size={12} />
+          Agent
+        </button>
+      </div>
+
+      {/* Agent View */}
+      {viewMode === 'agent' && (
+        <div className="flex-1 overflow-hidden">
+          <ConceptAgentView conceptId={tab.targetId} agentContent={concept.agent_content} />
         </div>
       )}
 
-      <div className="flex-1 overflow-hidden">
-        {activeFile ? (
-          renderEditor(
-            getEditorType(activeFile.filePath),
-            {
-              content: activeFile.content,
-              filePath: activeFile.absolutePath,
-              onChange: handleContentChange,
-              onSave: handleSave,
-            },
-          )
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-muted">
-            {files.length === 0 ? t('concept.noFiles') : t('concept.selectFile')}
+      {/* Human View */}
+      {viewMode === 'human' && (
+        <ScrollArea className="flex-1">
+          <div className="mx-auto max-w-[720px] px-6 py-6 flex flex-col gap-6">
+            {/* Title */}
+            <ConceptTitleEditor conceptId={concept.id} title={concept.title} />
+
+            {/* Archetype badge */}
+            {archetype && (
+              <div>
+                <Badge>{archetype.name}</Badge>
+              </div>
+            )}
+
+            {/* Properties */}
+            {concept.archetype_id && (
+              <ConceptPropertiesPanel conceptId={concept.id} archetypeId={concept.archetype_id} />
+            )}
+
+            {/* Body */}
+            <ConceptBodyEditor conceptId={concept.id} content={concept.content} />
+
+            {/* Attached files */}
+            {files.length > 0 && (
+              <div className="flex flex-col gap-1 border-t border-subtle pt-4">
+                <span className="text-xs font-medium text-muted mb-1">Attached Files</span>
+                {files.map((f) => {
+                  const name = f.file_path.replace(/\\/g, '/').split('/').pop() ?? f.file_path;
+                  return (
+                    <button
+                      key={f.id}
+                      className="flex items-center gap-2 px-2 py-1 text-sm text-default hover:bg-surface-hover rounded transition-colors text-left"
+                      onClick={() => handleFileClick(f.file_path)}
+                    >
+                      <Paperclip size={12} className="text-muted shrink-0" />
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </ScrollArea>
+      )}
     </div>
   );
 }

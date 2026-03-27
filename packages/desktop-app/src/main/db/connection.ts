@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import { migrate001 } from './migrations/001-initial';
 import { migrate002 } from './migrations/002-modules-and-hierarchical-canvas';
 import { migrate003 } from './migrations/003-archetypes';
+import { migrate004 } from './migrations/004-concept-content';
 
 let db: Database.Database | null = null;
 
@@ -17,6 +18,7 @@ const migrations: Migration[] = [
   { version: 1, migrate: migrate001 },
   { version: 2, migrate: migrate002 },
   { version: 3, migrate: migrate003 },
+  { version: 4, migrate: migrate004 },
 ];
 
 export function hasColumn(db: Database.Database, table: string, column: string): boolean {

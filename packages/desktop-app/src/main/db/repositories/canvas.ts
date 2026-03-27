@@ -138,6 +138,8 @@ export function getCanvasFull(canvasId: string): CanvasFullData | undefined {
       title: row.title as string,
       color: row.color as string | null,
       icon: row.icon as string | null,
+      content: null,
+      agent_content: null,
       created_at: row.concept_created_at as string,
       updated_at: row.concept_updated_at as string,
     },

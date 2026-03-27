@@ -1,6 +1,23 @@
 import { create } from 'zustand';
 import type { Concept, ConceptCreate, ConceptUpdate, ConceptProperty, ConceptPropertyUpsert } from '@moc/shared/types';
-import { conceptService, conceptPropertyService } from '../services';
+import { conceptService, conceptPropertyService, conceptContentService } from '../services';
+
+let syncTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+function debouncedSyncToAgent(conceptId: string) {
+  if (syncTimers[conceptId]) clearTimeout(syncTimers[conceptId]);
+  syncTimers[conceptId] = setTimeout(async () => {
+    try {
+      const updated = await conceptContentService.syncToAgent(conceptId);
+      useConceptStore.setState((s) => ({
+        concepts: s.concepts.map((c) => (c.id === conceptId ? updated : c)),
+      }));
+    } catch (err) {
+      console.error('[ConceptContent] Failed to sync to agent:', err);
+    }
+    delete syncTimers[conceptId];
+  }, 300);
+}
 
 interface ConceptStore {
   concepts: Concept[];
@@ -11,6 +28,9 @@ interface ConceptStore {
   createConcept: (data: ConceptCreate) => Promise<Concept>;
   updateConcept: (id: string, data: ConceptUpdate) => Promise<void>;
   deleteConcept: (id: string) => Promise<void>;
+
+  updateContent: (id: string, content: string | null) => Promise<void>;
+  updateAgentContent: (id: string, agentContent: string) => Promise<void>;
 
   loadProperties: (conceptId: string) => Promise<void>;
   upsertProperty: (data: ConceptPropertyUpsert) => Promise<void>;
@@ -52,6 +72,25 @@ export const useConceptStore = create<ConceptStore>((set) => ({
     set((s) => ({ concepts: s.concepts.filter((c) => c.id !== id) }));
   },
 
+  updateContent: async (id, content) => {
+    const updated = await conceptService.update(id, { content });
+    set((s) => ({
+      concepts: s.concepts.map((c) => (c.id === id ? updated : c)),
+    }));
+    debouncedSyncToAgent(id);
+  },
+
+  updateAgentContent: async (id, agentContent) => {
+    try {
+      const updated = await conceptContentService.syncFromAgent(id, agentContent);
+      set((s) => ({
+        concepts: s.concepts.map((c) => (c.id === id ? updated : c)),
+      }));
+    } catch (err) {
+      console.error('[ConceptContent] Failed to sync from agent:', err);
+    }
+  },
+
   loadProperties: async (conceptId) => {
     const props = await conceptPropertyService.getByConcept(conceptId);
     set((s) => ({ properties: { ...s.properties, [conceptId]: props } }));
@@ -66,6 +105,7 @@ export const useConceptStore = create<ConceptStore>((set) => ({
         : [...existing, prop];
       return { properties: { ...s.properties, [data.concept_id]: updated } };
     });
+    debouncedSyncToAgent(data.concept_id);
   },
 
   deleteProperty: async (id, conceptId) => {
@@ -78,5 +118,9 @@ export const useConceptStore = create<ConceptStore>((set) => ({
     }));
   },
 
-  clear: () => set({ concepts: [], properties: {} }),
+  clear: () => {
+    Object.values(syncTimers).forEach(clearTimeout);
+    syncTimers = {};
+    set({ concepts: [], properties: {} });
+  },
 }));

@@ -7,4 +7,5 @@ export { moduleService } from './module-service';
 export { editorPrefsService } from './editor-prefs-service';
 export { archetypeService } from './archetype-service';
 export { conceptPropertyService } from './concept-property-service';
+export { conceptContentService } from './concept-content-service';
 export { unwrapIpc } from './ipc';
