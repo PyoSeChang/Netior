@@ -23,6 +23,7 @@
     "better-sqlite3": "^9.4.0",
     "node-pty": "^1.1.0",
     "react-pdf": "^10.4.1",
+    "vscode-icons-js": "^11.6.1",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

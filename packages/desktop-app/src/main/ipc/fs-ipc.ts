@@ -1,38 +1,36 @@
-import { ipcMain, dialog } from 'electron';
-import { readdir, readFile, writeFile, stat } from 'fs/promises';
-import { join, extname, basename } from 'path';
+import { ipcMain, dialog, shell } from 'electron';
+import { readdir, readFile, writeFile, stat, rename, rm, mkdir, copyFile, cp } from 'fs/promises';
+import { join, extname, basename, dirname } from 'path';
+import { existsSync } from 'fs';
 import type { IpcResult, FileTreeNode } from '@moc/shared/types';
 
-async function buildFileTree(dirPath: string, relativeTo: string): Promise<FileTreeNode[]> {
+async function buildFileTree(dirPath: string): Promise<FileTreeNode[]> {
   const entries = await readdir(dirPath, { withFileTypes: true });
   const nodes: FileTreeNode[] = [];
 
   for (const entry of entries) {
-    // Skip hidden files/dirs
     if (entry.name.startsWith('.')) continue;
 
-    const fullPath = join(dirPath, entry.name);
-    const relativePath = fullPath.slice(relativeTo.length + 1).replace(/\\/g, '/');
+    const fullPath = join(dirPath, entry.name).replace(/\\/g, '/');
 
     if (entry.isDirectory()) {
-      const children = await buildFileTree(fullPath, relativeTo);
+      const children = await buildFileTree(join(dirPath, entry.name));
       nodes.push({
         name: entry.name,
-        path: relativePath,
+        path: fullPath,
         type: 'directory',
         children,
       });
     } else {
       nodes.push({
         name: entry.name,
-        path: relativePath,
+        path: fullPath,
         type: 'file',
         extension: extname(entry.name).slice(1).toLowerCase() || undefined,
       });
     }
   }
 
-  // Directories first, then files, alphabetically
   return nodes.sort((a, b) => {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
     return a.name.localeCompare(b.name);
@@ -42,7 +40,7 @@ async function buildFileTree(dirPath: string, relativeTo: string): Promise<FileT
 export function registerFsIpc(): void {
   ipcMain.handle('fs:readDir', async (_e, dirPath: string): Promise<IpcResult<unknown>> => {
     try {
-      const tree = await buildFileTree(dirPath, dirPath);
+      const tree = await buildFileTree(dirPath);
       return { success: true, data: tree };
     } catch (err) {
       return { success: false, error: (err as Error).message };
@@ -79,5 +77,86 @@ export function registerFsIpc(): void {
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
+  });
+
+  ipcMain.handle('fs:rename', async (_e, oldPath: string, newPath: string): Promise<IpcResult<unknown>> => {
+    try {
+      await rename(oldPath, newPath);
+      return { success: true, data: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('fs:delete', async (_e, targetPath: string): Promise<IpcResult<unknown>> => {
+    try {
+      await shell.trashItem(targetPath);
+      return { success: true, data: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('fs:createFile', async (_e, filePath: string): Promise<IpcResult<unknown>> => {
+    try {
+      if (existsSync(filePath)) {
+        return { success: false, error: 'File already exists' };
+      }
+      await mkdir(dirname(filePath), { recursive: true });
+      await writeFile(filePath, '', 'utf-8');
+      return { success: true, data: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('fs:createDir', async (_e, dirPath: string): Promise<IpcResult<unknown>> => {
+    try {
+      if (existsSync(dirPath)) {
+        return { success: false, error: 'Directory already exists' };
+      }
+      await mkdir(dirPath, { recursive: true });
+      return { success: true, data: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('fs:copy', async (_e, src: string, dest: string): Promise<IpcResult<unknown>> => {
+    try {
+      const srcStat = await stat(src);
+      if (srcStat.isDirectory()) {
+        await cp(src, dest, { recursive: true });
+      } else {
+        await mkdir(dirname(dest), { recursive: true });
+        await copyFile(src, dest);
+      }
+      return { success: true, data: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('fs:move', async (_e, src: string, dest: string): Promise<IpcResult<unknown>> => {
+    try {
+      await mkdir(dirname(dest), { recursive: true });
+      await rename(src, dest);
+      return { success: true, data: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('fs:showInExplorer', async (_e, targetPath: string): Promise<IpcResult<unknown>> => {
+    try {
+      shell.showItemInFolder(targetPath);
+      return { success: true, data: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('fs:exists', async (_e, targetPath: string): Promise<IpcResult<unknown>> => {
+    return { success: true, data: existsSync(targetPath) };
   });
 }
