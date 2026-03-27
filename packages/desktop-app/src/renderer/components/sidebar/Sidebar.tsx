@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { Layout, FolderTree } from 'lucide-react';
 import type { Project } from '@moc/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useFileStore } from '../../stores/file-store';
@@ -17,7 +16,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ project }: SidebarProps): JSX.Element {
-  const { sidebarView, setSidebarView, sidebarWidth } = useUIStore();
+  const { sidebarView, sidebarWidth } = useUIStore();
   const { loadFileTree, fileTree } = useFileStore();
   const { loadCanvases } = useCanvasStore();
   const { loadModules, directories } = useModuleStore();
@@ -42,34 +41,11 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
     });
   };
 
-  const tabs = [
-    { key: 'canvases' as const, icon: Layout },
-    { key: 'files' as const, icon: FolderTree },
-  ];
-
   return (
     <div
-      className="flex h-full shrink-0 flex-col border-r border-subtle bg-surface-panel"
+      className="flex h-full shrink-0 flex-col bg-surface-panel"
       style={{ width: sidebarWidth }}
     >
-      {/* Tab bar */}
-      <div className="flex border-b border-subtle">
-        {tabs.map(({ key, icon: Icon }) => (
-          <button
-            key={key}
-            className={`flex-1 py-2 text-center transition-colors ${
-              sidebarView === key
-                ? 'border-b-2 border-accent text-accent'
-                : 'text-muted hover:text-default'
-            }`}
-            onClick={() => setSidebarView(key)}
-          >
-            <Icon size={14} className="mx-auto" />
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
       <ScrollArea>
         <div className="py-2">
           {sidebarView === 'canvases' && <CanvasList projectId={project.id} />}
