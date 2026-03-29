@@ -2,6 +2,10 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { EditorTab } from '@moc/shared/types';
 import { setTabDragData, isTabDrag, getTabDragData } from '../../hooks/useTabDrag';
+import { ContextMenu } from '../ui/ContextMenu';
+import type { ContextMenuEntry } from '../ui/ContextMenu';
+import { buildTabContextMenu, buildStripContextMenu } from './tab-context-menu';
+import { useEditorStore } from '../../stores/editor-store';
 
 interface EditorTabStripProps {
   tabs: EditorTab[];
@@ -12,8 +16,42 @@ interface EditorTabStripProps {
   rightSlot?: React.ReactNode;
 }
 
+function InlineRenameInput({ value, onSubmit, onCancel }: { value: string; onSubmit: (v: string) => void; onCancel: () => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.select();
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      const v = inputRef.current?.value.trim();
+      if (v && v !== value) onSubmit(v);
+      else onCancel();
+    } else if (e.key === 'Escape') {
+      onCancel();
+    }
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      className="max-w-[120px] rounded border border-accent bg-surface-base px-1 text-xs text-default outline-none"
+      defaultValue={value}
+      onKeyDown={handleKeyDown}
+      onBlur={() => {
+        const v = inputRef.current?.value.trim();
+        if (v && v !== value) onSubmit(v);
+        else onCancel();
+      }}
+    />
+  );
+}
+
 export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDrop, rightSlot }: EditorTabStripProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: ContextMenuEntry[] } | null>(null);
+  const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLDivElement>(null);
 
@@ -25,6 +63,21 @@ export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDr
   }, [activeTabId]);
 
   if (tabs.length === 0 && !rightSlot) return <></>;
+
+  const menuCallbacks = {
+    onRequestRename: (tabId: string) => setRenamingTabId(tabId),
+  };
+
+  const handleTabContextMenu = useCallback((e: React.MouseEvent, tab: EditorTab) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, items: buildTabContextMenu(tab, tabs, menuCallbacks) });
+  }, [tabs]);
+
+  const handleStripContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, items: buildStripContextMenu(tabs) });
+  }, [tabs]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!isTabDrag(e)) return;
@@ -47,6 +100,11 @@ export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDr
     }
   }, [onTabDrop]);
 
+  const handleRenameSubmit = useCallback((tabId: string, newTitle: string) => {
+    useEditorStore.getState().updateTitle(tabId, newTitle);
+    setRenamingTabId(null);
+  }, []);
+
   return (
     <div
       className={`flex shrink-0 items-end bg-surface-base transition-colors ${
@@ -56,15 +114,17 @@ export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDr
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onContextMenu={handleStripContextMenu}
     >
       <div ref={scrollRef} className="tab-scroll flex flex-1 items-end pl-2">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
+          const isRenaming = renamingTabId === tab.id;
           return (
             <div
               key={tab.id}
               ref={isActive ? activeRef : undefined}
-              draggable
+              draggable={!isRenaming}
               onDragStart={(e) => setTabDragData(e, tab.id)}
               className={`group flex shrink-0 cursor-pointer items-center gap-1.5 px-3 text-xs transition-colors ${
                 isActive
@@ -75,10 +135,19 @@ export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDr
                 height: isActive ? 30 : 28,
                 ...(isActive ? { '--tab-bg': 'var(--surface-panel)' } as React.CSSProperties : {}),
               }}
-              onClick={() => onActivate(tab.id)}
+              onClick={() => !isRenaming && onActivate(tab.id)}
+              onContextMenu={(e) => handleTabContextMenu(e, tab)}
             >
               {tab.isDirty && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
-              <span className="max-w-[120px] truncate">{tab.title}</span>
+              {isRenaming ? (
+                <InlineRenameInput
+                  value={tab.title}
+                  onSubmit={(v) => handleRenameSubmit(tab.id, v)}
+                  onCancel={() => setRenamingTabId(null)}
+                />
+              ) : (
+                <span className="max-w-[120px] truncate">{tab.title}</span>
+              )}
               <button
                 className="ml-0.5 rounded p-0.5 text-muted opacity-0 hover:text-default group-hover:opacity-100"
                 onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}
@@ -90,6 +159,9 @@ export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDr
         })}
       </div>
       {rightSlot && <div className="flex h-full shrink-0 items-center px-2">{rightSlot}</div>}
+      {ctxMenu && (
+        <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => setCtxMenu(null)} />
+      )}
     </div>
   );
 }

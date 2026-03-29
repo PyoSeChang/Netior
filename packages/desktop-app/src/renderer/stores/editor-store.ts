@@ -20,6 +20,9 @@ interface EditorStore {
   /** Generic open: works for concept, file, or any future type */
   openTab: (params: OpenTabParams) => Promise<void>;
   closeTab: (tabId: string) => void;
+  closeOtherTabs: (tabId: string) => void;
+  closeTabsToRight: (tabId: string) => void;
+  closeAllTabs: () => void;
   setActiveTab: (tabId: string) => void;
 
   setViewMode: (tabId: string, mode: EditorViewMode) => void;
@@ -334,6 +337,25 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           : s.activeTabId;
       return { ...layoutUpdate, tabs, activeTabId };
     });
+  },
+
+  closeOtherTabs: (tabId) => {
+    const { tabs } = get();
+    const toClose = tabs.filter((t) => t.id !== tabId);
+    for (const t of toClose) get().closeTab(t.id);
+  },
+
+  closeTabsToRight: (tabId) => {
+    const { tabs } = get();
+    const idx = tabs.findIndex((t) => t.id === tabId);
+    if (idx < 0) return;
+    const toClose = tabs.slice(idx + 1);
+    for (const t of toClose) get().closeTab(t.id);
+  },
+
+  closeAllTabs: () => {
+    const { tabs } = get();
+    for (const t of [...tabs]) get().closeTab(t.id);
   },
 
   setActiveTab: (tabId) => {
