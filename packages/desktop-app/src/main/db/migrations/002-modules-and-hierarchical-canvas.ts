@@ -26,7 +26,7 @@ export function migrate002(db: Database.Database): void {
   db.exec(`CREATE UNIQUE INDEX idx_canvases_concept_id ON canvases(concept_id) WHERE concept_id IS NOT NULL`);
 
   db.exec(`
-    CREATE TABLE concept_editor_prefs (
+    CREATE TABLE IF NOT EXISTS concept_editor_prefs (
       id TEXT PRIMARY KEY,
       concept_id TEXT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
       view_mode TEXT NOT NULL DEFAULT 'float',
