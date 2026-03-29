@@ -9,11 +9,13 @@ interface UIStore {
   sidebarView: SidebarView;
   sidebarOpen: boolean;
   sidebarWidth: number;
+  showSettings: boolean;
 
   setCanvasMode: (mode: CanvasMode) => void;
   setSidebarView: (view: SidebarView) => void;
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
+  setShowSettings: (show: boolean) => void;
 }
 
 const SIDEBAR_MIN = 180;
@@ -25,9 +27,11 @@ export const useUIStore = create<UIStore>((set) => ({
   sidebarView: 'canvases',
   sidebarOpen: true,
   sidebarWidth: SIDEBAR_DEFAULT,
+  showSettings: false,
 
   setCanvasMode: (mode) => set({ canvasMode: mode }),
   setSidebarView: (view) => set({ sidebarView: view }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarWidth: (width) => set({ sidebarWidth: Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, width)) }),
+  setShowSettings: (show) => set({ showSettings: show }),
 }));

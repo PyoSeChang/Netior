@@ -109,11 +109,17 @@
   },
   "settings": {
     "title": "Settings",
+    "search": "Search settings",
+    "categoryAppearance": "Appearance",
+    "categoryLanguage": "Language & Region",
     "mode": "Mode",
+    "modeDesc": "Choose the brightness mode for the app.",
     "dark": "Dark",
     "light": "Light",
     "theme": "Theme",
-    "language": "Language"
+    "themeDesc": "Choose the color theme for the app.",
+    "language": "Language",
+    "languageDesc": "Choose the display language for the app."
   },
   "sidebar": {
     "canvases": "Canvases",

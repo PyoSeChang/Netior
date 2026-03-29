@@ -1,12 +1,11 @@
-import { useState } from 'react';
-import { Settings } from 'lucide-react';
 import { useProjectStore } from './stores/project-store';
+import { useUIStore } from './stores/ui-store';
 import { ProjectHome } from './components/home/ProjectHome';
 import { WorkspaceShell } from './components/workspace/WorkspaceShell';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { ToastContainer } from './components/ui/Toast';
 
-function TitleBar({ onOpenSettings }: { onOpenSettings: () => void }): JSX.Element {
+function TitleBar(): JSX.Element {
   const { currentProject, closeProject } = useProjectStore();
 
   return (
@@ -33,12 +32,6 @@ function TitleBar({ onOpenSettings }: { onOpenSettings: () => void }): JSX.Eleme
           </button>
         )}
         <button
-          className="rounded p-1 text-muted hover:bg-surface-hover hover:text-default"
-          onClick={onOpenSettings}
-        >
-          <Settings size={14} />
-        </button>
-        <button
           className="rounded p-1 text-muted hover:bg-surface-hover"
           onClick={() => window.electron.window.minimize()}
         >
@@ -63,11 +56,11 @@ function TitleBar({ onOpenSettings }: { onOpenSettings: () => void }): JSX.Eleme
 
 export default function App(): JSX.Element {
   const { currentProject } = useProjectStore();
-  const [showSettings, setShowSettings] = useState(false);
+  const { showSettings, setShowSettings } = useUIStore();
 
   return (
     <div className="flex h-full flex-col bg-surface-base text-default">
-      <TitleBar onOpenSettings={() => setShowSettings(true)} />
+      <TitleBar />
       <div className="flex-1 overflow-hidden">
         {currentProject ? (
           <WorkspaceShell project={currentProject} />

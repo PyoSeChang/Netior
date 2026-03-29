@@ -4,6 +4,7 @@ import { useUIStore } from '../../stores/ui-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { Tooltip } from '../ui/Tooltip';
 
+
 const ITEMS = [
   { key: 'canvases' as const, icon: Layout, label: 'Canvases' },
   { key: 'files' as const, icon: FolderTree, label: 'Files' },
@@ -66,7 +67,10 @@ export function ActivityBar(): JSX.Element {
         </button>
       </Tooltip>
       <Tooltip content="Settings" position="right">
-        <button className="flex h-8 w-8 items-center justify-center rounded text-muted transition-colors hover:bg-surface-hover hover:text-default">
+        <button
+          className="flex h-8 w-8 items-center justify-center rounded text-muted transition-colors hover:bg-surface-hover hover:text-default"
+          onClick={() => useUIStore.getState().setShowSettings(true)}
+        >
           <Settings size={18} />
         </button>
       </Tooltip>

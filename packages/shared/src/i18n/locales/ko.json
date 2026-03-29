@@ -109,11 +109,17 @@
   },
   "settings": {
     "title": "설정",
+    "search": "설정 검색",
+    "categoryAppearance": "외관",
+    "categoryLanguage": "언어 및 지역",
     "mode": "모드",
+    "modeDesc": "앱의 밝기 모드를 선택합니다.",
     "dark": "다크",
     "light": "라이트",
     "theme": "테마",
-    "language": "언어"
+    "themeDesc": "앱의 색상 테마를 선택합니다.",
+    "language": "언어",
+    "languageDesc": "앱의 표시 언어를 선택합니다."
   },
   "sidebar": {
     "canvases": "캔버스",
