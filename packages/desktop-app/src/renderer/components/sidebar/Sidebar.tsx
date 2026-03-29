@@ -49,8 +49,8 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
       className="flex h-full shrink-0 flex-col bg-surface-panel"
       style={{ width: sidebarWidth }}
     >
-      <ScrollArea>
-        <div className="py-2">
+      <ScrollArea className="flex-1">
+        <div className="flex min-h-full flex-col py-2">
           {sidebarView === 'canvases' && <CanvasList projectId={project.id} />}
           {sidebarView === 'files' && (
             <>

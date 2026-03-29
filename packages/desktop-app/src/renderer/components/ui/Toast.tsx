@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle, AlertTriangle, AlertCircle, Info } from 'lucide-react';
 
@@ -11,46 +11,84 @@ export interface ToastItem {
   duration?: number;
 }
 
-const ICONS: Record<ToastType, React.ReactNode> = {
-  success: <CheckCircle size={18} />,
-  error: <AlertCircle size={18} />,
-  warning: <AlertTriangle size={18} />,
-  info: <Info size={18} />,
+const ICON_MAP: Record<ToastType, typeof CheckCircle> = {
+  success: CheckCircle,
+  error: AlertCircle,
+  warning: AlertTriangle,
+  info: Info,
 };
 
-interface ToastEntryProps {
+const COLOR_MAP: Record<ToastType, string> = {
+  success: 'text-status-success',
+  error: 'text-status-error',
+  warning: 'text-status-warning',
+  info: 'text-status-info',
+};
+
+// ─── Single Toast Entry ───────────────────────────────────────────
+
+function ToastEntry({
+  toast,
+  onDismiss,
+}: {
   toast: ToastItem;
   onDismiss: (id: string) => void;
-}
+}): JSX.Element {
+  const [visible, setVisible] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
-const ToastEntry: React.FC<ToastEntryProps> = ({ toast, onDismiss }) => {
+  // slide-in on mount
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // auto-dismiss
   useEffect(() => {
     const dur = toast.duration ?? 4000;
     if (dur > 0) {
-      const timer = setTimeout(() => onDismiss(toast.id), dur);
-      return () => clearTimeout(timer);
+      timerRef.current = setTimeout(() => onDismiss(toast.id), dur);
+      return () => clearTimeout(timerRef.current);
     }
   }, [toast.id, toast.duration, onDismiss]);
 
+  const Icon = ICON_MAP[toast.type];
+  const colors = COLOR_MAP[toast.type];
+
   return (
-    <div className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-card border border-subtle shadow-lg text-sm text-default min-w-[280px] animate-in slide-in-from-right duration-200 border-l-[3px]`} style={{ borderLeftColor: `var(--status-${toast.type})` }}>
-      <span style={{ color: `var(--status-${toast.type})`, flexShrink: 0 }}>{ICONS[toast.type]}</span>
+    <div
+      className={`pointer-events-auto flex items-center gap-3 rounded-lg border border-subtle bg-surface-card px-4 py-3 text-sm text-default shadow-lg transition-all duration-200 ${
+        visible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'
+      }`}
+      style={{ minWidth: 280, maxWidth: 420 }}
+    >
+      <span className={`shrink-0 ${colors.split(' ')[0]}`}>
+        <Icon size={18} />
+      </span>
       <span className="flex-1">{toast.message}</span>
       <button
+        className="flex shrink-0 items-center justify-center rounded p-0.5 text-muted transition-colors hover:text-default"
         onClick={() => onDismiss(toast.id)}
-        className="p-0 bg-transparent border-none text-muted cursor-pointer hover:text-default transition-colors flex items-center justify-center"
       >
         <X size={14} />
       </button>
     </div>
   );
-};
+}
+
+// ─── Global imperative API ────────────────────────────────────────
 
 let addToastFn: ((toast: Omit<ToastItem, 'id'>) => void) | null = null;
 
 export function showToast(type: ToastType, message: string, duration?: number) {
-  addToastFn?.({ type, message, duration });
+  if (!addToastFn) {
+    console.warn('[Toast] ToastContainer not mounted');
+    return;
+  }
+  addToastFn({ type, message, duration });
 }
+
+// ─── Container (mount once in App) ────────────────────────────────
 
 export const ToastContainer: React.FC = () => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -72,11 +110,11 @@ export const ToastContainer: React.FC = () => {
   if (toasts.length === 0) return null;
 
   return createPortal(
-    <div className="toast-container">
+    <div className="pointer-events-none fixed bottom-4 right-4 z-[700] flex flex-col-reverse gap-2">
       {toasts.map((t) => (
         <ToastEntry key={t.id} toast={t} onDismiss={dismissToast} />
       ))}
     </div>,
-    document.body
+    document.body,
   );
 };

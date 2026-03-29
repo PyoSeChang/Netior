@@ -9,8 +9,6 @@ async function buildFileTree(dirPath: string): Promise<FileTreeNode[]> {
   const nodes: FileTreeNode[] = [];
 
   for (const entry of entries) {
-    if (entry.name.startsWith('.')) continue;
-
     const fullPath = join(dirPath, entry.name).replace(/\\/g, '/');
 
     if (entry.isDirectory()) {
@@ -81,6 +79,9 @@ export function registerFsIpc(): void {
 
   ipcMain.handle('fs:rename', async (_e, oldPath: string, newPath: string): Promise<IpcResult<unknown>> => {
     try {
+      if (oldPath !== newPath && existsSync(newPath)) {
+        return { success: false, error: 'Already exists' };
+      }
       await rename(oldPath, newPath);
       return { success: true, data: true };
     } catch (err) {

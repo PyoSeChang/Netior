@@ -238,5 +238,23 @@
     "noModule": "모듈 없음",
     "moduleName": "모듈 이름",
     "addModule": "모듈 추가"
+  },
+  "fileTree": {
+    "open": "열기",
+    "newFile": "새 파일",
+    "newFolder": "새 폴더",
+    "copy": "복사",
+    "cut": "잘라내기",
+    "paste": "붙여넣기",
+    "rename": "이름 변경",
+    "delete": "삭제",
+    "revealInExplorer": "파일 탐색기에서 열기",
+    "filenamePlaceholder": "파일 이름",
+    "folderNamePlaceholder": "폴더 이름",
+    "alreadyExists": "'{name}'이(가) 이미 존재합니다",
+    "renameFailed": "이름 변경 실패",
+    "createFailed": "생성 실패",
+    "deleteFailed": "삭제 실패",
+    "pasteFailed": "붙여넣기 실패"
   }
 }

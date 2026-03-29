@@ -238,5 +238,23 @@
     "noModule": "No module",
     "moduleName": "Module name",
     "addModule": "Add module"
+  },
+  "fileTree": {
+    "open": "Open",
+    "newFile": "New File",
+    "newFolder": "New Folder",
+    "copy": "Copy",
+    "cut": "Cut",
+    "paste": "Paste",
+    "rename": "Rename",
+    "delete": "Delete",
+    "revealInExplorer": "Reveal in File Explorer",
+    "filenamePlaceholder": "filename",
+    "folderNamePlaceholder": "folder name",
+    "alreadyExists": "'{name}' already exists",
+    "renameFailed": "Rename failed",
+    "createFailed": "Creation failed",
+    "deleteFailed": "Delete failed",
+    "pasteFailed": "Paste failed"
   }
 }
