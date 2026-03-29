@@ -151,7 +151,8 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
   },
 
   updateNode: async (id, data) => {
-    await canvasService.node.update(id, data);
+    // Optimistic update first — ensures position change is in the same
+    // React batch as nodeDragOffset clear, preventing ghost frames.
     set((s) => ({
       nodes: s.nodes.map((n) =>
         n.id === id
@@ -165,6 +166,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => ({
           : n,
       ),
     }));
+    await canvasService.node.update(id, data);
   },
 
   removeNode: async (id) => {

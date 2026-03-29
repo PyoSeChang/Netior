@@ -6,6 +6,7 @@ import { NodeContextMenu } from './NodeContextMenu';
 import { CanvasContextMenu } from './CanvasContextMenu';
 import { CanvasControls } from './CanvasControls';
 import { ConceptCreateModal } from './ConceptCreateModal';
+import { useInteraction } from './InteractionLayer';
 import { useCanvasStore, type CanvasNodeWithConcept } from '../../stores/canvas-store';
 import { useConceptStore } from '../../stores/concept-store';
 import { useEditorStore } from '../../stores/editor-store';
@@ -73,11 +74,6 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
-  const [nodeDragOffset, setNodeDragOffset] = useState<{ id: string; dx: number; dy: number } | null>(null);
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0, panX: 0, panY: 0 });
-  const [dragNodeId, setDragNodeId] = useState<string | null>(null);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -148,9 +144,9 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     return () => window.removeEventListener('keydown', handler);
   }, [selectedIds, renderNodes, removeNode]);
 
-  // --- Mouse interaction ---
+  // --- Mouse interaction (via useInteraction, same pattern as Culturium) ---
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -160,7 +156,6 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     const newZoom = Math.min(5, Math.max(0.1, zoom * factor));
 
-    // Zoom toward cursor
     const newPanX = mouseX - (mouseX - panX) * (newZoom / zoom);
     const newPanY = mouseY - (mouseY - panY) * (newZoom / zoom);
 
@@ -169,82 +164,39 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     setPanY(newPanY);
   }, [zoom, panX, panY]);
 
-  const findNodeAt = useCallback((screenX: number, screenY: number): string | null => {
-    const worldX = (screenX - panX) / zoom;
-    const worldY = (screenY - panY) / zoom;
+  const handleNodeDragEnd = useCallback(async (nodeId: string, x: number, y: number) => {
+    await updateNode(nodeId, { position_x: x, position_y: y });
+  }, [updateNode]);
 
-    for (let i = renderNodes.length - 1; i >= 0; i--) {
-      const n = renderNodes[i];
-      const w = n.width ?? 160;
-      const h = n.height ?? 60;
-      if (worldX >= n.x && worldX <= n.x + w && worldY >= n.y && worldY <= n.y + h) {
-        return n.id;
-      }
-    }
-    return null;
-  }, [renderNodes, panX, panY, zoom]);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const nodeId = findNodeAt(mx, my);
-
-    if (nodeId && canvasMode === 'edit') {
-      // Edit mode: start node drag
-      setDragNodeId(nodeId);
-      setDragStart({ x: e.clientX, y: e.clientY });
-      setSelectedIds(new Set([nodeId]));
-    } else {
-      // Browse mode OR click on empty canvas: start pan
-      if (nodeId) setSelectedIds(new Set([nodeId]));
-      setIsPanning(true);
-      setPanStart({ x: e.clientX, y: e.clientY, panX, panY });
-    }
-  }, [findNodeAt, panX, panY, canvasMode]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isPanning) {
-      setPanX(panStart.panX + (e.clientX - panStart.x));
-      setPanY(panStart.panY + (e.clientY - panStart.y));
-    } else if (dragNodeId) {
-      setNodeDragOffset({
-        id: dragNodeId,
-        dx: e.clientX - dragStart.x,
-        dy: e.clientY - dragStart.y,
-      });
-    }
-  }, [isPanning, panStart, dragNodeId, dragStart]);
-
-  const handleMouseUp = useCallback(async () => {
-    if (isPanning) {
-      setIsPanning(false);
-    } else if (dragNodeId && nodeDragOffset) {
-      const node = renderNodes.find((n) => n.id === dragNodeId);
-      if (node) {
-        await updateNode(dragNodeId, {
-          position_x: node.x + nodeDragOffset.dx / zoom,
-          position_y: node.y + nodeDragOffset.dy / zoom,
-        });
-      }
-      setNodeDragOffset(null);
-      setDragNodeId(null);
-    } else if (dragNodeId) {
-      // Click without drag
-      setDragNodeId(null);
-    }
-  }, [isPanning, dragNodeId, nodeDragOffset, renderNodes, zoom, updateNode]);
-
-  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === containerRef.current || (e.target as HTMLElement).tagName === 'svg') {
-      setSelectedIds(new Set());
-      setContextMenu(null);
-      setCanvasContextMenu(null);
-    }
+  const handlePanChange = useCallback((newPanX: number, newPanY: number) => {
+    setPanX(newPanX);
+    setPanY(newPanY);
   }, []);
+
+  const handleCanvasClick = useCallback(() => {
+    setSelectedIds(new Set());
+    setContextMenu(null);
+    setCanvasContextMenu(null);
+  }, []);
+
+  const handleSelectionBox = useCallback((nodeIds: string[]) => {
+    setSelectedIds(new Set(nodeIds));
+  }, []);
+
+  const { dragState, nodeDragOffset, handleCanvasMouseDown, handleNodeDragStart } = useInteraction({
+    containerRef: containerRef as React.RefObject<HTMLDivElement>,
+    nodes: renderNodes,
+    zoom,
+    panX,
+    panY,
+    mode: canvasMode,
+    renderingMode: 'canvas',
+    onPanChange: handlePanChange,
+    onNodeDragEnd: handleNodeDragEnd,
+    onSelectionBox: handleSelectionBox,
+    onCanvasClick: handleCanvasClick,
+    onWheel: handleWheel,
+  });
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -314,13 +266,8 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden bg-surface-base"
-      style={{ cursor: isPanning ? 'grabbing' : dragNodeId ? 'move' : 'default' }}
-      onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onClick={handleCanvasClick}
+      style={{ cursor: dragState.type === 'pan' ? 'grabbing' : dragState.type === 'node' ? 'move' : 'default' }}
+      onMouseDown={handleCanvasMouseDown}
       onContextMenu={handleContextMenu}
     >
       <CanvasControls
@@ -374,7 +321,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
             });
           }
         }}
-        onNodeDragStart={() => {}}
+        onNodeDragStart={handleNodeDragStart}
         onContextMenu={(type, x, y, targetId) => {
           if (type === 'node' && targetId) {
             const node = nodes.find((n) => n.id === targetId);

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { RenderNode, RenderingMode } from './types';
-import type { CanvasMode } from '../../stores/ui-store';
+import type { RenderNode } from './types';
+import type { CanvasMode, RenderingMode } from '../../stores/ui-store';
 
 interface UseInteractionParams {
   containerRef: React.RefObject<HTMLDivElement>;
@@ -194,14 +194,11 @@ export function useInteraction({
         const dx = e.clientX - dragState.startX;
         const dy = e.clientY - dragState.startY;
 
+        setNodeDragOffset(null);
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
           const newX = dragState.nodeStartX + dx / zoom;
           const newY = dragState.nodeStartY + dy / zoom;
-          onNodeDragEnd(dragState.nodeId, Math.round(newX), Math.round(newY)).then(() =>
-            setNodeDragOffset(null),
-          );
-        } else {
-          setNodeDragOffset(null);
+          onNodeDragEnd(dragState.nodeId, Math.round(newX), Math.round(newY));
         }
       } else if (dragState.type === 'span-resize') {
         const dx = e.clientX - dragState.startX;
