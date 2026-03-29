@@ -4,11 +4,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@moc/shared'] })],
     resolve: {
       alias: {
         '@main': resolve('src/main'),
         '@shared': resolve('src/shared'),
+        '@moc/shared': resolve('../shared/src'),
       },
     },
   },
@@ -20,6 +21,7 @@ export default defineConfig({
       alias: {
         '@renderer': resolve('src/renderer'),
         '@shared': resolve('src/shared'),
+        '@moc/shared': resolve('../shared/src'),
       },
     },
     plugins: [react()],

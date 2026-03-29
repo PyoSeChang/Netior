@@ -69,7 +69,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps): JSX.Ele
         return (
           <button
             key={i}
-            className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs ${
+            className={`flex w-full items-center gap-2 px-3 py-1 text-xs ${
               menuItem.disabled
                 ? 'cursor-default text-muted'
                 : menuItem.danger

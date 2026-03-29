@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Input } from './Input';
 
 export interface ColorPickerProps {
   value?: string;
@@ -41,8 +42,9 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, prese
         {value && (
           <div className="w-6 h-6 rounded border border-subtle" style={{ backgroundColor: value }} />
         )}
-        <input
-          className="flex-1 px-2 py-1 text-xs bg-input border border-subtle rounded text-default outline-none focus:border-accent"
+        <Input
+          inputSize="sm"
+          className="flex-1"
           placeholder="#hex"
           value={customInput || value || ''}
           onChange={(e) => setCustomInput(e.target.value)}
