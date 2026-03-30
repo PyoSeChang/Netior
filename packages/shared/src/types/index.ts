@@ -5,14 +5,14 @@
 export interface Project {
   id: string;
   name: string;
-  root_dir: string | null;
+  root_dir: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface ProjectCreate {
   name: string;
-  root_dir?: string;
+  root_dir: string;
 }
 
 // ============================================

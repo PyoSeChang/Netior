@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Layout, ChevronRight, ChevronDown } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Plus, Trash2, Layout, ChevronRight, ChevronDown, Circle } from 'lucide-react';
 import type { CanvasTreeNode } from '@moc/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useCanvasTypeStore } from '../../stores/canvas-type-store';
@@ -69,7 +69,7 @@ function CanvasItemContextMenu({
 
 // ─── Tree Item ───────────────────────────────────────────────────
 
-function TreeItem({
+function TreeNode({
   treeNode,
   depth,
   currentCanvasId,
@@ -83,21 +83,34 @@ function TreeItem({
   onContextMenu: (e: React.MouseEvent, id: string, name: string) => void;
 }): JSX.Element {
   const [expanded, setExpanded] = useState(depth < 2);
-  const hasChildren = treeNode.children.length > 0;
   const isActive = currentCanvasId === treeNode.canvas.id;
-  const displayName = treeNode.conceptTitle
-    ? `${treeNode.conceptTitle} / ${treeNode.canvas.name}`
-    : treeNode.canvas.name;
+
+  // Group children by concept_id to create concept headers
+  const conceptGroups = new Map<string, { title: string; nodes: CanvasTreeNode[] }>();
+  const directChildren: CanvasTreeNode[] = [];
+
+  for (const child of treeNode.children) {
+    if (child.conceptTitle && child.canvas.concept_id) {
+      const group = conceptGroups.get(child.canvas.concept_id) ?? { title: child.conceptTitle, nodes: [] };
+      group.nodes.push(child);
+      conceptGroups.set(child.canvas.concept_id, group);
+    } else {
+      directChildren.push(child);
+    }
+  }
+
+  const hasChildren = treeNode.children.length > 0;
 
   return (
     <>
+      {/* Canvas row */}
       <div
         className={`group flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs transition-colors ${
           isActive
             ? 'bg-accent/10 text-accent'
             : 'text-secondary hover:bg-surface-hover hover:text-default'
         }`}
-        style={{ paddingLeft: depth * 12 + 4 }}
+        style={{ paddingLeft: depth * 14 + 4 }}
         onClick={() => onOpen(treeNode.canvas.id)}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -110,18 +123,81 @@ function TreeItem({
             className="shrink-0 p-0.5"
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
           >
-            {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
           </button>
         ) : (
-          <span className="w-5 shrink-0" />
+          <span className="w-4 shrink-0" />
         )}
-        <Layout size={12} className="shrink-0" />
-        <span className="flex-1 truncate">{displayName}</span>
+        <Layout size={12} className="shrink-0 opacity-50" />
+        <span className="flex-1 truncate">{treeNode.canvas.name}</span>
       </div>
-      {expanded && treeNode.children.map((child) => (
-        <TreeItem
-          key={child.canvas.id}
-          treeNode={child}
+
+      {/* Children grouped by concept */}
+      {expanded && (
+        <>
+          {/* Concept groups */}
+          {Array.from(conceptGroups.entries()).map(([conceptId, group]) => (
+            <ConceptGroup
+              key={conceptId}
+              conceptTitle={group.title}
+              nodes={group.nodes}
+              depth={depth + 1}
+              currentCanvasId={currentCanvasId}
+              onOpen={onOpen}
+              onContextMenu={onContextMenu}
+            />
+          ))}
+          {/* Direct children (no concept grouping) */}
+          {directChildren.map((child) => (
+            <TreeNode
+              key={child.canvas.id}
+              treeNode={child}
+              depth={depth + 1}
+              currentCanvasId={currentCanvasId}
+              onOpen={onOpen}
+              onContextMenu={onContextMenu}
+            />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+// ─── Concept Group Header ────────────────────────────────────────
+
+function ConceptGroup({
+  conceptTitle,
+  nodes,
+  depth,
+  currentCanvasId,
+  onOpen,
+  onContextMenu,
+}: {
+  conceptTitle: string;
+  nodes: CanvasTreeNode[];
+  depth: number;
+  currentCanvasId?: string;
+  onOpen: (id: string) => void;
+  onContextMenu: (e: React.MouseEvent, id: string, name: string) => void;
+}): JSX.Element {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <>
+      <div
+        className="flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-[11px] text-muted hover:bg-surface-hover"
+        style={{ paddingLeft: depth * 14 + 4 }}
+        onClick={() => setExpanded(!expanded)}
+      >
+        {expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+        <Circle size={8} className="shrink-0 fill-current opacity-40" />
+        <span className="truncate">{conceptTitle}</span>
+      </div>
+      {expanded && nodes.map((node) => (
+        <TreeNode
+          key={node.canvas.id}
+          treeNode={node}
           depth={depth + 1}
           currentCanvasId={currentCanvasId}
           onOpen={onOpen}
@@ -172,7 +248,7 @@ export function CanvasList({ projectId }: CanvasListProps): JSX.Element {
   }, []);
 
   return (
-    <div className="flex flex-col gap-1" onMouseDown={() => setContextMenu(null)}>
+    <div className="flex flex-col gap-0.5" onMouseDown={() => setContextMenu(null)}>
       <div className="flex items-center justify-between px-2 py-1">
         <span className="text-xs font-medium text-secondary">{t('sidebar.canvases')}</span>
         <button
@@ -211,7 +287,7 @@ export function CanvasList({ projectId }: CanvasListProps): JSX.Element {
       )}
 
       {canvasTree.map((treeNode) => (
-        <TreeItem
+        <TreeNode
           key={treeNode.canvas.id}
           treeNode={treeNode}
           depth={0}

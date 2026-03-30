@@ -7,7 +7,7 @@ const electronAPI = {
     close: () => ipcRenderer.send('window:close'),
   },
   project: {
-    create: (data: { name: string; root_dir?: string }) =>
+    create: (data: { name: string; root_dir: string }) =>
       ipcRenderer.invoke('project:create', data),
     list: () => ipcRenderer.invoke('project:list'),
     delete: (id: string) => ipcRenderer.invoke('project:delete', id),

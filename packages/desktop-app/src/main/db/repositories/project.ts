@@ -9,7 +9,7 @@ export function createProject(data: ProjectCreate): Project {
 
   db.prepare(
     `INSERT INTO projects (id, name, root_dir, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-  ).run(id, data.name, data.root_dir ?? null, now, now);
+  ).run(id, data.name, data.root_dir, now, now);
 
   return db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as Project;
 }
