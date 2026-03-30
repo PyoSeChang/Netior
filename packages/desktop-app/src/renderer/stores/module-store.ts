@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Module, ModuleCreate, ModuleUpdate, ModuleDirectory, ModuleDirectoryCreate } from '@moc/shared/types';
 import { moduleService } from '../services';
+import { useFileStore } from './file-store';
 
 interface ModuleStore {
   modules: Module[];
@@ -69,6 +70,7 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
   },
 
   setActiveModule: async (moduleId) => {
+    useFileStore.getState().clear();
     set({ activeModuleId: moduleId });
     const directories = await moduleService.dir.list(moduleId);
     set({ directories });

@@ -5,6 +5,10 @@ export async function readDir(dirPath: string): Promise<FileTreeNode[]> {
   return unwrapIpc(await window.electron.fs.readDir(dirPath));
 }
 
+export async function readDirShallow(dirPath: string, depth?: number): Promise<FileTreeNode[]> {
+  return unwrapIpc(await window.electron.fs.readDirShallow(dirPath, depth));
+}
+
 export async function readFile(filePath: string): Promise<string> {
   return unwrapIpc(await window.electron.fs.readFile(filePath));
 }
@@ -59,7 +63,7 @@ export async function existsItem(targetPath: string): Promise<boolean> {
 }
 
 export const fsService = {
-  readDir, readFile, writeFile, openFolderDialog, openFileDialog,
+  readDir, readDirShallow, readFile, writeFile, openFolderDialog, openFileDialog,
   renameItem, deleteItem, createFile, createDir, copyItem, moveItem,
   showInExplorer, existsItem,
 };

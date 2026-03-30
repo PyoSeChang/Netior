@@ -35,10 +35,70 @@ async function buildFileTree(dirPath: string): Promise<FileTreeNode[]> {
   });
 }
 
+async function buildShallowTree(dirPath: string, maxDepth: number, currentDepth = 0): Promise<FileTreeNode[]> {
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  const nodes: FileTreeNode[] = [];
+
+  for (const entry of entries) {
+    const fullPath = join(dirPath, entry.name).replace(/\\/g, '/');
+
+    if (entry.isDirectory()) {
+      if (currentDepth < maxDepth) {
+        const children = await buildShallowTree(join(dirPath, entry.name), maxDepth, currentDepth + 1);
+        nodes.push({
+          name: entry.name,
+          path: fullPath,
+          type: 'directory',
+          children,
+        });
+      } else {
+        // Check if directory has any entries
+        try {
+          const subEntries = await readdir(join(dirPath, entry.name));
+          nodes.push({
+            name: entry.name,
+            path: fullPath,
+            type: 'directory',
+            hasChildren: subEntries.length > 0,
+          });
+        } catch {
+          nodes.push({
+            name: entry.name,
+            path: fullPath,
+            type: 'directory',
+            hasChildren: false,
+          });
+        }
+      }
+    } else {
+      nodes.push({
+        name: entry.name,
+        path: fullPath,
+        type: 'file',
+        extension: extname(entry.name).slice(1).toLowerCase() || undefined,
+      });
+    }
+  }
+
+  return nodes.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export function registerFsIpc(): void {
   ipcMain.handle('fs:readDir', async (_e, dirPath: string): Promise<IpcResult<unknown>> => {
     try {
       const tree = await buildFileTree(dirPath);
+      return { success: true, data: tree };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('fs:readDirShallow', async (_e, dirPath: string, depth?: number): Promise<IpcResult<unknown>> => {
+    try {
+      const tree = await buildShallowTree(dirPath, depth ?? 2);
       return { success: true, data: tree };
     } catch (err) {
       return { success: false, error: (err as Error).message };

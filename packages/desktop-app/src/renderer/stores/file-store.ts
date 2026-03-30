@@ -25,10 +25,12 @@ interface FileStore {
   openFiles: OpenFile[];
   activeFilePath: string | null;
   loading: boolean;
+  loadingPaths: Set<string>;
   clipboard: ClipboardState | null;
   rootDirs: string[];
 
   loadFileTree: (rootDirs: string | string[]) => Promise<void>;
+  loadChildren: (dirPath: string) => Promise<void>;
   refreshFileTree: () => Promise<void>;
   openFile: (relativePath: string, rootDir: string) => Promise<void>;
   closeFile: (filePath: string) => void;
@@ -45,6 +47,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   openFiles: [],
   activeFilePath: null,
   loading: false,
+  loadingPaths: new Set(),
   clipboard: null,
   rootDirs: [],
 
@@ -52,7 +55,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const dirs = Array.isArray(rootDirs) ? rootDirs : [rootDirs];
     set({ loading: true, rootDirs: dirs });
     try {
-      const trees = await Promise.all(dirs.map((d) => fsService.readDir(d)));
+      const trees = await Promise.all(dirs.map((d) => fsService.readDirShallow(d, 2)));
       const fileTree = dirs.length === 1
         ? trees[0]
         : dirs.map((dirPath, i) => {
@@ -67,6 +70,34 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set({ fileTree });
     } finally {
       set({ loading: false });
+    }
+  },
+
+  loadChildren: async (dirPath) => {
+    const { loadingPaths } = get();
+    if (loadingPaths.has(dirPath)) return;
+
+    set({ loadingPaths: new Set([...loadingPaths, dirPath]) });
+    try {
+      const children = await fsService.readDirShallow(dirPath, 1);
+
+      // Merge children into existing tree
+      const mergeChildren = (nodes: FileTreeNode[]): FileTreeNode[] =>
+        nodes.map((node) => {
+          if (node.path === dirPath && node.type === 'directory') {
+            return { ...node, children, hasChildren: undefined };
+          }
+          if (node.children) {
+            return { ...node, children: mergeChildren(node.children) };
+          }
+          return node;
+        });
+
+      set((s) => ({ fileTree: mergeChildren(s.fileTree) }));
+    } finally {
+      const updated = new Set(get().loadingPaths);
+      updated.delete(dirPath);
+      set({ loadingPaths: updated });
     }
   },
 
@@ -139,5 +170,5 @@ export const useFileStore = create<FileStore>((set, get) => ({
   setClipboard: (path, action) => set({ clipboard: { path, action } }),
   clearClipboard: () => set({ clipboard: null }),
 
-  clear: () => set({ fileTree: [], openFiles: [], activeFilePath: null, clipboard: null, rootDirs: [] }),
+  clear: () => set({ fileTree: [], openFiles: [], activeFilePath: null, clipboard: null, rootDirs: [], loadingPaths: new Set() }),
 }));

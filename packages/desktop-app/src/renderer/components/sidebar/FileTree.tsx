@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import type { FileTreeNode } from '@moc/shared/types';
 import type { TranslationKey } from '@moc/shared/i18n';
 import { FileIcon } from './FileIcon';
@@ -161,6 +161,9 @@ function FileTreeItem({
   const [expanded, setExpanded] = useState(depth < 1);
   const isRenaming = renamingPath === node.path;
   const showNewInput = newInput && newInput.parentPath === node.path;
+  const { loadChildren, loadingPaths } = useFileStore();
+  const isLoadingChildren = loadingPaths.has(node.path);
+  const needsLazyLoad = node.type === 'directory' && !node.children && node.hasChildren;
 
   // Auto-expand when creating new item inside this folder
   useEffect(() => {
@@ -168,6 +171,14 @@ function FileTreeItem({
       setExpanded(true);
     }
   }, [showNewInput]);
+
+  const handleToggle = useCallback(() => {
+    const willExpand = !expanded;
+    setExpanded(willExpand);
+    if (willExpand && needsLazyLoad) {
+      loadChildren(node.path);
+    }
+  }, [expanded, needsLazyLoad, loadChildren, node.path]);
 
   if (node.type === 'directory') {
     return (
@@ -180,10 +191,12 @@ function FileTreeItem({
             e.dataTransfer.setData('application/moc-node', JSON.stringify({ type: 'dir', path: node.path }));
             e.dataTransfer.effectAllowed = 'copy';
           }}
-          onClick={() => setExpanded(!expanded)}
+          onClick={handleToggle}
           onContextMenu={(e) => onContextMenu(e, node)}
         >
-          {expanded ? (
+          {isLoadingChildren ? (
+            <Loader2 size={12} className="shrink-0 animate-spin text-secondary" />
+          ) : expanded ? (
             <ChevronDown size={12} className="shrink-0 text-secondary" />
           ) : (
             <ChevronRight size={12} className="shrink-0 text-secondary" />

@@ -16,6 +16,7 @@ import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useCanvasTypeStore } from '../../stores/canvas-type-store';
 import { Divider } from '../ui/Divider';
 import { ScrollArea } from '../ui/ScrollArea';
+import { Spinner } from '../ui/Spinner';
 
 interface SidebarProps {
   project: Project;
@@ -23,7 +24,7 @@ interface SidebarProps {
 
 export function Sidebar({ project }: SidebarProps): JSX.Element {
   const { sidebarView, sidebarWidth } = useUIStore();
-  const { loadFileTree, fileTree } = useFileStore();
+  const { loadFileTree, fileTree, loading: fileLoading } = useFileStore();
   const { loadCanvases, loadCanvasTree } = useCanvasStore();
   const { loadModules, directories } = useModuleStore();
   const { loadByProject: loadArchetypes } = useArchetypeStore();
@@ -74,7 +75,13 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
                   if (dirPath) await addDirectory({ module_id: activeModuleId, dir_path: dirPath });
                 }}
               />
-              <FileTree nodes={fileTree} onFileClick={handleFileClick} />
+              {fileLoading ? (
+                <div className="flex justify-center py-8">
+                  <Spinner size="sm" />
+                </div>
+              ) : (
+                <FileTree nodes={fileTree} onFileClick={handleFileClick} />
+              )}
             </>
           )}
           {sidebarView === 'archetypes' && (

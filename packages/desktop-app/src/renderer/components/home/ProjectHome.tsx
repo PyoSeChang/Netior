@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useProjectStore } from '../../stores/project-store';
+import { useModuleStore } from '../../stores/module-store';
 import { useI18n } from '../../hooks/useI18n';
 import { ProjectCard } from './ProjectCard';
 import { ProjectCreateDialog } from './ProjectCreateDialog';
@@ -21,6 +22,10 @@ export function ProjectHome(): JSX.Element {
 
   const handleCreate = async (name: string, rootDir: string) => {
     const project = await createProject(name, rootDir);
+    const { createModule, setActiveModule, addDirectory } = useModuleStore.getState();
+    const mod = await createModule({ project_id: project.id, name });
+    await addDirectory({ module_id: mod.id, dir_path: rootDir });
+    await setActiveModule(mod.id);
     openProject(project);
   };
 
