@@ -1,7 +1,19 @@
 import { app } from 'electron';
 import { join } from 'path';
-import { mkdirSync } from 'fs';
+import { mkdirSync, existsSync } from 'fs';
 import Database from 'better-sqlite3';
+
+function getNativeBinding(): string | undefined {
+  // In packaged app, the native .node file is in app.asar.unpacked
+  const candidates = [
+    join(__dirname, '../../node_modules/better-sqlite3/build/Release/better_sqlite3.node'),
+    join(process.resourcesPath ?? '', 'app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node'),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return undefined; // fallback to default bindings resolution
+}
 import { migrate001 } from './migrations/001-initial';
 import { migrate002 } from './migrations/002-modules-and-hierarchical-canvas';
 import { migrate003 } from './migrations/003-archetypes';
@@ -46,7 +58,8 @@ export async function initDatabase(isDev = false): Promise<void> {
   const dbName = isDev ? 'moc-dev.db' : 'moc.db';
   const dbPath = join(dbDir, dbName);
   console.log(`[DB] Using database: ${dbPath}`);
-  db = new Database(dbPath);
+  const nativeBinding = getNativeBinding();
+  db = new Database(dbPath, nativeBinding ? { nativeBinding } : {});
 
   // Enable WAL mode and foreign keys
   db.pragma('journal_mode = WAL');

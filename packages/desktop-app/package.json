@@ -41,6 +41,33 @@
     "vscode-icons-js": "^11.6.1",
     "zustand": "^4.4.7"
   },
+  "build": {
+    "appId": "com.moc.app",
+    "productName": "MoC",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/*.{ts,map,md}",
+      "!node_modules/**/{test,tests,__tests__}/**"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**",
+      "node_modules/bindings/**",
+      "node_modules/file-uri-to-path/**",
+      "node_modules/node-pty/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",
