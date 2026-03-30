@@ -8,6 +8,7 @@ import { ImageViewer } from './ImageViewer';
 import { PdfViewer } from './PdfViewer';
 import { UnsupportedFallback } from './UnsupportedFallback';
 import { getEditorType, getMonacoLanguage, type EditorType } from './editor-utils';
+import { MarkdownEditor } from './markdown/MarkdownEditor';
 
 interface FileEditorProps {
   tab: EditorTab;
@@ -20,11 +21,11 @@ export function FileEditor({ tab }: FileEditorProps): JSX.Element {
   const [loaded, setLoaded] = useState(false);
 
   const filePath = tab.targetId;
-  const editorType = getEditorType(filePath);
+  const editorType = (tab.editorType as EditorType) ?? getEditorType(filePath);
 
   useEffect(() => {
     setLoaded(false);
-    if (editorType === 'code') {
+    if (editorType === 'code' || editorType === 'markdown') {
       fsService.readFile(filePath).then((c) => {
         setContent(c);
         setLoaded(true);
@@ -59,6 +60,15 @@ export function renderEditor(
   props: { content: string; filePath: string; onChange: (c: string) => void; onSave: () => void },
 ): JSX.Element {
   switch (type) {
+    case 'markdown':
+      return (
+        <MarkdownEditor
+          content={props.content}
+          filePath={props.filePath}
+          onChange={props.onChange}
+          onSave={props.onSave}
+        />
+      );
     case 'code':
       return (
         <CodeEditor

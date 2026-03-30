@@ -154,6 +154,9 @@
     "modeSide": "사이드",
     "modeDetached": "분리"
   },
+  "markdown": {
+    "toc": "목차"
+  },
   "settings": {
     "title": "설정",
     "search": "설정 검색",

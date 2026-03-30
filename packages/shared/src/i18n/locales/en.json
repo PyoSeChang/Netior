@@ -154,6 +154,9 @@
     "modeSide": "Side",
     "modeDetached": "Detached"
   },
+  "markdown": {
+    "toc": "Table of Contents"
+  },
   "settings": {
     "title": "Settings",
     "search": "Search settings",

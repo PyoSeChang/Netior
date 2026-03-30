@@ -1,6 +1,7 @@
 import type { EditorTab } from '@moc/shared/types';
 import type { ContextMenuEntry } from '../ui/ContextMenu';
 import { useEditorStore } from '../../stores/editor-store';
+import { getEditorType, getAvailableEditors, EDITOR_LABELS, type EditorType } from './editor-utils';
 
 // ── Common items (all tab types) ──
 
@@ -55,12 +56,29 @@ function buildConceptItems(tab: EditorTab): ContextMenuEntry[] {
 // ── File-specific items ──
 
 function buildFileItems(tab: EditorTab): ContextMenuEntry[] {
-  return [
+  const store = useEditorStore.getState();
+  const available = getAvailableEditors(tab.targetId);
+  const current = (tab.editorType as EditorType) ?? getEditorType(tab.targetId);
+
+  const items: ContextMenuEntry[] = [
     {
       label: '파일 경로 복사',
       onClick: () => navigator.clipboard.writeText(tab.targetId),
     },
   ];
+
+  if (available.length > 1) {
+    items.push({ type: 'divider' });
+    for (const editor of available) {
+      items.push({
+        label: `${EDITOR_LABELS[editor]}${editor === current ? ' ✓' : ''}`,
+        disabled: editor === current,
+        onClick: () => store.setEditorType(tab.id, editor),
+      });
+    }
+  }
+
+  return items;
 }
 
 // ── Terminal-specific items ──

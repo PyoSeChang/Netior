@@ -34,6 +34,7 @@ interface EditorStore {
 
   setActiveFile: (tabId: string, filePath: string | null) => void;
   setDirty: (tabId: string, dirty: boolean) => void;
+  setEditorType: (tabId: string, editorType: string) => void;
 
   // Split layout operations
   splitTab: (targetTabId: string, newTabId: string, direction: SplitDirection, position: 'before' | 'after') => void;
@@ -517,6 +518,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setDirty: (tabId, dirty) => {
     set((s) => ({
       tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, isDirty: dirty } : t)),
+    }));
+  },
+
+  setEditorType: (tabId, editorType) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, editorType } : t)),
     }));
   },
 

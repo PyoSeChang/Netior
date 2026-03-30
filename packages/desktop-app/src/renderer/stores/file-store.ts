@@ -89,7 +89,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const editorType = getEditorType(relativePath);
 
     let content = '';
-    if (editorType === 'code') {
+    if (editorType === 'code' || editorType === 'markdown') {
       try {
         content = await fsService.readFile(absolutePath);
       } catch {
