@@ -141,7 +141,7 @@ export const TimelineBackground: React.FC<LayoutLayerProps> = ({
                 whiteSpace: 'nowrap',
               }}
             >
-              {cell.screenWidth > 20 ? cell.label : ''}
+              {cell.screenWidth > 10 ? cell.label : ''}
             </div>
           ))}
         </div>
