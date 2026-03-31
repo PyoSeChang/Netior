@@ -38,7 +38,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       scrollback: 5000,
       windowsPty: {
         backend: 'conpty',
-        buildNumber: 1,
+        buildNumber: window.electron.platform.osBuildNumber,
       },
     });
 

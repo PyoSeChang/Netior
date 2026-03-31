@@ -153,6 +153,13 @@ const electronAPI = {
       return () => { ipcRenderer.removeListener('pty:exit', handler); };
     },
   },
+  platform: {
+    osBuildNumber: (() => {
+      if (process.platform !== 'win32') return 0;
+      const parts = process.getSystemVersion().split('.');
+      return parseInt(parts[2] || '0', 10);
+    })(),
+  },
   editor: {
     detach: (tabId: string, title: string) => ipcRenderer.invoke('editor:detach', tabId, title),
     reattach: (tabId: string, mode: string) => ipcRenderer.send('editor:reattach', tabId, mode),

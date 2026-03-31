@@ -81,6 +81,24 @@ body,
   display: none;
 }
 
+/* xterm.js scrollbar — match app style */
+.xterm-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: var(--border-default);
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
 /* ContentEditable placeholder */
 [data-placeholder]:empty::before {
   content: attr(data-placeholder);
