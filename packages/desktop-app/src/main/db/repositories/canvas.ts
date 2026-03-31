@@ -11,16 +11,31 @@ import type {
 
 // ── Canvas ──
 
+/** Parse layout_config JSON from DB row */
+function parseCanvasRow(row: Record<string, unknown>): Canvas {
+  return {
+    ...row,
+    layout_config: row.layout_config ? JSON.parse(row.layout_config as string) : null,
+  } as Canvas;
+}
+
 export function createCanvas(data: CanvasCreate): Canvas {
   const db = getDatabase();
   const id = randomUUID();
   const now = new Date().toISOString();
 
   db.prepare(
-    `INSERT INTO canvases (id, project_id, name, concept_id, canvas_type_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(id, data.project_id, data.name, data.concept_id ?? null, data.canvas_type_id ?? null, now, now);
+    `INSERT INTO canvases (id, project_id, name, concept_id, canvas_type_id, layout, layout_config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id, data.project_id, data.name,
+    data.concept_id ?? null, data.canvas_type_id ?? null,
+    data.layout ?? 'freeform',
+    data.layout_config ? JSON.stringify(data.layout_config) : null,
+    now, now,
+  );
 
-  return db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Canvas;
+  const row = db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Record<string, unknown>;
+  return parseCanvasRow(row);
 }
 
 export function listCanvases(projectId: string, rootOnly = false): Canvas[] {
@@ -28,7 +43,8 @@ export function listCanvases(projectId: string, rootOnly = false): Canvas[] {
   const sql = rootOnly
     ? 'SELECT * FROM canvases WHERE project_id = ? AND concept_id IS NULL ORDER BY created_at'
     : 'SELECT * FROM canvases WHERE project_id = ? ORDER BY created_at';
-  return db.prepare(sql).all(projectId) as Canvas[];
+  const rows = db.prepare(sql).all(projectId) as Record<string, unknown>[];
+  return rows.map(parseCanvasRow);
 }
 
 export interface CanvasTreeNode {
@@ -41,8 +57,8 @@ export function getCanvasTree(projectId: string): CanvasTreeNode[] {
   const db = getDatabase();
 
   // All canvases for this project
-  const allCanvases = db.prepare('SELECT * FROM canvases WHERE project_id = ? ORDER BY created_at')
-    .all(projectId) as Canvas[];
+  const allCanvases = (db.prepare('SELECT * FROM canvases WHERE project_id = ? ORDER BY created_at')
+    .all(projectId) as Record<string, unknown>[]).map(parseCanvasRow);
 
   // All canvas_nodes: which concept is placed in which canvas
   const nodeRows = db.prepare(
@@ -106,9 +122,10 @@ export function getCanvasTree(projectId: string): CanvasTreeNode[] {
 
 export function getCanvasesByConceptId(conceptId: string): Canvas[] {
   const db = getDatabase();
-  return db
+  const rows = db
     .prepare('SELECT * FROM canvases WHERE concept_id = ? ORDER BY created_at')
-    .all(conceptId) as Canvas[];
+    .all(conceptId) as Record<string, unknown>[];
+  return rows.map(parseCanvasRow);
 }
 
 export function getCanvasAncestors(canvasId: string): CanvasBreadcrumbItem[] {
@@ -121,8 +138,9 @@ export function getCanvasAncestors(canvasId: string): CanvasBreadcrumbItem[] {
     if (visited.has(currentId)) break;
     visited.add(currentId);
 
-    const canvas = db.prepare('SELECT * FROM canvases WHERE id = ?').get(currentId) as Canvas | undefined;
-    if (!canvas) break;
+    const canvasRow = db.prepare('SELECT * FROM canvases WHERE id = ?').get(currentId) as Record<string, unknown> | undefined;
+    if (!canvasRow) break;
+    const canvas = parseCanvasRow(canvasRow);
 
     let conceptTitle: string | null = null;
     if (canvas.concept_id) {
@@ -151,15 +169,22 @@ export function getCanvasAncestors(canvasId: string): CanvasBreadcrumbItem[] {
 
 export function updateCanvas(id: string, data: CanvasUpdate): Canvas | undefined {
   const db = getDatabase();
-  const existing = db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Canvas | undefined;
-  if (!existing) return undefined;
+  const existingRow = db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  if (!existingRow) return undefined;
+  const existing = parseCanvasRow(existingRow);
 
   const now = new Date().toISOString();
+  const newLayoutConfig = data.layout_config !== undefined
+    ? (data.layout_config ? JSON.stringify(data.layout_config) : null)
+    : (existingRow.layout_config as string | null);
+
   db.prepare(
-    `UPDATE canvases SET name = ?, canvas_type_id = ?, viewport_x = ?, viewport_y = ?, viewport_zoom = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE canvases SET name = ?, canvas_type_id = ?, layout = ?, layout_config = ?, viewport_x = ?, viewport_y = ?, viewport_zoom = ?, updated_at = ? WHERE id = ?`,
   ).run(
     data.name !== undefined ? data.name : existing.name,
     data.canvas_type_id !== undefined ? data.canvas_type_id : existing.canvas_type_id,
+    data.layout !== undefined ? data.layout : existing.layout,
+    newLayoutConfig,
     data.viewport_x !== undefined ? data.viewport_x : existing.viewport_x,
     data.viewport_y !== undefined ? data.viewport_y : existing.viewport_y,
     data.viewport_zoom !== undefined ? data.viewport_zoom : existing.viewport_zoom,
@@ -167,7 +192,8 @@ export function updateCanvas(id: string, data: CanvasUpdate): Canvas | undefined
     id,
   );
 
-  return db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Canvas;
+  const row = db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Record<string, unknown>;
+  return parseCanvasRow(row);
 }
 
 export function deleteCanvas(id: string): boolean {
@@ -188,8 +214,9 @@ type RelationTypeRow = Omit<RelationType, 'directed'> & { directed: number };
 
 export function getCanvasFull(canvasId: string): CanvasFullData | undefined {
   const db = getDatabase();
-  const canvas = db.prepare('SELECT * FROM canvases WHERE id = ?').get(canvasId) as Canvas | undefined;
-  if (!canvas) return undefined;
+  const canvasRow = db.prepare('SELECT * FROM canvases WHERE id = ?').get(canvasId) as Record<string, unknown> | undefined;
+  if (!canvasRow) return undefined;
+  const canvas = parseCanvasRow(canvasRow);
 
   const nodes = db.prepare(
     `SELECT cn.*, c.title, c.color, c.icon, c.archetype_id, c.project_id as concept_project_id,
@@ -248,6 +275,10 @@ export function getCanvasFull(canvasId: string): CanvasFullData | undefined {
       source_node_id: row.source_node_id as string,
       target_node_id: row.target_node_id as string,
       relation_type_id: (row.relation_type_id as string | null) ?? null,
+      description: (row.description as string | null) ?? null,
+      color: (row.color as string | null) ?? null,
+      line_style: (row.line_style as string | null) ?? null,
+      directed: row.directed != null ? (row.directed as number) : null,
       created_at: row.created_at as string,
       ...(hasRelationType ? {
         relation_type: {
@@ -265,7 +296,7 @@ export function getCanvasFull(canvasId: string): CanvasFullData | undefined {
     };
   });
 
-  return { canvas, nodes: parsedNodes, edges };
+  return { canvas, nodes: parsedNodes, edges } as CanvasFullData;
 }
 
 // ── Canvas Node ──

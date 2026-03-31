@@ -61,6 +61,8 @@ export interface Canvas {
   concept_id: string | null;
   canvas_type_id: string | null;
   name: string;
+  layout: string;
+  layout_config: Record<string, unknown> | null;
   viewport_x: number;
   viewport_y: number;
   viewport_zoom: number;
@@ -73,11 +75,15 @@ export interface CanvasCreate {
   name: string;
   concept_id?: string;
   canvas_type_id?: string;
+  layout?: string;
+  layout_config?: Record<string, unknown>;
 }
 
 export interface CanvasUpdate {
   name?: string;
   canvas_type_id?: string | null;
+  layout?: string;
+  layout_config?: Record<string, unknown> | null;
   viewport_x?: number;
   viewport_y?: number;
   viewport_zoom?: number;
@@ -465,6 +471,12 @@ export interface EditorTab {
   activeFilePath: string | null;
   /** Override editor type for file tabs (when user switches via context menu) */
   editorType?: string;
+  /** Draft data for unsaved new entities (concept creation flow) */
+  draftData?: {
+    canvasId?: string;
+    positionX?: number;
+    positionY?: number;
+  };
 }
 
 export interface ConceptEditorPrefs {

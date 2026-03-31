@@ -13,7 +13,8 @@
     "noResults": "No results",
     "add": "Add",
     "minimize": "Minimize",
-    "restore": "Restore {title}"
+    "restore": "Restore {title}",
+    "none": "None"
   },
   "project": {
     "create": "Create Project",
@@ -57,7 +58,28 @@
     "selectTarget": "Click a node to connect",
     "addFileNode": "Add File Node",
     "addDirNode": "Add Directory Node",
-    "createCanvas": "Create Canvas"
+    "createCanvas": "Create Canvas",
+    "layout": "Layout",
+    "layoutSettings": "Layout Settings",
+    "fieldMappings": "Field Mappings",
+    "addArchetype": "Add Archetype...",
+    "scales": "Scales",
+    "scaleFactor": "Factor",
+    "scaleSubdivisions": "Sub"
+  },
+  "layout": {
+    "timeline": {
+      "timeValue": "Time Value",
+      "endTimeValue": "End Time Value",
+      "role": "Role",
+      "unit": "Unit",
+      "tickInterval": "Tick Interval",
+      "direction": "Direction",
+      "period": "Period",
+      "occurrence": "Occurrence",
+      "asc": "Ascending",
+      "desc": "Descending"
+    }
   },
   "concept": {
     "create": "Create Concept",

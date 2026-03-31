@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { RenderNode } from './types';
-import type { CanvasMode, RenderingMode } from '../../stores/ui-store';
+import type { CanvasMode } from '../../stores/ui-store';
+import type { InteractionConstraints } from './layout-plugins/types';
 
 interface UseInteractionParams {
   containerRef: React.RefObject<HTMLDivElement>;
@@ -9,7 +10,7 @@ interface UseInteractionParams {
   panX: number;
   panY: number;
   mode: CanvasMode;
-  renderingMode: RenderingMode;
+  constraints: InteractionConstraints;
   onPanChange: (panX: number, panY: number) => void;
   onNodeDragEnd: (nodeId: string, x: number, y: number) => Promise<void>;
   onSpanResizeEnd?: (nodeId: string, edge: 'start' | 'end', newValue: number) => Promise<void>;
@@ -61,7 +62,7 @@ export function useInteraction({
   panX,
   panY,
   mode,
-  renderingMode,
+  constraints,
   onPanChange,
   onNodeDragEnd,
   onSpanResizeEnd,
@@ -136,7 +137,7 @@ export function useInteraction({
     [nodes, mode, panX, panY],
   );
 
-  // --- Span resize start (called by Timeline View Plugin) ---
+  // --- Span resize start (called by overlay plugin) ---
   const handleSpanResizeStart = useCallback(
     (nodeId: string, edge: 'start' | 'end', startX: number, startValue: number) => {
       if (mode === 'browse') return;
@@ -158,18 +159,16 @@ export function useInteraction({
 
     const handleMouseMove = (e: MouseEvent) => {
       if (dragState.type === 'pan') {
-        const dx = e.clientX - dragState.startX;
-        const dy = e.clientY - dragState.startY;
-
-        // Timeline mode: only horizontal pan
-        if (renderingMode === 'timeline') {
-          onPanChange(dragState.originPanX + dx, dragState.originPanY);
-        } else {
-          onPanChange(dragState.originPanX + dx, dragState.originPanY + dy);
-        }
+        const rawDx = e.clientX - dragState.startX;
+        const rawDy = e.clientY - dragState.startY;
+        const dx = constraints.panAxis === 'y' ? 0 : rawDx;
+        const dy = constraints.panAxis === 'x' ? 0 : rawDy;
+        onPanChange(dragState.originPanX + dx, dragState.originPanY + dy);
       } else if (dragState.type === 'node') {
-        const dx = e.clientX - dragState.startX;
-        const dy = e.clientY - dragState.startY;
+        const rawDx = e.clientX - dragState.startX;
+        const rawDy = e.clientY - dragState.startY;
+        const dx = constraints.nodeDragAxis === 'y' ? 0 : rawDx;
+        const dy = constraints.nodeDragAxis === 'x' ? 0 : rawDy;
         setNodeDragOffset({ id: dragState.nodeId, dx, dy });
       } else if (dragState.type === 'span-resize') {
         const dx = e.clientX - dragState.startX;
@@ -191,8 +190,10 @@ export function useInteraction({
 
     const handleMouseUp = (e: MouseEvent) => {
       if (dragState.type === 'node') {
-        const dx = e.clientX - dragState.startX;
-        const dy = e.clientY - dragState.startY;
+        const rawDx = e.clientX - dragState.startX;
+        const rawDy = e.clientY - dragState.startY;
+        const dx = constraints.nodeDragAxis === 'y' ? 0 : rawDx;
+        const dy = constraints.nodeDragAxis === 'x' ? 0 : rawDy;
 
         setNodeDragOffset(null);
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
@@ -204,10 +205,9 @@ export function useInteraction({
         const dx = e.clientX - dragState.startX;
 
         if (Math.abs(dx) > 2 && onSpanResizeEnd) {
-          // Timeline mode: convert screen dx to canvas dx, then to index
-          const TIME_SCALE = 200;
+          const PIXELS_PER_UNIT = 200;
           const canvasDx = dx / zoom;
-          const valueDelta = canvasDx / TIME_SCALE;
+          const valueDelta = canvasDx / PIXELS_PER_UNIT;
           const newValue = Math.round(dragState.startValue + valueDelta);
 
           onSpanResizeEnd(dragState.nodeId, dragState.edge, newValue).then(() =>
@@ -258,6 +258,7 @@ export function useInteraction({
     panX,
     panY,
     nodes,
+    constraints,
     containerRef,
     onPanChange,
     onNodeDragEnd,

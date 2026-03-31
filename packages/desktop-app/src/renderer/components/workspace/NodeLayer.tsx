@@ -11,6 +11,8 @@ interface NodeLayerProps {
   zoom: number;
   panX: number;
   panY: number;
+  /** Timeline mode: zoom only affects X position, nodes render at fixed size */
+  timelineMode?: boolean;
   nodeDragOffset: { id: string; dx: number; dy: number } | null;
   onNodeClick: (id: string, event: React.MouseEvent) => void;
   onNodeDoubleClick: (id: string) => void;
@@ -28,6 +30,7 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   zoom,
   panX,
   panY,
+  timelineMode,
   nodeDragOffset,
   onNodeClick,
   onNodeDoubleClick,
@@ -36,30 +39,39 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   onNodeMouseEnter,
   onNodeMouseLeave,
 }) => {
-  const getNodeTransform = (node: RenderNode) => {
+  const getNodePosition = (node: RenderNode) => {
     let x = node.x;
     let y = node.y;
 
     if (nodeDragOffset && nodeDragOffset.id === node.id) {
-      x += nodeDragOffset.dx / zoom;
-      y += nodeDragOffset.dy / zoom;
+      if (timelineMode) {
+        // In timeline, dx is screen pixels, convert to canvas X delta
+        x += nodeDragOffset.dx / zoom;
+        y += nodeDragOffset.dy;
+      } else {
+        x += nodeDragOffset.dx / zoom;
+        y += nodeDragOffset.dy / zoom;
+      }
+    }
+
+    if (timelineMode) {
+      // Timeline: X uses zoom, Y is direct screen offset
+      return { x: x * zoom + panX, y: y + panY };
     }
 
     return { x, y };
   };
 
+  // Timeline: no container transform, positions are screen coords
+  // Freeform: container transform with scale(zoom)
+  const containerStyle = timelineMode
+    ? { position: 'absolute' as const, left: 0, top: 0 }
+    : { position: 'absolute' as const, left: 0, top: 0, transformOrigin: '0 0', transform: `translate(${panX}px, ${panY}px) scale(${zoom})` };
+
   return (
-    <div
-      style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        transformOrigin: '0 0',
-        transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
-      }}
-    >
+    <div style={containerStyle}>
       {nodes.map((node) => {
-        const t = getNodeTransform(node);
+        const t = getNodePosition(node);
 
         return (
           <NodeCardDefault

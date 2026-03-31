@@ -73,7 +73,7 @@ interface FieldInputProps {
   onChange: (value: string | null) => void;
 }
 
-function FieldInput({ field, value, onChange }: FieldInputProps): JSX.Element {
+export function FieldInput({ field, value, onChange }: FieldInputProps): JSX.Element {
   const opts = parseOptions(field.options);
   const choices = (opts.choices ?? []).map((c) => ({ value: c, label: c }));
 

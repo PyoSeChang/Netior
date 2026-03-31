@@ -7,6 +7,7 @@ interface OpenTabParams {
   targetId: string;
   title: string;
   viewMode?: EditorViewMode;
+  draftData?: EditorTab['draftData'];
 }
 
 interface EditorStore {
@@ -212,7 +213,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   sideLayout: null,
   fullLayout: null,
 
-  openTab: async ({ type, targetId, title, viewMode }) => {
+  openTab: async ({ type, targetId, title, viewMode, draftData }) => {
     const { tabs } = get();
     const tabId = makeTabId(type, targetId);
 
@@ -277,8 +278,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       },
       isMinimized: false,
       sideSplitRatio: prefs?.side_split_ratio ?? 0.5,
-      isDirty: false,
+      isDirty: !!draftData,
       activeFilePath: null,
+      draftData,
     };
 
     // For side/full: add to the focused leaf in the layout tree

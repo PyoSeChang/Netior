@@ -13,7 +13,8 @@
     "noResults": "결과 없음",
     "add": "추가",
     "minimize": "최소화",
-    "restore": "{title} 복원"
+    "restore": "{title} 복원",
+    "none": "없음"
   },
   "project": {
     "create": "프로젝트 생성",
@@ -57,7 +58,28 @@
     "selectTarget": "연결할 노드를 클릭하세요",
     "addFileNode": "파일 노드 추가",
     "addDirNode": "디렉터리 노드 추가",
-    "createCanvas": "캔버스 추가"
+    "createCanvas": "캔버스 추가",
+    "layout": "레이아웃",
+    "layoutSettings": "레이아웃 설정",
+    "fieldMappings": "필드 매핑",
+    "addArchetype": "Archetype 추가...",
+    "scales": "스케일",
+    "scaleFactor": "Factor",
+    "scaleSubdivisions": "세분"
+  },
+  "layout": {
+    "timeline": {
+      "timeValue": "시간 값",
+      "endTimeValue": "종료 시간 값",
+      "role": "역할",
+      "unit": "단위",
+      "tickInterval": "눈금 간격",
+      "direction": "방향",
+      "period": "기간",
+      "occurrence": "사건",
+      "asc": "오름차순",
+      "desc": "내림차순"
+    }
   },
   "concept": {
     "create": "개념 생성",
