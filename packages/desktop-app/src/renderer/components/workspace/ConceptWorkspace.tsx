@@ -125,36 +125,36 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     setEdgeLinkingState(null);
   }, [canvasMode]);
 
-  // Restore viewport from canvas
+  // Restore viewport from canvas (freeform only — timeline always resets to today)
   useEffect(() => {
-    if (currentCanvas) {
-      setZoom(currentCanvas.viewport_zoom);
-      setPanX(currentCanvas.viewport_x);
-      setPanY(currentCanvas.viewport_y);
-    }
+    if (!currentCanvas) return;
+    if (currentCanvas.layout === 'horizontal-timeline') return; // handled by layout reset effect
+    setZoom(currentCanvas.viewport_zoom);
+    setPanX(currentCanvas.viewport_x);
+    setPanY(currentCanvas.viewport_y);
   }, [currentCanvas?.id]);
 
   // Reset viewport when layout changes (e.g., freeform → timeline)
-  // Reset viewport when layout changes or on first load of non-freeform
+  // Reset viewport for timeline canvases (always center on today)
+  const prevCanvasIdRef = useRef<string | undefined>(undefined);
   const prevLayoutRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!currentCanvas || !containerSize.width) return;
     const newLayout = currentCanvas.layout;
-    const isFirstLoad = prevLayoutRef.current === undefined;
+    const canvasChanged = prevCanvasIdRef.current !== currentCanvas.id;
     const layoutChanged = prevLayoutRef.current !== undefined && prevLayoutRef.current !== newLayout;
 
-    if ((isFirstLoad && newLayout !== 'freeform') || layoutChanged) {
-      if (newLayout === 'horizontal-timeline') {
-        // Center on today, panY=0 (header is fixed)
-        setZoom(1);
-        setPanX(containerSize.width / 2);
-        setPanY(0);
-      } else {
-        setZoom(1);
-        setPanX(containerSize.width / 2);
-        setPanY(containerSize.height / 2);
-      }
+    if (newLayout === 'horizontal-timeline' && (canvasChanged || layoutChanged)) {
+      setZoom(1);
+      setPanX(containerSize.width / 2);
+      setPanY(0);
+    } else if (layoutChanged && newLayout === 'freeform') {
+      setZoom(1);
+      setPanX(containerSize.width / 2);
+      setPanY(containerSize.height / 2);
     }
+
+    prevCanvasIdRef.current = currentCanvas.id;
     prevLayoutRef.current = newLayout;
   }, [currentCanvas?.layout, currentCanvas?.id, containerSize]);
 
