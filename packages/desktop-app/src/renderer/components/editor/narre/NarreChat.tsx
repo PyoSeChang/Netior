@@ -112,7 +112,7 @@ export function NarreChat({
           break;
         case 'error':
           setStreamingContent((prev) => prev + (evt.error ? `\n[Error: ${evt.error}]` : ''));
-          setIsStreaming(false);
+          // Don't set isStreaming=false here — wait for 'done' event to finalize
           break;
         case 'done':
           // Finalize: add assistant message to messages, clear streaming state

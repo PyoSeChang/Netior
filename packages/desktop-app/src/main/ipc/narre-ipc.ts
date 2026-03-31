@@ -279,14 +279,22 @@ export function registerNarreIpc(): void {
               type: 'error',
               error: err.message,
             } as NarreStreamEvent);
+            mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
+              type: 'done',
+            } as NarreStreamEvent);
           });
         },
       );
 
       req.on('error', (err) => {
+        console.error('[narre] Agent server connection error:', err.message);
         mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
           type: 'error',
-          error: `Agent server connection failed: ${err.message}`,
+          error: `Agent server connection failed: ${err.message}. Is the API key set?`,
+        } as NarreStreamEvent);
+        // Send done so the UI exits streaming state
+        mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
+          type: 'done',
         } as NarreStreamEvent);
       });
 

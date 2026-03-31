@@ -1,14 +1,15 @@
 import express from 'express';
 import cors from 'cors';
-import type Anthropic from '@anthropic-ai/sdk';
+import { query } from '@anthropic-ai/claude-agent-sdk';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import type { NarreMessage, NarreMention, NarreToolCall, NarreStreamEvent } from '@moc/shared/types';
 import * as core from '@moc/core';
-import { chat } from './agent.js';
 import { buildSystemPrompt } from './system-prompt.js';
-import { getAnthropicTools } from './tools.js';
-import { executeTool } from './tool-executor.js';
 import { SessionStore } from './session-store.js';
 import { initSSE, sendSSEEvent, endSSE } from './streaming.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PORT = parseInt(process.env.PORT ?? '3100', 10);
 const MOC_DATA_DIR = process.env.MOC_DATA_DIR;
@@ -29,7 +30,7 @@ if (!MOC_DB_PATH) {
   process.exit(1);
 }
 
-// Initialize the database with the exact path provided by the launcher
+// Initialize the database for system prompt building
 core.initDatabase(MOC_DB_PATH);
 
 const sessionStore = new SessionStore(MOC_DATA_DIR);
@@ -130,14 +131,13 @@ app.post('/chat', async (req, res) => {
       activeSessionId = newSession.id;
     }
 
-    // Send sessionId as the first SSE event so the client knows which session this belongs to
     initSSE(res);
-    sendSSEEvent(res, { type: 'text', content: '' } as NarreStreamEvent & { sessionId: string });
 
-    // 2. Build system prompt with live metadata
+    // 2. Build system prompt with live DB metadata
     const project = core.getProjectById(projectId);
     if (!project) {
       sendSSEEvent(res, { type: 'error', error: `Project not found: ${projectId}` });
+      sendSSEEvent(res, { type: 'done' });
       endSSE(res);
       return;
     }
@@ -149,20 +149,13 @@ app.post('/chat', async (req, res) => {
     const systemPrompt = buildSystemPrompt({
       projectName: project.name,
       archetypes: archetypes.map((a) => ({
-        name: a.name,
-        icon: a.icon,
-        color: a.color,
-        node_shape: a.node_shape,
+        name: a.name, icon: a.icon, color: a.color, node_shape: a.node_shape,
       })),
       relationTypes: relationTypes.map((r) => ({
-        name: r.name,
-        directed: r.directed,
-        line_style: r.line_style,
-        color: r.color,
+        name: r.name, directed: r.directed, line_style: r.line_style, color: r.color,
       })),
       canvasTypes: canvasTypes.map((c) => ({
-        name: c.name,
-        description: c.description,
+        name: c.name, description: c.description,
       })),
     });
 
@@ -171,21 +164,15 @@ app.post('/chat', async (req, res) => {
     if (mentions && mentions.length > 0) {
       for (const mention of mentions) {
         const tag = buildMentionTag(mention);
-        // Replace the display text with the tagged version if it appears in the message
         if (mention.display && processedMessage.includes(mention.display)) {
           processedMessage = processedMessage.replace(mention.display, tag);
         } else {
-          // Append mention context at the end
           processedMessage += `\n${tag}`;
         }
       }
     }
 
-    // 4. Build Anthropic messages from session history + new message
-    const sessionData = await sessionStore.getSession(activeSessionId, projectId);
-    const anthropicMessages = buildAnthropicMessages(sessionData?.messages ?? [], processedMessage);
-
-    // 5. Save user message to session
+    // 4. Save user message
     const userMessage: NarreMessage = {
       role: 'user',
       content: message,
@@ -194,53 +181,93 @@ app.post('/chat', async (req, res) => {
     };
     await sessionStore.appendMessage(activeSessionId, projectId, userMessage);
 
-    // 6. Stream the agent response
-    const tools = getAnthropicTools();
+    // 5. Resolve moc-mcp server path for tool access
+    let mcpServerPath: string;
+    try {
+      mcpServerPath = await resolveMcpServerPathSync();
+    } catch (err) {
+      sendSSEEvent(res, { type: 'error', error: (err as Error).message });
+      sendSSEEvent(res, { type: 'done' });
+      endSSE(res);
+      return;
+    }
+
+    // 6. Build session-aware prompt
+    const sessionData = await sessionStore.getSession(activeSessionId, projectId);
+    const history = sessionData?.messages ?? [];
+    const isResume = history.length > 1; // more than just the user message we just added
+
+    const prompt = isResume
+      ? processedMessage
+      : `${systemPrompt}\n\n${processedMessage}`;
+
+    // 7. Configure query options
+    const queryOptions: Record<string, unknown> = {
+      permissionMode: 'bypassPermissions',
+      allowDangerouslySkipPermissions: true,
+      maxTurns: 30,
+      tools: [], // no built-in tools, only MCP
+      model: 'sonnet',
+      mcpServers: {
+        'moc': {
+          command: 'node',
+          args: [mcpServerPath],
+          env: {
+            MOC_DB_PATH: MOC_DB_PATH,
+          },
+        },
+      },
+    };
+
+    // Session continuity
+    if (isResume && activeSessionId) {
+      queryOptions.resume = activeSessionId;
+    } else {
+      queryOptions.sessionId = activeSessionId;
+    }
+
+    // 8. Run the agent loop
     let assistantText = '';
     const toolCalls: NarreToolCall[] = [];
 
-    const generator = chat({
-      messages: anthropicMessages,
-      systemPrompt,
-      tools,
-      onToolCall: async (name, input) => {
-        return executeTool(name, input);
-      },
-    });
-
-    for await (const event of generator) {
-      sendSSEEvent(res, event);
-
-      // Accumulate for session storage
-      switch (event.type) {
-        case 'text':
-          assistantText += event.content ?? '';
-          break;
-        case 'tool_start':
-          toolCalls.push({
-            tool: event.tool!,
-            input: event.toolInput ?? {},
-            status: 'running',
-          });
-          break;
-        case 'tool_end': {
-          const tc = toolCalls.find(
-            (t) => t.tool === event.tool && t.status === 'running',
-          );
-          if (tc) {
-            tc.status = event.toolResult?.startsWith('Error') ? 'error' : 'success';
-            tc.result = event.toolResult;
+    try {
+      for await (const msg of query({
+        prompt,
+        options: queryOptions as Parameters<typeof query>[0]['options'],
+      })) {
+        if (msg.type === 'assistant' && msg.message?.content) {
+          for (const block of msg.message.content) {
+            if ('text' in block && block.text) {
+              sendSSEEvent(res, { type: 'text', content: block.text });
+              assistantText += block.text;
+            }
+            if ('name' in block && block.name) {
+              const toolInput = (block.input as Record<string, unknown>) ?? {};
+              sendSSEEvent(res, { type: 'tool_start', tool: block.name, toolInput });
+              toolCalls.push({
+                tool: block.name,
+                input: toolInput,
+                status: 'running',
+              });
+            }
           }
-          break;
+        } else if (msg.type === 'result') {
+          console.log(`[narre] Completed in ${msg.num_turns || 0} turns, cost: $${msg.total_cost_usd?.toFixed(4) || '?'}`);
+
+          // Mark all running tool calls as success
+          for (const tc of toolCalls) {
+            if (tc.status === 'running') {
+              tc.status = 'success';
+              sendSSEEvent(res, { type: 'tool_end', tool: tc.tool, toolResult: 'completed' });
+            }
+          }
         }
-        case 'error':
-          // Errors are streamed to client, logged here
-          console.error('Chat error:', event.error);
-          break;
       }
+    } catch (error) {
+      sendSSEEvent(res, { type: 'error', error: (error as Error).message });
     }
 
-    // 7. Save assistant message to session
+    // 9. Save assistant message
     if (assistantText || toolCalls.length > 0) {
       const assistantMessage: NarreMessage = {
         role: 'assistant',
@@ -251,18 +278,35 @@ app.post('/chat', async (req, res) => {
       await sessionStore.appendMessage(activeSessionId, projectId, assistantMessage);
     }
 
+    sendSSEEvent(res, { type: 'done' });
     endSSE(res);
   } catch (error) {
     console.error('Chat endpoint error:', error);
-    // If headers already sent (SSE started), try to send error event
     if (res.headersSent) {
       sendSSEEvent(res, { type: 'error', error: (error as Error).message });
+      sendSSEEvent(res, { type: 'done' });
       endSSE(res);
     } else {
       res.status(500).json({ error: (error as Error).message });
     }
   }
 });
+
+/**
+ * Synchronous version of MCP server path resolution.
+ */
+async function resolveMcpServerPathSync(): Promise<string> {
+  const { existsSync } = await import('fs');
+  const candidates = [
+    join(__dirname, '../../moc-mcp/dist/index.js'),
+    join(__dirname, '../../../moc-mcp/dist/index.js'),
+    join(process.cwd(), 'packages/moc-mcp/dist/index.js'),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  throw new Error('Could not find moc-mcp server. Run: pnpm --filter @moc/mcp build');
+}
 
 /**
  * Build a mention tag string from a NarreMention.
@@ -290,31 +334,11 @@ function buildMentionTag(mention: NarreMention): string {
   }
 }
 
-/**
- * Convert NarreMessage history + new message into Anthropic message format.
- */
-function buildAnthropicMessages(
-  history: NarreMessage[],
-  newUserMessage: string,
-): Anthropic.MessageParam[] {
-  const messages: Anthropic.MessageParam[] = [];
-
-  for (const msg of history) {
-    if (msg.role === 'user') {
-      messages.push({ role: 'user', content: msg.content });
-    } else if (msg.role === 'assistant') {
-      messages.push({ role: 'assistant', content: msg.content });
-    }
-  }
-
-  messages.push({ role: 'user', content: newUserMessage });
-  return messages;
-}
-
 // ── Start server ──
 app.listen(PORT, () => {
   console.log(`Narre agent-server listening on port ${PORT}`);
   console.log(`Data directory: ${MOC_DATA_DIR}`);
+  console.log(`DB path: ${MOC_DB_PATH}`);
 });
 
 export type { };
