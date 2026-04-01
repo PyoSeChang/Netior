@@ -1,14 +1,17 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Send } from 'lucide-react';
-import type { NarreMention } from '@moc/shared/types';
+import type { NarreMention, SlashCommand } from '@netior/shared/types';
+import { SLASH_COMMANDS } from '@netior/shared/constants';
 import type { MentionResult } from '../../../services/narre-service';
 import { useI18n } from '../../../hooks/useI18n';
 import { IconButton } from '../../ui/IconButton';
 import { NarreMentionPicker } from './NarreMentionPicker';
+import { NarreSlashPicker } from './NarreSlashPicker';
 
 interface NarreMentionInputProps {
   projectId: string;
   onSend: (text: string, mentions: NarreMention[]) => void;
+  onCommand?: (command: SlashCommand) => void;
   disabled?: boolean;
   placeholder?: string;
 }
@@ -80,6 +83,7 @@ function createMentionChip(mention: MentionResult): HTMLSpanElement {
 export function NarreMentionInput({
   projectId,
   onSend,
+  onCommand,
   disabled = false,
   placeholder,
 }: NarreMentionInputProps): JSX.Element {
@@ -87,6 +91,11 @@ export function NarreMentionInput({
   const editorRef = useRef<HTMLDivElement>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   const [picker, setPicker] = useState<PickerState>({
+    isOpen: false,
+    query: '',
+    position: { bottom: 0, left: 0 },
+  });
+  const [slashPicker, setSlashPicker] = useState<PickerState>({
     isOpen: false,
     query: '',
     position: { bottom: 0, left: 0 },
@@ -114,8 +123,28 @@ export function NarreMentionInput({
     mentionSearchStart.current = null;
   }, [onSend, disabled]);
 
+  const handleSlashSelect = useCallback((command: SlashCommand) => {
+    const el = editorRef.current;
+    if (!el) return;
+
+    if (command.type === 'conversation') {
+      // Send as a message — NarreChat will route to /chat
+      onSend(`/${command.name}`, []);
+    } else if (onCommand) {
+      onCommand(command);
+    }
+
+    el.innerHTML = '';
+    setIsEmpty(true);
+    setSlashPicker((p) => ({ ...p, isOpen: false }));
+  }, [onSend, onCommand]);
+
+  const handleSlashPickerClose = useCallback(() => {
+    setSlashPicker((p) => ({ ...p, isOpen: false }));
+  }, []);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (picker.isOpen) {
+    if (picker.isOpen || slashPicker.isOpen) {
       // Let the picker handle these keys
       if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
         return; // picker's document listener will handle
@@ -161,7 +190,7 @@ export function NarreMentionInput({
         }
       }
     }
-  }, [picker.isOpen, handleSend, checkEmpty]);
+  }, [picker.isOpen, slashPicker.isOpen, handleSend, checkEmpty]);
 
   const handleInput = useCallback(() => {
     checkEmpty();
@@ -182,6 +211,24 @@ export function NarreMentionInput({
 
     const text = node.textContent || '';
     const cursorPos = range.startOffset;
+
+    // Check for "/" at the start of input (slash command)
+    const fullText = editorRef.current?.textContent || '';
+    if (fullText.startsWith('/')) {
+      const slashQuery = fullText.slice(1);
+      const el = editorRef.current!;
+      const rect = el.getBoundingClientRect();
+      setSlashPicker({
+        isOpen: true,
+        query: slashQuery,
+        position: {
+          bottom: window.innerHeight - rect.top + 4,
+          left: rect.left,
+        },
+      });
+    } else if (slashPicker.isOpen) {
+      setSlashPicker((p) => ({ ...p, isOpen: false }));
+    }
 
     // Look backward from cursor for @
     let atPos = -1;
@@ -218,7 +265,7 @@ export function NarreMentionInput({
         mentionSearchStart.current = null;
       }
     }
-  }, [picker.isOpen, checkEmpty]);
+  }, [picker.isOpen, slashPicker.isOpen, checkEmpty]);
 
   const handleMentionSelect = useCallback((mention: MentionResult) => {
     const el = editorRef.current;
@@ -304,6 +351,14 @@ export function NarreMentionInput({
           position={picker.position}
           onSelect={handleMentionSelect}
           onClose={handlePickerClose}
+        />
+      )}
+      {slashPicker.isOpen && !picker.isOpen && (
+        <NarreSlashPicker
+          query={slashPicker.query}
+          position={slashPicker.position}
+          onSelect={handleSlashSelect}
+          onClose={handleSlashPickerClose}
         />
       )}
       <IconButton

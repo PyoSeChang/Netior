@@ -363,6 +363,21 @@
     "mentionArchetype": "Archetype",
     "mentionRelationType": "관계 유형",
     "mentionCanvasType": "캔버스 유형",
-    "mentionSearch": "검색..."
+    "mentionSearch": "검색...",
+    "command": {
+      "onboarding": "프로젝트 타입 체계 구축",
+      "unknownCommand": "알 수 없는 커맨드입니다: {name}"
+    },
+    "card": {
+      "proposalConfirm": "수정 완료",
+      "proposalRetry": "다시 분석",
+      "proposalAddRow": "추가",
+      "proposalDeleteRow": "삭제",
+      "permissionCancel": "취소",
+      "permissionConfirm": "확인",
+      "interviewSubmit": "선택",
+      "summarySuccess": "완료",
+      "summaryError": "실패"
+    }
   }
 }

@@ -10,10 +10,15 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   external: [
-    '@anthropic-ai/claude-agent-sdk',
+    'better-sqlite3',
+    '@netior/core',
     '@netior/shared',
-    'express',
-    'cors',
+    '@modelcontextprotocol/sdk',
+    /^@modelcontextprotocol\/sdk\//,
     'zod',
+    'fast-glob',
   ],
+  banner: {
+    js: '#!/usr/bin/env node',
+  },
 });

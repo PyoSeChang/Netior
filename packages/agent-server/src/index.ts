@@ -4,10 +4,18 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
-import type { NarreMessage, NarreMention, NarreToolCall, NarreStreamEvent } from '@moc/shared/types';
+import type { NarreMessage, NarreMention, NarreToolCall, NarreStreamEvent } from '@netior/shared/types';
 import { buildSystemPrompt, type SystemPromptParams } from './system-prompt.js';
+import { buildOnboardingPrompt } from './prompts/onboarding.js';
 import { SessionStore } from './session-store.js';
 import { initSSE, sendSSEEvent, endSSE } from './streaming.js';
+import { parseCommand, isConversationCommand } from './command-router.js';
+import { createNarreUiServer, resolveUiCall } from './ui-tools.js';
+
+// Command-specific system prompt builders
+const commandPromptBuilders: Record<string, (params: SystemPromptParams) => string> = {
+  onboarding: buildOnboardingPrompt,
+};
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -24,6 +32,9 @@ if (!MOC_DB_PATH) {
   console.error('Error: MOC_DB_PATH environment variable is required');
   process.exit(1);
 }
+
+// UI tools may block waiting for user interaction — extend stream close timeout
+process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT = process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT || '300000';
 
 const sessionStore = new SessionStore(MOC_DATA_DIR);
 const app = express();
@@ -73,6 +84,31 @@ app.delete('/sessions/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ error: (error as Error).message }); }
 });
 
+// ── UI tool response endpoint ──
+app.post('/chat/respond', (req, res) => {
+  const { toolCallId, response } = req.body;
+  if (!toolCallId) { res.status(400).json({ error: 'toolCallId required' }); return; }
+  const resolved = resolveUiCall(toolCallId, response);
+  if (!resolved) { res.status(404).json({ error: 'No pending UI call' }); return; }
+  res.json({ ok: true });
+});
+
+// ── System command endpoint ──
+app.post('/command', async (req, res) => {
+  const { projectId, command } = req.body;
+  if (!projectId || !command) { res.status(400).json({ error: 'projectId and command required' }); return; }
+  const parsed = parseCommand('/' + command);
+  if (!parsed || parsed.command.type !== 'system') {
+    res.status(400).json({ error: 'Invalid system command' });
+    return;
+  }
+  // For now, return not implemented
+  initSSE(res);
+  sendSSEEvent(res, { type: 'error', error: `System command /${command} not yet implemented` });
+  sendSSEEvent(res, { type: 'done' });
+  endSSE(res);
+});
+
 // ── Chat endpoint (SSE) ──
 app.post('/chat', async (req, res) => {
   const { sessionId, projectId, message, mentions, projectMetadata } = req.body as {
@@ -88,6 +124,15 @@ app.post('/chat', async (req, res) => {
     return;
   }
 
+  // Check if message is a slash command
+  const parsedCommand = parseCommand(message);
+
+  // System commands should use the /command endpoint
+  if (parsedCommand && parsedCommand.command.type === 'system') {
+    res.status(400).json({ error: 'Use /command endpoint for system commands' });
+    return;
+  }
+
   try {
     // 1. Resolve or create session
     let activeSessionId = sessionId;
@@ -98,13 +143,18 @@ app.post('/chat', async (req, res) => {
 
     initSSE(res);
 
-    // 2. Build system prompt from metadata provided by desktop-app
-    const systemPrompt = buildSystemPrompt(projectMetadata ?? {
+    // 2. Build system prompt — use command-specific prompt if available
+    const metadata = projectMetadata ?? {
       projectName: projectId,
       archetypes: [],
       relationTypes: [],
       canvasTypes: [],
-    });
+    };
+    const commandName = parsedCommand?.command.name;
+    const promptBuilder = commandName && commandPromptBuilders[commandName];
+    const systemPrompt = promptBuilder
+      ? promptBuilder(metadata)
+      : buildSystemPrompt(metadata);
 
     // 3. Convert mentions to inline format
     let processedMessage = message;
@@ -127,10 +177,10 @@ app.post('/chat', async (req, res) => {
       timestamp: new Date().toISOString(),
     });
 
-    // 5. Resolve moc-mcp server path
+    // 5. Resolve netior-mcp server path
     const mcpServerPath = resolveMcpServerPath();
     if (!mcpServerPath) {
-      sendSSEEvent(res, { type: 'error', error: 'Could not find moc-mcp server. Run: pnpm --filter @moc/mcp build' });
+      sendSSEEvent(res, { type: 'error', error: 'Could not find netior-mcp server. Run: pnpm --filter @netior/mcp build' });
       sendSSEEvent(res, { type: 'done' });
       endSSE(res);
       return;
@@ -146,19 +196,26 @@ app.post('/chat', async (req, res) => {
       : `${systemPrompt}\n\n${processedMessage}`;
 
     // 7. Configure query options
+    const mcpServers: Record<string, unknown> = {
+      'netior': {
+        command: 'node',
+        args: [mcpServerPath],
+        env: { MOC_DB_PATH },
+      },
+    };
+
+    // Always include UI tools — they're needed for conversation command sessions
+    // and harmless if unused in regular chat
+    const uiServer = createNarreUiServer((card) => sendSSEEvent(res, { type: 'card', card }));
+    mcpServers['narre-ui'] = uiServer;
+
     const queryOptions: Record<string, unknown> = {
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
       maxTurns: 30,
       tools: [],
       model: 'sonnet',
-      mcpServers: {
-        'moc': {
-          command: 'node',
-          args: [mcpServerPath],
-          env: { MOC_DB_PATH },
-        },
-      },
+      mcpServers,
     };
 
     if (isResume && activeSessionId) {
@@ -236,9 +293,9 @@ app.post('/chat', async (req, res) => {
 
 function resolveMcpServerPath(): string | null {
   const candidates = [
-    join(__dirname, '../../moc-mcp/dist/index.js'),
-    join(__dirname, '../../../moc-mcp/dist/index.js'),
-    join(process.cwd(), 'packages/moc-mcp/dist/index.js'),
+    join(__dirname, '../../netior-mcp/dist/index.js'),
+    join(__dirname, '../../../netior-mcp/dist/index.js'),
+    join(process.cwd(), 'packages/netior-mcp/dist/index.js'),
   ];
   for (const p of candidates) {
     if (existsSync(p)) return p;

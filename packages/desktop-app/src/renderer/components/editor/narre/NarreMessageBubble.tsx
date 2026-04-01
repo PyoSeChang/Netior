@@ -1,12 +1,16 @@
 import React from 'react';
-import type { NarreMention, NarreToolCall } from '@moc/shared/types';
+import type { NarreCard, NarreMention, NarreToolCall } from '@netior/shared/types';
 import { NarreToolLog } from './NarreToolLog';
+import { NarreMarkdown } from './NarreMarkdown';
+import { NarreCardRenderer } from './cards/NarreCardRenderer';
 
 interface NarreMessageBubbleProps {
   role: 'user' | 'assistant';
   content: string;
   mentions?: NarreMention[];
   toolCalls?: NarreToolCall[];
+  cards?: NarreCard[];
+  onCardRespond?: (toolCallId: string, response: unknown) => void;
   isStreaming?: boolean;
 }
 
@@ -47,10 +51,32 @@ function renderContentWithMentions(text: string): React.ReactNode[] {
   return parts.length > 0 ? parts : [text];
 }
 
+/**
+ * Pre-process mention bracket syntax to a safe placeholder for markdown,
+ * then render mention chips alongside markdown output.
+ *
+ * For user messages we keep plain text rendering with mention chips.
+ * For assistant messages we use NarreMarkdown.
+ */
+function renderAssistantContent(content: string): JSX.Element {
+  // Assistant messages typically don't include mention brackets,
+  // but if they do, convert them to bold display for markdown rendering.
+  const processed = content.replace(
+    MENTION_RE,
+    (_match, _type, id, path, title) => {
+      const display = title || id || path || '';
+      return `**@${display}**`;
+    },
+  );
+  return <NarreMarkdown content={processed} />;
+}
+
 export function NarreMessageBubble({
   role,
   content,
   toolCalls,
+  cards,
+  onCardRespond,
   isStreaming = false,
 }: NarreMessageBubbleProps): JSX.Element {
   const isUser = role === 'user';
@@ -66,12 +92,23 @@ export function NarreMessageBubble({
         ].join(' ')}
       >
         {content && (
-          <div className="whitespace-pre-wrap break-words">
-            {renderContentWithMentions(content)}
+          <div className={isUser ? 'whitespace-pre-wrap break-words' : 'break-words'}>
+            {isUser
+              ? renderContentWithMentions(content)
+              : renderAssistantContent(content)}
           </div>
         )}
         {isStreaming && !content && (
           <div className="text-muted text-xs animate-pulse">...</div>
+        )}
+        {cards && cards.length > 0 && onCardRespond && (
+          cards.map((card, idx) => (
+            <NarreCardRenderer
+              key={card.toolCallId || idx}
+              card={card}
+              onRespond={onCardRespond}
+            />
+          ))
         )}
         {toolCalls && toolCalls.length > 0 && (
           <NarreToolLog calls={toolCalls} defaultExpanded={isStreaming} />

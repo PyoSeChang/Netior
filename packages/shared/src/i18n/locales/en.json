@@ -363,6 +363,21 @@
     "mentionArchetype": "Archetype",
     "mentionRelationType": "Relation Type",
     "mentionCanvasType": "Canvas Type",
-    "mentionSearch": "Search..."
+    "mentionSearch": "Search...",
+    "command": {
+      "onboarding": "Build project type system",
+      "unknownCommand": "Unknown command: {name}"
+    },
+    "card": {
+      "proposalConfirm": "Confirm",
+      "proposalRetry": "Re-analyze",
+      "proposalAddRow": "Add",
+      "proposalDeleteRow": "Delete",
+      "permissionCancel": "Cancel",
+      "permissionConfirm": "Confirm",
+      "interviewSubmit": "Select",
+      "summarySuccess": "Complete",
+      "summaryError": "Failed"
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { release } from 'node:os';
-import type { TerminalLaunchConfig, TerminalSessionInfo, TerminalSessionState } from '@moc/shared/types';
+import type { TerminalLaunchConfig, TerminalSessionInfo, TerminalSessionState } from '@netior/shared/types';
 
 function getWindowsBuildNumber(): number | null {
   if (process.platform !== 'win32') return null;
@@ -203,6 +203,8 @@ const electronAPI = {
     setApiKey: (key: string) => ipcRenderer.invoke('narre:setApiKey', key),
     searchMentions: (projectId: string, query: string) => ipcRenderer.invoke('narre:searchMentions', projectId, query),
     sendMessage: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:sendMessage', data),
+    respondToCard: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:respondCard', data),
+    executeCommand: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:executeCommand', data),
     onStreamEvent: (callback: (event: unknown) => void) => {
       const handler = (_event: IpcRendererEvent, data: unknown) => callback(data);
       ipcRenderer.on('narre:streamEvent', handler);
@@ -212,8 +214,8 @@ const electronAPI = {
   mocSync: {
     onChangeEvent: (callback: (event: unknown) => void) => {
       const handler = (_event: IpcRendererEvent, data: unknown) => callback(data);
-      ipcRenderer.on('moc:change', handler);
-      return () => { ipcRenderer.removeListener('moc:change', handler); };
+      ipcRenderer.on('netior:change', handler);
+      return () => { ipcRenderer.removeListener('netior:change', handler); };
     },
   },
   editor: {

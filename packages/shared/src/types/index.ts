@@ -539,15 +539,90 @@ export interface NarreToolCall {
 }
 
 export interface NarreStreamEvent {
-  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done';
+  type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done' | 'card';
   content?: string;
   tool?: string;
   toolInput?: Record<string, unknown>;
   toolResult?: string;
   error?: string;
+  card?: NarreCard;
 }
 
-export interface MocChangeEvent {
+// ============================================
+// Slash Command Types
+// ============================================
+
+export type CommandArgType = 'string' | 'enum';
+
+export interface CommandArg {
+  name: string;
+  description: string;
+  required: boolean;
+  type: CommandArgType;
+  options?: string[];
+}
+
+export type CommandType = 'conversation' | 'system';
+
+export interface SlashCommand {
+  name: string;
+  description: string;
+  type: CommandType;
+  args?: CommandArg[];
+}
+
+// ============================================
+// Narre Response Card Types
+// ============================================
+
+export type NarreCardType = 'proposal' | 'permission' | 'interview' | 'summary';
+
+export type ProposalCellType = 'text' | 'icon' | 'color' | 'enum' | 'boolean' | 'readonly';
+
+export interface ProposalColumn {
+  key: string;
+  label: string;
+  cellType: ProposalCellType;
+  options?: string[];
+}
+
+export interface ProposalRow {
+  id: string;
+  values: Record<string, unknown>;
+}
+
+export interface NarreProposalCard {
+  type: 'proposal';
+  toolCallId: string;
+  title: string;
+  columns: ProposalColumn[];
+  rows: ProposalRow[];
+}
+
+export interface NarrePermissionCard {
+  type: 'permission';
+  toolCallId: string;
+  message: string;
+  actions: Array<{ key: string; label: string; variant?: 'danger' | 'default' }>;
+}
+
+export interface NarreInterviewCard {
+  type: 'interview';
+  toolCallId: string;
+  question: string;
+  options: Array<{ label: string; description?: string }>;
+  multiSelect?: boolean;
+}
+
+export interface NarreSummaryCard {
+  type: 'summary';
+  title: string;
+  items: Array<{ label: string; status: 'success' | 'error' }>;
+}
+
+export type NarreCard = NarreProposalCard | NarrePermissionCard | NarreInterviewCard | NarreSummaryCard;
+
+export interface NetiorChangeEvent {
   type: 'archetypes' | 'concepts' | 'relationTypes' | 'canvasTypes' | 'canvases' | 'edges';
   action: 'created' | 'updated' | 'deleted';
   id: string;

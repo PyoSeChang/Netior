@@ -1,4 +1,4 @@
-import type { NarreSession, NarreMention } from '@moc/shared/types';
+import type { NarreSession, NarreMention } from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function listSessions(projectId: string): Promise<NarreSession[]> {
@@ -53,6 +53,22 @@ export function onStreamEvent(callback: (event: unknown) => void): () => void {
   return window.electron.narre.onStreamEvent(callback);
 }
 
+export async function respondToCard(
+  sessionId: string,
+  toolCallId: string,
+  response: unknown,
+): Promise<void> {
+  await window.electron.narre.respondToCard({ sessionId, toolCallId, response });
+}
+
+export async function executeCommand(
+  projectId: string,
+  command: string,
+  args?: Record<string, string>,
+): Promise<void> {
+  await window.electron.narre.executeCommand({ projectId, command, args });
+}
+
 export const narreService = {
   listSessions,
   createSession,
@@ -63,4 +79,6 @@ export const narreService = {
   searchMentions,
   sendMessage,
   onStreamEvent,
+  respondToCard,
+  executeCommand,
 };

@@ -3,13 +3,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from '
 import http from 'http';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import type { IpcResult, NarreSession, NarreStreamEvent } from '@moc/shared/types';
-import { IPC_CHANNELS } from '@moc/shared/constants';
+import type { IpcResult, NarreSession, NarreStreamEvent } from '@netior/shared/types';
+import { IPC_CHANNELS } from '@netior/shared/constants';
 import {
   getSetting, setSetting,
   searchConcepts, listArchetypes, listRelationTypes, listCanvasTypes, listCanvases,
   getProjectById,
-} from '@moc/core';
+} from '@netior/core';
 import { startAgentServer, isAgentServerRunning } from '../process/agent-server-manager';
 
 function getNarreDir(projectId: string): string {
@@ -153,7 +153,7 @@ export function registerNarreIpc(): void {
       // Start agent-server if not already running
       if (key && !isAgentServerRunning()) {
         const dbDir = join(app.getPath('userData'), 'data');
-        const dbPath = join(dbDir, 'moc.db'); // Will be overridden by env in dev
+        const dbPath = join(dbDir, 'netior.db'); // Will be overridden by env in dev
         startAgentServer({ apiKey: key, dbPath, dataDir: dbDir });
       }
       return { success: true, data: true };
@@ -336,6 +336,115 @@ export function registerNarreIpc(): void {
       req.end();
 
       // Return immediately; streaming happens via events
+      return { success: true, data: null };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.NARRE_RESPOND_CARD, async (_e, data: Record<string, unknown>): Promise<IpcResult<null>> => {
+    try {
+      const { toolCallId, response } = data as {
+        toolCallId: string;
+        response: unknown;
+      };
+
+      const body = JSON.stringify({ toolCallId, response });
+      const agentPort = 3100;
+
+      return new Promise((resolve) => {
+        const req = http.request(
+          {
+            hostname: 'localhost',
+            port: agentPort,
+            path: '/chat/respond',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          },
+          (res) => {
+            let responseBody = '';
+            res.on('data', (chunk: Buffer) => { responseBody += chunk.toString(); });
+            res.on('end', () => {
+              resolve({ success: true, data: null });
+            });
+          },
+        );
+        req.on('error', (err) => {
+          resolve({ success: false, error: err.message });
+        });
+        req.write(body);
+        req.end();
+      });
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.NARRE_EXECUTE_COMMAND, async (_e, data: Record<string, unknown>): Promise<IpcResult<null>> => {
+    try {
+      const { projectId, command, args } = data as {
+        projectId: string;
+        command: string;
+        args?: Record<string, string>;
+      };
+
+      const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+      if (!mainWindow) {
+        return { success: false, error: 'No main window available' };
+      }
+
+      const body = JSON.stringify({ projectId, command, args });
+      const agentPort = 3100;
+
+      const req = http.request(
+        {
+          hostname: 'localhost',
+          port: agentPort,
+          path: '/command',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+        },
+        (res) => {
+          let buffer = '';
+          res.on('data', (chunk: Buffer) => {
+            buffer += chunk.toString();
+            const events = buffer.split('\n\n');
+            buffer = events.pop() || '';
+            for (const eventStr of events) {
+              const trimmed = eventStr.trim();
+              if (trimmed.startsWith('data: ')) {
+                try {
+                  const parsed = JSON.parse(trimmed.slice(6));
+                  mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, parsed);
+                } catch { /* skip */ }
+              }
+            }
+          });
+          res.on('end', () => {
+            if (buffer.trim().startsWith('data: ')) {
+              try {
+                const parsed = JSON.parse(buffer.trim().slice(6));
+                mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, parsed);
+              } catch { /* skip */ }
+            }
+          });
+        },
+      );
+      req.on('error', (err) => {
+        mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
+          type: 'error', error: err.message,
+        });
+        mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, { type: 'done' });
+      });
+      req.write(body);
+      req.end();
+
       return { success: true, data: null };
     } catch (err) {
       return { success: false, error: (err as Error).message };

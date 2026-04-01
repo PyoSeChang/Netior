@@ -1,3 +1,17 @@
+import type { SlashCommand } from '../types/index.js';
+
+// ============================================
+// Slash Commands
+// ============================================
+
+export const SLASH_COMMANDS: readonly SlashCommand[] = [
+  {
+    name: 'onboarding',
+    description: 'narre.command.onboarding',
+    type: 'conversation',
+  },
+] as const;
+
 // ============================================
 // IPC Channels
 // ============================================
@@ -128,6 +142,8 @@ export const IPC_CHANNELS = {
   NARRE_SEARCH_MENTIONS: 'narre:searchMentions',
   NARRE_GET_API_KEY_STATUS: 'narre:getApiKeyStatus',
   NARRE_SET_API_KEY: 'narre:setApiKey',
+  NARRE_EXECUTE_COMMAND: 'narre:executeCommand',
+  NARRE_RESPOND_CARD: 'narre:respondCard',
 } as const;
 
 // ============================================

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import type { NarreMessage, NarreStreamEvent, NarreToolCall, NarreMention } from '@moc/shared/types';
+import type { NarreMessage, NarreStreamEvent, NarreToolCall, NarreMention, NarreCard } from '@netior/shared/types';
 import { narreService } from '../../../services/narre-service';
 import { useI18n } from '../../../hooks/useI18n';
 import { IconButton } from '../../ui/IconButton';
@@ -39,6 +39,7 @@ export function NarreChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingToolCalls, setStreamingToolCalls] = useState<NarreToolCall[]>([]);
+  const [streamingCards, setStreamingCards] = useState<NarreCard[]>([]);
   const [sessionTitle, setSessionTitle] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -46,6 +47,7 @@ export function NarreChat({
   const autoScrollRef = useRef(true);
   const streamingContentRef = useRef('');
   const streamingToolCallsRef = useRef<NarreToolCall[]>([]);
+  const streamingCardsRef = useRef<NarreCard[]>([]);
 
   // Load session data on mount
   useEffect(() => {
@@ -111,6 +113,12 @@ export function NarreChat({
             }
           }
           break;
+        case 'card':
+          if (evt.card) {
+            streamingCardsRef.current = [...streamingCardsRef.current, evt.card];
+            setStreamingCards(streamingCardsRef.current);
+          }
+          break;
         case 'error':
           streamingContentRef.current += evt.error ? `\n[Error: ${evt.error}]` : '';
           setStreamingContent(streamingContentRef.current);
@@ -130,8 +138,10 @@ export function NarreChat({
           }
           streamingContentRef.current = '';
           streamingToolCallsRef.current = [];
+          streamingCardsRef.current = [];
           setStreamingContent('');
           setStreamingToolCalls([]);
+          setStreamingCards([]);
           setIsStreaming(false);
           break;
         }
@@ -146,7 +156,7 @@ export function NarreChat({
     if (autoScrollRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, streamingContent, streamingToolCalls]);
+  }, [messages, streamingContent, streamingToolCalls, streamingCards]);
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -154,6 +164,15 @@ export function NarreChat({
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
     autoScrollRef.current = atBottom;
   }, []);
+
+  const handleCardRespond = useCallback(async (toolCallId: string, response: unknown) => {
+    if (!sessionId) return;
+    try {
+      await narreService.respondToCard(sessionId, toolCallId, response);
+    } catch {
+      // Error handling — card response failed
+    }
+  }, [sessionId]);
 
   const handleSend = useCallback(async (text: string, mentions: NarreMention[]) => {
     if (!text.trim() || isStreaming) return;
@@ -183,8 +202,10 @@ export function NarreChat({
     setIsStreaming(true);
     streamingContentRef.current = '';
     streamingToolCallsRef.current = [];
+    streamingCardsRef.current = [];
     setStreamingContent('');
     setStreamingToolCalls([]);
+    setStreamingCards([]);
     autoScrollRef.current = true;
 
     // Send to agent server via IPC
@@ -249,11 +270,13 @@ export function NarreChat({
             ))}
 
             {/* Streaming partial message */}
-            {isStreaming && (streamingContent || streamingToolCalls.length > 0) && (
+            {isStreaming && (streamingContent || streamingToolCalls.length > 0 || streamingCards.length > 0) && (
               <NarreMessageBubble
                 role="assistant"
                 content={streamingContent}
                 toolCalls={streamingToolCalls}
+                cards={streamingCards}
+                onCardRespond={handleCardRespond}
                 isStreaming
               />
             )}
