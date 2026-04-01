@@ -1,0 +1,28 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior DNA network mark</title>
+  <desc>Geometric double-helix inspired network mark for Netior.</desc>
+  <g stroke="#0F172A" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M176 108C266 156 266 356 176 404" />
+    <path d="M336 108C246 156 246 356 336 404" />
+    <path d="M194 152H318" />
+    <path d="M168 220H344" opacity="0.82" />
+    <path d="M168 292H344" opacity="0.82" />
+    <path d="M194 360H318" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="176" cy="108" r="24" />
+    <circle cx="336" cy="108" r="24" />
+    <circle cx="168" cy="220" r="28" />
+    <circle cx="344" cy="220" r="28" />
+    <circle cx="168" cy="292" r="28" />
+    <circle cx="344" cy="292" r="28" />
+    <circle cx="176" cy="404" r="24" />
+    <circle cx="336" cy="404" r="24" />
+  </g>
+  <g fill="#06B6D4">
+    <circle cx="256" cy="152" r="12" />
+    <circle cx="256" cy="220" r="12" />
+    <circle cx="256" cy="292" r="12" />
+    <circle cx="256" cy="360" r="12" />
+  </g>
+</svg>

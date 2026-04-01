@@ -2,7 +2,7 @@ import { ipcMain, dialog, shell } from 'electron';
 import { readdir, readFile, writeFile, stat, rename, rm, mkdir, copyFile, cp } from 'fs/promises';
 import { join, extname, basename, dirname } from 'path';
 import { existsSync } from 'fs';
-import type { IpcResult, FileTreeNode } from '@moc/shared/types';
+import type { IpcResult, FileTreeNode } from '@netior/shared/types';
 
 async function buildFileTree(dirPath: string): Promise<FileTreeNode[]> {
   const entries = await readdir(dirPath, { withFileTypes: true });

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { EditorTab } from '@moc/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
 import { useModuleStore } from '../../stores/module-store';
 import { useEditorStore } from '../../stores/editor-store';

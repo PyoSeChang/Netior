@@ -11,7 +11,7 @@ import {
   type ITerminalProcessOptions,
 } from '@codingame/monaco-vscode-api/vscode/vs/platform/terminal/common/terminal';
 import { SimpleTerminalBackend } from '@codingame/monaco-vscode-terminal-service-override';
-import type { TerminalLaunchConfig } from '@moc/shared/types';
+import type { TerminalLaunchConfig } from '@netior/shared/types';
 import { unwrapIpc } from '../../services/ipc';
 
 const SESSION_ENV_KEY = 'MOC_TERMINAL_SESSION_ID';
@@ -21,7 +21,7 @@ function getSessionId(shellLaunchConfig: IShellLaunchConfig, fallbackId: number)
   if (typeof envValue === 'string' && envValue.length > 0) {
     return envValue;
   }
-  return `moc-terminal-${fallbackId}`;
+  return `netior-terminal-${fallbackId}`;
 }
 
 function toLaunchConfig(shellLaunchConfig: IShellLaunchConfig, cwd: string): TerminalLaunchConfig {
@@ -37,7 +37,7 @@ function toLaunchConfig(shellLaunchConfig: IShellLaunchConfig, cwd: string): Ter
   };
 }
 
-class MoCTerminalProcess implements ITerminalChildProcess {
+class NetiorTerminalProcess implements ITerminalChildProcess {
   readonly shouldPersist = false;
   readonly onProcessReplayComplete = undefined;
   readonly onRestoreCommands = undefined;
@@ -221,7 +221,7 @@ class MoCTerminalProcess implements ITerminalChildProcess {
   }
 }
 
-export class MoCTerminalBackend extends SimpleTerminalBackend {
+export class NetiorTerminalBackend extends SimpleTerminalBackend {
   private nextProcessId = 1;
 
   override getDefaultSystemShell = async (): Promise<string> => {
@@ -247,14 +247,14 @@ export class MoCTerminalBackend extends SimpleTerminalBackend {
   ): Promise<ITerminalChildProcess> => {
     const id = this.nextProcessId++;
     const sessionId = getSessionId(shellLaunchConfig, id);
-    return new MoCTerminalProcess(id, sessionId, shellLaunchConfig, cwd);
+    return new NetiorTerminalProcess(id, sessionId, shellLaunchConfig, cwd);
   };
 }
 
-let backendSingleton: MoCTerminalBackend | null = null;
+let backendSingleton: NetiorTerminalBackend | null = null;
 
-export function getTerminalBackend(): MoCTerminalBackend {
-  backendSingleton ??= new MoCTerminalBackend();
+export function getTerminalBackend(): NetiorTerminalBackend {
+  backendSingleton ??= new NetiorTerminalBackend();
   return backendSingleton;
 }
 

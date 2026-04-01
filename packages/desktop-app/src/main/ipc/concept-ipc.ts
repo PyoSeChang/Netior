@@ -1,8 +1,8 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
+import type { IpcResult } from '@netior/shared/types';
 import {
   createConcept, getConceptsByProject, updateConcept, deleteConcept, searchConcepts,
-} from '@moc/core';
+} from '@netior/core';
 
 export function registerConceptIpc(): void {
   ipcMain.handle('concept:create', async (_e, data): Promise<IpcResult<unknown>> => {

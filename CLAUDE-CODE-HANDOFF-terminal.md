@@ -2,7 +2,7 @@
 
 ## Goal
 
-Replace MoC's current terminal implementation with a VS Code OSS-aligned terminal stack because the current terminal has cursor/input issues with CLI/TUI tools such as `codex` and `claude code`.
+Replace Netior's current terminal implementation with a VS Code OSS-aligned terminal stack because the current terminal has cursor/input issues with CLI/TUI tools such as `codex` and `claude code`.
 
 This handoff is for the terminal replacement track only.
 
@@ -16,7 +16,7 @@ What is done:
 - Terminal renderer entry now goes through `TerminalEditor.tsx`.
 - Source-level `pty:*` compatibility usage has been removed from the active terminal path.
 - Main/preload/shared layers now expose a session-based `terminal:*` API.
-- VS Code service-override packages have been added to `@moc/desktop-app`.
+- VS Code service-override packages have been added to `@netior/desktop-app`.
 - The renderer now boots VS Code service overrides and creates real VS Code terminal instances.
 - A renderer-side backend adapter now bridges VS Code terminal child-process expectations to preload `terminal:*` APIs.
 
@@ -61,7 +61,7 @@ What is not done:
   - Attaches/detaches a real VS Code terminal instance to the React container.
 - `packages/desktop-app/src/renderer/lib/terminal/terminal-services.ts`
   - Bootstraps VS Code service overrides once.
-  - Creates and caches terminal instances by MoC terminal session id.
+  - Creates and caches terminal instances by Netior terminal session id.
 - `packages/desktop-app/src/renderer/lib/terminal/terminal-backend.ts`
   - Implements a preload-backed VS Code terminal backend/process bridge.
 - `packages/desktop-app/src/renderer/stores/editor-store.ts`
@@ -115,9 +115,9 @@ This suggests the next implementation step should use the service override path 
 
 ## Recommended Next Implementation Plan
 
-### 1. Keep session identity aligned with MoC tab identity
+### 1. Keep session identity aligned with Netior tab identity
 
-Current MoC terminal tab lifecycle assumes `tab.targetId` is the session id used by the backend. Preserve that unless there is a strong reason to change it.
+Current Netior terminal tab lifecycle assumes `tab.targetId` is the session id used by the backend. Preserve that unless there is a strong reason to change it.
 
 The current implementation does this via `MOC_TERMINAL_SESSION_ID` in the shell launch config environment. Preserve that linkage unless you intentionally redesign the identity model.
 
@@ -139,12 +139,12 @@ Must verify in the actual app:
 
 Completed:
 
-- `pnpm --filter @moc/shared build`
+- `pnpm --filter @netior/shared build`
   - succeeded
 
 Checked:
 
-- `pnpm --filter @moc/desktop-app typecheck`
+- `pnpm --filter @netior/desktop-app typecheck`
   - terminal-related type errors from the VS Code service integration were resolved
   - command still fails due to unrelated existing errors outside the terminal slice
 

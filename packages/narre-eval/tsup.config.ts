@@ -11,8 +11,8 @@ export default defineConfig({
   clean: true,
   external: [
     'better-sqlite3',
-    '@moc/core',
-    '@moc/shared',
+    '@netior/core',
+    '@netior/shared',
     '@anthropic-ai/sdk',
   ],
 });

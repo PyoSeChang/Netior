@@ -21,7 +21,7 @@ function resolveAgentServerPath(): string | null {
   }
 
   try {
-    const resolved = require.resolve('@moc/agent-server/dist/index.js');
+    const resolved = require.resolve('@netior/agent-server/dist/index.js');
     console.log(`[agent-server]   ✓ require.resolve: ${resolved}`);
     return resolved;
   } catch (err) {
@@ -43,7 +43,7 @@ export function startAgentServer(config: {
 
   const modulePath = resolveAgentServerPath();
   if (!modulePath) {
-    console.error('[agent-server] ✗ Could not resolve module path! Run: pnpm --filter @moc/agent-server build');
+    console.error('[agent-server] ✗ Could not resolve module path! Run: pnpm --filter @netior/agent-server build');
     return;
   }
 

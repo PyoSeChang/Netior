@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
-import { getDatabase, updateConcept, upsertProperty, serializeToAgent, parseFromAgent } from '@moc/core';
-import type { Archetype, ArchetypeField, Concept, ConceptProperty } from '@moc/shared/types';
+import type { IpcResult } from '@netior/shared/types';
+import { getDatabase, updateConcept, upsertProperty, serializeToAgent, parseFromAgent } from '@netior/core';
+import type { Archetype, ArchetypeField, Concept, ConceptProperty } from '@netior/shared/types';
 
 type ArchetypeFieldRow = Omit<ArchetypeField, 'required'> & { required: number };
 

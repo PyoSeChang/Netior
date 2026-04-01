@@ -1,7 +1,7 @@
 import type {
   Archetype, ArchetypeCreate, ArchetypeUpdate,
   ArchetypeField, ArchetypeFieldCreate, ArchetypeFieldUpdate,
-} from '@moc/shared/types';
+} from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function createArchetype(data: ArchetypeCreate): Promise<Archetype> {

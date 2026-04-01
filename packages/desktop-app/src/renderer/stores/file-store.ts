@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { FileTreeNode } from '@moc/shared/types';
+import type { FileTreeNode } from '@netior/shared/types';
 import { fsService } from '../services';
 import { getEditorType, type EditorType } from '../components/editor/editor-utils';
 

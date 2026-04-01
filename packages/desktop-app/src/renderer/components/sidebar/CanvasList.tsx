@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Plus, Trash2, Layout, ChevronRight, ChevronDown, Circle } from 'lucide-react';
-import type { CanvasTreeNode } from '@moc/shared/types';
+import type { CanvasTreeNode } from '@netior/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useCanvasTypeStore } from '../../stores/canvas-type-store';
 import { useEditorStore } from '../../stores/editor-store';

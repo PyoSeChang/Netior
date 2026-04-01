@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import type { SplitLeaf, EditorTab } from '@moc/shared/types';
+import type { SplitLeaf, EditorTab } from '@netior/shared/types';
 import { useEditorStore } from '../../../stores/editor-store';
 import { EditorViewModeSwitch } from '../EditorViewModeSwitch';
 import { EditorContent } from '../EditorContent';

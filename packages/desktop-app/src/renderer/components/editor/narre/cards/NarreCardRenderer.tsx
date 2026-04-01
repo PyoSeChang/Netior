@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import type { NarreCard, ProposalRow } from '@netior/shared/types';
 import { ProposalCard } from './ProposalCard';
 import { PermissionCard } from './PermissionCard';
@@ -14,33 +14,14 @@ export function NarreCardRenderer({
   card,
   onRespond,
 }: NarreCardRendererProps): JSX.Element {
-  const handleProposalConfirm = useCallback(
-    (rows: ProposalRow[]) => {
-      onRespond(card.toolCallId, { action: 'confirm', rows });
-    },
-    [card.toolCallId, onRespond],
-  );
-
-  const handleProposalRetry = useCallback(() => {
-    onRespond(card.toolCallId, { action: 'retry' });
-  }, [card.toolCallId, onRespond]);
-
-  const handlePermissionAction = useCallback(
-    (actionKey: string) => {
-      onRespond(card.toolCallId, { action: actionKey });
-    },
-    [card.toolCallId, onRespond],
-  );
-
-  const handleInterviewSelect = useCallback(
-    (selected: string[]) => {
-      onRespond(card.toolCallId, { selected });
-    },
-    [card.toolCallId, onRespond],
-  );
-
   switch (card.type) {
-    case 'proposal':
+    case 'proposal': {
+      const handleProposalConfirm = (rows: ProposalRow[]) => {
+        onRespond(card.toolCallId, { action: 'confirm', rows });
+      };
+      const handleProposalRetry = () => {
+        onRespond(card.toolCallId, { action: 'retry' });
+      };
       return (
         <ProposalCard
           card={card}
@@ -48,12 +29,21 @@ export function NarreCardRenderer({
           onRetry={handleProposalRetry}
         />
       );
-    case 'permission':
+    }
+    case 'permission': {
+      const handlePermissionAction = (actionKey: string) => {
+        onRespond(card.toolCallId, { action: actionKey });
+      };
       return (
         <PermissionCard card={card} onAction={handlePermissionAction} />
       );
-    case 'interview':
+    }
+    case 'interview': {
+      const handleInterviewSelect = (selected: string[]) => {
+        onRespond(card.toolCallId, { selected });
+      };
       return <InterviewCard card={card} onSelect={handleInterviewSelect} />;
+    }
     case 'summary':
       return <SummaryCard card={card} />;
     default:

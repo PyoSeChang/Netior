@@ -1,11 +1,11 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
+import type { IpcResult } from '@netior/shared/types';
 import {
   createCanvas, listCanvases, updateCanvas, deleteCanvas, getCanvasFull,
   getCanvasesByConceptId, getCanvasAncestors, getCanvasTree,
   addCanvasNode, updateCanvasNode, removeCanvasNode,
   createEdge, getEdge, updateEdge, deleteEdge,
-} from '@moc/core';
+} from '@netior/core';
 
 export function registerCanvasIpc(): void {
   // Canvas CRUD

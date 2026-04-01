@@ -2,7 +2,7 @@
 
 ## 개요
 
-Narre는 MoC의 AI 어시스턴트. 사용자가 자연어로 프로젝트의 타입 시스템과 개념을 관리할 수 있게 한다.
+Narre는 Netior의 AI 어시스턴트. 사용자가 자연어로 프로젝트의 타입 시스템과 개념을 관리할 수 있게 한다.
 
 MVP 범위: **Init + Archetype CRUD + Relation Type CRUD + Canvas Type CRUD + Concept CRUD**
 
@@ -16,7 +16,7 @@ MVP 범위: **Init + Archetype CRUD + Relation Type CRUD + Canvas Type CRUD + Co
 packages/
 ├── shared/          # 타입, 상수, i18n (기존)
 ├── moc-core/        # DB 로직 추출 (repositories, migrations) — NEW
-├── moc-mcp/         # moc-core를 HTTP MCP로 래핑 — NEW
+├── netior-mcp/         # moc-core를 HTTP MCP로 래핑 — NEW
 ├── desktop-app/     # Electron 앱, moc-core 직접 import (기존 + Narre UI)
 └── agent-server/    # Narre 에이전트, Claude Agent SDK (TypeScript) — NEW
 ```
@@ -29,31 +29,31 @@ desktop-app (Renderer)         desktop-app (Main)          외부 프로세스
 NarreEditor.tsx                ipc/narre-handlers.ts       agent-server (Narre)
 │                              │                            │
 │── user message ──IPC──→      │── HTTP ──→                 │
-│                              │                            │── tool call ──→ moc-mcp
+│                              │                            │── tool call ──→ netior-mcp
 │                              │                            │                  │
 │                              │                            │                  ├── moc-core
-│                              │                            │                  │     └── moc.db
+│                              │                            │                  │     └── netior.db
 │                              │                            │                  │
 │                              │                            │← tool result ──  │
 │                              │← SSE stream ──             │                  │
 │← assistant message ──IPC──   │                            │
 │                              │                            │
-│                              │── SSE 구독 ──→ moc-mcp change events
+│                              │── SSE 구독 ──→ netior-mcp change events
 │← store refetch ──IPC──       │   (DB 변경 시 invalidation)
 ```
 
 ### DB 접근 전략
 
 - **desktop-app** → moc-core 직접 import (in-process, HTTP 오버헤드 없음)
-- **moc-mcp** → moc-core를 HTTP API로 래핑 (외부 클라이언트용)
+- **netior-mcp** → moc-core를 HTTP API로 래핑 (외부 클라이언트용)
 - **동시 접근** → SQLite WAL 모드 + busy_timeout(5000)
-- **동기화** → moc-mcp가 mutation 시 SSE 이벤트 발행 → desktop-app Main이 구독 → Renderer 스토어 refetch
-- **장애 격리** → moc-mcp가 죽어도 desktop-app 정상 동작
+- **동기화** → netior-mcp가 mutation 시 SSE 이벤트 발행 → desktop-app Main이 구독 → Renderer 스토어 refetch
+- **장애 격리** → netior-mcp가 죽어도 desktop-app 정상 동작
 
 ### agent-server (Narre)
 
-- TypeScript (Claude Agent SDK) — `@moc/shared` 타입/상수 import 가능
-- moc-mcp를 MCP 서버로 연결 (HTTP transport)
+- TypeScript (Claude Agent SDK) — `@netior/shared` 타입/상수 import 가능
+- netior-mcp를 MCP 서버로 연결 (HTTP transport)
 - 시스템 프롬프트에 프로젝트 메타데이터 동적 주입
 - 응답 스트리밍: SSE
 
@@ -69,7 +69,7 @@ NarreEditor.tsx                ipc/narre-handlers.ts       agent-server (Narre)
 매 세션 시작 시 DB에서 조회하여 주입:
 
 ```
-너는 Narre, MoC 프로젝트의 AI 어시스턴트야.
+너는 Narre, Netior 프로젝트의 AI 어시스턴트야.
 사용자의 개념 정리를 도와주는 역할이야.
 
 ## 현재 프로젝트: {project.name}
@@ -87,7 +87,7 @@ NarreEditor.tsx                ipc/narre-handlers.ts       agent-server (Narre)
 - ...
 
 ## 사용 가능한 도구
-moc-mcp를 통해 위 데이터를 CRUD할 수 있어.
+netior-mcp를 통해 위 데이터를 CRUD할 수 있어.
 개념 목록은 도구(list_concepts)로 조회해.
 ```
 
@@ -96,7 +96,7 @@ moc-mcp를 통해 위 데이터를 CRUD할 수 있어.
 
 ---
 
-## moc-mcp 도구 목록
+## netior-mcp 도구 목록
 
 | 도구 | 설명 | 입력 |
 |---|---|---|
@@ -288,7 +288,7 @@ EditorTabType: 'concept' | 'file' | 'archetype' | 'terminal' | 'edge'
 ### 저장 위치
 
 ```
-%APPDATA%/moc/data/narre/
+%APPDATA%/netior/data/narre/
 └── {project_id}/
     ├── sessions.json           ← 세션 인덱스
     ├── session_{uuid}.json     ← 개별 대화 기록
@@ -364,7 +364,7 @@ EditorTabType: 'concept' | 'file' | 'archetype' | 'terminal' | 'edge'
 |---|---|
 | 프로젝트에 타입이 없을 때 | init 제안 ("어떤 분야의 프로젝트인가요?") |
 | "역사 프로젝트야" | 컨텍스트 파악 → 타입 시스템 제안 → 확인 요청 |
-| "좋아" / "생성해" | moc-mcp 도구 호출 → 실제 DB 생성 → 결과 보고 |
+| "좋아" / "생성해" | netior-mcp 도구 호출 → 실제 DB 생성 → 결과 보고 |
 | "문헌 대신 작품으로" | 제안 수정 후 재확인 |
 | 파괴적 작업 (삭제, 대량 수정) | 항상 확인 요청 후 실행 |
 | 종속 데이터 있는 삭제 | 경고 ("이 아크타입을 쓰는 개념이 3개 있습니다") |
@@ -375,7 +375,7 @@ EditorTabType: 'concept' | 'file' | 'archetype' | 'terminal' | 'edge'
 
 | 상황 | 처리 |
 |---|---|
-| 같은 이름 타입 생성 시도 | moc-mcp 에러 → Narre가 안내 |
+| 같은 이름 타입 생성 시도 | netior-mcp 에러 → Narre가 안내 |
 | 네트워크 끊김 (Claude API) | 에러 메시지 + 재시도 안내 |
 | 대량 개념 목록 요청 | 도구가 페이지네이션 또는 요약 반환 |
 | agent-server 프로세스 죽음 | Main에서 감지 → 에러 표시 + 재시작 |

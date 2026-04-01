@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Concept, ConceptCreate, ConceptUpdate, ConceptProperty, ConceptPropertyUpsert } from '@moc/shared/types';
+import type { Concept, ConceptCreate, ConceptUpdate, ConceptProperty, ConceptPropertyUpsert } from '@netior/shared/types';
 import { conceptService, conceptPropertyService, conceptContentService } from '../services';
 
 let syncTimers: Record<string, ReturnType<typeof setTimeout>> = {};

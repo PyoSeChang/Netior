@@ -31,11 +31,6 @@ export function SummaryCard({ card }: SummaryCardProps): JSX.Element {
             )}
             <div className="min-w-0">
               <span className="text-xs text-text-default">{item.label}</span>
-              {item.detail && (
-                <p className="text-xs text-text-muted mt-0.5">
-                  {item.detail}
-                </p>
-              )}
             </div>
           </div>
         ))}

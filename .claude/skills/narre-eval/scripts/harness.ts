@@ -26,8 +26,8 @@ function findProjectRoot(): string {
 
 const PROJECT_ROOT = findProjectRoot();
 const APPDATA = process.env.APPDATA || process.env.HOME || '.';
-const EVAL_DB_PATH = join(APPDATA, 'moc', 'data', 'moc-eval.db');
-const EVAL_DATA_DIR = join(APPDATA, 'moc', 'data', 'eval');
+const EVAL_DB_PATH = join(APPDATA, 'netior', 'data', 'netior-eval.db');
+const EVAL_DATA_DIR = join(APPDATA, 'netior', 'data', 'eval');
 const EVAL_PORT = 3199;
 const PID_FILE = join(EVAL_DATA_DIR, 'agent-server.pid');
 
@@ -70,19 +70,19 @@ async function setup(seedPath?: string) {
     console.log('Deleted existing eval DB');
   }
 
-  mkdirSync(join(APPDATA, 'moc', 'data'), { recursive: true });
+  mkdirSync(join(APPDATA, 'netior', 'data'), { recursive: true });
   mkdirSync(EVAL_DATA_DIR, { recursive: true });
 
   // Import moc-core dynamically
-  const corePath = join(PROJECT_ROOT, 'packages/moc-core/src/index.ts');
+  const corePath = join(PROJECT_ROOT, 'packages/netior-core/src/index.ts');
   // Use the built version
-  const coreDistPath = join(PROJECT_ROOT, 'packages/moc-core/dist/index.js');
+  const coreDistPath = join(PROJECT_ROOT, 'packages/netior-core/dist/index.js');
 
   let core: any;
   if (existsSync(coreDistPath)) {
     core = await import(coreDistPath);
   } else {
-    throw new Error('moc-core not built. Run: pnpm --filter @moc/core build');
+    throw new Error('moc-core not built. Run: pnpm --filter @netior/core build');
   }
 
   core.initDatabase(EVAL_DB_PATH);
@@ -202,7 +202,7 @@ async function startServer() {
 
   const serverPath = join(PROJECT_ROOT, 'packages/agent-server/dist/index.js');
   if (!existsSync(serverPath)) {
-    throw new Error('agent-server not built. Run: pnpm --filter @moc/agent-server build');
+    throw new Error('agent-server not built. Run: pnpm --filter @netior/agent-server build');
   }
 
   console.log(`Starting agent-server on port ${EVAL_PORT}...`);

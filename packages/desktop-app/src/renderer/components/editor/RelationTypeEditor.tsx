@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import type { EditorTab, LineStyle } from '@moc/shared/types';
+import type { EditorTab, LineStyle } from '@netior/shared/types';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useEditorSession } from '../../hooks/useEditorSession';

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { RelationType, RelationTypeCreate, RelationTypeUpdate } from '@moc/shared/types';
+import type { RelationType, RelationTypeCreate, RelationTypeUpdate } from '@netior/shared/types';
 import { relationTypeService } from '../services/relation-type-service';
 
 interface RelationTypeStore {

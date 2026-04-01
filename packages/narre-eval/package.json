@@ -1,5 +1,5 @@
 {
-  "name": "@moc/narre-eval",
+  "name": "@netior/narre-eval",
   "version": "0.1.0",
   "type": "module",
   "private": true,
@@ -12,8 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@moc/core": "workspace:*",
-    "@moc/shared": "workspace:*",
+    "@netior/core": "workspace:*",
+    "@netior/shared": "workspace:*",
     "@anthropic-ai/sdk": "latest",
     "yaml": "^2.3.4",
     "chalk": "^5.3.0",

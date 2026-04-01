@@ -1,5 +1,5 @@
 import React from 'react';
-import type { EditorTab } from '@moc/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import { ConceptEditor } from './ConceptEditor';
 import { FileEditor } from './FileEditor';
 import { ArchetypeEditor } from './ArchetypeEditor';

@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior mesh refined B</title>
+  <desc>Refined mesh core mark with a more compact hexagonal silhouette.</desc>
+  <g stroke="#0F172A" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M166 170L256 122L346 170" />
+    <path d="M166 342L256 390L346 342" />
+    <path d="M166 170V342" opacity="0.62" />
+    <path d="M346 170V342" opacity="0.62" />
+    <path d="M166 170L256 256L346 170" />
+    <path d="M166 342L256 256L346 342" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="166" cy="170" r="26" />
+    <circle cx="256" cy="122" r="22" />
+    <circle cx="346" cy="170" r="26" />
+    <circle cx="256" cy="256" r="36" />
+    <circle cx="166" cy="342" r="26" />
+    <circle cx="256" cy="390" r="22" />
+    <circle cx="346" cy="342" r="26" />
+  </g>
+  <g fill="#22C55E">
+    <circle cx="256" cy="256" r="14" />
+    <circle cx="166" cy="170" r="9" />
+    <circle cx="346" cy="342" r="9" />
+  </g>
+</svg>

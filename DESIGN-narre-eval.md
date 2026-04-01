@@ -2,7 +2,7 @@
 
 ## Overview
 
-Narre(MoC AI 어시스턴트)의 시나리오 기반 정량/정성 평가 환경.
+Narre(Netior AI 어시스턴트)의 시나리오 기반 정량/정성 평가 환경.
 실제 agent-server를 end-to-end로 테스트하며, 프레임워크 없이 컨벤션으로 구조를 만든다.
 
 ## Principles
@@ -22,7 +22,7 @@ Narre(MoC AI 어시스턴트)의 시나리오 기반 정량/정성 평가 환경
 harness.ts                    runner.ts                   grader.ts
 ────────────                  ─────────                   ─────────
 dev DB 초기화 (seed)    →     시나리오 YAML 로드     →    정량: DB 직접 쿼리
-moc-mcp spawn (stdio)         POST /chat (SSE)            정성: Claude judge
+netior-mcp spawn (stdio)         POST /chat (SSE)            정성: Claude judge
 agent-server spawn             응답 + tool calls 수집      ↓
 health check 대기              턴 순차 전송               report.ts
                                transcript 반환             results.tsv 기록
@@ -34,8 +34,8 @@ health check 대기              턴 순차 전송               report.ts
 eval runner
   → HTTP POST /chat (SSE) → agent-server :3100
                                → Claude Agent SDK query()
-                               → moc-mcp (stdio)
-                               → @moc/core → dev DB
+                               → netior-mcp (stdio)
+                               → @netior/core → dev DB
 ```
 
 mock 없음. 실제 Narre가 받는 것과 동일한 요청 경로.
@@ -50,7 +50,7 @@ packages/narre-eval/
 │   └── ...
 ├── src/
 │   ├── runner.ts           # 시나리오 실행, agent-server에 HTTP+SSE 요청
-│   ├── harness.ts          # DB 초기화, moc-mcp/agent-server 프로세스 관리
+│   ├── harness.ts          # DB 초기화, netior-mcp/agent-server 프로세스 관리
 │   ├── grader.ts           # DB assertion + LLM judge
 │   └── report.ts           # results.tsv 생성, transcript 저장
 ├── results/
@@ -164,7 +164,7 @@ pnpm eval -- --repeat 3
 ### 실행 순서
 
 1. harness: dev DB 경로 확인 → 테이블 초기화 → seed 삽입
-2. harness: moc-mcp spawn, agent-server spawn, health check
+2. harness: netior-mcp spawn, agent-server spawn, health check
 3. runner: 시나리오 로드 → 턴 순차 전송 (HTTP+SSE) → transcript 수집
 4. grader: DB assertion (pass/fail) + LLM judge (1-5점)
 5. report: results.tsv append + transcript 저장
@@ -207,5 +207,5 @@ tool call 시퀀스를 strict match하면 false negative가 많아진다. DB 최
 
 ### 왜 실제 e2e인가
 
-- mock하면 agent-server ↔ moc-mcp 통합, SSE 스트리밍, 프로세스 관리 등을 검증 못함
+- mock하면 agent-server ↔ netior-mcp 통합, SSE 스트리밍, 프로세스 관리 등을 검증 못함
 - Narre의 가치는 "실제로 DB를 바꾸는 것"이므로, 실제 DB 변경을 검증해야 의미 있음

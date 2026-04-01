@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netior Logo Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f7f6;
+      --panel: rgba(255, 255, 255, 0.88);
+      --border: rgba(15, 23, 42, 0.1);
+      --text: #0f172a;
+      --muted: #4b5563;
+      --accent: #14b8a6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(20, 184, 166, 0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(6, 182, 212, 0.12), transparent 28%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 48px 24px 64px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 40px;
+      letter-spacing: -0.04em;
+    }
+
+    p {
+      margin: 0 0 32px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
+    }
+
+    .artboard {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 1;
+      border-radius: 20px;
+      background-image:
+        linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+      background-color: rgba(255, 255, 255, 0.72);
+      margin-bottom: 16px;
+    }
+
+    img {
+      width: 72%;
+      height: 72%;
+      object-fit: contain;
+    }
+
+    h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(20, 184, 166, 0.1);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .note {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Netior Logo Concepts</h1>
+    <p>Three transparent-background SVG directions: subtle N, abstract network, and DNA-inspired structure.</p>
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-n.svg" alt="Netior logo concept with implied N" />
+        </div>
+        <div class="tag">Letter Hint</div>
+        <h2>Concept 1: Implied N</h2>
+        <p class="note">Vertical anchors plus a diagonal bridge create a restrained N shape without turning into a literal lettermark.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-orbit.svg" alt="Netior abstract network logo concept" />
+        </div>
+        <div class="tag">No Letter</div>
+        <h2>Concept 2: Orbit Network</h2>
+        <p class="note">A symmetric node system that reads as connected intelligence rather than typography.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-dna.svg" alt="Netior DNA-inspired network logo concept" />
+        </div>
+        <div class="tag">DNA Mood</div>
+        <h2>Concept 3: Helix Grid</h2>
+        <p class="note">A geometric double-helix silhouette tuned to stay minimal enough for app icon use.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-mesh.svg" alt="Netior mesh network logo concept" />
+        </div>
+        <div class="tag">Mesh</div>
+        <h2>Concept 4: Mesh Core</h2>
+        <p class="note">A denser modular graph with a strong center, closer to a concept-map structure than a monogram.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-dna-compact.svg" alt="Netior compact DNA logo concept" />
+        </div>
+        <div class="tag">DNA Compact</div>
+        <h2>Concept 5: Helix Capsule</h2>
+        <p class="note">A tighter DNA mark with larger internal spacing so it holds up better at small app-icon sizes.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-mesh-a.svg" alt="Netior refined mesh logo concept A" />
+        </div>
+        <div class="tag">Refined Mesh</div>
+        <h2>Concept 6: Mesh Core A</h2>
+        <p class="note">The closest to the original Mesh Core, but with fewer rails and a stronger center-to-axis emphasis.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-mesh-b.svg" alt="Netior refined mesh logo concept B" />
+        </div>
+        <div class="tag">Refined Mesh</div>
+        <h2>Concept 7: Mesh Core B</h2>
+        <p class="note">A more compact, hexagonal silhouette that feels a bit more disciplined and logo-like.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-mesh-c.svg" alt="Netior refined mesh logo concept C" />
+        </div>
+        <div class="tag">Refined Mesh</div>
+        <h2>Concept 8: Mesh Core C</h2>
+        <p class="note">The most icon-friendly reduction, with larger nodes and cleaner negative space for small-size clarity.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-mesh-core-original.svg" alt="Netior mesh core final candidate original" />
+        </div>
+        <div class="tag">Finalist</div>
+        <h2>Concept 9: Mesh Original</h2>
+        <p class="note">The original cube-like mesh structure preserved as-is, keeping the strongest concept-map geometry.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-mesh-core-clean.svg" alt="Netior mesh core final candidate clean" />
+        </div>
+        <div class="tag">Finalist</div>
+        <h2>Concept 10: Mesh Clean</h2>
+        <p class="note">A slightly simplified version that removes secondary rails and lets the hexagonal silhouette breathe more.</p>
+      </article>
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-mark-mesh-core-mono.svg" alt="Netior mesh core final candidate mono" />
+        </div>
+        <div class="tag">Finalist</div>
+        <h2>Concept 11: Mesh Mono</h2>
+        <p class="note">The same structural idea in a single color, aimed at the most robust app-icon and branding usage.</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

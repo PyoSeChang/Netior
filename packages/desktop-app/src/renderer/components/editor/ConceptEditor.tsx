@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import type { EditorTab, ConceptFile } from '@moc/shared/types';
+import type { EditorTab, ConceptFile } from '@netior/shared/types';
 import { Eye, Bot, Paperclip } from 'lucide-react';
 import { conceptFileService, conceptPropertyService } from '../../services';
 import { useConceptStore } from '../../stores/concept-store';

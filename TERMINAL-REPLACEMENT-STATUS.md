@@ -2,7 +2,7 @@
 
 ## Current State
 
-MoC terminal replacement work has moved past the initial migration step and now includes a first real VS Code service-override integration in the renderer.
+Netior terminal replacement work has moved past the initial migration step and now includes a first real VS Code service-override integration in the renderer.
 
 Implemented so far:
 
@@ -43,8 +43,8 @@ Remaining gaps:
 
 ## Verified Status
 
-- `@moc/shared` build succeeds.
-- `@moc/desktop-app` typecheck still fails.
+- `@netior/shared` build succeeds.
+- `@netior/desktop-app` typecheck still fails.
 
 Current typecheck failures are not caused by the new terminal migration path.
 They are coming from existing issues in canvas, i18n, and Narre-related files.

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CanvasType, CanvasTypeCreate, CanvasTypeUpdate, RelationType } from '@moc/shared/types';
+import type { CanvasType, CanvasTypeCreate, CanvasTypeUpdate, RelationType } from '@netior/shared/types';
 import { canvasTypeService } from '../services/canvas-type-service';
 
 interface CanvasTypeStore {

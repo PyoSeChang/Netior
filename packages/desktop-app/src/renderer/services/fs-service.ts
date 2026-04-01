@@ -1,4 +1,4 @@
-import type { FileTreeNode } from '@moc/shared/types';
+import type { FileTreeNode } from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function readDir(dirPath: string): Promise<FileTreeNode[]> {

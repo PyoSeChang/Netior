@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior mesh core mono</title>
+  <desc>Single-color mesh core logo optimized for app icon use.</desc>
+  <g stroke="#0F172A" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M138 172L256 114L374 172" />
+    <path d="M138 340L256 398L374 340" />
+    <path d="M138 172V340" opacity="0.78" />
+    <path d="M374 172V340" opacity="0.78" />
+    <path d="M138 172L256 256L374 172" />
+    <path d="M138 340L256 256L374 340" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="138" cy="172" r="28" />
+    <circle cx="256" cy="114" r="24" />
+    <circle cx="374" cy="172" r="28" />
+    <circle cx="256" cy="256" r="38" />
+    <circle cx="138" cy="340" r="28" />
+    <circle cx="256" cy="398" r="24" />
+    <circle cx="374" cy="340" r="28" />
+  </g>
+</svg>

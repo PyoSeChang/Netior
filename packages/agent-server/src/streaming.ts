@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import type { NarreStreamEvent } from '@moc/shared/types';
+import type { NarreStreamEvent } from '@netior/shared/types';
 
 /**
  * Initialize an Express response for Server-Sent Events (SSE).

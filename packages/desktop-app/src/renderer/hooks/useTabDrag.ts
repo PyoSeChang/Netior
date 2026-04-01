@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const TAB_DRAG_TYPE = 'application/x-moc-tab';
+export const TAB_DRAG_TYPE = 'application/x-netior-tab';
 
 export function setTabDragData(e: React.DragEvent, tabId: string): void {
   e.dataTransfer.setData(TAB_DRAG_TYPE, tabId);

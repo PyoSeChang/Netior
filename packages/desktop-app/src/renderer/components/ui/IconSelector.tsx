@@ -5,7 +5,7 @@ import { iconNames, getIconComponent } from './lucide-utils';
 import { ICON_CATEGORIES, CATEGORY_ORDER } from './icon-categories';
 import { Tooltip } from './Tooltip';
 import { useI18n } from '../../hooks/useI18n';
-import type { TranslationKey } from '@moc/shared/i18n';
+import type { TranslationKey } from '@netior/shared/i18n';
 
 interface IconSelectorProps {
   value?: string;

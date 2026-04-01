@@ -1,4 +1,4 @@
-import type { NarreMention, NarreStreamEvent } from '@moc/shared/types';
+import type { NarreMention, NarreStreamEvent } from '@netior/shared/types';
 
 // ── Scenario Definition ──
 

@@ -25,13 +25,13 @@ export function CodeEditor({ content, language, onChange }: CodeEditorProps): JS
   const bg = getCssColorAsHex('--surface-panel', isDark ? '#1e1e1e' : '#ffffff');
 
   const handleBeforeMount = useCallback((monaco: Parameters<NonNullable<Parameters<typeof Editor>[0]['beforeMount']>>[0]) => {
-    monaco.editor.defineTheme('moc-dark', {
+    monaco.editor.defineTheme('netior-dark', {
       base: 'vs-dark',
       inherit: true,
       rules: [],
       colors: { 'editor.background': bg },
     });
-    monaco.editor.defineTheme('moc-light', {
+    monaco.editor.defineTheme('netior-light', {
       base: 'vs',
       inherit: true,
       rules: [],
@@ -44,7 +44,7 @@ export function CodeEditor({ content, language, onChange }: CodeEditorProps): JS
       height="100%"
       language={language}
       value={content}
-      theme={isDark ? 'moc-dark' : 'moc-light'}
+      theme={isDark ? 'netior-dark' : 'netior-light'}
       beforeMount={handleBeforeMount}
       onChange={handleChange}
       onMount={handleMount}

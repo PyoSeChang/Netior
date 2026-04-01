@@ -1,6 +1,6 @@
 import type {
   RelationType, RelationTypeCreate, RelationTypeUpdate,
-} from '@moc/shared/types';
+} from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function createRelationType(data: RelationTypeCreate): Promise<RelationType> {

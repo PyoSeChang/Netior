@@ -1,4 +1,4 @@
-import type { Concept } from '@moc/shared/types';
+import type { Concept } from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function syncToAgent(conceptId: string): Promise<Concept> {

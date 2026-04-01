@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
-import { upsertProperty, getByConceptId, deleteProperty } from '@moc/core';
+import type { IpcResult } from '@netior/shared/types';
+import { upsertProperty, getByConceptId, deleteProperty } from '@netior/core';
 
 export function registerConceptPropertyIpc(): void {
   ipcMain.handle('conceptProp:upsert', async (_e, data): Promise<IpcResult<unknown>> => {

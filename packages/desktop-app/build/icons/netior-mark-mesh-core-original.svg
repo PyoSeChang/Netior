@@ -1,0 +1,29 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior mesh core original</title>
+  <desc>Original mesh core logo direction for Netior.</desc>
+  <g stroke="#0F172A" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M132 170L256 108L380 170" />
+    <path d="M132 342L256 404L380 342" />
+    <path d="M132 170V342" opacity="0.72" />
+    <path d="M380 170V342" opacity="0.72" />
+    <path d="M256 108V404" opacity="0.46" />
+    <path d="M132 170L256 256L380 170" />
+    <path d="M132 342L256 256L380 342" />
+    <path d="M132 170H380" opacity="0.36" />
+    <path d="M132 342H380" opacity="0.36" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="132" cy="170" r="26" />
+    <circle cx="256" cy="108" r="24" />
+    <circle cx="380" cy="170" r="26" />
+    <circle cx="256" cy="256" r="34" />
+    <circle cx="132" cy="342" r="26" />
+    <circle cx="256" cy="404" r="24" />
+    <circle cx="380" cy="342" r="26" />
+  </g>
+  <g fill="#14B8A6">
+    <circle cx="256" cy="256" r="14" />
+    <circle cx="256" cy="108" r="10" />
+    <circle cx="256" cy="404" r="10" />
+  </g>
+</svg>

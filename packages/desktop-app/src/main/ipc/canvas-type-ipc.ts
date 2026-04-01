@@ -1,10 +1,10 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
+import type { IpcResult } from '@netior/shared/types';
 import {
   createCanvasType, listCanvasTypes, getCanvasType,
   updateCanvasType, deleteCanvasType,
   addAllowedRelation, removeAllowedRelation, removeAllowedRelationByPair, listAllowedRelations,
-} from '@moc/core';
+} from '@netior/core';
 
 export function registerCanvasTypeIpc(): void {
   ipcMain.handle('canvasType:create', async (_e, data): Promise<IpcResult<unknown>> => {

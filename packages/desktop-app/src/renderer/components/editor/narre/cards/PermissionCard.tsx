@@ -26,7 +26,7 @@ export function PermissionCard({
         {card.actions.map((action) => (
           <Button
             key={action.key}
-            variant={action.variant === 'danger' ? 'danger' : action.variant === 'secondary' ? 'secondary' : 'primary'}
+            variant={action.variant === 'danger' ? 'danger' : 'primary'}
             size="sm"
             onClick={() => onAction(action.key)}
           >

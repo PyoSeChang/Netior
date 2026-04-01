@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import type { NarreSession, NarreMessage } from '@moc/shared/types';
+import type { NarreSession, NarreMessage } from '@netior/shared/types';
 
 interface SessionsIndex {
   sessions: NarreSession[];

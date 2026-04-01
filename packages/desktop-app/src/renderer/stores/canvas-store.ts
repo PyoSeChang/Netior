@@ -4,7 +4,7 @@ import type {
   CanvasNode, CanvasNodeCreate, CanvasNodeUpdate,
   Edge, EdgeCreate, Concept, RelationType,
   CanvasBreadcrumbItem, CanvasTreeNode,
-} from '@moc/shared/types';
+} from '@netior/shared/types';
 import { canvasService } from '../services';
 import type { CanvasFullData } from '../services/canvas-service';
 

@@ -20,7 +20,7 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
     ? canvasTypes.map((c) => `- ${c.name}: ${c.description ?? 'no description'}`).join('\n')
     : '- (none defined yet)';
 
-  return `You are Narre, the AI assistant for MoC (Map of Concepts).
+  return `You are Narre, the AI assistant for Netior (Map of Concepts).
 You help users organize concepts in their project.
 
 ## Current Project: ${projectName}

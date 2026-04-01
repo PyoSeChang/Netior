@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import type { EditorTab } from '@moc/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useEditorStore } from '../../stores/editor-store';

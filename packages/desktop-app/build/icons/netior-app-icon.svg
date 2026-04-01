@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior app icon</title>
+  <desc>High-coverage network mark on a rounded square, optimized for Windows taskbar and shortcut sizes.</desc>
+  <rect x="20" y="20" width="472" height="472" rx="124" fill="#0F172A" />
+  <g stroke="#F8FAFC" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M142 190L256 112L370 190" />
+    <path d="M142 190L256 256L370 190" />
+    <path d="M142 322L256 256L370 322" />
+    <path d="M142 322L256 400L370 322" />
+  </g>
+  <g fill="#F8FAFC">
+    <circle cx="142" cy="190" r="32" />
+    <circle cx="256" cy="112" r="28" />
+    <circle cx="370" cy="190" r="32" />
+    <circle cx="256" cy="256" r="42" />
+    <circle cx="142" cy="322" r="32" />
+    <circle cx="256" cy="400" r="28" />
+    <circle cx="370" cy="322" r="32" />
+  </g>
+  <circle cx="256" cy="256" r="20" fill="#14B8A6" />
+</svg>

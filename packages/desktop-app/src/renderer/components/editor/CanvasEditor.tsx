@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import type { EditorTab } from '@moc/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useCanvasTypeStore } from '../../stores/canvas-type-store';
 import { useArchetypeStore } from '../../stores/archetype-store';

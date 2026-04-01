@@ -5,7 +5,7 @@ description: "Evaluate Narre AI assistant quality via scenario-based testing. TR
 
 # Narre Eval
 
-Scenario-based evaluation of Narre (MoC's AI assistant). Run real conversations against agent-server and grade results by checking DB state and conversation quality.
+Scenario-based evaluation of Narre (Netior's AI assistant). Run real conversations against agent-server and grade results by checking DB state and conversation quality.
 
 ## Workflow
 
@@ -15,7 +15,7 @@ Run harness to initialize eval environment:
 
 ```bash
 # Build dependencies first (if not already built)
-pnpm --filter @moc/core build && pnpm --filter @moc/mcp build && pnpm --filter @moc/agent-server build
+pnpm --filter @netior/core build && pnpm --filter @netior/mcp build && pnpm --filter @netior/agent-server build
 
 # Initialize eval DB with seed data (optional seed JSON)
 npx tsx .claude/skills/narre-eval/scripts/harness.ts setup [seed.json]
@@ -56,7 +56,7 @@ For multi-turn, include `sessionId` from first response in subsequent requests.
 
 ### 3. Verify Results
 
-After conversation completes, verify outcomes using moc-mcp MCP tools:
+After conversation completes, verify outcomes using netior-mcp MCP tools:
 - `list_archetypes` — check created archetypes
 - `list_relation_types` — check relation types
 - `list_concepts` — check concepts

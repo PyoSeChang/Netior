@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
-import { getSetting, setSetting } from '@moc/core';
+import type { IpcResult } from '@netior/shared/types';
+import { getSetting, setSetting } from '@netior/core';
 
 export function registerConfigIpc(): void {
   ipcMain.handle('config:get', async (_e, key: string): Promise<IpcResult<unknown>> => {

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import type { ArchetypeField } from '@moc/shared/types';
+import type { ArchetypeField } from '@netior/shared/types';
 import { useArchetypeStore } from '../../stores/archetype-store';
 import { Input } from '../ui/Input';
 import { TextArea } from '../ui/TextArea';

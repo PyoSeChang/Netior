@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
-import { getEditorPrefs, upsertEditorPrefs } from '@moc/core';
+import type { IpcResult } from '@netior/shared/types';
+import { getEditorPrefs, upsertEditorPrefs } from '@netior/core';
 
 export function registerEditorPrefsIpc(): void {
   ipcMain.handle('editorPrefs:get', async (_e, conceptId: string): Promise<IpcResult<unknown>> => {

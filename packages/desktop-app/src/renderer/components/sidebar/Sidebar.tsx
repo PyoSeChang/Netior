@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import type { Project } from '@moc/shared/types';
+import type { Project } from '@netior/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useFileStore } from '../../stores/file-store';
 import { useModuleStore } from '../../stores/module-store';

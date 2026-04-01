@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import type { EditorTab } from '@moc/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import { Plus } from 'lucide-react';
 import { useArchetypeStore } from '../../stores/archetype-store';
 import { useEditorStore } from '../../stores/editor-store';

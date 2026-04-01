@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Check, X, Circle } from 'lucide-react';
-import type { NarreToolCall } from '@moc/shared/types';
+import type { NarreToolCall } from '@netior/shared/types';
 import { useI18n } from '../../../hooks/useI18n';
 import { Spinner } from '../../ui/Spinner';
 

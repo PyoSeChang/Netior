@@ -4,7 +4,7 @@ import { Search, ArrowRight, Minus } from 'lucide-react';
 import { narreService, type MentionResult } from '../../../services/narre-service';
 import { useI18n } from '../../../hooks/useI18n';
 import { Spinner } from '../../ui/Spinner';
-import type { TranslationKey } from '@moc/shared/i18n';
+import type { TranslationKey } from '@netior/shared/i18n';
 
 interface NarreMentionPickerProps {
   query: string;
@@ -25,6 +25,10 @@ const MENTION_CATEGORIES = [
 
 function PreviewPanel({ item, t }: { item: MentionResult; t: (key: TranslationKey) => string }): JSX.Element {
   const catLabel = MENTION_CATEGORIES.find((c) => c.key === item.type)?.i18nKey;
+  const conceptArchetype = item.type === 'concept' && typeof item.meta?.archetype === 'string' ? item.meta.archetype : null;
+  const archetypeNodeShape = item.type === 'archetype' && typeof item.meta?.nodeShape === 'string' ? item.meta.nodeShape : null;
+  const relationDirected = item.type === 'relationType' && typeof item.meta?.directed === 'boolean' ? item.meta.directed : null;
+  const relationLineStyle = item.type === 'relationType' && typeof item.meta?.lineStyle === 'string' ? item.meta.lineStyle : null;
 
   return (
     <div className="flex flex-col gap-2 p-3">
@@ -50,30 +54,30 @@ function PreviewPanel({ item, t }: { item: MentionResult; t: (key: TranslationKe
       {/* Type-specific meta */}
       {item.meta && (
         <div className="flex flex-col gap-1 text-[10px] text-muted">
-          {item.type === 'concept' && item.meta.archetype && (
+          {conceptArchetype && (
             <div className="flex items-center gap-1">
               <span className="text-secondary">Archetype:</span>
-              <span className="text-default">{item.meta.archetype as string}</span>
+              <span className="text-default">{conceptArchetype}</span>
             </div>
           )}
-          {item.type === 'archetype' && item.meta.nodeShape && (
+          {archetypeNodeShape && (
             <div className="flex items-center gap-1">
               <span className="text-secondary">Shape:</span>
-              <span className="text-default">{item.meta.nodeShape as string}</span>
+              <span className="text-default">{archetypeNodeShape}</span>
             </div>
           )}
           {item.type === 'relationType' && (
             <>
-              {item.meta.directed !== undefined && (
+              {relationDirected !== null && (
                 <div className="flex items-center gap-1.5">
-                  {item.meta.directed ? <ArrowRight size={10} /> : <Minus size={10} />}
-                  <span>{item.meta.directed ? 'Directed' : 'Undirected'}</span>
+                  {relationDirected ? <ArrowRight size={10} /> : <Minus size={10} />}
+                  <span>{relationDirected ? 'Directed' : 'Undirected'}</span>
                 </div>
               )}
-              {item.meta.lineStyle && (
+              {relationLineStyle && (
                 <div className="flex items-center gap-1">
                   <span className="text-secondary">Style:</span>
-                  <span className="text-default">{item.meta.lineStyle as string}</span>
+                  <span className="text-default">{relationLineStyle}</span>
                 </div>
               )}
             </>
@@ -251,6 +255,7 @@ export function NarreMentionPicker({
           )}
           {!loading && displayResults.map((item, idx) => {
             const isSelected = idx === selectedIndex;
+            const categoryLabel = MENTION_CATEGORIES.find((c) => c.key === item.type)?.i18nKey;
             return (
               <div
                 key={`${item.type}-${item.id}`}
@@ -268,7 +273,7 @@ export function NarreMentionPicker({
                 <span className="truncate">{item.display}</span>
                 {activeCategory === 'all' && (
                   <span className="ml-auto shrink-0 text-[10px] text-muted">
-                    {t(MENTION_CATEGORIES.find((c) => c.key === item.type)?.i18nKey as TranslationKey ?? item.type)}
+                    {categoryLabel ? t(categoryLabel as TranslationKey) : item.type}
                   </span>
                 )}
               </div>

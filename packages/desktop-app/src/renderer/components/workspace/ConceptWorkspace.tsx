@@ -14,7 +14,7 @@ import { useConceptStore } from '../../stores/concept-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useUIStore } from '../../stores/ui-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
-import type { Archetype } from '@moc/shared/types';
+import type { Archetype } from '@netior/shared/types';
 import { useI18n } from '../../hooks/useI18n';
 import type { RenderNode, RenderEdge } from './types';
 import { getLayout } from './layout-plugins/registry';
@@ -504,13 +504,13 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
       }}
       onContextMenu={handleContextMenu}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('application/moc-node')) {
+        if (e.dataTransfer.types.includes('application/netior-node')) {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'copy';
         }
       }}
       onDrop={async (e) => {
-        const raw = e.dataTransfer.getData('application/moc-node');
+        const raw = e.dataTransfer.getData('application/netior-node');
         if (!raw || !currentCanvas) return;
         e.preventDefault();
         const data = JSON.parse(raw) as { type: 'file' | 'dir'; path: string };

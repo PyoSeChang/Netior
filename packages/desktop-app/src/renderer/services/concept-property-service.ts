@@ -1,4 +1,4 @@
-import type { ConceptProperty, ConceptPropertyUpsert } from '@moc/shared/types';
+import type { ConceptProperty, ConceptPropertyUpsert } from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function upsertProperty(data: ConceptPropertyUpsert): Promise<ConceptProperty> {

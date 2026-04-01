@@ -3,8 +3,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@moc/shared": ["packages/shared/src"],
-      "@moc/shared/*": ["packages/shared/src/*"]
+      "@netior/shared": ["packages/shared/src"],
+      "@netior/shared/*": ["packages/shared/src/*"]
     }
   },
   "include": [],

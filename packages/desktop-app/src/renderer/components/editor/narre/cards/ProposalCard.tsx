@@ -82,14 +82,14 @@ export function ProposalCard({
 }: ProposalCardProps): JSX.Element {
   const { t } = useI18n();
   const [rows, setRows] = useState<ProposalRow[]>(() =>
-    card.rows.map((r) => ({ ...r })),
+    card.rows.map((r) => ({ ...r, values: { ...r.values } })),
   );
 
   const handleCellChange = useCallback(
     (rowIdx: number, key: string, value: unknown) => {
       setRows((prev) =>
         prev.map((row, i) =>
-          i === rowIdx ? { ...row, [key]: value } : row,
+          i === rowIdx ? { ...row, values: { ...row.values, [key]: value } } : row,
         ),
       );
     },
@@ -97,9 +97,12 @@ export function ProposalCard({
   );
 
   const handleAddRow = useCallback(() => {
-    const empty: ProposalRow = {};
+    const empty: ProposalRow = {
+      id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      values: {},
+    };
     for (const col of card.columns) {
-      empty[col.key] = col.cellType === 'boolean' ? false : '';
+      empty.values[col.key] = col.cellType === 'boolean' ? false : '';
     }
     setRows((prev) => [...prev, empty]);
   }, [card.columns]);
@@ -141,7 +144,7 @@ export function ProposalCard({
                   >
                     <CellEditor
                       column={col}
-                      value={row[col.key]}
+                      value={row.values[col.key]}
                       onChange={(val) =>
                         handleCellChange(rowIdx, col.key, val)
                       }

@@ -1,17 +1,19 @@
 {
-  "name": "@moc/root",
+  "name": "@netior/root",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "dev:desktop": "pnpm --filter @moc/desktop-app dev",
+    "dev:desktop": "pnpm --filter @netior/desktop-app dev",
     "lint": "turbo run lint",
     "clean": "turbo run clean && rimraf node_modules",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "eval": "pnpm --filter @moc/narre-eval eval:dev"
+    "eval": "pnpm --filter @netior/narre-eval eval:dev",
+    "rename:brand:dry": "node scripts/rename-brand.mjs --rename-paths",
+    "rename:brand": "node scripts/rename-brand.mjs --apply --rename-paths"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import type { SplitDirection } from '@moc/shared/types';
+import type { SplitDirection } from '@netior/shared/types';
 import { isTabDrag, getTabDragData } from '../../hooks/useTabDrag';
 
 export type DropZone = 'top' | 'bottom' | 'left' | 'right' | 'center';

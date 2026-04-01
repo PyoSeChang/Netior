@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Layers, Link, Plus, Trash2 } from 'lucide-react';
-import type { Canvas } from '@moc/shared/types';
+import type { Canvas } from '@netior/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { canvasService } from '../../services';
 import { useI18n } from '../../hooks/useI18n';

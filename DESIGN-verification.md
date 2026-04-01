@@ -37,7 +37,7 @@ Canvas, CanvasCreate, CanvasUpdate 타입에 layout, layout_config 추가.
 
 ### V2-1. 타입 정합성
 
-- [ ] `pnpm --filter @moc/shared build`가 에러 없이 완료되는지 확인.
+- [ ] `pnpm --filter @netior/shared build`가 에러 없이 완료되는지 확인.
 - [ ] `pnpm typecheck`가 에러 없이 완료되는지 확인.
 - [ ] Canvas 타입에 layout(string), layout_config(Record 또는 null) 필드가 존재하는지 확인.
 - [ ] CanvasCreate 타입에 layout(선택), layout_config(선택) 필드가 존재하는지 확인.

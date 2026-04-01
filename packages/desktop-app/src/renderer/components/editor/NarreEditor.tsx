@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import type { EditorTab } from '@moc/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import { NarreSessionList } from './narre/NarreSessionList';
 import { NarreChat } from './narre/NarreChat';
 

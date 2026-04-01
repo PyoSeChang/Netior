@@ -1,9 +1,9 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
+import type { IpcResult } from '@netior/shared/types';
 import {
   createRelationType, listRelationTypes, getRelationType,
   updateRelationType, deleteRelationType,
-} from '@moc/core';
+} from '@netior/core';
 
 export function registerRelationTypeIpc(): void {
   ipcMain.handle('relationType:create', async (_e, data): Promise<IpcResult<unknown>> => {

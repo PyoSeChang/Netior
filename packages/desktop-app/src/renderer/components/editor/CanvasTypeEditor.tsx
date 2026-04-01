@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import type { EditorTab } from '@moc/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import { useCanvasTypeStore } from '../../stores/canvas-type-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useEditorStore } from '../../stores/editor-store';

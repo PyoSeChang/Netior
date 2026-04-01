@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { X, Minus, Maximize2 } from 'lucide-react';
-import type { EditorTab, EditorTabType, EditorViewMode } from '@moc/shared/types';
+import type { EditorTab, EditorTabType, EditorViewMode } from '@netior/shared/types';
 import { EditorContent } from './EditorContent';
 import { EditorViewModeSwitch } from './EditorViewModeSwitch';
 import { IconButton } from '../ui/IconButton';

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
-import type { FileTreeNode } from '@moc/shared/types';
-import type { TranslationKey } from '@moc/shared/i18n';
+import type { FileTreeNode } from '@netior/shared/types';
+import type { TranslationKey } from '@netior/shared/i18n';
 import { FileIcon } from './FileIcon';
 import { ContextMenu, type ContextMenuEntry } from '../ui/ContextMenu';
 import { useFileStore } from '../../stores/file-store';
@@ -188,7 +188,7 @@ function FileTreeItem({
           style={{ paddingLeft: depth * 12 + 4 }}
           draggable
           onDragStart={(e) => {
-            e.dataTransfer.setData('application/moc-node', JSON.stringify({ type: 'dir', path: node.path }));
+            e.dataTransfer.setData('application/netior-node', JSON.stringify({ type: 'dir', path: node.path }));
             e.dataTransfer.effectAllowed = 'copy';
           }}
           onClick={handleToggle}
@@ -251,7 +251,7 @@ function FileTreeItem({
       style={{ paddingLeft: depth * 12 + 20 }}
       draggable
       onDragStart={(e) => {
-        e.dataTransfer.setData('application/moc-node', JSON.stringify({ type: 'file', path: node.path }));
+        e.dataTransfer.setData('application/netior-node', JSON.stringify({ type: 'file', path: node.path }));
         e.dataTransfer.effectAllowed = 'copy';
       }}
       onClick={() => onFileClick(node.path)}

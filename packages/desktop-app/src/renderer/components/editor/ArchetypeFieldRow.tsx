@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { ArchetypeField, ArchetypeFieldUpdate } from '@moc/shared/types';
+import type { ArchetypeField, ArchetypeFieldUpdate } from '@netior/shared/types';
 import { Trash2 } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { TypeSelector } from '../ui/TypeSelector';

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, Type, Hash, ToggleLeft, Calendar, Clock, List, CheckSquare, CircleDot, Link2, FileText, Globe, Palette, Star, Tags } from 'lucide-react';
-import type { FieldType } from '@moc/shared/types';
+import type { FieldType } from '@netior/shared/types';
 import { useI18n } from '../../hooks/useI18n';
-import type { TranslationKey } from '@moc/shared/i18n';
+import type { TranslationKey } from '@netior/shared/i18n';
 
 interface TypeSelectorProps {
   value?: FieldType;

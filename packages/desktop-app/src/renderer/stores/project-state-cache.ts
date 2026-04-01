@@ -15,7 +15,7 @@ import type {
   Archetype, ArchetypeField,
   CanvasType,
   FileTreeNode,
-} from '@moc/shared/types';
+} from '@netior/shared/types';
 
 interface CanvasSnapshot {
   canvases: Canvas[];

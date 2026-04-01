@@ -1,7 +1,7 @@
 import { getService, initialize, ITerminalConfigurationService, ITerminalService, TerminalLocation } from '@codingame/monaco-vscode-api/services';
 import getConfigurationServiceOverride, { initUserConfiguration, updateUserConfiguration } from '@codingame/monaco-vscode-configuration-service-override';
 // keybindings service intentionally removed — it intercepts Ctrl+C/V/F/+/- etc.
-// MoC handles all terminal keyboard shortcuts independently.
+// Netior handles all terminal keyboard shortcuts independently.
 import getTerminalServiceOverride, { type ITerminalService as TerminalServiceType } from '@codingame/monaco-vscode-terminal-service-override';
 import getThemeServiceOverride from '@codingame/monaco-vscode-theme-service-override';
 import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
@@ -108,7 +108,7 @@ function ensureDomRoots(): TerminalDomRoots {
   if (roots) return roots;
 
   const workbench = document.createElement('div');
-  workbench.id = 'moc-terminal-workbench';
+  workbench.id = 'netior-terminal-workbench';
   Object.assign(workbench.style, {
     position: 'fixed',
     inset: '0',
@@ -121,10 +121,10 @@ function ensureDomRoots(): TerminalDomRoots {
   });
 
   const panel = document.createElement('div');
-  panel.id = 'moc-terminal-panel';
+  panel.id = 'netior-terminal-panel';
 
   const terminal = document.createElement('div');
-  terminal.id = 'moc-terminal-container';
+  terminal.id = 'netior-terminal-container';
   Object.assign(terminal.style, {
     width: '100%',
     height: '100%',

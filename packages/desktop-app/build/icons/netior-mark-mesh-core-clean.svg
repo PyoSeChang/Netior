@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior mesh core clean</title>
+  <desc>Simplified mesh core logo with reduced rails and cleaner spacing.</desc>
+  <g stroke="#0F172A" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M144 176L256 120L368 176" />
+    <path d="M144 336L256 392L368 336" />
+    <path d="M144 176L256 256L368 176" />
+    <path d="M144 336L256 256L368 336" />
+    <path d="M256 120V392" opacity="0.42" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="144" cy="176" r="28" />
+    <circle cx="256" cy="120" r="24" />
+    <circle cx="368" cy="176" r="28" />
+    <circle cx="256" cy="256" r="36" />
+    <circle cx="144" cy="336" r="28" />
+    <circle cx="256" cy="392" r="24" />
+    <circle cx="368" cy="336" r="28" />
+  </g>
+  <g fill="#14B8A6">
+    <circle cx="256" cy="256" r="14" />
+  </g>
+</svg>

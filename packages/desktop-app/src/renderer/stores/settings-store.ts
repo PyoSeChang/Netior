@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Locale } from '@moc/shared/i18n';
+import type { Locale } from '@netior/shared/i18n';
 
 const THEME_CONCEPTS = ['forest', 'neon', 'slate'] as const;
 

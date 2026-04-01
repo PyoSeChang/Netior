@@ -18,7 +18,7 @@
 
 - 모든 사용자에게 보이는 문자열은 `t('namespace.key')` 사용. 하드코딩 영어/한국어 금지.
 - 키 추가 시 `ko.json`, `en.json` 양쪽 필수.
-- `@moc/shared` 변경 후 `pnpm --filter @moc/shared build` 필요 (dev alias로 renderer는 자동 반영되나, dist 동기화 필요).
+- `@netior/shared` 변경 후 `pnpm --filter @netior/shared build` 필요 (dev alias로 renderer는 자동 반영되나, dist 동기화 필요).
 
 ## Selection UI Pattern
 

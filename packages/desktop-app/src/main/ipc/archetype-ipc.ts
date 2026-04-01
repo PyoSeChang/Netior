@@ -1,9 +1,9 @@
 import { ipcMain } from 'electron';
-import type { IpcResult } from '@moc/shared/types';
+import type { IpcResult } from '@netior/shared/types';
 import {
   createArchetype, listArchetypes, getArchetype, updateArchetype, deleteArchetype,
   createField, listFields, updateField, deleteField, reorderFields,
-} from '@moc/core';
+} from '@netior/core';
 
 export function registerArchetypeIpc(): void {
   ipcMain.handle('archetype:create', async (_e, data): Promise<IpcResult<unknown>> => {

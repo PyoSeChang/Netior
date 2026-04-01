@@ -10,13 +10,13 @@ import {
   createRelationType,
   createCanvasType,
   createConcept,
-} from '@moc/core';
-import type { LineStyle } from '@moc/shared/types';
+} from '@netior/core';
+import type { LineStyle } from '@netior/shared/types';
 import type { SeedConfig } from './types.js';
 
 const APPDATA = process.env.APPDATA || process.env.HOME || '.';
-const EVAL_DB_PATH = join(APPDATA, 'moc', 'data', 'moc-eval.db');
-const EVAL_DATA_DIR = join(APPDATA, 'moc', 'data', 'eval');
+const EVAL_DB_PATH = join(APPDATA, 'netior', 'data', 'netior-eval.db');
+const EVAL_DATA_DIR = join(APPDATA, 'netior', 'data', 'eval');
 const HEALTH_CHECK_TIMEOUT = 15_000;
 const HEALTH_CHECK_INTERVAL = 500;
 
@@ -38,7 +38,7 @@ export function setupDb(seed: SeedConfig): string {
     unlinkSync(EVAL_DB_PATH);
   }
 
-  mkdirSync(join(APPDATA, 'moc', 'data'), { recursive: true });
+  mkdirSync(join(APPDATA, 'netior', 'data'), { recursive: true });
   mkdirSync(EVAL_DATA_DIR, { recursive: true });
 
   initDatabase(EVAL_DB_PATH);
@@ -121,7 +121,7 @@ export async function startAgentServer(port: number): Promise<void> {
 
   const serverPath = resolveAgentServerPath();
   if (!serverPath) {
-    throw new Error('Could not find agent-server. Run: pnpm --filter @moc/agent-server build');
+    throw new Error('Could not find agent-server. Run: pnpm --filter @netior/agent-server build');
   }
 
   agentProcess = spawn('node', [serverPath], {

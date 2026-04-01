@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type {
   Archetype, ArchetypeCreate, ArchetypeUpdate,
   ArchetypeField, ArchetypeFieldCreate, ArchetypeFieldUpdate,
-} from '@moc/shared/types';
+} from '@netior/shared/types';
 import { archetypeService } from '../services';
 
 interface ArchetypeStore {

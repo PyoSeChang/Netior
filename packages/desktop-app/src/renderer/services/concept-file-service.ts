@@ -1,4 +1,4 @@
-import type { ConceptFile, ConceptFileCreate } from '@moc/shared/types';
+import type { ConceptFile, ConceptFileCreate } from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function createConceptFile(data: ConceptFileCreate): Promise<ConceptFile> {

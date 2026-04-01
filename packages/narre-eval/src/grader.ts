@@ -1,4 +1,4 @@
-import { getDatabase } from '@moc/core';
+import { getDatabase } from '@netior/core';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   Assertions,

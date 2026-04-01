@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { translate, type TranslationKey } from '@moc/shared/i18n';
+import { translate, type TranslationKey } from '@netior/shared/i18n';
 import { useSettingsStore } from '../stores/settings-store';
 
 export function useI18n() {

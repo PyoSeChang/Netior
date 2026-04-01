@@ -1,7 +1,7 @@
 import type {
   CanvasType, CanvasTypeCreate, CanvasTypeUpdate,
   CanvasTypeAllowedRelation, RelationType,
-} from '@moc/shared/types';
+} from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function createCanvasType(data: CanvasTypeCreate): Promise<CanvasType> {

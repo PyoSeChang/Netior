@@ -1,4 +1,4 @@
-import type { ConceptEditorPrefs, ConceptEditorPrefsUpdate } from '@moc/shared/types';
+import type { ConceptEditorPrefs, ConceptEditorPrefsUpdate } from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function getEditorPrefs(conceptId: string): Promise<ConceptEditorPrefs | undefined> {

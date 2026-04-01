@@ -1,4 +1,4 @@
-import type { EditorTab } from '@moc/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import type { ContextMenuEntry } from '../ui/ContextMenu';
 import { useEditorStore } from '../../stores/editor-store';
 import { getEditorType, getAvailableEditors, EDITOR_LABELS, type EditorType } from './editor-utils';

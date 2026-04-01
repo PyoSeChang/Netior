@@ -2,8 +2,8 @@ import {
   listArchetypes,
   listRelationTypes,
   listCanvasTypes,
-} from '@moc/core';
-import type { NarreStreamEvent } from '@moc/shared/types';
+} from '@netior/core';
+import type { NarreStreamEvent } from '@netior/shared/types';
 import type { Turn, Transcript, TurnTranscript, ToolCallRecord } from './types.js';
 
 export async function runScenario(

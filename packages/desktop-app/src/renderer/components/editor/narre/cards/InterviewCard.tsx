@@ -19,7 +19,7 @@ export function InterviewCard({
   const handleToggle = useCallback(
     (value: string) => {
       setSelected((prev) => {
-        if (card.multi) {
+        if (card.multiSelect) {
           return prev.includes(value)
             ? prev.filter((v) => v !== value)
             : [...prev, value];
@@ -28,7 +28,7 @@ export function InterviewCard({
         return prev.includes(value) ? [] : [value];
       });
     },
-    [card.multi],
+    [card.multiSelect],
   );
 
   return (
@@ -39,13 +39,14 @@ export function InterviewCard({
 
       <div className="flex flex-col gap-1.5">
         {card.options.map((opt) => {
-          const isSelected = selected.includes(opt.value);
-          if (card.multi) {
+          const optionValue = opt.label;
+          const isSelected = selected.includes(optionValue);
+          if (card.multiSelect) {
             return (
               <Checkbox
-                key={opt.value}
+                key={optionValue}
                 checked={isSelected}
-                onChange={() => handleToggle(opt.value)}
+                onChange={() => handleToggle(optionValue)}
                 label={opt.label}
               />
             );
@@ -53,7 +54,7 @@ export function InterviewCard({
           // Single select: radio-like with styled buttons
           return (
             <button
-              key={opt.value}
+              key={optionValue}
               type="button"
               className={[
                 'flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors',
@@ -61,7 +62,7 @@ export function InterviewCard({
                   ? 'bg-accent-muted text-accent border border-accent'
                   : 'bg-surface-hover text-text-default border border-transparent hover:border-subtle',
               ].join(' ')}
-              onClick={() => handleToggle(opt.value)}
+              onClick={() => handleToggle(optionValue)}
             >
               <div
                 className={[

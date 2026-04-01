@@ -1,5 +1,5 @@
 {
-  "name": "@moc/shared",
+  "name": "@netior/shared",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",

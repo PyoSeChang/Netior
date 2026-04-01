@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, Plus, Sparkles } from 'lucide-react';
-import type { NarreSession } from '@moc/shared/types';
+import type { NarreSession } from '@netior/shared/types';
 import { narreService } from '../../../services/narre-service';
 import { useI18n } from '../../../hooks/useI18n';
 import { Button } from '../../ui/Button';

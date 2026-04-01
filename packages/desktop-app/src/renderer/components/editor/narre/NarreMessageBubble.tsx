@@ -104,7 +104,7 @@ export function NarreMessageBubble({
         {cards && cards.length > 0 && onCardRespond && (
           cards.map((card, idx) => (
             <NarreCardRenderer
-              key={card.toolCallId || idx}
+              key={'toolCallId' in card ? card.toolCallId : idx}
               card={card}
               onRespond={onCardRespond}
             />

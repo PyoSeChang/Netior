@@ -7,6 +7,7 @@ import { Background } from '../workspace/Background';
 import { useInteraction } from '../workspace/InteractionLayer';
 import type { CanvasMode, RenderingMode } from '../../stores/ui-store';
 import type { RenderNode, RenderEdge, LayoutNode } from '../workspace/types';
+import type { InteractionConstraints } from '../workspace/layout-plugins/types';
 
 // Re-export workspace types for backward compatibility
 export type CanvasNodeData = RenderNode;
@@ -49,6 +50,11 @@ export interface CanvasProps {
 const ZOOM_STEP = 0.1;
 const ZOOM_MIN = 0.1;
 const ZOOM_MAX = 3.0;
+const DEFAULT_CONSTRAINTS: InteractionConstraints = {
+  panAxis: null,
+  nodeDragAxis: null,
+  enableSpanResize: false,
+};
 
 export const Canvas: React.FC<CanvasProps> = ({
   nodes,
@@ -108,7 +114,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     panX: panOffset.x,
     panY: panOffset.y,
     mode,
-    renderingMode,
+    constraints: DEFAULT_CONSTRAINTS,
     onPanChange: (panX, panY) => onPanChange({ x: panX, y: panY }),
     onNodeDragEnd,
     onSpanResizeEnd,

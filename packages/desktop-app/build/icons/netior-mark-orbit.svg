@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior orbit network mark</title>
+  <desc>Abstract network mark without letterforms, built from connected orbital nodes.</desc>
+  <g stroke="#0F172A" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M132 290C132 210 196 146 276 146C322 146 364 166 392 198" />
+    <path d="M380 222C380 302 316 366 236 366C188 366 144 344 116 308" />
+    <path d="M156 186L356 326" opacity="0.82" />
+    <path d="M154 324L358 186" opacity="0.58" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="156" cy="186" r="28" />
+    <circle cx="356" cy="186" r="28" />
+    <circle cx="156" cy="324" r="28" />
+    <circle cx="356" cy="326" r="28" />
+    <circle cx="256" cy="256" r="34" />
+  </g>
+  <g fill="#22C55E">
+    <circle cx="256" cy="256" r="14" />
+    <circle cx="156" cy="186" r="10" />
+    <circle cx="356" cy="326" r="10" />
+  </g>
+</svg>

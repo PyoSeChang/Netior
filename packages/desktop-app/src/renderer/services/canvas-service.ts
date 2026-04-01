@@ -4,7 +4,7 @@ import type {
   Edge, EdgeCreate, EdgeUpdate,
   Concept, RelationType, CanvasBreadcrumbItem,
   CanvasTreeNode,
-} from '@moc/shared/types';
+} from '@netior/shared/types';
 
 export interface CanvasFullData {
   canvas: Canvas;
