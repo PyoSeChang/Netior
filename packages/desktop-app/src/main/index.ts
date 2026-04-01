@@ -116,11 +116,9 @@ app.whenReady().then(async () => {
   initDatabase(dbPath, nativeBinding ? { nativeBinding } : undefined);
   registerAllIpc();
 
-  // Start Narre agent-server if API key is configured
-  const apiKey = getSetting('anthropic_api_key');
-  if (apiKey) {
-    startAgentServer({ apiKey, dbPath, dataDir: dbDir });
-  }
+  // Start Narre agent-server (Claude Agent SDK falls back to OAuth if no API key)
+  const apiKey = getSetting('anthropic_api_key') || '';
+  startAgentServer({ apiKey, dbPath, dataDir: dbDir });
 
   // Window control IPC
   ipcMain.on('window:minimize', (event) => {

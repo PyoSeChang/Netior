@@ -11,9 +11,7 @@ export default defineConfig({
   clean: true,
   external: [
     '@anthropic-ai/claude-agent-sdk',
-    '@moc/core',
     '@moc/shared',
-    'better-sqlite3',
     'express',
     'cors',
   ],

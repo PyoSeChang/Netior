@@ -8,6 +8,7 @@ import { IPC_CHANNELS } from '@moc/shared/constants';
 import {
   getSetting, setSetting,
   searchConcepts, listArchetypes, listRelationTypes, listCanvasTypes, listCanvases,
+  getProjectById,
 } from '@moc/core';
 import { startAgentServer, isAgentServerRunning } from '../process/agent-server-manager';
 
@@ -230,7 +231,20 @@ export function registerNarreIpc(): void {
         return { success: false, error: 'No main window available' };
       }
 
-      const body = JSON.stringify({ sessionId, projectId, message, mentions });
+      // Build project metadata for system prompt (agent-server doesn't access DB)
+      const project = getProjectById(projectId);
+      const archetypes = project ? listArchetypes(projectId) : [];
+      const relationTypes = project ? listRelationTypes(projectId) : [];
+      const canvasTypes = project ? listCanvasTypes(projectId) : [];
+
+      const projectMetadata = {
+        projectName: project?.name ?? projectId,
+        archetypes: archetypes.map((a) => ({ name: a.name, icon: a.icon, color: a.color, node_shape: a.node_shape })),
+        relationTypes: relationTypes.map((r) => ({ name: r.name, directed: r.directed, line_style: r.line_style, color: r.color })),
+        canvasTypes: canvasTypes.map((c) => ({ name: c.name, description: c.description })),
+      };
+
+      const body = JSON.stringify({ sessionId, projectId, message, mentions, projectMetadata });
       const agentPort = 3100;
 
       const req = http.request(

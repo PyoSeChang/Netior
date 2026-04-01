@@ -5,24 +5,27 @@ import { existsSync } from 'fs';
 let agentProcess: ChildProcess | null = null;
 
 function resolveAgentServerPath(): string | null {
-  // Try multiple candidate paths
   const candidates = [
-    // Development: relative to project root
     join(__dirname, '../../../../agent-server/dist/index.js'),
-    // Development: from packages/desktop-app/out/main/ → packages/agent-server/dist/
     join(__dirname, '../../../agent-server/dist/index.js'),
-    // Monorepo root relative
     join(process.cwd(), 'packages/agent-server/dist/index.js'),
   ];
 
+  console.log('[agent-server] __dirname:', __dirname);
+  console.log('[agent-server] cwd:', process.cwd());
+  console.log('[agent-server] Checking paths:');
   for (const p of candidates) {
-    if (existsSync(p)) return p;
+    const found = existsSync(p);
+    console.log(`[agent-server]   ${found ? '✓' : '✗'} ${p}`);
+    if (found) return p;
   }
 
-  // Fallback: try require.resolve (works if properly linked)
   try {
-    return require.resolve('@moc/agent-server/dist/index.js');
-  } catch {
+    const resolved = require.resolve('@moc/agent-server/dist/index.js');
+    console.log(`[agent-server]   ✓ require.resolve: ${resolved}`);
+    return resolved;
+  } catch (err) {
+    console.log(`[agent-server]   ✗ require.resolve failed: ${(err as Error).message}`);
     return null;
   }
 }
@@ -33,17 +36,23 @@ export function startAgentServer(config: {
   dataDir: string;
   port?: number;
 }): void {
-  if (agentProcess) return; // already running
-
-  const modulePath = resolveAgentServerPath();
-  if (!modulePath) {
-    console.error('[agent-server] Could not resolve agent-server module path. Run: pnpm --filter @moc/agent-server build');
+  if (agentProcess) {
+    console.log('[agent-server] Already running, skipping start');
     return;
   }
 
+  const modulePath = resolveAgentServerPath();
+  if (!modulePath) {
+    console.error('[agent-server] ✗ Could not resolve module path! Run: pnpm --filter @moc/agent-server build');
+    return;
+  }
+
+  const port = config.port ?? 3100;
   console.log(`[agent-server] Starting: ${modulePath}`);
   console.log(`[agent-server] DB: ${config.dbPath}`);
   console.log(`[agent-server] Data: ${config.dataDir}`);
+  console.log(`[agent-server] Port: ${port}`);
+  console.log(`[agent-server] API key: ${config.apiKey ? '***set***' : '(empty, will use OAuth)'}`);
 
   agentProcess = spawn('node', [modulePath], {
     env: {
@@ -51,32 +60,35 @@ export function startAgentServer(config: {
       ANTHROPIC_API_KEY: config.apiKey,
       MOC_DB_PATH: config.dbPath,
       MOC_DATA_DIR: config.dataDir,
-      PORT: String(config.port ?? 3100),
+      PORT: String(port),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
+  console.log(`[agent-server] Spawned PID: ${agentProcess.pid}`);
+
   agentProcess.stdout?.on('data', (data: Buffer) => {
-    console.log('[agent-server]', data.toString().trim());
+    console.log('[agent-server:stdout]', data.toString().trim());
   });
 
   agentProcess.stderr?.on('data', (data: Buffer) => {
-    console.error('[agent-server]', data.toString().trim());
+    console.error('[agent-server:stderr]', data.toString().trim());
   });
 
-  agentProcess.on('exit', (code) => {
-    console.log(`[agent-server] exited with code ${code}`);
+  agentProcess.on('exit', (code, signal) => {
+    console.log(`[agent-server] Exited: code=${code}, signal=${signal}`);
     agentProcess = null;
   });
 
   agentProcess.on('error', (err) => {
-    console.error('[agent-server] spawn error:', err.message);
+    console.error('[agent-server] Spawn error:', err.message);
     agentProcess = null;
   });
 }
 
 export function stopAgentServer(): void {
   if (agentProcess) {
+    console.log('[agent-server] Stopping...');
     agentProcess.kill();
     agentProcess = null;
   }
