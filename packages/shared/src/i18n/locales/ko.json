@@ -328,7 +328,13 @@
   "terminal": {
     "runningProcess": "실행 중인 프로세스",
     "killAndClose": "종료 후 닫기",
-    "runningProcessMessage": "'{title}'에 실행 중인 프로세스가 있습니다. 닫으면 프로세스가 종료됩니다."
+    "runningProcessMessage": "'{title}'에 실행 중인 프로세스가 있습니다. 닫으면 프로세스가 종료됩니다.",
+    "search": "검색",
+    "searchPlaceholder": "터미널에서 검색...",
+    "noResults": "결과 없음",
+    "nextMatch": "다음 일치",
+    "previousMatch": "이전 일치",
+    "closeSearch": "검색 닫기"
   },
   "narre": {
     "title": "Narre",

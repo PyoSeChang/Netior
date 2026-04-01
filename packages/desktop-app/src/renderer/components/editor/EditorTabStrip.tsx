@@ -101,7 +101,7 @@ export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDr
   }, [onTabDrop]);
 
   const handleRenameSubmit = useCallback((tabId: string, newTitle: string) => {
-    useEditorStore.getState().updateTitle(tabId, newTitle);
+    useEditorStore.getState().updateTitle(tabId, newTitle, true);
     setRenamingTabId(null);
   }, []);
 

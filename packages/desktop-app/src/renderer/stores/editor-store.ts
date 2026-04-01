@@ -33,7 +33,7 @@ interface EditorStore {
 
   updateFloatRect: (tabId: string, rect: Partial<EditorTab['floatRect']>) => void;
   updateSideSplitRatio: (tabId: string, ratio: number) => void;
-  updateTitle: (tabId: string, title: string) => void;
+  updateTitle: (tabId: string, title: string, isManualRename?: boolean) => void;
 
   setActiveFile: (tabId: string, filePath: string | null) => void;
   setDirty: (tabId: string, dirty: boolean) => void;
@@ -513,9 +513,13 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }
   },
 
-  updateTitle: (tabId, title) => {
+  updateTitle: (tabId, title, isManualRename = false) => {
     set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, title } : t)),
+      tabs: s.tabs.map((t) => {
+        if (t.id !== tabId) return t;
+        if (t.isManuallyRenamed && !isManualRename) return t;
+        return { ...t, title, ...(isManualRename ? { isManuallyRenamed: true } : {}) };
+      }),
     }));
   },
 

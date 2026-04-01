@@ -478,6 +478,8 @@ export interface EditorTab {
     positionY?: number;
     allowedArchetypeIds?: string[];
   };
+  /** Whether the user manually renamed this tab (prevents auto-title updates) */
+  isManuallyRenamed?: boolean;
 }
 
 export interface ConceptEditorPrefs {

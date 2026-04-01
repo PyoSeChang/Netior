@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, Menu } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { mkdirSync, existsSync } from 'fs';
@@ -93,6 +93,16 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
+  // Intercept Ctrl+=/- before Electron and VS Code keybindings consume them
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.control && !input.alt && !input.meta && input.type === 'keyDown') {
+      if (input.key === '-' || input.key === '=' || input.key === '+' || input.key === '0') {
+        event.preventDefault();
+        mainWindow!.webContents.send('terminal:font-size', input.key);
+      }
+    }
+  });
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
@@ -102,6 +112,7 @@ function createWindow(): void {
 
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.moc.app');
+  Menu.setApplicationMenu(null);
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window);

@@ -1,6 +1,7 @@
 import { getService, initialize, ITerminalConfigurationService, ITerminalService, TerminalLocation } from '@codingame/monaco-vscode-api/services';
 import getConfigurationServiceOverride, { initUserConfiguration, updateUserConfiguration } from '@codingame/monaco-vscode-configuration-service-override';
-import getKeybindingsServiceOverride from '@codingame/monaco-vscode-keybindings-service-override';
+// keybindings service intentionally removed — it intercepts Ctrl+C/V/F/+/- etc.
+// MoC handles all terminal keyboard shortcuts independently.
 import getTerminalServiceOverride, { type ITerminalService as TerminalServiceType } from '@codingame/monaco-vscode-terminal-service-override';
 import getThemeServiceOverride from '@codingame/monaco-vscode-theme-service-override';
 import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
@@ -14,6 +15,11 @@ interface TerminalDomRoots {
 }
 
 const terminalInstances = new Map<string, Promise<ITerminalInstance>>();
+
+const DEFAULT_FONT_SIZE = 13;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 28;
+let currentFontSize = DEFAULT_FONT_SIZE;
 let initializePromise: Promise<void> | null = null;
 let roots: TerminalDomRoots | null = null;
 let themeObserver: MutationObserver | null = null;
@@ -57,7 +63,7 @@ function buildTerminalUserConfiguration(): string {
   return JSON.stringify({
     'terminal.integrated.defaultLocation': 'editor',
     'terminal.integrated.fontFamily': "'Cascadia Code', 'Consolas', 'Courier New', monospace",
-    'terminal.integrated.fontSize': 13,
+    'terminal.integrated.fontSize': currentFontSize,
     'terminal.integrated.lineHeight': 1.25,
     'terminal.integrated.letterSpacing': 0.2,
     'terminal.integrated.gpuAcceleration': 'auto',
@@ -86,6 +92,10 @@ function buildTerminalUserConfiguration(): string {
       'scrollbarSlider.activeBackground': scrollbarActive,
       'editor.background': background,
       'panel.background': background,
+      'terminal.findMatchBackground': withAlpha(accent, isDark ? '44' : '33'),
+      'terminal.findMatchHighlightBackground': withAlpha(accent, isDark ? '22' : '18'),
+      'terminal.findMatchBorder': accent,
+      'terminal.findMatchHighlightBorder': withAlpha(accent, isDark ? '66' : '44'),
     },
   });
 }
@@ -140,7 +150,6 @@ export async function ensureTerminalServices(): Promise<void> {
       {
         ...getConfigurationServiceOverride(),
         ...getThemeServiceOverride(),
-        ...getKeybindingsServiceOverride({ shouldUseGlobalKeybindings: () => false }),
         ...getTerminalServiceOverride(backend),
       },
       domRoots.workbench,
@@ -229,4 +238,14 @@ export async function getOrCreateTerminalInstance(
     terminalInstances.delete(sessionId);
     throw error;
   }
+}
+
+export function adjustTerminalFontSize(delta: number): void {
+  currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, currentFontSize + delta));
+  void updateUserConfiguration(buildTerminalUserConfiguration());
+}
+
+export function resetTerminalFontSize(): void {
+  currentFontSize = DEFAULT_FONT_SIZE;
+  void updateUserConfiguration(buildTerminalUserConfiguration());
 }

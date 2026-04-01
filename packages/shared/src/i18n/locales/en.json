@@ -328,7 +328,13 @@
   "terminal": {
     "runningProcess": "Running Process",
     "killAndClose": "Kill & Close",
-    "runningProcessMessage": "'{title}' has a running process. Closing will kill it."
+    "runningProcessMessage": "'{title}' has a running process. Closing will kill it.",
+    "search": "Search",
+    "searchPlaceholder": "Search in terminal...",
+    "noResults": "No results",
+    "nextMatch": "Next match",
+    "previousMatch": "Previous match",
+    "closeSearch": "Close search"
   },
   "narre": {
     "title": "Narre",

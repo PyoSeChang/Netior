@@ -188,6 +188,11 @@ const electronAPI = {
       ipcRenderer.on('terminal:stateChanged', handler);
       return () => { ipcRenderer.removeListener('terminal:stateChanged', handler); };
     },
+    onFontSizeKey: (callback: (key: string) => void) => {
+      const handler = (_event: IpcRendererEvent, key: string) => callback(key);
+      ipcRenderer.on('terminal:font-size', handler);
+      return () => { ipcRenderer.removeListener('terminal:font-size', handler); };
+    },
   },
   narre: {
     listSessions: (projectId: string) => ipcRenderer.invoke('narre:listSessions', projectId),
