@@ -350,6 +350,13 @@
     "connectionError": "연결 오류",
     "retryMessage": "다시 시도해주세요",
     "streaming": "응답 생성 중...",
-    "mentionPlaceholder": "@으로 개념, 캔버스 등을 멘션할 수 있습니다"
+    "mentionPlaceholder": "@으로 개념, 캔버스 등을 멘션할 수 있습니다",
+    "mentionAll": "전체",
+    "mentionConcept": "개념",
+    "mentionCanvas": "캔버스",
+    "mentionArchetype": "Archetype",
+    "mentionRelationType": "관계 유형",
+    "mentionCanvasType": "캔버스 유형",
+    "mentionSearch": "검색..."
   }
 }

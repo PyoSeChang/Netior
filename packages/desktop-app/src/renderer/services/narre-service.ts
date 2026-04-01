@@ -31,6 +31,8 @@ export interface MentionResult {
   display: string;
   color?: string | null;
   icon?: string | null;
+  description?: string | null;
+  meta?: Record<string, unknown>;
 }
 
 export async function searchMentions(projectId: string, query: string): Promise<MentionResult[]> {

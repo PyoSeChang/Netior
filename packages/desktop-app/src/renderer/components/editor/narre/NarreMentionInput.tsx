@@ -16,7 +16,7 @@ interface NarreMentionInputProps {
 interface PickerState {
   isOpen: boolean;
   query: string;
-  position: { top: number; left: number };
+  position: { bottom: number; left: number };
 }
 
 function serializeContentEditable(el: HTMLDivElement): {
@@ -89,7 +89,7 @@ export function NarreMentionInput({
   const [picker, setPicker] = useState<PickerState>({
     isOpen: false,
     query: '',
-    position: { top: 0, left: 0 },
+    position: { bottom: 0, left: 0 },
   });
   const mentionSearchStart = useRef<number | null>(null);
 
@@ -198,16 +198,19 @@ export function NarreMentionInput({
       const query = text.slice(atPos + 1, cursorPos);
       mentionSearchStart.current = atPos;
 
-      // Get caret position for picker placement
+      // Get caret position in viewport coordinates for fixed-positioned picker
       const caretRange = document.createRange();
       caretRange.setStart(node, atPos);
       caretRange.setEnd(node, atPos);
-      const rect = caretRange.getBoundingClientRect();
+      const caretRect = caretRange.getBoundingClientRect();
 
       setPicker({
         isOpen: true,
         query,
-        position: { top: rect.top - 250, left: rect.left },
+        position: {
+          bottom: window.innerHeight - caretRect.top + 4,
+          left: caretRect.left,
+        },
       });
     } else {
       if (picker.isOpen) {
@@ -293,16 +296,16 @@ export function NarreMentionInput({
             {placeholder || t('narre.inputPlaceholder')}
           </div>
         )}
-        {picker.isOpen && (
-          <NarreMentionPicker
-            query={picker.query}
-            projectId={projectId}
-            position={picker.position}
-            onSelect={handleMentionSelect}
-            onClose={handlePickerClose}
-          />
-        )}
       </div>
+      {picker.isOpen && (
+        <NarreMentionPicker
+          query={picker.query}
+          projectId={projectId}
+          position={picker.position}
+          onSelect={handleMentionSelect}
+          onClose={handlePickerClose}
+        />
+      )}
       <IconButton
         label={t('narre.sendMessage')}
         disabled={isEmpty || disabled}

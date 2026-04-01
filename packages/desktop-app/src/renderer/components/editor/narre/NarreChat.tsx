@@ -44,6 +44,8 @@ export function NarreChat({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
+  const streamingContentRef = useRef('');
+  const streamingToolCallsRef = useRef<NarreToolCall[]>([]);
 
   // Load session data on mount
   useEffect(() => {
@@ -74,35 +76,34 @@ export function NarreChat({
       switch (evt.type) {
         case 'text':
           if (evt.content) {
-            setStreamingContent((prev) => prev + evt.content!);
+            streamingContentRef.current += evt.content;
+            setStreamingContent(streamingContentRef.current);
           }
           break;
         case 'tool_start':
           if (evt.tool) {
-            setStreamingToolCalls((prev) => [
-              ...prev,
-              {
-                tool: evt.tool!,
-                input: evt.toolInput ?? {},
-                status: 'running',
-              },
-            ]);
+            const newCall: NarreToolCall = {
+              tool: evt.tool,
+              input: evt.toolInput ?? {},
+              status: 'running',
+            };
+            streamingToolCallsRef.current = [...streamingToolCallsRef.current, newCall];
+            setStreamingToolCalls(streamingToolCallsRef.current);
           }
           break;
         case 'tool_end':
           if (evt.tool) {
-            setStreamingToolCalls((prev) =>
-              prev.map((tc) =>
-                tc.tool === evt.tool && tc.status === 'running'
-                  ? {
-                      ...tc,
-                      status: evt.toolResult?.startsWith('Error') ? 'error' as const : 'success' as const,
-                      result: evt.toolResult,
-                      error: evt.toolResult?.startsWith('Error') ? evt.toolResult : undefined,
-                    }
-                  : tc,
-              ),
+            streamingToolCallsRef.current = streamingToolCallsRef.current.map((tc) =>
+              tc.tool === evt.tool && tc.status === 'running'
+                ? {
+                    ...tc,
+                    status: evt.toolResult?.startsWith('Error') ? 'error' as const : 'success' as const,
+                    result: evt.toolResult,
+                    error: evt.toolResult?.startsWith('Error') ? evt.toolResult : undefined,
+                  }
+                : tc,
             );
+            setStreamingToolCalls(streamingToolCallsRef.current);
             // Refresh stores if this was a mutation tool
             const mutationPrefixes = ['create_', 'update_', 'delete_'];
             if (mutationPrefixes.some((prefix) => evt.tool!.startsWith(prefix))) {
@@ -111,28 +112,29 @@ export function NarreChat({
           }
           break;
         case 'error':
-          setStreamingContent((prev) => prev + (evt.error ? `\n[Error: ${evt.error}]` : ''));
-          // Don't set isStreaming=false here — wait for 'done' event to finalize
+          streamingContentRef.current += evt.error ? `\n[Error: ${evt.error}]` : '';
+          setStreamingContent(streamingContentRef.current);
           break;
-        case 'done':
-          // Finalize: add assistant message to messages, clear streaming state
-          setStreamingContent((prevContent) => {
-            setStreamingToolCalls((prevCalls) => {
-              if (prevContent || prevCalls.length > 0) {
-                const assistantMsg: NarreMessage = {
-                  role: 'assistant',
-                  content: prevContent,
-                  tool_calls: prevCalls.length > 0 ? prevCalls : undefined,
-                  timestamp: new Date().toISOString(),
-                };
-                setMessages((prev) => [...prev, assistantMsg]);
-              }
-              return [];
-            });
-            return '';
-          });
+        case 'done': {
+          // Finalize: add assistant message, then clear streaming state atomically
+          const finalContent = streamingContentRef.current;
+          const finalCalls = streamingToolCallsRef.current;
+          if (finalContent || finalCalls.length > 0) {
+            const assistantMsg: NarreMessage = {
+              role: 'assistant',
+              content: finalContent,
+              tool_calls: finalCalls.length > 0 ? finalCalls : undefined,
+              timestamp: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, assistantMsg]);
+          }
+          streamingContentRef.current = '';
+          streamingToolCallsRef.current = [];
+          setStreamingContent('');
+          setStreamingToolCalls([]);
           setIsStreaming(false);
           break;
+        }
       }
     });
 
@@ -179,6 +181,8 @@ export function NarreChat({
     };
     setMessages((prev) => [...prev, userMsg]);
     setIsStreaming(true);
+    streamingContentRef.current = '';
+    streamingToolCallsRef.current = [];
     setStreamingContent('');
     setStreamingToolCalls([]);
     autoScrollRef.current = true;

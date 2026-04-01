@@ -170,6 +170,7 @@ app.post('/chat', async (req, res) => {
     // 8. Run the agent loop
     let assistantText = '';
     const toolCalls: NarreToolCall[] = [];
+    const processedMessageIds = new Set<string>();
 
     try {
       for await (const msg of query({
@@ -177,6 +178,13 @@ app.post('/chat', async (req, res) => {
         options: queryOptions as Parameters<typeof query>[0]['options'],
       })) {
         if (msg.type === 'assistant' && msg.message?.content) {
+          // Skip already-processed assistant messages (SDK may re-yield)
+          const msgId = (msg as Record<string, unknown>).uuid as string | undefined;
+          if (msgId) {
+            if (processedMessageIds.has(msgId)) continue;
+            processedMessageIds.add(msgId);
+          }
+
           for (const block of msg.message.content) {
             if ('text' in block && block.text) {
               sendSSEEvent(res, { type: 'text', content: block.text });

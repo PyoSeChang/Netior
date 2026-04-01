@@ -350,6 +350,13 @@
     "connectionError": "Connection Error",
     "retryMessage": "Please try again",
     "streaming": "Generating response...",
-    "mentionPlaceholder": "Use @ to mention concepts, canvases, etc."
+    "mentionPlaceholder": "Use @ to mention concepts, canvases, etc.",
+    "mentionAll": "All",
+    "mentionConcept": "Concept",
+    "mentionCanvas": "Canvas",
+    "mentionArchetype": "Archetype",
+    "mentionRelationType": "Relation Type",
+    "mentionCanvasType": "Canvas Type",
+    "mentionSearch": "Search..."
   }
 }

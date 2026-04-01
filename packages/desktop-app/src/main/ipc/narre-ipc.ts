@@ -164,23 +164,34 @@ export function registerNarreIpc(): void {
 
   ipcMain.handle(IPC_CHANNELS.NARRE_SEARCH_MENTIONS, async (_e, projectId: string, query: string): Promise<IpcResult<unknown>> => {
     try {
-      const results: Array<{ type: string; id: string; display: string; color?: string | null; icon?: string | null }> = [];
-      const maxResults = 20;
+      const results: Array<{
+        type: string; id: string; display: string;
+        color?: string | null; icon?: string | null;
+        description?: string | null; meta?: Record<string, unknown>;
+      }> = [];
+      const maxResults = 30;
 
       // Search concepts
+      const archetypeMap = new Map(listArchetypes(projectId).map((a) => [a.id, a]));
       const concepts = searchConcepts(projectId, query);
       for (const c of concepts) {
         if (results.length >= maxResults) break;
-        results.push({ type: 'concept', id: c.id, display: c.title, color: c.color, icon: c.icon });
+        const arch = c.archetype_id ? archetypeMap.get(c.archetype_id) : null;
+        results.push({
+          type: 'concept', id: c.id, display: c.title, color: c.color, icon: c.icon,
+          meta: { archetype: arch?.name ?? null },
+        });
       }
 
       // Search archetypes
-      const archetypes = listArchetypes(projectId);
       const lowerQuery = query.toLowerCase();
-      for (const a of archetypes) {
+      for (const a of archetypeMap.values()) {
         if (results.length >= maxResults) break;
         if (a.name.toLowerCase().includes(lowerQuery)) {
-          results.push({ type: 'archetype', id: a.id, display: a.name, color: a.color, icon: a.icon });
+          results.push({
+            type: 'archetype', id: a.id, display: a.name, color: a.color, icon: a.icon,
+            description: a.description, meta: { nodeShape: a.node_shape },
+          });
         }
       }
 
@@ -189,7 +200,10 @@ export function registerNarreIpc(): void {
       for (const rt of relationTypes) {
         if (results.length >= maxResults) break;
         if (rt.name.toLowerCase().includes(lowerQuery)) {
-          results.push({ type: 'relationType', id: rt.id, display: rt.name, color: rt.color });
+          results.push({
+            type: 'relationType', id: rt.id, display: rt.name, color: rt.color,
+            description: rt.description, meta: { directed: rt.directed, lineStyle: rt.line_style },
+          });
         }
       }
 
@@ -198,7 +212,10 @@ export function registerNarreIpc(): void {
       for (const ct of canvasTypes) {
         if (results.length >= maxResults) break;
         if (ct.name.toLowerCase().includes(lowerQuery)) {
-          results.push({ type: 'canvasType', id: ct.id, display: ct.name, color: ct.color, icon: ct.icon });
+          results.push({
+            type: 'canvasType', id: ct.id, display: ct.name, color: ct.color, icon: ct.icon,
+            description: ct.description,
+          });
         }
       }
 
@@ -207,7 +224,10 @@ export function registerNarreIpc(): void {
       for (const cv of canvases) {
         if (results.length >= maxResults) break;
         if (cv.name.toLowerCase().includes(lowerQuery)) {
-          results.push({ type: 'canvas', id: cv.id, display: cv.name });
+          results.push({
+            type: 'canvas', id: cv.id, display: cv.name,
+            meta: { conceptId: cv.concept_id, canvasTypeId: cv.canvas_type_id },
+          });
         }
       }
 
