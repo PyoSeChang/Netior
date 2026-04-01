@@ -23,6 +23,9 @@ export default defineConfig({
         '@renderer': resolve('src/renderer'),
         '@shared': resolve('src/shared'),
         '@moc/shared': resolve('../shared/src'),
+        '@codingame/monaco-vscode-api/vscode/vs/base/browser/cssValue': resolve(
+          'node_modules/@codingame/monaco-vscode-api/vscode/src/vs/base/browser/cssValue.js',
+        ),
       },
     },
     plugins: [react()],

@@ -93,7 +93,7 @@ function buildTerminalItems(tab: EditorTab, callbacks?: TabContextMenuCallbacks)
       label: '터미널 Kill',
       danger: true,
       onClick: () => {
-        window.electron.terminal.kill(tab.targetId).catch(() => {});
+        window.electron.terminal.shutdown(tab.targetId).catch(() => {});
         useEditorStore.getState().closeTab(tab.id);
       },
     },

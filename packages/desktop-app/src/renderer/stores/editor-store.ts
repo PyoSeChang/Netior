@@ -317,7 +317,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   closeTab: (tabId) => {
     const tab = get().tabs.find((t) => t.id === tabId);
     if (tab && tab.type === 'terminal') {
-      window.electron.terminal.kill(tab.targetId).catch(() => {});
+      window.electron.terminal.shutdown(tab.targetId).catch(() => {});
     }
     if (tab && tab.type === 'concept' && !tab.targetId.startsWith('draft-')) {
       editorPrefsService.upsert(tab.targetId, {

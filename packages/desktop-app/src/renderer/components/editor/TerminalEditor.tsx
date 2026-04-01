@@ -1,11 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
-import '@xterm/xterm/css/xterm.css';
 import type { EditorTab } from '@moc/shared/types';
+import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
 import { useModuleStore } from '../../stores/module-store';
-import { getCssColorAsHex } from './editor-utils';
+import { useEditorStore } from '../../stores/editor-store';
+import { getOrCreateTerminalInstance } from '../../lib/terminal/terminal-services';
 
 interface TerminalEditorProps {
   tab: EditorTab;
@@ -13,130 +11,108 @@ interface TerminalEditorProps {
 
 export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<Terminal | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
   const sessionId = tab.targetId;
   const cwd = useModuleStore((s) => s.directories[0]?.dir_path);
+  const updateTitle = useEditorStore((s) => s.updateTitle);
 
   useEffect(() => {
     if (!containerRef.current || !sessionId || !cwd) return;
 
-    const isDark = document.documentElement.getAttribute('data-mode') !== 'light';
-    const bg = getCssColorAsHex('--surface-panel', isDark ? '#1e1e1e' : '#ffffff');
+    let disposed = false;
+    const container = containerRef.current;
+    let resizeObserver: ResizeObserver | null = null;
+    let scrollbarObserver: MutationObserver | null = null;
+    let titleListener: { dispose(): void } | null = null;
+    let attachedInstance: ITerminalInstance | null = null;
 
-    const terminal = new Terminal({
-      cursorBlink: true,
-      fontSize: 13,
-      fontFamily: "'Cascadia Code', 'Consolas', 'Courier New', monospace",
-      theme: {
-        background: bg,
-        foreground: isDark ? '#cccccc' : '#1e1e1e',
-        cursor: isDark ? '#cccccc' : '#1e1e1e',
-        cursorAccent: isDark ? '#1e1e1e' : '#ffffff',
-        selectionBackground: '#ffffff40',
-      },
-      scrollback: 5000,
-      windowsPty: {
-        backend: 'conpty',
-        buildNumber: 1,
-      },
-    });
+    const patchScrollbars = (): void => {
+      const vertical = container.querySelector<HTMLElement>('.xterm-scrollbar.xterm-vertical');
+      const horizontal = container.querySelector<HTMLElement>('.xterm-scrollbar.xterm-horizontal');
+      const verticalSlider = vertical?.querySelector<HTMLElement>('.xterm-slider');
+      const horizontalSlider = horizontal?.querySelector<HTMLElement>('.xterm-slider');
 
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-    terminal.loadAddon(new WebLinksAddon());
-
-    terminal.open(containerRef.current);
-
-    const rect = containerRef.current.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      fitAddon.fit();
-    }
-
-    termRef.current = terminal;
-    fitAddonRef.current = fitAddon;
-
-    // Spawn PTY
-    window.electron.terminal.spawn(sessionId, cwd);
-
-    // User input → PTY
-    const onDataDispose = terminal.onData((data) => {
-      window.electron.terminal.input(sessionId, data);
-    });
-
-    // PTY output → terminal
-    const removeOutput = window.electron.terminal.onOutput((sid, data) => {
-      if (sid === sessionId) {
-        terminal.write(data);
+      if (vertical) {
+        vertical.style.width = '8px';
+        vertical.style.right = '2px';
+        vertical.style.background = 'transparent';
       }
-    });
 
-    // PTY exit
-    const removeExit = window.electron.terminal.onExit((sid, exitCode) => {
-      if (sid === sessionId) {
-        terminal.write(`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`);
+      if (horizontal) {
+        horizontal.style.height = '8px';
+        horizontal.style.bottom = '2px';
+        horizontal.style.background = 'transparent';
       }
-    });
 
-    // Resize initial
-    if (rect.width > 0 && rect.height > 0) {
-      window.electron.terminal.resize(sessionId, terminal.cols, terminal.rows);
-    }
-
-    // Copy/Paste handler
-    terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-      if (event.type !== 'keydown') return true;
-      if (event.ctrlKey && !event.shiftKey && !event.altKey) {
-        if (event.key === 'c' && terminal.hasSelection()) {
-          navigator.clipboard.writeText(terminal.getSelection());
-          terminal.clearSelection();
-          return false;
-        }
-        if (event.key === 'v') return false;
+      if (verticalSlider) {
+        verticalSlider.style.width = '8px';
+        verticalSlider.style.borderRadius = '9999px';
       }
-      return true;
-    });
 
-    const pasteHandler = (e: ClipboardEvent): void => {
-      e.preventDefault();
-      e.stopPropagation();
-      const text = e.clipboardData?.getData('text');
-      if (text) terminal.paste(text);
+      if (horizontalSlider) {
+        horizontalSlider.style.height = '8px';
+        horizontalSlider.style.borderRadius = '9999px';
+      }
     };
-    containerRef.current.addEventListener('paste', pasteHandler, true);
 
-    // ResizeObserver
-    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
-    const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      if (width === 0 || height === 0) return;
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        fitAddon.fit();
-        window.electron.terminal.resize(sessionId, terminal.cols, terminal.rows);
-      }, 50);
-    });
-    observer.observe(containerRef.current);
+    const attach = async (): Promise<void> => {
+      const instance = await getOrCreateTerminalInstance(sessionId, cwd, tab.title);
+      attachedInstance = instance;
+      if (disposed) {
+        instance.detachFromElement();
+        return;
+      }
 
-    const containerEl = containerRef.current;
+      instance.attachToElement(container);
+      instance.setVisible(true);
+      instance.layout({
+        width: container.clientWidth,
+        height: container.clientHeight,
+      });
+      patchScrollbars();
+
+      titleListener = instance.onTitleChanged(() => {
+        updateTitle(tab.id, instance.title);
+      });
+      updateTitle(tab.id, instance.title);
+
+      resizeObserver = new ResizeObserver(() => {
+        if (disposed) return;
+        instance.layout({
+          width: container.clientWidth,
+          height: container.clientHeight,
+        });
+        patchScrollbars();
+      });
+      resizeObserver.observe(container);
+
+      scrollbarObserver = new MutationObserver(() => {
+        patchScrollbars();
+      });
+      scrollbarObserver.observe(container, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class'],
+      });
+
+      void instance.focusWhenReady();
+    };
+
+    void attach();
 
     return () => {
-      if (resizeTimer) clearTimeout(resizeTimer);
-      containerEl.removeEventListener('paste', pasteHandler, true);
-      removeOutput();
-      removeExit();
-      onDataDispose.dispose();
-      observer.disconnect();
-      terminal.dispose();
-      termRef.current = null;
-      fitAddonRef.current = null;
-      // PTY kill is handled by editor-store.closeTab, not here
+      disposed = true;
+      titleListener?.dispose();
+      resizeObserver?.disconnect();
+      scrollbarObserver?.disconnect();
+      attachedInstance?.detachFromElement();
+      attachedInstance?.setVisible(false);
     };
-  }, [sessionId, cwd]);
+  }, [cwd, sessionId, tab.id, tab.title, updateTitle]);
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <div ref={containerRef} className="flex-1 min-h-0 p-2" />
+    <div className="flex h-full min-h-0 w-full flex-col bg-surface-panel p-2">
+      <div ref={containerRef} className="terminal-editor flex-1 min-h-0 overflow-hidden bg-surface-panel" />
     </div>
   );
 }

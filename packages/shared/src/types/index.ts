@@ -550,3 +550,29 @@ export interface MocChangeEvent {
   action: 'created' | 'updated' | 'deleted';
   id: string;
 }
+
+// ============================================
+// Terminal Types
+// ============================================
+
+export type TerminalSessionState = 'created' | 'starting' | 'running' | 'exited';
+
+export interface TerminalLaunchConfig {
+  cwd: string;
+  shell?: string;
+  args?: string[];
+  title?: string;
+}
+
+export interface TerminalSessionInfo {
+  sessionId: string;
+  cwd: string;
+  title: string;
+  shellPath: string;
+  shellArgs: string[];
+  state: TerminalSessionState;
+  pid: number | null;
+  exitCode: number | null;
+  cols: number;
+  rows: number;
+}

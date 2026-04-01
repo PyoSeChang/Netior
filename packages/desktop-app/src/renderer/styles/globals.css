@@ -45,6 +45,76 @@ body,
   background: var(--text-muted);
 }
 
+/* Terminal-specific scrollbar tuning */
+.terminal-editor .monaco-scrollable-element > .scrollbar.vertical {
+  width: 8px !important;
+  right: 2px !important;
+  background: transparent !important;
+}
+
+.terminal-editor .monaco-scrollable-element > .scrollbar.horizontal {
+  height: 8px !important;
+  bottom: 2px !important;
+  background: transparent !important;
+}
+
+.terminal-editor .monaco-scrollable-element > .scrollbar > .slider {
+  border-radius: 9999px !important;
+}
+
+.terminal-editor .xterm .xterm-scrollable-element > .xterm-scrollbar.xterm-vertical {
+  width: 8px !important;
+  right: 2px !important;
+  background: transparent !important;
+}
+
+.terminal-editor .xterm .xterm-scrollable-element > .xterm-scrollbar.xterm-horizontal {
+  height: 8px !important;
+  bottom: 2px !important;
+  background: transparent !important;
+}
+
+.terminal-editor .xterm .xterm-scrollable-element > .xterm-scrollbar > .xterm-slider {
+  width: 8px !important;
+  border-radius: 9999px !important;
+}
+
+.terminal-editor .xterm .xterm-scrollable-element > .xterm-shadow,
+.terminal-editor .monaco-scrollable-element > .shadow {
+  display: none !important;
+}
+
+.terminal-editor .xterm .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+}
+
+.terminal-editor .xterm .xterm-viewport::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.terminal-editor .xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.terminal-editor .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  border-radius: 9999px !important;
+  background: color-mix(in srgb, var(--border-default) 70%, transparent) !important;
+}
+
+.terminal-editor .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-muted) 78%, transparent) !important;
+}
+
+.terminal-editor .xterm .xterm-decoration-overview-ruler {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* VS Code-style tab strip */
 .tab-strip {
   position: relative;

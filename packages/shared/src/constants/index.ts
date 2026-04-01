@@ -105,13 +105,18 @@ export const IPC_CHANNELS = {
   CONFIG_GET: 'config:get',
   CONFIG_SET: 'config:set',
 
-  // PTY (terminal)
-  PTY_SPAWN: 'pty:spawn',
-  PTY_INPUT: 'pty:input',
-  PTY_OUTPUT: 'pty:output',
-  PTY_RESIZE: 'pty:resize',
-  PTY_EXIT: 'pty:exit',
-  PTY_KILL: 'pty:kill',
+  // Terminal
+  TERMINAL_CREATE_INSTANCE: 'terminal:createInstance',
+  TERMINAL_GET_SESSION: 'terminal:getSession',
+  TERMINAL_ATTACH: 'terminal:attach',
+  TERMINAL_INPUT: 'terminal:input',
+  TERMINAL_RESIZE: 'terminal:resize',
+  TERMINAL_SHUTDOWN: 'terminal:shutdown',
+  TERMINAL_DATA: 'terminal:data',
+  TERMINAL_READY: 'terminal:ready',
+  TERMINAL_EXIT: 'terminal:exit',
+  TERMINAL_TITLE_CHANGED: 'terminal:titleChanged',
+  TERMINAL_STATE_CHANGED: 'terminal:stateChanged',
 
   // Narre
   NARRE_SEND_MESSAGE: 'narre:sendMessage',

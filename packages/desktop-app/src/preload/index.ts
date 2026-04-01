@@ -1,4 +1,16 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import { release } from 'node:os';
+import type { TerminalLaunchConfig, TerminalSessionInfo, TerminalSessionState } from '@moc/shared/types';
+
+function getWindowsBuildNumber(): number | null {
+  if (process.platform !== 'win32') return null;
+
+  const match = release().match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return null;
+
+  const buildNumber = Number(match[3]);
+  return Number.isFinite(buildNumber) ? buildNumber : null;
+}
 
 const electronAPI = {
   window: {
@@ -136,22 +148,45 @@ const electronAPI = {
     set: (key: string, value: unknown) => ipcRenderer.invoke('config:set', key, value),
   },
   terminal: {
-    spawn: (sessionId: string, cwd: string) => ipcRenderer.invoke('pty:spawn', sessionId, cwd),
-    input: (sessionId: string, data: string) => ipcRenderer.send('pty:input', sessionId, data),
+    createInstance: (sessionId: string, launchConfig: TerminalLaunchConfig) =>
+      ipcRenderer.invoke('terminal:createInstance', sessionId, launchConfig),
+    getSession: (sessionId: string): Promise<{ success: true; data: TerminalSessionInfo | null } | { success: false; error: string }> =>
+      ipcRenderer.invoke('terminal:getSession', sessionId),
+    attach: (sessionId: string) => ipcRenderer.invoke('terminal:attach', sessionId),
+    shutdown: (sessionId: string) => ipcRenderer.invoke('terminal:shutdown', sessionId),
+    input: (sessionId: string, data: string) => ipcRenderer.send('terminal:input', sessionId, data),
     resize: (sessionId: string, cols: number, rows: number) =>
-      ipcRenderer.send('pty:resize', sessionId, cols, rows),
-    kill: (sessionId: string) => ipcRenderer.invoke('pty:kill', sessionId),
-    onOutput: (callback: (sessionId: string, data: string) => void) => {
-      const handler = (_event: IpcRendererEvent, payload: { sessionId: string; data: string }) =>
-        callback(payload.sessionId, payload.data);
-      ipcRenderer.on('pty:output', handler);
-      return () => { ipcRenderer.removeListener('pty:output', handler); };
-    },
+      ipcRenderer.send('terminal:resize', sessionId, cols, rows),
+    getWindowsBuildNumber,
     onExit: (callback: (sessionId: string, exitCode: number) => void) => {
       const handler = (_event: IpcRendererEvent, payload: { sessionId: string; exitCode: number }) =>
         callback(payload.sessionId, payload.exitCode);
-      ipcRenderer.on('pty:exit', handler);
-      return () => { ipcRenderer.removeListener('pty:exit', handler); };
+      ipcRenderer.on('terminal:exit', handler);
+      return () => { ipcRenderer.removeListener('terminal:exit', handler); };
+    },
+    onReady: (callback: (payload: { sessionId: string; pid: number | null; cwd: string; title: string }) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: { sessionId: string; pid: number | null; cwd: string; title: string }) =>
+        callback(payload);
+      ipcRenderer.on('terminal:ready', handler);
+      return () => { ipcRenderer.removeListener('terminal:ready', handler); };
+    },
+    onData: (callback: (sessionId: string, data: string) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: { sessionId: string; data: string }) =>
+        callback(payload.sessionId, payload.data);
+      ipcRenderer.on('terminal:data', handler);
+      return () => { ipcRenderer.removeListener('terminal:data', handler); };
+    },
+    onTitleChanged: (callback: (sessionId: string, title: string) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: { sessionId: string; title: string }) =>
+        callback(payload.sessionId, payload.title);
+      ipcRenderer.on('terminal:titleChanged', handler);
+      return () => { ipcRenderer.removeListener('terminal:titleChanged', handler); };
+    },
+    onStateChanged: (callback: (sessionId: string, state: TerminalSessionState, exitCode: number | null) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: { sessionId: string; state: TerminalSessionState; exitCode: number | null }) =>
+        callback(payload.sessionId, payload.state, payload.exitCode);
+      ipcRenderer.on('terminal:stateChanged', handler);
+      return () => { ipcRenderer.removeListener('terminal:stateChanged', handler); };
     },
   },
   narre: {
