@@ -1,16 +1,18 @@
 /**
- * Narre Eval Harness — DB 초기화 + narre-server 프로세스 관리
+ * Narre Eval Harness — 수동 eval 환경 관리
  *
  * Usage:
- *   npx tsx scripts/harness.ts setup [seed-json-path]
- *   npx tsx scripts/harness.ts teardown
- *   npx tsx scripts/harness.ts start-server
- *   npx tsx scripts/harness.ts stop-server
- *   npx tsx scripts/harness.ts health
+ *   npx tsx .claude/skills/narre-eval/scripts/harness.ts setup [scenario-dir]
+ *   npx tsx .claude/skills/narre-eval/scripts/harness.ts teardown
+ *   npx tsx .claude/skills/narre-eval/scripts/harness.ts start-server
+ *   npx tsx .claude/skills/narre-eval/scripts/harness.ts stop-server
+ *   npx tsx .claude/skills/narre-eval/scripts/harness.ts health
+ *   npx tsx .claude/skills/narre-eval/scripts/harness.ts status
  */
-import { spawn, execSync } from 'child_process';
+import { spawn } from 'child_process';
 import { existsSync, unlinkSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 
 // Resolve project root (find pnpm-workspace.yaml)
 function findProjectRoot(): string {
@@ -36,8 +38,8 @@ async function main() {
 
   switch (command) {
     case 'setup': {
-      const seedPath = process.argv[3];
-      await setup(seedPath);
+      const scenarioDir = process.argv[3];
+      await setup(scenarioDir);
       break;
     }
     case 'teardown':
@@ -56,12 +58,19 @@ async function main() {
       status();
       break;
     default:
-      console.log('Usage: harness.ts <setup|teardown|start-server|stop-server|health|status> [seed-json]');
+      console.log('Usage: harness.ts <setup|teardown|start-server|stop-server|health|status> [scenario-dir]');
+      console.log('');
+      console.log('  setup [scenario-dir]  Initialize eval DB. If scenario-dir given, run its seed.ts.');
+      console.log('  teardown              Stop server and delete eval DB.');
+      console.log('  start-server          Start narre-server on port 3199.');
+      console.log('  stop-server           Stop narre-server.');
+      console.log('  health                Check narre-server health.');
+      console.log('  status                Show eval environment status.');
       process.exit(1);
   }
 }
 
-async function setup(seedPath?: string) {
+async function setup(scenarioDir?: string) {
   console.log('=== Narre Eval Setup ===');
 
   // Delete existing eval DB
@@ -73,101 +82,66 @@ async function setup(seedPath?: string) {
   mkdirSync(join(APPDATA, 'netior', 'data'), { recursive: true });
   mkdirSync(EVAL_DATA_DIR, { recursive: true });
 
-  // Import moc-core dynamically
-  const corePath = join(PROJECT_ROOT, 'packages/netior-core/src/index.ts');
-  // Use the built version
+  // Import core
   const coreDistPath = join(PROJECT_ROOT, 'packages/netior-core/dist/index.js');
-
-  let core: any;
-  if (existsSync(coreDistPath)) {
-    core = await import(coreDistPath);
-  } else {
-    throw new Error('moc-core not built. Run: pnpm --filter @netior/core build');
+  if (!existsSync(coreDistPath)) {
+    throw new Error('netior-core not built. Run: pnpm --filter @netior/core build');
   }
+  const core = await import(pathToFileURL(coreDistPath).href);
 
   core.initDatabase(EVAL_DB_PATH);
   console.log(`Initialized eval DB: ${EVAL_DB_PATH}`);
 
-  // Seed data if provided
-  if (seedPath) {
-    const seed = JSON.parse(readFileSync(seedPath, 'utf-8'));
-    const projectId = seedFromData(core, seed);
-    console.log(`Seeded project: ${seed.project.name} (${projectId})`);
+  if (scenarioDir) {
+    // Run scenario's seed.ts
+    const seedPath = join(scenarioDir, 'seed.ts');
+    if (!existsSync(seedPath)) {
+      throw new Error(`seed.ts not found in ${scenarioDir}`);
+    }
 
-    // Write project ID for later use
-    writeFileSync(join(EVAL_DATA_DIR, 'project-id.txt'), projectId, 'utf-8');
+    const seedModule = await import(pathToFileURL(seedPath).href);
+    const seedFn = seedModule.default;
+
+    // Build a minimal SeedContext for manual use
+    let projectId: string | null = null;
+    const ctx = {
+      tempDir: join(EVAL_DATA_DIR, 'temp'),
+      scenarioDir,
+      createProject(data: any) {
+        mkdirSync(ctx.tempDir, { recursive: true });
+        const p = core.createProject({ ...data, root_dir: data.root_dir || ctx.tempDir });
+        projectId = p.id;
+        return p;
+      },
+      createArchetype: (data: any) => core.createArchetype(data),
+      createRelationType: (data: any) => core.createRelationType(data),
+      createCanvasType: (data: any) => core.createCanvasType(data),
+      createConcept: (data: any) => core.createConcept(data),
+      createModule: (data: any) => core.createModule(data),
+      addModuleDirectory: (data: any) => core.addModuleDirectory(data),
+      async copyFixtures() {
+        const { cpSync } = await import('fs');
+        const fixturesDir = join(scenarioDir!, 'fixtures');
+        if (!existsSync(fixturesDir)) throw new Error(`fixtures/ not found in ${scenarioDir}`);
+        cpSync(fixturesDir, ctx.tempDir, { recursive: true });
+      },
+    };
+
+    await seedFn(ctx);
+
+    if (projectId) {
+      writeFileSync(join(EVAL_DATA_DIR, 'project-id.txt'), projectId, 'utf-8');
+      console.log(`Seeded from ${scenarioDir} (project: ${projectId})`);
+    }
   } else {
-    // Create a minimal project
-    const project = core.createProject({ name: 'Eval Project', root_dir: 'C:/tmp/eval-project' });
+    // Create minimal project
+    const project = core.createProject({ name: 'Eval Project', root_dir: join(EVAL_DATA_DIR, 'temp') });
     writeFileSync(join(EVAL_DATA_DIR, 'project-id.txt'), project.id, 'utf-8');
     console.log(`Created minimal project: ${project.id}`);
   }
 
   core.closeDatabase();
   console.log('Setup complete');
-}
-
-function seedFromData(core: any, seed: any): string {
-  const project = core.createProject({
-    name: seed.project.name,
-    root_dir: seed.project.root_dir,
-  });
-
-  const archetypeMap = new Map<string, string>();
-
-  if (seed.archetypes) {
-    for (const a of seed.archetypes) {
-      const created = core.createArchetype({
-        project_id: project.id,
-        name: a.name,
-        icon: a.icon,
-        color: a.color,
-        node_shape: a.node_shape,
-      });
-      archetypeMap.set(a.name, created.id);
-    }
-    console.log(`  Seeded ${seed.archetypes.length} archetype(s)`);
-  }
-
-  if (seed.relation_types) {
-    for (const r of seed.relation_types) {
-      core.createRelationType({
-        project_id: project.id,
-        name: r.name,
-        directed: r.directed ?? false,
-        line_style: r.line_style ?? 'solid',
-        color: r.color,
-      });
-    }
-    console.log(`  Seeded ${seed.relation_types.length} relation type(s)`);
-  }
-
-  if (seed.canvas_types) {
-    for (const c of seed.canvas_types) {
-      core.createCanvasType({
-        project_id: project.id,
-        name: c.name,
-        description: c.description,
-      });
-    }
-    console.log(`  Seeded ${seed.canvas_types.length} canvas type(s)`);
-  }
-
-  if (seed.concepts) {
-    for (const c of seed.concepts) {
-      const archetypeId = c.archetype_name ? archetypeMap.get(c.archetype_name) : undefined;
-      core.createConcept({
-        project_id: project.id,
-        title: c.title,
-        archetype_id: archetypeId,
-        color: c.color,
-        icon: c.icon,
-      });
-    }
-    console.log(`  Seeded ${seed.concepts.length} concept(s)`);
-  }
-
-  return project.id;
 }
 
 function teardown() {
@@ -183,7 +157,6 @@ function teardown() {
 }
 
 async function startServer() {
-  // Check if already running
   if (existsSync(PID_FILE)) {
     const pid = parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10);
     try {
@@ -262,7 +235,7 @@ async function healthCheck() {
     } else {
       console.log(`narre-server responded with ${res.status}`);
     }
-  } catch (e) {
+  } catch {
     console.log('narre-server is not reachable');
     process.exit(1);
   }
