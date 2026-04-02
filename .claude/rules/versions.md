@@ -19,9 +19,9 @@ packages:
     type: minor
     summary: "Narre AI 에이전트 서버 초기 구현 - Claude Agent SDK 기반 SSE 스트리밍, 슬래시 커맨드, UI 도구"
   desktop-app:
-    version: "0.1.5"
+    version: "0.1.6"
     type: patch
-    summary: "마크다운 에디터 YAML frontmatter 라이브 프리뷰 위젯 추가"
+    summary: "터미널 검색 닫기 시 하이라이트 잔류 버그 수정"
   narre-eval:
     version: "0.2.0"
     type: minor
