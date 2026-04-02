@@ -48,6 +48,7 @@ export function TerminalSearchBar({ instanceRef, onClose }: TerminalSearchBarPro
     return () => {
       findResultListenerRef.current?.dispose();
       findResultListenerRef.current = null;
+      getXterm(instanceRef.current)?.clearSearchDecorations();
     };
   }, [instanceRef]);
 
