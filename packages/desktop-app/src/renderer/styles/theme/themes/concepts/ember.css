@@ -1,0 +1,49 @@
+:root[data-concept="ember"] {
+    /*
+     * Ember
+     * Terracotta accent with smoked cocoa neutrals.
+     * Warm, high-character palette that still feels professional.
+     */
+
+    /* Primary Scale (Terracotta) */
+    --palette-primary-50: hsl(18, 100%, 96%);
+    --palette-primary-100: hsl(17, 92%, 90%);
+    --palette-primary-200: hsl(17, 86%, 80%);
+    --palette-primary-300: hsl(17, 78%, 68%);
+    --palette-primary-400: hsl(18, 73%, 57%);
+    --palette-primary-500: hsl(19, 72%, 48%);
+    --palette-primary-600: hsl(19, 75%, 40%);
+    --palette-primary-700: hsl(18, 70%, 32%);
+    --palette-primary-800: hsl(17, 60%, 25%);
+    --palette-primary-900: hsl(16, 48%, 17%);
+    --palette-primary-950: hsl(15, 40%, 10%);
+
+    /* Neutral Scale (Smoked brown) */
+    --palette-neutral-50: hsl(20, 20%, 96%);
+    --palette-neutral-100: hsl(20, 17%, 92%);
+    --palette-neutral-200: hsl(20, 13%, 84%);
+    --palette-neutral-300: hsl(20, 10%, 72%);
+    --palette-neutral-400: hsl(19, 8%, 56%);
+    --palette-neutral-500: hsl(18, 10%, 35%);
+    --palette-neutral-600: hsl(17, 12%, 24%);
+    --palette-neutral-700: hsl(16, 14%, 18%);
+    --palette-neutral-800: hsl(16, 16%, 13%);
+    --palette-neutral-900: hsl(15, 18%, 9%);
+    --palette-neutral-950: hsl(14, 20%, 6%);
+
+    --theme-background-image:
+        radial-gradient(circle at top center, hsla(18, 73%, 57%, 0.18), transparent 28%),
+        radial-gradient(circle at bottom right, hsla(8, 60%, 34%, 0.14), transparent 32%);
+    --theme-dark-surface-base: hsl(14, 26%, 8%);
+    --theme-dark-surface-panel: hsl(14, 24%, 10%);
+    --theme-dark-surface-card: hsl(15, 22%, 13%);
+    --theme-dark-surface-hover: hsl(15, 18%, 18%);
+    --theme-dark-surface-modal: hsl(14, 24%, 10%);
+    --theme-dark-input-bg: hsl(15, 22%, 13%);
+    --theme-light-surface-base: hsl(18, 52%, 96%);
+    --theme-light-surface-panel: hsl(18, 42%, 99%);
+    --theme-light-surface-card: hsl(18, 34%, 98%);
+    --theme-light-surface-hover: hsl(18, 30%, 92%);
+    --theme-light-surface-modal: hsl(18, 42%, 99%);
+    --theme-light-input-bg: hsl(0, 0%, 100%);
+}

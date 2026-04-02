@@ -1,0 +1,49 @@
+:root[data-concept="dune"] {
+    /*
+     * Dune
+     * Warm sandstone palette with dry earth neutrals.
+     * Designed to feel bright without becoming sugary.
+     */
+
+    /* Primary Scale (Amber-gold) */
+    --palette-primary-50: hsl(40, 80%, 96%);
+    --palette-primary-100: hsl(39, 78%, 90%);
+    --palette-primary-200: hsl(38, 73%, 81%);
+    --palette-primary-300: hsl(37, 69%, 68%);
+    --palette-primary-400: hsl(35, 67%, 55%);
+    --palette-primary-500: hsl(33, 71%, 45%);
+    --palette-primary-600: hsl(31, 76%, 37%);
+    --palette-primary-700: hsl(29, 72%, 30%);
+    --palette-primary-800: hsl(27, 63%, 23%);
+    --palette-primary-900: hsl(26, 53%, 16%);
+    --palette-primary-950: hsl(24, 43%, 9%);
+
+    /* Neutral Scale (Warm stone) */
+    --palette-neutral-50: hsl(36, 28%, 96%);
+    --palette-neutral-100: hsl(34, 23%, 92%);
+    --palette-neutral-200: hsl(31, 18%, 84%);
+    --palette-neutral-300: hsl(28, 13%, 72%);
+    --palette-neutral-400: hsl(25, 9%, 56%);
+    --palette-neutral-500: hsl(23, 10%, 35%);
+    --palette-neutral-600: hsl(22, 12%, 25%);
+    --palette-neutral-700: hsl(22, 14%, 19%);
+    --palette-neutral-800: hsl(22, 16%, 14%);
+    --palette-neutral-900: hsl(22, 18%, 10%);
+    --palette-neutral-950: hsl(21, 19%, 7%);
+
+    --theme-background-image:
+        radial-gradient(circle at top left, hsla(35, 67%, 55%, 0.16), transparent 28%),
+        radial-gradient(circle at bottom right, hsla(22, 50%, 42%, 0.14), transparent 30%);
+    --theme-dark-surface-base: hsl(24, 22%, 9%);
+    --theme-dark-surface-panel: hsl(24, 20%, 11%);
+    --theme-dark-surface-card: hsl(24, 18%, 14%);
+    --theme-dark-surface-hover: hsl(24, 16%, 19%);
+    --theme-dark-surface-modal: hsl(24, 20%, 11%);
+    --theme-dark-input-bg: hsl(24, 18%, 14%);
+    --theme-light-surface-base: hsl(36, 44%, 95%);
+    --theme-light-surface-panel: hsl(39, 46%, 98%);
+    --theme-light-surface-card: hsl(38, 38%, 97%);
+    --theme-light-surface-hover: hsl(36, 32%, 91%);
+    --theme-light-surface-modal: hsl(39, 46%, 98%);
+    --theme-light-input-bg: hsl(0, 0%, 100%);
+}

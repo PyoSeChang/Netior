@@ -30,4 +30,20 @@
     --palette-neutral-800: hsl(220, 13%, 12%);
     --palette-neutral-900: hsl(220, 15%, 8%);
     --palette-neutral-950: hsl(220, 17%, 5%);
+
+    --theme-background-image:
+        radial-gradient(circle at top center, hsla(213, 80%, 56%, 0.12), transparent 30%),
+        radial-gradient(circle at bottom left, hsla(220, 18%, 34%, 0.14), transparent 32%);
+    --theme-dark-surface-base: hsl(218, 24%, 8%);
+    --theme-dark-surface-panel: hsl(218, 21%, 10%);
+    --theme-dark-surface-card: hsl(218, 18%, 13%);
+    --theme-dark-surface-hover: hsl(218, 16%, 18%);
+    --theme-dark-surface-modal: hsl(218, 21%, 10%);
+    --theme-dark-input-bg: hsl(218, 18%, 13%);
+    --theme-light-surface-base: hsl(214, 42%, 97%);
+    --theme-light-surface-panel: hsl(0, 0%, 100%);
+    --theme-light-surface-card: hsl(214, 36%, 99%);
+    --theme-light-surface-hover: hsl(214, 28%, 93%);
+    --theme-light-surface-modal: hsl(0, 0%, 100%);
+    --theme-light-input-bg: hsl(0, 0%, 100%);
 }

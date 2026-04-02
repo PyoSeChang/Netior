@@ -1,0 +1,49 @@
+:root[data-concept="pastel"] {
+    /*
+     * Pastel
+     * Soft lavender-blue accent with cloudy neutrals.
+     * Keeps the pastel mood while preserving editor readability.
+     */
+
+    /* Primary Scale (Lavender) */
+    --palette-primary-50: hsl(258, 100%, 97%);
+    --palette-primary-100: hsl(258, 95%, 93%);
+    --palette-primary-200: hsl(258, 88%, 86%);
+    --palette-primary-300: hsl(258, 78%, 77%);
+    --palette-primary-400: hsl(258, 72%, 69%);
+    --palette-primary-500: hsl(258, 67%, 61%);
+    --palette-primary-600: hsl(258, 58%, 52%);
+    --palette-primary-700: hsl(258, 48%, 43%);
+    --palette-primary-800: hsl(258, 38%, 32%);
+    --palette-primary-900: hsl(258, 30%, 21%);
+    --palette-primary-950: hsl(258, 24%, 12%);
+
+    /* Neutral Scale (Powder blue-gray) */
+    --palette-neutral-50: hsl(220, 33%, 97%);
+    --palette-neutral-100: hsl(222, 28%, 93%);
+    --palette-neutral-200: hsl(224, 20%, 86%);
+    --palette-neutral-300: hsl(226, 15%, 76%);
+    --palette-neutral-400: hsl(228, 12%, 62%);
+    --palette-neutral-500: hsl(229, 12%, 40%);
+    --palette-neutral-600: hsl(230, 14%, 29%);
+    --palette-neutral-700: hsl(231, 16%, 22%);
+    --palette-neutral-800: hsl(232, 18%, 16%);
+    --palette-neutral-900: hsl(233, 21%, 12%);
+    --palette-neutral-950: hsl(234, 24%, 8%);
+
+    --theme-background-image:
+        radial-gradient(circle at top left, hsla(258, 72%, 69%, 0.18), transparent 30%),
+        radial-gradient(circle at bottom right, hsla(198, 60%, 76%, 0.16), transparent 34%);
+    --theme-dark-surface-base: hsl(243, 30%, 10%);
+    --theme-dark-surface-panel: hsl(239, 28%, 13%);
+    --theme-dark-surface-card: hsl(236, 24%, 16%);
+    --theme-dark-surface-hover: hsl(233, 20%, 21%);
+    --theme-dark-surface-modal: hsl(239, 28%, 13%);
+    --theme-dark-input-bg: hsl(236, 24%, 16%);
+    --theme-light-surface-base: hsl(255, 60%, 97%);
+    --theme-light-surface-panel: hsl(248, 56%, 99%);
+    --theme-light-surface-card: hsl(252, 42%, 98%);
+    --theme-light-surface-hover: hsl(247, 36%, 93%);
+    --theme-light-surface-modal: hsl(248, 56%, 99%);
+    --theme-light-input-bg: hsl(0, 0%, 100%);
+}

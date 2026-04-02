@@ -2,6 +2,8 @@
 body {
     font-family: var(--font-sans);
     background-color: var(--surface-base);
+    background-image: var(--theme-background-image, none);
+    background-attachment: fixed;
     color: var(--text-default);
     font-size: var(--text-base);
 }

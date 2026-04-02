@@ -1,0 +1,49 @@
+:root[data-concept="tide"] {
+    /*
+     * Tide
+     * Sea-glass teal with inky coastal neutrals.
+     * Calm, bright accents that stay readable in both modes.
+     */
+
+    /* Primary Scale (Teal) */
+    --palette-primary-50: hsl(176, 67%, 96%);
+    --palette-primary-100: hsl(176, 61%, 90%);
+    --palette-primary-200: hsl(176, 55%, 80%);
+    --palette-primary-300: hsl(176, 51%, 68%);
+    --palette-primary-400: hsl(176, 63%, 52%);
+    --palette-primary-500: hsl(176, 75%, 38%);
+    --palette-primary-600: hsl(176, 78%, 31%);
+    --palette-primary-700: hsl(177, 73%, 25%);
+    --palette-primary-800: hsl(179, 64%, 19%);
+    --palette-primary-900: hsl(184, 55%, 13%);
+    --palette-primary-950: hsl(188, 49%, 8%);
+
+    /* Neutral Scale (Blue-green tinted) */
+    --palette-neutral-50: hsl(180, 20%, 96%);
+    --palette-neutral-100: hsl(183, 17%, 92%);
+    --palette-neutral-200: hsl(187, 14%, 84%);
+    --palette-neutral-300: hsl(191, 12%, 72%);
+    --palette-neutral-400: hsl(195, 10%, 56%);
+    --palette-neutral-500: hsl(199, 12%, 34%);
+    --palette-neutral-600: hsl(202, 16%, 24%);
+    --palette-neutral-700: hsl(204, 20%, 18%);
+    --palette-neutral-800: hsl(206, 23%, 13%);
+    --palette-neutral-900: hsl(208, 28%, 10%);
+    --palette-neutral-950: hsl(210, 31%, 7%);
+
+    --theme-background-image:
+        radial-gradient(circle at top right, hsla(176, 63%, 52%, 0.18), transparent 30%),
+        radial-gradient(circle at bottom left, hsla(200, 70%, 32%, 0.15), transparent 32%);
+    --theme-dark-surface-base: hsl(201, 38%, 8%);
+    --theme-dark-surface-panel: hsl(199, 34%, 11%);
+    --theme-dark-surface-card: hsl(197, 30%, 14%);
+    --theme-dark-surface-hover: hsl(194, 24%, 19%);
+    --theme-dark-surface-modal: hsl(199, 34%, 11%);
+    --theme-dark-input-bg: hsl(197, 30%, 14%);
+    --theme-light-surface-base: hsl(181, 42%, 96%);
+    --theme-light-surface-panel: hsl(182, 38%, 99%);
+    --theme-light-surface-card: hsl(181, 33%, 98%);
+    --theme-light-surface-hover: hsl(182, 28%, 92%);
+    --theme-light-surface-modal: hsl(182, 38%, 99%);
+    --theme-light-input-bg: hsl(0, 0%, 100%);
+}

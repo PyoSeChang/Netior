@@ -1,0 +1,49 @@
+:root[data-concept="graphite"] {
+    /*
+     * Graphite
+     * Standard neutral gray theme for a conservative, familiar UI.
+     * Minimal hue bias, comfortable across long sessions.
+     */
+
+    /* Primary Scale (Cool gray) */
+    --palette-primary-50: hsl(220, 14%, 96%);
+    --palette-primary-100: hsl(220, 12%, 91%);
+    --palette-primary-200: hsl(220, 10%, 82%);
+    --palette-primary-300: hsl(220, 8%, 69%);
+    --palette-primary-400: hsl(220, 7%, 56%);
+    --palette-primary-500: hsl(220, 8%, 46%);
+    --palette-primary-600: hsl(220, 10%, 36%);
+    --palette-primary-700: hsl(220, 12%, 28%);
+    --palette-primary-800: hsl(220, 14%, 20%);
+    --palette-primary-900: hsl(220, 16%, 13%);
+    --palette-primary-950: hsl(220, 18%, 8%);
+
+    /* Neutral Scale (True graphite) */
+    --palette-neutral-50: hsl(220, 14%, 97%);
+    --palette-neutral-100: hsl(220, 12%, 93%);
+    --palette-neutral-200: hsl(220, 10%, 85%);
+    --palette-neutral-300: hsl(220, 8%, 72%);
+    --palette-neutral-400: hsl(220, 7%, 57%);
+    --palette-neutral-500: hsl(220, 8%, 36%);
+    --palette-neutral-600: hsl(220, 10%, 25%);
+    --palette-neutral-700: hsl(220, 12%, 19%);
+    --palette-neutral-800: hsl(220, 14%, 14%);
+    --palette-neutral-900: hsl(220, 16%, 10%);
+    --palette-neutral-950: hsl(220, 18%, 7%);
+
+    --theme-background-image:
+        radial-gradient(circle at top left, hsla(220, 8%, 46%, 0.10), transparent 28%),
+        linear-gradient(180deg, hsla(220, 10%, 98%, 0.03), hsla(220, 10%, 98%, 0));
+    --theme-dark-surface-base: hsl(220, 16%, 8%);
+    --theme-dark-surface-panel: hsl(220, 14%, 10%);
+    --theme-dark-surface-card: hsl(220, 13%, 13%);
+    --theme-dark-surface-hover: hsl(220, 12%, 18%);
+    --theme-dark-surface-modal: hsl(220, 14%, 10%);
+    --theme-dark-input-bg: hsl(220, 13%, 13%);
+    --theme-light-surface-base: hsl(220, 18%, 97%);
+    --theme-light-surface-panel: hsl(0, 0%, 100%);
+    --theme-light-surface-card: hsl(220, 14%, 99%);
+    --theme-light-surface-hover: hsl(220, 13%, 94%);
+    --theme-light-surface-modal: hsl(0, 0%, 100%);
+    --theme-light-input-bg: hsl(0, 0%, 100%);
+}

@@ -1,10 +1,10 @@
 :root[data-mode="light"] {
     /* Surface */
-    --surface-base: var(--palette-neutral-50);
-    --surface-panel: #ffffff;
-    --surface-card: #ffffff;
-    --surface-hover: var(--palette-neutral-100);
-    --surface-modal: #ffffff;
+    --surface-base: var(--theme-light-surface-base, var(--palette-neutral-50));
+    --surface-panel: var(--theme-light-surface-panel, #ffffff);
+    --surface-card: var(--theme-light-surface-card, #ffffff);
+    --surface-hover: var(--theme-light-surface-hover, var(--palette-neutral-100));
+    --surface-modal: var(--theme-light-surface-modal, #ffffff);
     --surface-overlay: rgba(0, 0, 0, 0.4);
 
     /* Text */
@@ -31,7 +31,7 @@
     --status-info: #2563eb;
 
     /* Input/Form Specifics */
-    --input-bg: #ffffff;
+    --input-bg: var(--theme-light-input-bg, #ffffff);
     --input-border: var(--palette-neutral-300);
     --input-placeholder: var(--text-muted);
 

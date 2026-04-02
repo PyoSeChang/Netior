@@ -1,10 +1,10 @@
 :root[data-mode="dark"] {
     /* Surface */
-    --surface-base: var(--palette-neutral-950);
-    --surface-panel: var(--palette-neutral-900);
-    --surface-card: var(--palette-neutral-800);
-    --surface-hover: var(--palette-neutral-700);
-    --surface-modal: var(--palette-neutral-900);
+    --surface-base: var(--theme-dark-surface-base, var(--palette-neutral-950));
+    --surface-panel: var(--theme-dark-surface-panel, var(--palette-neutral-900));
+    --surface-card: var(--theme-dark-surface-card, var(--palette-neutral-800));
+    --surface-hover: var(--theme-dark-surface-hover, var(--palette-neutral-700));
+    --surface-modal: var(--theme-dark-surface-modal, var(--palette-neutral-900));
     --surface-overlay: rgba(0, 0, 0, 0.7);
 
     /* Text */
@@ -31,7 +31,7 @@
     --status-info: #3b82f6;
 
     /* Input/Form Specifics */
-    --input-bg: var(--palette-neutral-800);
+    --input-bg: var(--theme-dark-input-bg, var(--palette-neutral-800));
     --input-border: var(--palette-neutral-500);
     --input-placeholder: var(--text-muted);
 

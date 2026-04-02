@@ -81,7 +81,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
   };
 
   const showMode = matchesSearch(t('settings.mode')) || matchesSearch(t('settings.dark')) || matchesSearch(t('settings.light'));
-  const showTheme = matchesSearch(t('settings.theme')) || AVAILABLE_CONCEPTS.some((c) => matchesSearch(c));
+  const showTheme =
+    matchesSearch(t('settings.theme')) ||
+    AVAILABLE_CONCEPTS.some(
+      ({ id, label, description }) =>
+        matchesSearch(id) || matchesSearch(label) || matchesSearch(description),
+    );
   const showLanguage = matchesSearch(t('settings.language')) || matchesSearch('한국어') || matchesSearch('English');
 
   if (!open) return null;
@@ -195,18 +200,37 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                   <section data-section={t('settings.theme').toLowerCase().replace(/\s+/g, '-')} className="mb-8">
                     <h3 className="text-base font-semibold text-default">{t('settings.theme')}</h3>
                     <p className="mb-4 text-sm text-secondary">{t('settings.themeDesc')}</p>
-                    <div className="grid grid-cols-4 gap-2">
-                      {AVAILABLE_CONCEPTS.map((concept) => (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {AVAILABLE_CONCEPTS.map(({ id, label, description, preview }) => (
                         <button
-                          key={concept}
-                          className={`rounded-lg border px-3 py-2 text-sm capitalize transition-colors ${
-                            themeConcept === concept
-                              ? 'border-accent bg-accent/10 text-accent'
-                              : 'border-subtle text-secondary hover:border-default hover:text-default'
+                          key={id}
+                          className={`rounded-xl border p-3 text-left transition-all ${
+                            themeConcept === id
+                              ? 'border-accent bg-accent/10 text-accent shadow-sm'
+                              : 'border-subtle text-secondary hover:border-default hover:bg-surface-hover/60 hover:text-default'
                           }`}
-                          onClick={() => setThemeConcept(concept)}
+                          onClick={() => setThemeConcept(id)}
                         >
-                          {concept}
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold">{label}</div>
+                              <div className="mt-1 text-xs text-muted">{description}</div>
+                            </div>
+                            {themeConcept === id && (
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15">
+                                <div className="h-2.5 w-2.5 rounded-full bg-accent" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex h-12 overflow-hidden rounded-lg border border-subtle">
+                            {preview.map((color, index) => (
+                              <div
+                                key={`${id}-${index}`}
+                                className="flex-1"
+                                style={{ background: color }}
+                              />
+                            ))}
+                          </div>
                         </button>
                       ))}
                     </div>
