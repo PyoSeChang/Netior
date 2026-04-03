@@ -8,7 +8,11 @@ export interface ToastItem {
   id: string;
   type: ToastType;
   message: string;
+  title?: string;
   duration?: number;
+  actionLabel?: string;
+  onAction?: () => void;
+  icon?: React.ReactNode;
 }
 
 const ICON_MAP: Record<ToastType, typeof CheckCircle> = {
@@ -54,6 +58,7 @@ function ToastEntry({
 
   const Icon = ICON_MAP[toast.type];
   const colors = COLOR_MAP[toast.type];
+  const leadingIcon = toast.icon ?? <Icon size={18} />;
 
   return (
     <div
@@ -63,9 +68,25 @@ function ToastEntry({
       style={{ minWidth: 280, maxWidth: 420 }}
     >
       <span className={`shrink-0 ${colors.split(' ')[0]}`}>
-        <Icon size={18} />
+        {leadingIcon}
       </span>
-      <span className="flex-1">{toast.message}</span>
+      <div className="min-w-0 flex-1">
+        {toast.title && (
+          <div className="truncate text-sm font-medium text-default">{toast.title}</div>
+        )}
+        <div className="mt-0.5 break-words text-sm text-secondary">{toast.message}</div>
+        {toast.actionLabel && toast.onAction && (
+          <button
+            className="mt-2 text-xs font-medium text-accent transition-colors hover:text-accent-hover"
+            onClick={() => {
+              toast.onAction?.();
+              onDismiss(toast.id);
+            }}
+          >
+            {toast.actionLabel}
+          </button>
+        )}
+      </div>
       <button
         className="flex shrink-0 items-center justify-center rounded p-0.5 text-muted transition-colors hover:text-default"
         onClick={() => onDismiss(toast.id)}
@@ -86,6 +107,14 @@ export function showToast(type: ToastType, message: string, duration?: number) {
     return;
   }
   addToastFn({ type, message, duration });
+}
+
+export function showCustomToast(toast: Omit<ToastItem, 'id'>) {
+  if (!addToastFn) {
+    console.warn('[Toast] ToastContainer not mounted');
+    return;
+  }
+  addToastFn(toast);
 }
 
 // ─── Container (mount once in App) ────────────────────────────────

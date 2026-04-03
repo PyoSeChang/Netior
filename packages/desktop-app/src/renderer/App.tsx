@@ -13,7 +13,7 @@ import { ToastContainer } from './components/ui/Toast';
 import { WindowControls } from './components/ui/WindowControls';
 import { initTerminalTracker } from './lib/terminal-tracker';
 import { initClaudeTerminalTracker } from './lib/claude-terminal-tracker';
-import { initTerminalAgentNotifier } from './lib/terminal-agent-notifier-v2';
+import { initTerminalAgentNotifier } from './lib/terminal-agent-notifier';
 import { useGlobalShortcuts } from './shortcuts/useGlobalShortcuts';
 
 initTerminalTracker();

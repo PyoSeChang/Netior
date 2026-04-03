@@ -63,6 +63,10 @@ export function getClaudeTerminalState(ptySessionId: string): ClaudeTerminalStat
   return claudeTerminals.get(ptySessionId) ?? null;
 }
 
+export function getAllClaudeTerminalStates(): ClaudeTerminalState[] {
+  return Array.from(claudeTerminals.values());
+}
+
 export function getClaudeTrackerVersion(): number {
   return version;
 }
