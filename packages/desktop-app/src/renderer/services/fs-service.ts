@@ -78,8 +78,16 @@ export function onDirChanged(callback: () => void): () => void {
   return window.electron.fs.onDirChanged(callback);
 }
 
+export async function hasClipboardFiles(): Promise<boolean> {
+  return unwrapIpc(await window.electron.fs.hasClipboardFiles());
+}
+
+export async function readClipboardFiles(): Promise<string[]> {
+  return unwrapIpc(await window.electron.fs.readClipboardFiles());
+}
+
 export const fsService = {
   readDir, readDirShallow, readFile, readBinaryFile, writeFile, openFolderDialog, openFileDialog,
   renameItem, deleteItem, createFile, createDir, copyItem, moveItem,
-  showInExplorer, existsItem, watchDirs, unwatchDirs, onDirChanged,
+  showInExplorer, existsItem, watchDirs, unwatchDirs, onDirChanged, hasClipboardFiles, readClipboardFiles,
 };

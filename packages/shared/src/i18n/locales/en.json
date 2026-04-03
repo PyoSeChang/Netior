@@ -34,7 +34,9 @@
     "selectNewPath": "Select Path",
     "folder": "Project Folder",
     "namePlaceholder": "My Project",
-    "folderPlaceholder": "Select a folder..."
+    "folderPlaceholder": "Select a folder...",
+    "goHome": "Project Home",
+    "noProject": "No Project"
   },
   "canvas": {
     "create": "Create Canvas",
@@ -67,6 +69,7 @@
     "notFound": "Canvas not found",
     "parentConcept": "Parent Concept",
     "noCanvases": "No canvases",
+    "noCanvasSelected": "No canvas selected",
     "layout": "Layout",
     "layoutSettings": "Layout Settings",
     "fieldMappings": "Field Mappings",

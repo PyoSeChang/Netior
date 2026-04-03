@@ -45,12 +45,12 @@ export function CanvasContextMenu({ x, y, onCreateConcept, onAddFileNode, onClos
 
   return (
     <div
-      className="fixed z-50 rounded border border-subtle bg-surface-card py-1 shadow-lg min-w-[160px]"
+      className="fixed z-50 rounded-md border border-default bg-surface-modal py-1 shadow-lg min-w-[180px]"
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <button
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-default hover:bg-surface-hover cursor-pointer"
+        className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
         onClick={() => {
           onCreateConcept();
           onClose();
@@ -62,7 +62,7 @@ export function CanvasContextMenu({ x, y, onCreateConcept, onAddFileNode, onClos
 
       {onAddFileNode && (
         <button
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-default hover:bg-surface-hover cursor-pointer"
+          className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
           onClick={() => {
             onAddFileNode();
             onClose();

@@ -173,3 +173,7 @@ export function restoreProjectState(projectId: string): boolean {
 export function deleteProjectState(projectId: string): void {
   cache.delete(projectId);
 }
+
+export function hasCachedState(projectId: string): boolean {
+  return cache.has(projectId);
+}

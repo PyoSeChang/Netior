@@ -28,13 +28,13 @@ export function ArchetypeFieldRow({ field, onUpdate, onDelete }: ArchetypeFieldR
   const { t } = useI18n();
   const showOptions = CHOICE_TYPES.has(field.field_type);
 
-  // Local state for options input so commas can be typed freely
+  // Local state buffers to avoid breaking IME composition
+  const [nameText, setNameText] = useState(field.name);
   const [optionsText, setOptionsText] = useState(() => parseChoices(field.options));
 
   // Sync from external changes
-  useEffect(() => {
-    setOptionsText(parseChoices(field.options));
-  }, [field.options]);
+  useEffect(() => { setNameText(field.name); }, [field.name]);
+  useEffect(() => { setOptionsText(parseChoices(field.options)); }, [field.options]);
 
   const commitOptions = () => {
     const choices = optionsText.split(',').map((s) => s.trim()).filter(Boolean);
@@ -48,10 +48,11 @@ export function ArchetypeFieldRow({ field, onUpdate, onDelete }: ArchetypeFieldR
         <Input
           inputSize="sm"
           className="flex-1 min-w-[100px]"
-          value={field.name}
+          value={nameText}
           placeholder={t('archetype.fieldName')}
-          onChange={(e) => onUpdate(field.id, { name: e.target.value })}
-          onBlur={(e) => onUpdate(field.id, { name: e.target.value })}
+          onChange={(e) => setNameText(e.target.value)}
+          onBlur={() => onUpdate(field.id, { name: nameText })}
+          onKeyDown={(e) => { if (e.key === 'Enter') onUpdate(field.id, { name: nameText }); }}
         />
         <TypeSelector
           value={field.field_type}

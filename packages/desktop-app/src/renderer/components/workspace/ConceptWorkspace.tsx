@@ -478,7 +478,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
   if (!currentCanvas) {
     return (
       <div className="flex h-full items-center justify-center text-muted">
-        No canvas selected
+        {t('canvas.noCanvasSelected')}
       </div>
     );
   }

@@ -320,6 +320,7 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
   const { clipboard, setClipboard, clearClipboard, refreshFileTree, rootDirs } = useFileStore();
   const { t } = useI18n();
   const treeRef = useRef<HTMLDivElement>(null);
+  const [hasSystemFiles, setHasSystemFiles] = useState(false);
 
   // Auto-expand only root wrapper nodes (multi-dir mode), not content folders
   useEffect(() => {
@@ -357,14 +358,18 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
     ? visibleItems.find((item) => item.node.path === selectedPath)?.node ?? null
     : null;
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, node: FileTreeNode) => {
+  const handleContextMenu = useCallback(async (e: React.MouseEvent, node: FileTreeNode) => {
     e.preventDefault();
     e.stopPropagation();
+    const has = await fsService.hasClipboardFiles().catch(() => false);
+    setHasSystemFiles(has);
     setContextMenu({ x: e.clientX, y: e.clientY, node });
   }, []);
 
-  const handleBgContextMenu = useCallback((e: React.MouseEvent) => {
+  const handleBgContextMenu = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
+    const has = await fsService.hasClipboardFiles().catch(() => false);
+    setHasSystemFiles(has);
     setContextMenu({ x: e.clientX, y: e.clientY, node: null });
   }, []);
 
@@ -435,22 +440,42 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
   }, [refreshFileTree, t]);
 
   const handlePaste = useCallback(async (destDir: string) => {
-    if (!clipboard) return;
-    const srcName = clipboard.path.replace(/\\/g, '/').split('/').pop()!;
-    const destPath = destDir.replace(/\\/g, '/') + '/' + srcName;
-
+    // Internal clipboard (cut/copy within the app)
+    if (clipboard) {
+      const srcName = clipboard.path.replace(/\\/g, '/').split('/').pop()!;
+      const destPath = destDir.replace(/\\/g, '/') + '/' + srcName;
+      try {
+        if (clipboard.action === 'copy') {
+          await fsService.copyItem(clipboard.path, destPath);
+        } else {
+          await fsService.moveItem(clipboard.path, destPath);
+          clearClipboard();
+        }
+        await refreshFileTree();
+      } catch (err) {
+        showToast('error', t('fileTree.pasteFailed' as TranslationKey));
+      }
+      return;
+    }
+    // System clipboard (files copied from Windows Explorer)
     try {
-      if (clipboard.action === 'copy') {
-        await fsService.copyItem(clipboard.path, destPath);
-      } else {
-        await fsService.moveItem(clipboard.path, destPath);
-        clearClipboard();
+      const paths = await fsService.readClipboardFiles();
+      if (paths.length === 0) return;
+      for (const srcPath of paths) {
+        const srcName = srcPath.replace(/\\/g, '/').split('/').pop()!;
+        const destPath = destDir.replace(/\\/g, '/') + '/' + srcName;
+        await fsService.copyItem(srcPath, destPath);
       }
       await refreshFileTree();
     } catch (err) {
       showToast('error', t('fileTree.pasteFailed' as TranslationKey));
     }
   }, [clipboard, clearClipboard, refreshFileTree, t]);
+
+  // Block browser default paste behavior (prevents "Not allowed to load local resource" errors)
+  const handleNativePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+  }, []);
 
   /** Resolve parent directory for a node (for file nodes, use their parent dir) */
   const getParentDir = useCallback((node: FileTreeNode): string => {
@@ -475,7 +500,7 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
         label: t('fileTree.newFolder' as TranslationKey),
         onClick: () => setNewInput({ parentPath: targetDir, type: 'directory' }),
       });
-      if (clipboard) {
+      if (clipboard || hasSystemFiles) {
         items.push({ type: 'divider' });
         items.push({
           label: t('fileTree.paste' as TranslationKey),
@@ -524,11 +549,10 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
       onClick: () => setClipboard(node.path, 'cut'),
     });
 
-    if (node.type === 'directory') {
+    if (node.type === 'directory' && (clipboard || hasSystemFiles)) {
       items.push({
         label: t('fileTree.paste' as TranslationKey),
         shortcut: 'Ctrl+V',
-        disabled: !clipboard,
         onClick: () => handlePaste(node.path),
       });
     }
@@ -590,11 +614,13 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
   }, [selectedNode, onFileClick, expandedPaths, toggleExpand]);
 
   const handlePasteSelection = useCallback(async () => {
-    if (!selectedNode) return;
-    const destDir = selectedNode.type === 'directory' ? selectedNode.path : getParentDir(selectedNode);
+    const destDir = selectedNode
+      ? (selectedNode.type === 'directory' ? selectedNode.path : getParentDir(selectedNode))
+      : rootDirs[0]?.replace(/\\/g, '/');
+    if (!destDir) return;
     logShortcut('shortcut.fileTree.pasteIntoSelection');
     await handlePaste(destDir);
-  }, [selectedNode, getParentDir, handlePaste]);
+  }, [selectedNode, getParentDir, handlePaste, rootDirs]);
 
   const handleTreeKeyDown = useCallback(async (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (contextMenu || renamingPath || newInput) return;
@@ -655,7 +681,7 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
       setClipboard(selectedNode.path, 'cut');
       return;
     }
-    if (key === 'v' && clipboard) {
+    if (key === 'v') {
       e.preventDefault();
       await handlePasteSelection();
     }
@@ -681,6 +707,7 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
       tabIndex={0}
       onContextMenu={handleBgContextMenu}
       onKeyDown={handleTreeKeyDown}
+      onPaste={handleNativePaste}
       onMouseDown={() => treeRef.current?.focus()}
     >
       {/* Root-level new input (for background context menu on root dir) */}

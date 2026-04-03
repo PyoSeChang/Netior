@@ -34,7 +34,9 @@
     "selectNewPath": "경로 선택",
     "folder": "프로젝트 폴더",
     "namePlaceholder": "내 프로젝트",
-    "folderPlaceholder": "폴더를 선택하세요..."
+    "folderPlaceholder": "폴더를 선택하세요...",
+    "goHome": "프로젝트 홈으로",
+    "noProject": "프로젝트 없음"
   },
   "canvas": {
     "create": "캔버스 생성",
@@ -67,6 +69,7 @@
     "notFound": "캔버스를 찾을 수 없습니다",
     "parentConcept": "상위 개념",
     "noCanvases": "캔버스가 없습니다",
+    "noCanvasSelected": "선택된 캔버스가 없습니다",
     "layout": "레이아웃",
     "layoutSettings": "레이아웃 설정",
     "fieldMappings": "필드 매핑",

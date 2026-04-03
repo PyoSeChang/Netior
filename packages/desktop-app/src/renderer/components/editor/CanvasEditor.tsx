@@ -3,6 +3,7 @@ import type { EditorTab } from '@netior/shared/types';
 import { useCanvasStore } from '../../stores/canvas-store';
 import { useCanvasTypeStore } from '../../stores/canvas-type-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
+import { useConceptStore } from '../../stores/concept-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useEditorSession } from '../../hooks/useEditorSession';
 import { useI18n } from '../../hooks/useI18n';
@@ -33,6 +34,7 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
   const archetypes = useArchetypeStore((s) => s.archetypes);
   const fields = useArchetypeStore((s) => s.fields);
   const loadFields = useArchetypeStore((s) => s.loadFields);
+  const concepts = useConceptStore((s) => s.concepts);
 
   useEffect(() => {
     for (const a of archetypes) {
@@ -269,9 +271,11 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
           {canvas.concept_id && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted">{t('canvas.parentConcept') ?? 'Parent Concept'}</label>
-              <div className="px-3 py-2 text-sm bg-surface-base border border-subtle rounded-md text-secondary">
-                {canvas.concept_id}
-              </div>
+              <Input
+                value={concepts.find((c) => c.id === canvas.concept_id)?.title ?? canvas.concept_id}
+                readOnly
+                className="text-secondary cursor-default"
+              />
             </div>
           )}
 

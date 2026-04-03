@@ -151,6 +151,8 @@ const electronAPI = {
     exists: (targetPath: string) => ipcRenderer.invoke('fs:exists', targetPath),
     watchDirs: (dirs: string[]) => ipcRenderer.invoke('fs:watchDirs', dirs),
     unwatchDirs: () => ipcRenderer.invoke('fs:unwatchDirs'),
+    hasClipboardFiles: () => ipcRenderer.invoke('fs:hasClipboardFiles'),
+    readClipboardFiles: () => ipcRenderer.invoke('fs:readClipboardFiles'),
     onDirChanged: (callback: () => void) => {
       const handler = () => callback();
       ipcRenderer.on('fs:dirChanged', handler);

@@ -36,7 +36,7 @@ function CanvasItemContextMenu({
 
   return (
     <div
-      className="fixed z-50 bg-surface-card border border-subtle rounded shadow-lg py-1 min-w-[140px]"
+      className="fixed z-50 bg-surface-modal border border-default rounded-md shadow-lg py-1 min-w-[180px]"
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -54,7 +54,7 @@ function CanvasItemContextMenu({
         {t('editor.openInEditor')}
       </button>
       <button
-        className="flex w-full items-center gap-2 px-3 py-1 text-xs text-status-error hover:bg-surface-hover cursor-pointer"
+        className="flex w-full items-center gap-2 px-3 py-1 text-xs text-red-400 hover:bg-surface-hover cursor-pointer"
         onClick={async () => {
           await deleteCanvas(canvasId);
           onClose();

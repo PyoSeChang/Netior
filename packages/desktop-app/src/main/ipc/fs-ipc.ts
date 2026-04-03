@@ -1,6 +1,6 @@
-import { ipcMain, dialog, shell, BrowserWindow } from 'electron';
+import { ipcMain, dialog, shell, clipboard, BrowserWindow } from 'electron';
 import { readdir, readFile, writeFile, stat, rename, rm, mkdir, copyFile, cp } from 'fs/promises';
-import { join, extname, basename, dirname } from 'path';
+import { join, resolve, extname, basename, dirname } from 'path';
 import { existsSync, watch, type FSWatcher } from 'fs';
 import type { IpcResult, FileTreeNode } from '@netior/shared/types';
 
@@ -197,7 +197,7 @@ export function registerFsIpc(): void {
 
   ipcMain.handle('fs:delete', async (_e, targetPath: string): Promise<IpcResult<unknown>> => {
     try {
-      await shell.trashItem(targetPath);
+      await shell.trashItem(resolve(targetPath));
       return { success: true, data: true };
     } catch (err) {
       return { success: false, error: (err as Error).message };
@@ -275,5 +275,29 @@ export function registerFsIpc(): void {
   ipcMain.handle('fs:unwatchDirs', (): IpcResult<unknown> => {
     clearWatchers();
     return { success: true, data: true };
+  });
+
+  // Check if system clipboard contains files
+  ipcMain.handle('fs:hasClipboardFiles', (): IpcResult<boolean> => {
+    const buf = clipboard.readBuffer('FileNameW');
+    const hasFiles = buf.length > 0;
+    return { success: true, data: hasFiles };
+  });
+
+  // Read file paths from system clipboard (Windows: FileNameW format)
+  ipcMain.handle('fs:readClipboardFiles', (): IpcResult<string[]> => {
+    try {
+      const buf = clipboard.readBuffer('FileNameW');
+      if (buf.length === 0) return { success: true, data: [] };
+      // FileNameW is null-terminated UTF-16LE
+      const raw = buf.toString('utf16le');
+      const filePath = raw.split('\0').filter(Boolean)[0];
+      if (filePath && existsSync(filePath)) {
+        return { success: true, data: [filePath] };
+      }
+      return { success: true, data: [] };
+    } catch {
+      return { success: true, data: [] };
+    }
   });
 }

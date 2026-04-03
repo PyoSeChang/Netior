@@ -1,8 +1,10 @@
-import React from 'react';
-import { ChevronRight, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronRight, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useProjectStore } from './stores/project-store';
 import { useCanvasStore } from './stores/canvas-store';
 import { useUIStore } from './stores/ui-store';
+import { hasCachedState } from './stores/project-state-cache';
+import { useI18n } from './hooks/useI18n';
 import { ProjectHome } from './components/home/ProjectHome';
 import { WorkspaceShell } from './components/workspace/WorkspaceShell';
 import { SettingsModal } from './components/settings/SettingsModal';
@@ -90,8 +92,76 @@ function TitleBarBreadcrumb(): JSX.Element | null {
   );
 }
 
+function ProjectSwitcher(): JSX.Element {
+  const { t } = useI18n();
+  const { projects, currentProject, openProject, closeProject, loadProjects } = useProjectStore();
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { loadProjects(); }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleEsc);
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('keydown', handleEsc); };
+  }, [open]);
+
+  // Projects with cached state (quick-switch spans)
+  const cachedProjects = projects.filter((p) => p.id !== currentProject?.id && hasCachedState(p.id));
+
+  return (
+    <div className="flex items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+      <div ref={dropdownRef} className="relative">
+        <button
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-sm text-default hover:bg-surface-hover transition-colors"
+          onClick={() => setOpen(!open)}
+        >
+          {currentProject?.name ?? t('project.noProject')}
+          <ChevronDown size={12} className="text-muted" />
+        </button>
+        {open && (
+          <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] rounded-md border border-default bg-surface-modal py-1 shadow-lg">
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${
+                  currentProject?.id === p.id ? 'text-accent bg-surface-hover' : 'text-default hover:bg-surface-hover'
+                }`}
+                onClick={() => { openProject(p); setOpen(false); }}
+              >
+                <span className="truncate flex-1">{p.name}</span>
+              </button>
+            ))}
+            {projects.length > 0 && <div className="my-1 border-t border-subtle" />}
+            <button
+              className="flex w-full items-center px-3 py-1.5 text-xs text-muted hover:bg-surface-hover hover:text-default"
+              onClick={() => { closeProject(); setOpen(false); }}
+            >
+              {t('project.goHome')}
+            </button>
+          </div>
+        )}
+      </div>
+      {cachedProjects.map((p) => (
+        <button
+          key={p.id}
+          className="rounded px-1.5 py-0.5 text-xs text-muted hover:text-default hover:bg-surface-hover transition-colors"
+          onClick={() => openProject(p)}
+        >
+          {p.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function TitleBar(): JSX.Element {
-  const { currentProject, closeProject } = useProjectStore();
+  const { currentProject } = useProjectStore();
 
   return (
     <div
@@ -112,7 +182,7 @@ function TitleBar(): JSX.Element {
         {currentProject && (
           <>
             <span className="text-xs text-muted">/</span>
-            <span className="text-sm text-default">{currentProject.name}</span>
+            <ProjectSwitcher />
           </>
         )}
       </div>
@@ -124,14 +194,6 @@ function TitleBar(): JSX.Element {
 
       {/* Right: window controls */}
       <div className="flex items-center gap-1 shrink-0" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        {currentProject && (
-          <button
-            className="rounded px-2 py-0.5 text-xs text-muted hover:bg-surface-hover hover:text-default"
-            onClick={closeProject}
-          >
-            Close Project
-          </button>
-        )}
         <button
           className="rounded p-1 text-muted hover:bg-surface-hover"
           onClick={() => window.electron.window.minimize()}

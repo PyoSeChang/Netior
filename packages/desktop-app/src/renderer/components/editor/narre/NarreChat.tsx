@@ -18,6 +18,7 @@ interface NarreChatProps {
   sessionId: string | null;
   projectId: string;
   onBackToList: () => void;
+  onSessionCreated?: (sessionId: string) => void;
 }
 
 function refreshStores(projectId: string): void {
@@ -32,6 +33,7 @@ export function NarreChat({
   sessionId: initialSessionId,
   projectId,
   onBackToList,
+  onSessionCreated,
 }: NarreChatProps): JSX.Element {
   const { t } = useI18n();
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
@@ -186,6 +188,7 @@ export function NarreChat({
         activeSessionId = session.id;
         setSessionId(session.id);
         setSessionTitle(text.slice(0, 60));
+        onSessionCreated?.(session.id);
       } catch {
         return;
       }

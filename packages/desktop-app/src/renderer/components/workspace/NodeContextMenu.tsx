@@ -75,7 +75,7 @@ export function NodeContextMenu({
 
   return (
     <div
-      className="fixed z-50 bg-surface-card border border-subtle rounded shadow-lg py-1 min-w-[160px]"
+      className="fixed z-50 bg-surface-modal border border-default rounded-md shadow-lg py-1 min-w-[180px]"
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -89,7 +89,7 @@ export function NodeContextMenu({
           {canvases.map((c) => (
             <button
               key={c.id}
-              className="flex w-full items-center gap-2 px-3 py-1 text-xs text-text-default hover:bg-surface-hover cursor-pointer"
+              className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
               onClick={() => handleNavigateToCanvas(c.id)}
             >
               {c.name}
@@ -102,7 +102,7 @@ export function NodeContextMenu({
       {/* Canvas creation */}
       {conceptId && (
         <button
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-default hover:bg-surface-hover cursor-pointer"
+          className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
           onClick={handleCreateCanvas}
         >
           <Plus size={14} />
@@ -113,7 +113,7 @@ export function NodeContextMenu({
       {/* Edge connection (edit mode only) */}
       {mode === 'edit' && (
         <button
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-default hover:bg-surface-hover cursor-pointer"
+          className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
           onClick={handleAddConnection}
         >
           <Link size={14} />
@@ -123,7 +123,7 @@ export function NodeContextMenu({
 
       {/* Delete */}
       <button
-        className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-default hover:bg-surface-hover cursor-pointer"
+        className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
         onClick={handleDelete}
       >
         <Trash2 size={14} />

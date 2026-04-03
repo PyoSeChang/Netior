@@ -10,6 +10,12 @@ import { fsService } from '../../services';
 // Configure pdf.js worker via CDN (local import.meta.url breaks in Vite dev server)
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+const pdfOptions = {
+  wasmUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/wasm/`,
+  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+  cMapPacked: true,
+};
+
 interface PdfViewerProps {
   absolutePath: string;
 }
@@ -160,6 +166,7 @@ export function PdfViewer({ absolutePath }: PdfViewerProps): JSX.Element {
             file={blobUrl}
             onLoadSuccess={onDocumentLoadSuccess}
             onLoadError={onDocumentLoadError}
+            options={pdfOptions}
             loading={
               <div className="flex items-center justify-center py-8 text-xs text-muted">Loading PDF...</div>
             }
