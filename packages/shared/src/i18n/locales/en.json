@@ -226,6 +226,134 @@
     "language": "Language",
     "languageDesc": "Choose the display language for the app."
   },
+  "shortcuts": {
+    "overlay": {
+      "title": "Keyboard Shortcuts",
+      "sidebarTitle": "Browse shortcuts",
+      "sidebarBody": "Pick a category or jump directly to a shortcut.",
+      "summaryTitle": "Registry-backed shortcut overview",
+      "summaryBody": "Local widgets override context shortcuts, and context shortcuts override global shortcuts.",
+      "searchPlaceholder": "Search shortcuts",
+      "sectionCount": "{count} shortcuts",
+      "noResults": "No shortcuts match your search."
+    },
+    "searchModes": {
+      "all": "All",
+      "category": "Category",
+      "keybinding": "Keybinding",
+      "name": "Name",
+      "description": "Description"
+    },
+    "sections": {
+      "app": "App",
+      "canvas": "Canvas",
+      "fileTree": "File Tree",
+      "terminal": "Terminal",
+      "narre": "Narre",
+      "narreMentionPicker": "Narre Mention Picker",
+      "narreSlashPicker": "Narre Slash Picker",
+      "settings": "Settings",
+      "modal": "Modal"
+    },
+    "when": {
+      "projectOpen": "A project is open",
+      "selectionExists": "Selection exists"
+    },
+    "items": {
+      "global": {
+        "saveActiveTabLabel": "Save Tab",
+        "saveActiveTab": "Save the active tab",
+        "closeActiveTabLabel": "Close Tab",
+        "closeActiveTab": "Close the active tab",
+        "openSettingsLabel": "Open Settings",
+        "openSettings": "Open settings",
+        "openShortcutOverlayLabel": "Open Shortcut Overlay",
+        "openShortcutOverlay": "Open the keyboard shortcuts overlay",
+        "toggleSidebarLabel": "Toggle Sidebar",
+        "toggleSidebar": "Toggle the sidebar",
+        "openTerminalLabel": "Open Terminal",
+        "openTerminal": "Open a new terminal tab",
+        "openNarreLabel": "Open Narre",
+        "openNarre": "Open the Narre tab for the current project",
+        "nextTabLabel": "Next Tab",
+        "nextTab": "Activate the next tab",
+        "previousTabLabel": "Previous Tab",
+        "previousTab": "Activate the previous tab",
+        "openTabByIndexLabel": "Open Tab by Number",
+        "openTabByIndex": "Activate a tab by index; 9 opens the last tab"
+      },
+      "fileTree": {
+        "openSelectionLabel": "Open Selection",
+        "openSelection": "Open the selected file or toggle the selected directory",
+        "renameSelectionLabel": "Rename Selection",
+        "renameSelection": "Rename the selected file-tree item",
+        "deleteSelectionLabel": "Delete Selection",
+        "deleteSelection": "Delete the selected file-tree item",
+        "copySelectionLabel": "Copy Selection",
+        "copySelection": "Copy the selected file-tree item",
+        "cutSelectionLabel": "Cut Selection",
+        "cutSelection": "Cut the selected file-tree item",
+        "pasteIntoSelectionLabel": "Paste Into Selection",
+        "pasteIntoSelection": "Paste into the selected directory or the parent of the selected file"
+      },
+      "canvas": {
+        "selectAllNodesLabel": "Select All Nodes",
+        "selectAllNodes": "Select all nodes in the active canvas",
+        "deleteSelectionLabel": "Delete Selection",
+        "deleteSelection": "Delete selected nodes in the active canvas",
+        "cancelLinkingLabel": "Cancel Linking",
+        "cancelLinking": "Cancel edge linking in the active canvas",
+        "toggleModeLabel": "Toggle Mode",
+        "toggleMode": "Toggle canvas browse/edit mode",
+        "fitToScreenLabel": "Fit to Screen",
+        "fitToScreen": "Fit the active canvas content to the viewport"
+      },
+      "terminal": {
+        "openSearchLabel": "Open Search",
+        "openSearch": "Open terminal search",
+        "copySelectionLabel": "Copy Selection",
+        "copySelection": "Copy the current terminal selection",
+        "pasteLabel": "Paste",
+        "paste": "Paste into terminal",
+        "fontSizeUpLabel": "Increase Font Size",
+        "fontSizeUp": "Increase terminal font size",
+        "fontSizeDownLabel": "Decrease Font Size",
+        "fontSizeDown": "Decrease terminal font size",
+        "fontSizeResetLabel": "Reset Font Size",
+        "fontSizeReset": "Reset terminal font size",
+        "pageScrollUpLabel": "Page Scroll Up",
+        "pageScrollUp": "Scroll the terminal one page up",
+        "pageScrollDownLabel": "Page Scroll Down",
+        "pageScrollDown": "Scroll the terminal one page down"
+      },
+      "narreChat": {
+        "sendMessageLabel": "Send Message",
+        "sendMessage": "Send the current Narre message",
+        "insertNewlineLabel": "Insert Newline",
+        "insertNewline": "Insert a newline in Narre input"
+      },
+      "narreMentionPicker": {
+        "selectNextLabel": "Next Mention",
+        "selectNext": "Move to the next Narre mention result",
+        "selectPreviousLabel": "Previous Mention",
+        "selectPrevious": "Move to the previous Narre mention result",
+        "confirmSelectionLabel": "Insert Mention",
+        "confirmSelection": "Insert the selected Narre mention",
+        "closeLabel": "Close Picker",
+        "close": "Close the Narre mention picker"
+      },
+      "narreSlashPicker": {
+        "selectNextLabel": "Next Command",
+        "selectNext": "Move to the next Narre slash command",
+        "selectPreviousLabel": "Previous Command",
+        "selectPrevious": "Move to the previous Narre slash command",
+        "confirmSelectionLabel": "Insert Command",
+        "confirmSelection": "Insert the selected Narre slash command",
+        "closeLabel": "Close Picker",
+        "close": "Close the Narre slash picker"
+      }
+    }
+  },
   "typeSelector": {
     "type": "Type",
     "search": "Search types...",
@@ -332,7 +460,8 @@
     "renameFailed": "Rename failed",
     "createFailed": "Creation failed",
     "deleteFailed": "Delete failed",
-    "pasteFailed": "Paste failed"
+    "pasteFailed": "Paste failed",
+    "refresh": "Refresh"
   },
   "terminal": {
     "runningProcess": "Running Process",

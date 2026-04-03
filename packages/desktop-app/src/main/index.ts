@@ -95,12 +95,26 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
-  // Intercept Ctrl+=/- before Electron and VS Code keybindings consume them
+  // Intercept app-level shortcuts before terminal/editor layers consume them
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.control && !input.alt && !input.meta && input.type === 'keyDown') {
+    const hasPrimaryModifier = input.control || input.meta;
+    if (hasPrimaryModifier && !input.alt && input.type === 'keyDown') {
+      if (input.key === 'Tab') {
+        event.preventDefault();
+        mainWindow!.webContents.send('app:shortcut', input.shift ? 'previousTab' : 'nextTab');
+        return;
+      }
+
+      if (!input.shift && /^[1-9]$/.test(input.key)) {
+        event.preventDefault();
+        mainWindow!.webContents.send('app:shortcut', `openTabByIndex:${input.key}`);
+        return;
+      }
+
       if (input.key === '-' || input.key === '=' || input.key === '+' || input.key === '0') {
         event.preventDefault();
         mainWindow!.webContents.send('terminal:font-size', input.key);
+        return;
       }
     }
   });

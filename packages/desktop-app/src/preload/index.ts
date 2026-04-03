@@ -17,6 +17,11 @@ const electronAPI = {
     minimize: () => ipcRenderer.send('window:minimize'),
     maximize: () => ipcRenderer.send('window:maximize'),
     close: () => ipcRenderer.send('window:close'),
+    onAppShortcut: (callback: (shortcut: string) => void) => {
+      const handler = (_event: IpcRendererEvent, shortcut: string) => callback(shortcut);
+      ipcRenderer.on('app:shortcut', handler);
+      return () => { ipcRenderer.removeListener('app:shortcut', handler); };
+    },
   },
   project: {
     create: (data: { name: string; root_dir: string }) =>
@@ -144,6 +149,13 @@ const electronAPI = {
     move: (src: string, dest: string) => ipcRenderer.invoke('fs:move', src, dest),
     showInExplorer: (targetPath: string) => ipcRenderer.invoke('fs:showInExplorer', targetPath),
     exists: (targetPath: string) => ipcRenderer.invoke('fs:exists', targetPath),
+    watchDirs: (dirs: string[]) => ipcRenderer.invoke('fs:watchDirs', dirs),
+    unwatchDirs: () => ipcRenderer.invoke('fs:unwatchDirs'),
+    onDirChanged: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('fs:dirChanged', handler);
+      return () => { ipcRenderer.removeListener('fs:dirChanged', handler); };
+    },
   },
   config: {
     get: (key: string) => ipcRenderer.invoke('config:get', key),

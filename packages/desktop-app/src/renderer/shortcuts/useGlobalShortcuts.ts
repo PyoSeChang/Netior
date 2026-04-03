@@ -53,12 +53,34 @@ function openNarreTab(): void {
 
 export function useGlobalShortcuts(): void {
   useEffect(() => {
+    const handleAppShortcut = (shortcut: string): void => {
+      if (shortcut === 'nextTab') {
+        logShortcut('shortcut.global.nextTab');
+        cycleTab(1);
+        return;
+      }
+
+      if (shortcut === 'previousTab') {
+        logShortcut('shortcut.global.previousTab');
+        cycleTab(-1);
+        return;
+      }
+
+      if (shortcut.startsWith('openTabByIndex:')) {
+        const indexKey = shortcut.split(':')[1];
+        if (!indexKey) return;
+        logShortcut('shortcut.global.openTabByIndex');
+        activateTabByNumber(indexKey);
+      }
+    };
+
     const handler = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (!isPrimaryModifier(event)) return;
 
       const editable = isEditableTarget(event.target);
       const key = event.key.toLowerCase();
+      const isSlashKey = key === '/' || key === '?' || event.code === 'Slash';
 
       if (key === 's') {
         event.preventDefault();
@@ -85,7 +107,7 @@ export function useGlobalShortcuts(): void {
         return;
       }
 
-      if (key === '/') {
+      if (isSlashKey) {
         event.preventDefault();
         logShortcut('shortcut.global.openShortcutOverlay');
         useUIStore.getState().setShowShortcutOverlay(true);
@@ -129,7 +151,11 @@ export function useGlobalShortcuts(): void {
       }
     };
 
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener('keydown', handler, true);
+    const cleanupAppShortcut = window.electron.window.onAppShortcut(handleAppShortcut);
+    return () => {
+      window.removeEventListener('keydown', handler, true);
+      cleanupAppShortcut();
+    };
   }, []);
 }

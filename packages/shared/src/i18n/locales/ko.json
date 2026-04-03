@@ -226,6 +226,134 @@
     "language": "언어",
     "languageDesc": "앱의 표시 언어를 선택합니다."
   },
+  "shortcuts": {
+    "overlay": {
+      "title": "키보드 단축키",
+      "sidebarTitle": "단축키 탐색",
+      "sidebarBody": "카테고리를 고르거나 단축키로 바로 이동할 수 있습니다.",
+      "summaryTitle": "레지스트리 기반 단축키 개요",
+      "summaryBody": "로컬 위젯이 컨텍스트 단축키보다 우선하고, 컨텍스트 단축키가 전역 단축키보다 우선합니다.",
+      "searchPlaceholder": "단축키 검색",
+      "sectionCount": "{count}개 단축키",
+      "noResults": "검색 조건에 맞는 단축키가 없습니다."
+    },
+    "searchModes": {
+      "all": "전체",
+      "category": "카테고리",
+      "keybinding": "단축키",
+      "name": "이름",
+      "description": "설명"
+    },
+    "sections": {
+      "app": "앱",
+      "canvas": "캔버스",
+      "fileTree": "파일 트리",
+      "terminal": "터미널",
+      "narre": "Narre",
+      "narreMentionPicker": "Narre 멘션 피커",
+      "narreSlashPicker": "Narre 슬래시 피커",
+      "settings": "설정",
+      "modal": "모달"
+    },
+    "when": {
+      "projectOpen": "프로젝트가 열려 있을 때",
+      "selectionExists": "선택 영역이 있을 때"
+    },
+    "items": {
+      "global": {
+        "saveActiveTabLabel": "탭 저장",
+        "saveActiveTab": "현재 활성 탭 저장",
+        "closeActiveTabLabel": "탭 닫기",
+        "closeActiveTab": "현재 활성 탭 닫기",
+        "openSettingsLabel": "설정 열기",
+        "openSettings": "설정 열기",
+        "openShortcutOverlayLabel": "단축키 오버레이 열기",
+        "openShortcutOverlay": "키보드 단축키 오버레이 열기",
+        "toggleSidebarLabel": "사이드바 토글",
+        "toggleSidebar": "사이드바 토글",
+        "openTerminalLabel": "터미널 열기",
+        "openTerminal": "새 터미널 탭 열기",
+        "openNarreLabel": "Narre 열기",
+        "openNarre": "현재 프로젝트의 Narre 탭 열기",
+        "nextTabLabel": "다음 탭",
+        "nextTab": "다음 탭으로 전환",
+        "previousTabLabel": "이전 탭",
+        "previousTab": "이전 탭으로 전환",
+        "openTabByIndexLabel": "번호로 탭 열기",
+        "openTabByIndex": "번호로 탭 전환, 9는 마지막 탭 열기"
+      },
+      "fileTree": {
+        "openSelectionLabel": "선택 항목 열기",
+        "openSelection": "선택한 파일을 열거나 선택한 디렉터리를 토글",
+        "renameSelectionLabel": "이름 변경",
+        "renameSelection": "선택한 파일 트리 항목 이름 변경",
+        "deleteSelectionLabel": "삭제",
+        "deleteSelection": "선택한 파일 트리 항목 삭제",
+        "copySelectionLabel": "복사",
+        "copySelection": "선택한 파일 트리 항목 복사",
+        "cutSelectionLabel": "잘라내기",
+        "cutSelection": "선택한 파일 트리 항목 잘라내기",
+        "pasteIntoSelectionLabel": "붙여넣기",
+        "pasteIntoSelection": "선택한 디렉터리 또는 선택한 파일의 부모 디렉터리에 붙여넣기"
+      },
+      "canvas": {
+        "selectAllNodesLabel": "전체 선택",
+        "selectAllNodes": "활성 캔버스의 모든 노드 선택",
+        "deleteSelectionLabel": "선택 삭제",
+        "deleteSelection": "활성 캔버스의 선택 노드 삭제",
+        "cancelLinkingLabel": "연결 취소",
+        "cancelLinking": "활성 캔버스의 엣지 연결 취소",
+        "toggleModeLabel": "모드 전환",
+        "toggleMode": "캔버스 browse/edit 모드 전환",
+        "fitToScreenLabel": "화면에 맞추기",
+        "fitToScreen": "활성 캔버스 내용을 화면에 맞추기"
+      },
+      "terminal": {
+        "openSearchLabel": "검색 열기",
+        "openSearch": "터미널 검색 열기",
+        "copySelectionLabel": "선택 복사",
+        "copySelection": "현재 터미널 선택 영역 복사",
+        "pasteLabel": "붙여넣기",
+        "paste": "터미널에 붙여넣기",
+        "fontSizeUpLabel": "글자 크기 키우기",
+        "fontSizeUp": "터미널 글자 크기 키우기",
+        "fontSizeDownLabel": "글자 크기 줄이기",
+        "fontSizeDown": "터미널 글자 크기 줄이기",
+        "fontSizeResetLabel": "글자 크기 초기화",
+        "fontSizeReset": "터미널 글자 크기 초기화",
+        "pageScrollUpLabel": "페이지 위로 스크롤",
+        "pageScrollUp": "터미널을 한 페이지 위로 스크롤",
+        "pageScrollDownLabel": "페이지 아래로 스크롤",
+        "pageScrollDown": "터미널을 한 페이지 아래로 스크롤"
+      },
+      "narreChat": {
+        "sendMessageLabel": "메시지 전송",
+        "sendMessage": "현재 Narre 메시지 전송",
+        "insertNewlineLabel": "줄바꿈 입력",
+        "insertNewline": "Narre 입력창에 줄바꿈 삽입"
+      },
+      "narreMentionPicker": {
+        "selectNextLabel": "다음 멘션",
+        "selectNext": "다음 Narre 멘션 결과로 이동",
+        "selectPreviousLabel": "이전 멘션",
+        "selectPrevious": "이전 Narre 멘션 결과로 이동",
+        "confirmSelectionLabel": "멘션 삽입",
+        "confirmSelection": "선택한 Narre 멘션 삽입",
+        "closeLabel": "피커 닫기",
+        "close": "Narre 멘션 피커 닫기"
+      },
+      "narreSlashPicker": {
+        "selectNextLabel": "다음 명령",
+        "selectNext": "다음 Narre 슬래시 명령으로 이동",
+        "selectPreviousLabel": "이전 명령",
+        "selectPrevious": "이전 Narre 슬래시 명령으로 이동",
+        "confirmSelectionLabel": "명령 삽입",
+        "confirmSelection": "선택한 Narre 슬래시 명령 삽입",
+        "closeLabel": "피커 닫기",
+        "close": "Narre 슬래시 피커 닫기"
+      }
+    }
+  },
   "typeSelector": {
     "type": "타입",
     "search": "타입 검색...",
@@ -332,7 +460,8 @@
     "renameFailed": "이름 변경 실패",
     "createFailed": "생성 실패",
     "deleteFailed": "삭제 실패",
-    "pasteFailed": "붙여넣기 실패"
+    "pasteFailed": "붙여넣기 실패",
+    "refresh": "새로고침"
   },
   "terminal": {
     "runningProcess": "실행 중인 프로세스",

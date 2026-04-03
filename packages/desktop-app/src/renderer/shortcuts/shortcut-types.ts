@@ -1,3 +1,5 @@
+import type { TranslationKey } from '@netior/shared/i18n';
+
 export type ShortcutScope =
   | 'global'
   | 'canvas'
@@ -23,11 +25,12 @@ export type ShortcutPriority = 'local' | 'context' | 'global';
 
 export interface ShortcutDefinition {
   id: string;
-  description: string;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
   keybinding: string;
   scope: ShortcutScope;
   owner: ShortcutOwner;
   priority: ShortcutPriority;
   implemented: boolean;
-  when?: string;
+  whenKey?: TranslationKey;
 }
