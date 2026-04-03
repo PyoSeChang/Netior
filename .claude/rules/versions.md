@@ -3,9 +3,9 @@
 ```yaml
 packages:
   shared:
-    version: "0.1.2"
-    type: patch
-    summary: "캔버스/프로젝트 관련 i18n 키 추가"
+    version: "0.2.0"
+    type: minor
+    summary: "File 1급 엔티티 타입, IPC 채널, 메타데이터 에디터 i18n 키 추가. ConceptFile 타입 제거."
   core:
     version: "0.1.0"
     type: minor
@@ -21,7 +21,7 @@ packages:
   desktop-app:
     version: "0.2.3"
     type: patch
-    summary: "다수 버그 수정, 사이드바 컨텍스트 메뉴, 타이틀바 프로젝트 전환, Narre 세션 유지"
+    summary: "초기 버전"
   narre-eval:
     version: "0.2.0"
     type: minor
