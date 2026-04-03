@@ -3,9 +3,9 @@
 ```yaml
 packages:
   shared:
-    version: "0.1.0"
-    type: minor
-    summary: "타입, 상수, i18n 기반 구축 — 모든 패키지가 공유하는 데이터 모델과 다국어 리소스 초기 버전"
+    version: "0.1.1"
+    type: patch
+    summary: "터미널 Todo 및 에디터 최소화 관련 i18n 키 추가"
   core:
     version: "0.1.0"
     type: minor
@@ -19,9 +19,9 @@ packages:
     type: minor
     summary: "Narre AI 에이전트 서버 초기 구현 - Claude Agent SDK 기반 SSE 스트리밍, 슬래시 커맨드, UI 도구"
   desktop-app:
-    version: "0.1.6"
-    type: patch
-    summary: "터미널 검색 닫기 시 하이라이트 잔류 버그 수정"
+    version: "0.2.0"
+    type: minor
+    summary: "터미널 Todo 패널, 단축키 시스템, 개별 탭 최소화, 테마 확장, Claude 훅 오인식 수정"
   narre-eval:
     version: "0.2.0"
     type: minor
