@@ -14,18 +14,13 @@ export function EditorDockBar(): JSX.Element | null {
 
   return (
     <div
-      className="flex items-center gap-1 bg-surface-card/90 backdrop-blur border-t border-subtle px-2 py-1.5"
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 190,
-      }}
+      className="flex shrink-0 items-center gap-1 bg-surface-card/90 backdrop-blur border-t border-subtle px-2 py-1.5"
     >
       <div className="flex flex-1 items-center gap-1 overflow-x-auto">
-        {minimizedTabs.map((tab) => (
-          <Tooltip key={tab.id} content={t('common.restore', { title: tab.title })} position="top">
+        {minimizedTabs.map((tab, idx) => (
+          <React.Fragment key={tab.id}>
+          {idx > 0 && <div className="h-3 w-px shrink-0" style={{ background: 'var(--border-subtle)' }} />}
+          <Tooltip content={t('common.restore', { title: tab.title })} position="top">
           <button
             className={`flex items-center gap-1 rounded px-2 py-1 text-xs whitespace-nowrap transition-colors ${
               tab.id === activeTabId
@@ -47,6 +42,7 @@ export function EditorDockBar(): JSX.Element | null {
             </span>
           </button>
           </Tooltip>
+          </React.Fragment>
         ))}
       </div>
     </div>

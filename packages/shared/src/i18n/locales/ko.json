@@ -15,7 +15,8 @@
     "minimize": "최소화",
     "maximize": "최대화",
     "restore": "{title} 복원",
-    "none": "없음"
+    "none": "없음",
+    "minimizeTab": "이 탭 최소화"
   },
   "project": {
     "create": "프로젝트 생성",
@@ -342,7 +343,12 @@
     "noResults": "결과 없음",
     "nextMatch": "다음 일치",
     "previousMatch": "이전 일치",
-    "closeSearch": "검색 닫기"
+    "closeSearch": "검색 닫기",
+    "todoShow": "Todo 표시",
+    "todoHide": "Todo 숨기기",
+    "todoTitle": "Todo",
+    "todoAddPlaceholder": "할 일 추가...",
+    "todoEmpty": "할 일이 없습니다"
   },
   "narre": {
     "title": "Narre",

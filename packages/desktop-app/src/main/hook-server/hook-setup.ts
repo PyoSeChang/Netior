@@ -31,7 +31,7 @@ async function main() {
 
   // Only run inside Netior PTY
   const ptyId = process.env.NETIOR_PTY_ID;
-  if (!ptyId) process.exit(0);
+  if (!ptyId || process.env.CLAUDECODE !== '1') process.exit(0);
 
   // Read stdin (Claude provides JSON)
   let input = '';

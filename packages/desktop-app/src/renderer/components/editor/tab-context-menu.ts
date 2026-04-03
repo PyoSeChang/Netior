@@ -2,6 +2,9 @@ import type { EditorTab } from '@netior/shared/types';
 import type { ContextMenuEntry } from '../ui/ContextMenu';
 import { useEditorStore } from '../../stores/editor-store';
 import { getEditorType, getAvailableEditors, EDITOR_LABELS, type EditorType } from './editor-utils';
+import { translate, type TranslationKey } from '@netior/shared/i18n';
+import { useSettingsStore } from '../../stores/settings-store';
+import { isTodoEnabled, toggleTodoEnabled } from '../../lib/terminal-todo-store';
 
 // ── Common items (all tab types) ──
 
@@ -11,11 +14,19 @@ function buildCommonItems(tab: EditorTab, tabs: EditorTab[]): ContextMenuEntry[]
   const hasRight = idx >= 0 && idx < tabs.length - 1;
   const hasOthers = tabs.length > 1;
 
+  const locale = useSettingsStore.getState().locale;
+  const t = (key: TranslationKey) => translate(locale, key);
+
   return [
     { label: '탭 닫기', shortcut: 'Ctrl+W', onClick: () => store.requestCloseTab(tab.id) },
     { label: '다른 탭 모두 닫기', disabled: !hasOthers, onClick: () => store.closeOtherTabs(tab.id) },
     { label: '오른쪽 탭 모두 닫기', disabled: !hasRight, onClick: () => store.closeTabsToRight(tab.id) },
     { label: '모든 탭 닫기', onClick: () => store.closeAllTabs() },
+    { type: 'divider' },
+    {
+      label: t('common.minimizeTab'),
+      onClick: () => store.minimizeSingleTab(tab.id),
+    },
   ];
 }
 
@@ -88,6 +99,10 @@ function buildTerminalItems(tab: EditorTab, callbacks?: TabContextMenuCallbacks)
     {
       label: '터미널 이름 변경',
       onClick: () => callbacks?.onRequestRename?.(tab.id),
+    },
+    {
+      label: isTodoEnabled(tab.targetId) ? 'Todo 숨기기' : 'Todo 표시',
+      onClick: () => toggleTodoEnabled(tab.targetId),
     },
     {
       label: '터미널 Kill',

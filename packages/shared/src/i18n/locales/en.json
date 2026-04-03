@@ -15,7 +15,8 @@
     "minimize": "Minimize",
     "maximize": "Maximize",
     "restore": "Restore {title}",
-    "none": "None"
+    "none": "None",
+    "minimizeTab": "Minimize This Tab"
   },
   "project": {
     "create": "Create Project",
@@ -342,7 +343,12 @@
     "noResults": "No results",
     "nextMatch": "Next match",
     "previousMatch": "Previous match",
-    "closeSearch": "Close search"
+    "closeSearch": "Close search",
+    "todoShow": "Show Todo",
+    "todoHide": "Hide Todo",
+    "todoTitle": "Todo",
+    "todoAddPlaceholder": "Add todo...",
+    "todoEmpty": "No todos"
   },
   "narre": {
     "title": "Narre",

@@ -4,6 +4,7 @@ import { editorPrefsService } from '../services';
 import { hasUnsavedChanges, getSession } from '../lib/editor-session-registry';
 import { clearDraftCache } from '../hooks/useEditorSession';
 import { isTerminalAlive } from '../lib/terminal-tracker';
+import { cleanupSession as cleanupTodoSession } from '../lib/terminal-todo-store';
 
 interface OpenTabParams {
   type: EditorTabType;
@@ -31,6 +32,7 @@ interface EditorStore {
 
   setViewMode: (tabId: string, mode: EditorViewMode) => void;
   toggleMinimize: (tabId: string) => void;
+  minimizeSingleTab: (tabId: string) => void;
 
   updateFloatRect: (tabId: string, rect: Partial<EditorTab['floatRect']>) => void;
   updateSideSplitRatio: (tabId: string, ratio: number) => void;
@@ -319,6 +321,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const tab = get().tabs.find((t) => t.id === tabId);
     if (tab && tab.type === 'terminal') {
       window.electron.terminal.shutdown(tab.targetId).catch(() => {});
+      cleanupTodoSession(tab.targetId);
     }
     if (tab && tab.type === 'concept' && !tab.targetId.startsWith('draft-')) {
       editorPrefsService.upsert(tab.targetId, {
@@ -473,11 +476,36 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const newMinimized = !tab.isMinimized;
 
     if (mode === 'side' || mode === 'full') {
-      set((s) => ({
-        tabs: s.tabs.map((t) =>
-          t.viewMode === mode ? { ...t, isMinimized: newMinimized } : t,
-        ),
-      }));
+      if (!newMinimized) {
+        // Restoring: re-insert tabs that are not in the layout tree
+        const layout = getLayoutForMode(get(), mode);
+        let layoutUpdate: Partial<EditorStore> = {};
+        const tabsInMode = get().tabs.filter((t) => t.viewMode === mode && t.isMinimized);
+        let currentLayout = layout;
+        for (const t of tabsInMode) {
+          if (currentLayout && !containsTab(currentLayout, t.id)) {
+            const firstLeaf = getFirstLeaf(currentLayout);
+            currentLayout = addTabToLeaf(currentLayout, firstLeaf.activeTabId, t.id);
+          } else if (!currentLayout) {
+            currentLayout = { type: 'leaf', tabIds: [t.id], activeTabId: t.id };
+          }
+        }
+        if (currentLayout !== layout) {
+          layoutUpdate = setLayoutForMode(mode, currentLayout);
+        }
+        set((s) => ({
+          ...layoutUpdate,
+          tabs: s.tabs.map((t) =>
+            t.viewMode === mode ? { ...t, isMinimized: false } : t,
+          ),
+        }));
+      } else {
+        set((s) => ({
+          tabs: s.tabs.map((t) =>
+            t.viewMode === mode ? { ...t, isMinimized: true } : t,
+          ),
+        }));
+      }
     } else {
       set((s) => ({
         tabs: s.tabs.map((t) =>
@@ -485,6 +513,29 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         ),
       }));
     }
+  },
+
+  minimizeSingleTab: (tabId) => {
+    const tab = get().tabs.find((t) => t.id === tabId);
+    if (!tab || tab.isMinimized) return;
+
+    const mode = tab.viewMode;
+    let layoutUpdate: Partial<EditorStore> = {};
+
+    if (mode === 'side' || mode === 'full') {
+      const layout = getLayoutForMode(get(), mode);
+      if (layout && containsTab(layout, tabId)) {
+        const newLayout = removeTabFromTree(layout, tabId);
+        layoutUpdate = setLayoutForMode(mode, newLayout);
+      }
+    }
+
+    set((s) => ({
+      ...layoutUpdate,
+      tabs: s.tabs.map((t) =>
+        t.id === tabId ? { ...t, isMinimized: true } : t,
+      ),
+    }));
   },
 
   updateFloatRect: (tabId, rect) => {

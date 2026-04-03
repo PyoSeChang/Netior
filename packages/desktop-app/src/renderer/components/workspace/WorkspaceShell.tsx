@@ -252,63 +252,65 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
         </>
       )}
 
-      <div
-        ref={editorContainerRef}
-        className="flex flex-1 overflow-hidden"
-        onDragEnter={handleShellDragEnter}
-        onDragLeave={handleShellDragLeave}
-        onDrop={handleShellDrop}
-      >
-        {isFullMode ? (
-          <FullModeEditor />
-        ) : (
-          <>
-            {/* Canvas area */}
-            <div
-              data-pane="canvas"
-              className="relative flex flex-col overflow-hidden"
-              style={{ width: hasSideEditor ? `${splitRatio * 100}%` : '100%' }}
-              onDragOver={handleCanvasDragOver}
-              onDragLeave={handleCanvasDragLeave}
-              onDrop={handleCanvasDrop}
-            >
-              <ConceptWorkspace projectId={project.id} />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div
+          ref={editorContainerRef}
+          className="flex flex-1 overflow-hidden"
+          onDragEnter={handleShellDragEnter}
+          onDragLeave={handleShellDragLeave}
+          onDrop={handleShellDrop}
+        >
+          {isFullMode ? (
+            <FullModeEditor />
+          ) : (
+            <>
+              {/* Canvas area */}
+              <div
+                data-pane="canvas"
+                className="relative flex flex-col overflow-hidden"
+                style={{ width: hasSideEditor ? `${splitRatio * 100}%` : '100%' }}
+                onDragOver={handleCanvasDragOver}
+                onDragLeave={handleCanvasDragLeave}
+                onDrop={handleCanvasDrop}
+              >
+                <ConceptWorkspace projectId={project.id} />
 
-              {showSideDropHint && !hasSideEditor && (
-                <div
-                  className="absolute right-0 top-0 bottom-0 w-16 bg-accent/20 border-l-2 border-accent transition-all flex items-center justify-center"
-                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
-                  onDrop={handleSideHintDrop}
-                >
-                  <span className="text-xs text-accent font-medium -rotate-90 whitespace-nowrap">Side</span>
-                </div>
+                {showSideDropHint && !hasSideEditor && (
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-16 bg-accent/20 border-l-2 border-accent transition-all flex items-center justify-center"
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
+                    onDrop={handleSideHintDrop}
+                  >
+                    <span className="text-xs text-accent font-medium -rotate-90 whitespace-nowrap">Side</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Side editor */}
+              {hasSideEditor && sideLayout && (
+                <>
+                  <ResizeHandle onMouseDown={handleEditorSplitDragStart} />
+                  <div
+                    data-pane="editor"
+                    className="flex flex-col overflow-hidden bg-surface-panel"
+                    style={{ width: `${(1 - splitRatio) * 100}%` }}
+                  >
+                    <SplitPaneRenderer
+                      node={sideLayout}
+                      mode="side"
+                      renderLeaf={renderSideLeaf}
+                      onRatioChange={updateSplitRatio}
+                    />
+                  </div>
+                </>
               )}
-            </div>
-
-            {/* Side editor */}
-            {hasSideEditor && sideLayout && (
-              <>
-                <ResizeHandle onMouseDown={handleEditorSplitDragStart} />
-                <div
-                  data-pane="editor"
-                  className="flex flex-col overflow-hidden bg-surface-panel"
-                  style={{ width: `${(1 - splitRatio) * 100}%` }}
-                >
-                  <SplitPaneRenderer
-                    node={sideLayout}
-                    mode="side"
-                    renderLeaf={renderSideLeaf}
-                    onRatioChange={updateSplitRatio}
-                  />
-                </div>
-              </>
-            )}
-          </>
-        )}
+            </>
+          )}
+        </div>
+        <EditorDockBar />
       </div>
 
       <FloatWindowLayer />
-      <EditorDockBar />
       <CloseConfirmDialog />
     </div>
   );

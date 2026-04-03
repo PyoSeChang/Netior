@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { EditorTab } from '@netior/shared/types';
 import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
 import { useModuleStore } from '../../stores/module-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { getOrCreateTerminalInstance, adjustTerminalFontSize, resetTerminalFontSize } from '../../lib/terminal/terminal-services';
 import { TerminalSearchBar } from './TerminalSearchBar';
+import { TerminalTodoPanel } from './TerminalTodoPanel';
 import { extractFileLinks } from '../../lib/terminal/terminal-link-parser';
+import { subscribeTodoStore, isTodoEnabled } from '../../lib/terminal-todo-store';
 
 interface TerminalEditorProps {
   tab: EditorTab;
@@ -18,6 +20,10 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   const cwd = useModuleStore((s) => s.directories[0]?.dir_path);
   const updateTitle = useEditorStore((s) => s.updateTitle);
   const [searchVisible, setSearchVisible] = useState(false);
+  const todoEnabled = useSyncExternalStore(
+    subscribeTodoStore,
+    () => isTodoEnabled(sessionId),
+  );
 
   const handleSearchClose = useCallback(() => {
     setSearchVisible(false);
@@ -273,6 +279,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       {searchVisible && (
         <TerminalSearchBar instanceRef={instanceRef} onClose={handleSearchClose} />
       )}
+      {todoEnabled && <TerminalTodoPanel sessionId={sessionId} autoShowSeconds={10} />}
     </div>
   );
 }
