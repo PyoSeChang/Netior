@@ -16,7 +16,6 @@ import { CloseConfirmDialog } from '../editor/CloseConfirmDialog';
 import { ResizeHandle } from '../ui/ResizeHandle';
 import { useEditorStore, getActiveTabFromLayout } from '../../stores/editor-store';
 import { useUIStore } from '../../stores/ui-store';
-import { useGlobalSave } from '../../hooks/useGlobalSave';
 import { isTabDrag, getTabDragData } from '../../hooks/useTabDrag';
 
 interface WorkspaceShellProps {
@@ -24,8 +23,6 @@ interface WorkspaceShellProps {
 }
 
 export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
-  useGlobalSave();
-
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const tabs = useEditorStore((s) => s.tabs);
   const sideLayout = useEditorStore((s) => s.sideLayout);

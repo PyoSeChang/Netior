@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { SLASH_COMMANDS } from '@netior/shared/constants';
 import type { SlashCommand } from '@netior/shared/types';
 import { useI18n } from '../../../hooks/useI18n';
+import { logShortcut } from '../../../shortcuts/shortcut-utils';
 
 interface NarreSlashPickerProps {
   query: string;
@@ -38,20 +39,24 @@ export function NarreSlashPicker({
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         e.stopImmediatePropagation();
+        logShortcut('shortcut.narreSlashPicker.selectNext');
         setSelectedIndex((i) => Math.min(i + 1, filtered.length - 1));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         e.stopImmediatePropagation();
+        logShortcut('shortcut.narreSlashPicker.selectPrevious');
         setSelectedIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === 'Enter') {
         e.preventDefault();
         e.stopImmediatePropagation();
         if (filtered[selectedIndex]) {
+          logShortcut('shortcut.narreSlashPicker.confirmSelection');
           onSelect(filtered[selectedIndex]);
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
+        logShortcut('shortcut.narreSlashPicker.close');
         onClose();
       }
     };

@@ -7,6 +7,7 @@ import { useI18n } from '../../../hooks/useI18n';
 import { IconButton } from '../../ui/IconButton';
 import { NarreMentionPicker } from './NarreMentionPicker';
 import { NarreSlashPicker } from './NarreSlashPicker';
+import { logShortcut } from '../../../shortcuts/shortcut-utils';
 
 interface NarreMentionInputProps {
   projectId: string;
@@ -117,6 +118,7 @@ export function NarreMentionInput({
     if (!text.trim()) return;
 
     onSend(text, mentions);
+    logShortcut('shortcut.narreChat.sendMessage');
     el.innerHTML = '';
     setIsEmpty(true);
     setPicker((p) => ({ ...p, isOpen: false }));
@@ -155,6 +157,9 @@ export function NarreMentionInput({
       e.preventDefault();
       handleSend();
       return;
+    }
+    if (e.key === 'Enter' && e.shiftKey) {
+      logShortcut('shortcut.narreChat.insertNewline');
     }
 
     // Backspace: check if we're right after a chip

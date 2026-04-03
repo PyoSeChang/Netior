@@ -5,6 +5,7 @@ import { narreService, type MentionResult } from '../../../services/narre-servic
 import { useI18n } from '../../../hooks/useI18n';
 import { Spinner } from '../../ui/Spinner';
 import type { TranslationKey } from '@netior/shared/i18n';
+import { logShortcut } from '../../../shortcuts/shortcut-utils';
 
 interface NarreMentionPickerProps {
   query: string;
@@ -150,10 +151,12 @@ export function NarreMentionPicker({
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       e.stopImmediatePropagation();
+      logShortcut('shortcut.narreMentionPicker.selectNext');
       setSelectedIndex((prev) => Math.min(prev + 1, displayResults.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       e.stopImmediatePropagation();
+      logShortcut('shortcut.narreMentionPicker.selectPrevious');
       setSelectedIndex((prev) => Math.max(prev - 1, 0));
     } else if (e.key === 'Tab') {
       e.preventDefault();
@@ -169,11 +172,13 @@ export function NarreMentionPicker({
       e.preventDefault();
       e.stopImmediatePropagation();
       if (displayResults[selectedIndex]) {
+        logShortcut('shortcut.narreMentionPicker.confirmSelection');
         onSelect(displayResults[selectedIndex]);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
       e.stopImmediatePropagation();
+      logShortcut('shortcut.narreMentionPicker.close');
       onClose();
     }
   }, [displayResults, selectedIndex, visibleCategories, onSelect, onClose]);

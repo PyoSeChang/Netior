@@ -6,9 +6,11 @@ import { useUIStore } from './stores/ui-store';
 import { ProjectHome } from './components/home/ProjectHome';
 import { WorkspaceShell } from './components/workspace/WorkspaceShell';
 import { SettingsModal } from './components/settings/SettingsModal';
+import { ShortcutOverlay } from './components/shortcuts/ShortcutOverlay';
 import { ToastContainer } from './components/ui/Toast';
 import { initTerminalTracker } from './lib/terminal-tracker';
 import { initClaudeTerminalTracker } from './lib/claude-terminal-tracker';
+import { useGlobalShortcuts } from './shortcuts/useGlobalShortcuts';
 
 initTerminalTracker();
 initClaudeTerminalTracker();
@@ -154,8 +156,15 @@ function TitleBar(): JSX.Element {
 }
 
 export default function App(): JSX.Element {
+  useGlobalShortcuts();
+
   const { currentProject } = useProjectStore();
-  const { showSettings, setShowSettings } = useUIStore();
+  const {
+    showSettings,
+    showShortcutOverlay,
+    setShowSettings,
+    setShowShortcutOverlay,
+  } = useUIStore();
 
   return (
     <div className="flex h-full flex-col bg-surface-base text-default">
@@ -168,6 +177,7 @@ export default function App(): JSX.Element {
         )}
       </div>
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
+      <ShortcutOverlay open={showShortcutOverlay} onClose={() => setShowShortcutOverlay(false)} />
       <ToastContainer />
     </div>
   );

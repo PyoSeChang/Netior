@@ -20,6 +20,7 @@ import type { RenderNode, RenderEdge } from './types';
 import { getLayout } from './layout-plugins/registry';
 import type { LayoutRenderNode } from './layout-plugins/types';
 import { isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
+import { useCanvasShortcuts } from './useCanvasShortcuts';
 
 interface ConceptWorkspaceProps {
   projectId: string;
@@ -289,30 +290,6 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     console.log('[CW] cardNodes:', cardNodes.map(n => ({ id: n.id.slice(0,8), label: n.label, x: n.x, y: n.y, role: (n as any).metadata?.role, tv: (n as any).metadata?.time_value })));
   }
 
-  // --- Keyboard shortcuts ---
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Escape: cancel edge linking
-      if (e.key === 'Escape' && edgeLinkingState) {
-        setEdgeLinkingState(null);
-        return;
-      }
-      // Delete selected nodes
-      if (e.key === 'Delete' && selectedIds.size > 0) {
-        e.preventDefault();
-        selectedIds.forEach((id) => removeNode(id));
-        setSelectedIds(new Set());
-      }
-      // Ctrl+A: select all
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-        e.preventDefault();
-        setSelectedIds(new Set(renderNodes.map((n) => n.id)));
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedIds, renderNodes, removeNode, edgeLinkingState]);
-
   // --- Mouse interaction (via useInteraction, same pattern as Culturium) ---
 
   const isTimeline = layoutPlugin.key !== 'freeform';
@@ -482,6 +459,21 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
   const toggleMode = useCallback(() => {
     useUIStore.getState().setCanvasMode(canvasMode === 'browse' ? 'edit' : 'browse');
   }, [canvasMode]);
+
+  useCanvasShortcuts({
+    selectedIds,
+    renderNodes,
+    edgeLinkingActive: !!edgeLinkingState,
+    canvasMode,
+    onClearSelection: () => setSelectedIds(new Set()),
+    onDeleteSelection: () => {
+      selectedIds.forEach((id) => removeNode(id));
+      setSelectedIds(new Set());
+    },
+    onCancelLinking: () => setEdgeLinkingState(null),
+    onSelectAll: () => setSelectedIds(new Set(renderNodes.map((node) => node.id))),
+    onFitToScreen: fitToScreen,
+  });
 
   if (!currentCanvas) {
     return (

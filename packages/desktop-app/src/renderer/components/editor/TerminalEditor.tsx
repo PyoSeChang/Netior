@@ -8,6 +8,7 @@ import { TerminalSearchBar } from './TerminalSearchBar';
 import { TerminalTodoPanel } from './TerminalTodoPanel';
 import { extractFileLinks } from '../../lib/terminal/terminal-link-parser';
 import { subscribeTodoStore, isTodoEnabled } from '../../lib/terminal-todo-store';
+import { logShortcut } from '../../shortcuts/shortcut-utils';
 
 interface TerminalEditorProps {
   tab: EditorTab;
@@ -124,12 +125,14 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
         if (e.key === 'PageUp') {
           e.preventDefault();
           e.stopPropagation();
+          logShortcut('shortcut.terminal.pageScrollUp');
           instance.scrollUpPage();
           return;
         }
         if (e.key === 'PageDown') {
           e.preventDefault();
           e.stopPropagation();
+          logShortcut('shortcut.terminal.pageScrollDown');
           instance.scrollDownPage();
           return;
         }
@@ -142,6 +145,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       if (e.key === 'c' && instance.hasSelection()) {
         e.preventDefault();
         e.stopPropagation();
+        logShortcut('shortcut.terminal.copySelection');
         (instance as unknown as { xterm?: { copySelection(): void } }).xterm?.copySelection();
         return;
       }
@@ -150,6 +154,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       if (e.key === 'v') {
         e.preventDefault();
         e.stopPropagation();
+        logShortcut('shortcut.terminal.paste');
         void navigator.clipboard.readText().then((text) => {
           if (text) void instance.sendText(text, false, true);
         });
@@ -160,6 +165,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       if (e.key === 'f') {
         e.preventDefault();
         e.stopPropagation();
+        logShortcut('shortcut.terminal.openSearch');
         setSearchVisible(true);
         return;
       }
@@ -168,6 +174,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       if (e.key === '=' || e.key === '+') {
         e.preventDefault();
         e.stopPropagation();
+        logShortcut('shortcut.terminal.fontSizeUp');
         adjustTerminalFontSize(1);
         return;
       }
@@ -176,6 +183,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       if (e.key === '-' || e.key === '_') {
         e.preventDefault();
         e.stopPropagation();
+        logShortcut('shortcut.terminal.fontSizeDown');
         adjustTerminalFontSize(-1);
         return;
       }
@@ -184,6 +192,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       if (e.key === '0') {
         e.preventDefault();
         e.stopPropagation();
+        logShortcut('shortcut.terminal.fontSizeReset');
         resetTerminalFontSize();
         return;
       }
