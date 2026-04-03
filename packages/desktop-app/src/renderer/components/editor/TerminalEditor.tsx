@@ -18,7 +18,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<ITerminalInstance | null>(null);
   const sessionId = tab.targetId;
-  const cwdRef = useRef(useModuleStore.getState().directories[0]?.dir_path);
+  const cwdRef = useRef(tab.terminalCwd ?? useModuleStore.getState().directories[0]?.dir_path);
   const updateTitle = useEditorStore((s) => s.updateTitle);
   const [searchVisible, setSearchVisible] = useState(false);
   const todoEnabled = useSyncExternalStore(

@@ -484,6 +484,8 @@ export interface EditorTab {
   editorType?: string;
   /** Canvas context for fileMetadata tabs (which canvas this node belongs to) */
   canvasId?: string;
+  /** Working directory override for terminal tabs */
+  terminalCwd?: string;
   /** Draft data for unsaved new entities (concept creation flow) */
   draftData?: {
     canvasId?: string;

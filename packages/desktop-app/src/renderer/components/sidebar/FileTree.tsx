@@ -5,6 +5,7 @@ import type { TranslationKey } from '@netior/shared/i18n';
 import { FileIcon } from './FileIcon';
 import { ContextMenu, type ContextMenuEntry } from '../ui/ContextMenu';
 import { useFileStore } from '../../stores/file-store';
+import { useEditorStore } from '../../stores/editor-store';
 import { useI18n } from '../../hooks/useI18n';
 import { showToast } from '../ui/Toast';
 import { fsService, type StashedDeleteResult } from '../../services';
@@ -76,6 +77,11 @@ function getBaseName(targetPath: string): string {
 
 function getParentPath(targetPath: string): string {
   return normalizePath(targetPath).split('/').slice(0, -1).join('/');
+}
+
+function makeTerminalTitle(targetPath: string): string {
+  const baseName = getBaseName(targetPath);
+  return baseName ? `Terminal: ${baseName}` : 'Terminal';
 }
 
 function isSameOrNestedPath(sourcePath: string, targetPath: string): boolean {
@@ -1037,6 +1043,22 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
     }
 
     items.push({ type: 'divider' });
+
+    if (node.type === 'directory') {
+      items.push({
+        label: t('shortcuts.items.global.openTerminalLabel' as TranslationKey),
+        onClick: () => {
+          const sessionId = `term-${Date.now()}`;
+          void useEditorStore.getState().openTab({
+            type: 'terminal',
+            targetId: sessionId,
+            title: makeTerminalTitle(node.path),
+            terminalCwd: node.path,
+          });
+        },
+      });
+      items.push({ type: 'divider' });
+    }
 
     if (selection.length === 1) {
       items.push({

@@ -13,6 +13,7 @@ interface OpenTabParams {
   viewMode?: EditorViewMode;
   draftData?: EditorTab['draftData'];
   canvasId?: string;
+  terminalCwd?: string;
 }
 
 interface EditorStore {
@@ -227,7 +228,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   fullLayout: null,
   pendingCloseTabId: null,
 
-  openTab: async ({ type, targetId, title, viewMode, draftData, canvasId }) => {
+  openTab: async ({ type, targetId, title, viewMode, draftData, canvasId, terminalCwd }) => {
     const { tabs } = get();
     const tabId = makeTabId(type, targetId);
 
@@ -296,6 +297,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       activeFilePath: null,
       draftData,
       canvasId,
+      terminalCwd,
     };
 
     // For side/full: add to the focused leaf in the layout tree
