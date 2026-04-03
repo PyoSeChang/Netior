@@ -19,9 +19,9 @@ packages:
     type: minor
     summary: "Narre AI 에이전트 서버 초기 구현 - Claude Agent SDK 기반 SSE 스트리밍, 슬래시 커맨드, UI 도구"
   desktop-app:
-    version: "0.2.3"
-    type: patch
-    summary: "초기 버전"
+    version: "0.3.0"
+    type: minor
+    summary: "File 1급 엔티티 통합, FileMetadataEditor, 노드 메타데이터, missing path 검증, ConceptFile 제거"
   narre-eval:
     version: "0.2.0"
     type: minor
