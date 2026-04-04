@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Search, Palette, Globe } from 'lucide-react';
+import { X, Search, Palette, Globe, Bell } from 'lucide-react';
 import { useSettingsStore, AVAILABLE_CONCEPTS } from '../../stores/settings-store';
 import { useI18n } from '../../hooks/useI18n';
 
@@ -18,8 +18,16 @@ interface CategoryItem {
 
 export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Element | null {
   const { t } = useI18n();
-  const { themeConcept, themeMode, locale, setThemeConcept, setThemeMode, setLocale } =
-    useSettingsStore();
+  const {
+    themeConcept,
+    themeMode,
+    locale,
+    detachedAgentToastMode,
+    setThemeConcept,
+    setThemeMode,
+    setLocale,
+    setDetachedAgentToastMode,
+  } = useSettingsStore();
 
   const [activeCategory, setActiveCategory] = useState('appearance');
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,6 +47,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
       label: t('settings.categoryLanguage'),
       anchors: [t('settings.language')],
     },
+    {
+      key: 'notifications',
+      icon: Bell,
+      label: 'Notifications',
+      anchors: ['Detached Agent Toasts'],
+    },
   ];
 
   const handleEsc = useCallback(
@@ -49,14 +63,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
   );
 
   useEffect(() => {
-    if (open) {
-      document.addEventListener('keydown', handleEsc);
-      setSearchQuery('');
-      setActiveCategory('appearance');
-      // Focus search on open
-      setTimeout(() => searchRef.current?.focus(), 100);
-      return () => document.removeEventListener('keydown', handleEsc);
-    }
+    if (!open) return;
+    document.addEventListener('keydown', handleEsc);
+    setSearchQuery('');
+    setActiveCategory('appearance');
+    setTimeout(() => searchRef.current?.focus(), 100);
+    return () => document.removeEventListener('keydown', handleEsc);
   }, [open, handleEsc]);
 
   const scrollToSection = (sectionId: string) => {
@@ -74,7 +86,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
     scrollToSection(sectionId);
   };
 
-  // Filter sections by search
   const matchesSearch = (text: string) => {
     if (!searchQuery) return true;
     return text.toLowerCase().includes(searchQuery.toLowerCase());
@@ -87,23 +98,20 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
       ({ id, label, description }) =>
         matchesSearch(id) || matchesSearch(label) || matchesSearch(description),
     );
-  const showLanguage = matchesSearch(t('settings.language')) || matchesSearch('한국어') || matchesSearch('English');
+  const showLanguage = matchesSearch(t('settings.language')) || matchesSearch('�ѱ���') || matchesSearch('English');
+  const showDetachedAgentToasts =
+    matchesSearch('Detached Agent Toasts') ||
+    matchesSearch('Always Show') ||
+    matchesSearch('Only When Tab Inactive');
 
   if (!open) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 flex animate-in fade-in duration-200"
-      style={{ zIndex: 10000 }}
-    >
-      {/* Backdrop */}
+    <div className="fixed inset-0 flex animate-in fade-in duration-200" style={{ zIndex: 10000 }}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Panel */}
       <div className="relative z-10 m-auto flex h-[85vh] w-[min(90vw,900px)] overflow-hidden rounded-xl border border-subtle bg-surface-modal shadow-2xl ring-1 ring-black/10 animate-in zoom-in-95 duration-200">
-        {/* Left sidebar */}
         <div className="flex w-56 shrink-0 flex-col border-r border-subtle bg-surface-panel">
-          {/* Search */}
           <div className="p-3">
             <div className="flex items-center gap-2 rounded-md border border-subtle bg-surface-base px-3 py-1.5">
               <Search size={14} className="shrink-0 text-muted" />
@@ -118,7 +126,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
             </div>
           </div>
 
-          {/* Categories */}
           <nav className="flex-1 overflow-y-auto px-2 pb-3">
             {categories.map(({ key, icon: Icon, label, anchors }) => (
               <div key={key} className="mb-1">
@@ -133,7 +140,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                   <Icon size={16} />
                   {label}
                 </button>
-                {/* Anchors */}
                 {activeCategory === key && (
                   <div className="ml-5 mt-0.5 flex flex-col border-l border-subtle pl-3">
                     {anchors.map((anchor) => (
@@ -152,9 +158,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
           </nav>
         </div>
 
-        {/* Right content */}
         <div className="flex flex-1 flex-col">
-          {/* Header */}
           <div className="flex items-center justify-between border-b border-subtle px-6 py-4">
             <h2 className="text-lg font-semibold text-default">
               {categories.find((c) => c.key === activeCategory)?.label ?? t('settings.title')}
@@ -167,12 +171,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
             </button>
           </div>
 
-          {/* Scrollable content */}
           <div ref={contentRef} className="flex-1 overflow-y-auto px-6 py-5">
-            {/* Appearance section */}
             {(activeCategory === 'appearance' || searchQuery) && (
               <div data-section="appearance">
-                {/* Mode */}
                 {showMode && (
                   <section data-section={t('settings.mode').toLowerCase().replace(/\s+/g, '-')} className="mb-8">
                     <h3 className="text-base font-semibold text-default">{t('settings.mode')}</h3>
@@ -195,7 +196,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                   </section>
                 )}
 
-                {/* Theme */}
                 {showTheme && (
                   <section data-section={t('settings.theme').toLowerCase().replace(/\s+/g, '-')} className="mb-8">
                     <h3 className="text-base font-semibold text-default">{t('settings.theme')}</h3>
@@ -224,11 +224,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                           </div>
                           <div className="flex h-12 overflow-hidden rounded-lg border border-subtle">
                             {preview.map((color, index) => (
-                              <div
-                                key={`${id}-${index}`}
-                                className="flex-1"
-                                style={{ background: color }}
-                              />
+                              <div key={`${id}-${index}`} className="flex-1" style={{ background: color }} />
                             ))}
                           </div>
                         </button>
@@ -239,7 +235,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
               </div>
             )}
 
-            {/* Language section */}
             {(activeCategory === 'language' || searchQuery) && showLanguage && (
               <div data-section="language">
                 <section data-section={t('settings.language').toLowerCase().replace(/\s+/g, '-')} className="mb-8">
@@ -247,7 +242,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                   <p className="mb-4 text-sm text-secondary">{t('settings.languageDesc')}</p>
                   <div className="flex gap-3">
                     {([
-                      { key: 'ko' as const, label: '한국어' },
+                      { key: 'ko' as const, label: '�ѱ���' },
                       { key: 'en' as const, label: 'English' },
                     ]).map(({ key, label }) => (
                       <button
@@ -267,11 +262,39 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
               </div>
             )}
 
-            {/* No results */}
-            {searchQuery && !showMode && !showTheme && !showLanguage && (
+            {(activeCategory === 'notifications' || searchQuery) && showDetachedAgentToasts && (
+              <div data-section="notifications">
+                <section data-section="detached-agent-toasts" className="mb-8">
+                  <h3 className="text-base font-semibold text-default">Detached Agent Toasts</h3>
+                  <p className="mb-4 text-sm text-secondary">
+                    Choose when detached windows should also show agent-complete toast notifications. Main window toasts always remain enabled.
+                  </p>
+                  <div className="flex gap-3">
+                    {([
+                      { key: 'always' as const, label: 'Always Show' },
+                      { key: 'inactive-only' as const, label: 'Only When Tab Inactive' },
+                    ]).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
+                          detachedAgentToastMode === key
+                            ? 'border-accent bg-accent/10 text-accent'
+                            : 'border-subtle text-secondary hover:border-default hover:text-default'
+                        }`}
+                        onClick={() => setDetachedAgentToastMode(key)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {searchQuery && !showMode && !showTheme && !showLanguage && !showDetachedAgentToasts && (
               <div className="flex flex-col items-center justify-center py-16 text-muted">
                 <Search size={32} className="mb-3 opacity-40" />
-                <p className="text-sm">검색 결과가 없습니다</p>
+                <p className="text-sm">{t('common.noResults')}</p>
               </div>
             )}
           </div>
@@ -281,3 +304,4 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
     document.body,
   );
 }
+

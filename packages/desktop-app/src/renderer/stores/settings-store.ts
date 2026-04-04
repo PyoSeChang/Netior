@@ -54,15 +54,18 @@ const THEME_OPTIONS = [
 
 export type ThemeConcept = (typeof THEME_OPTIONS)[number]['id'];
 type ThemeMode = 'dark' | 'light';
+export type DetachedAgentToastMode = 'always' | 'inactive-only';
 
 interface SettingsStore {
   themeConcept: ThemeConcept;
   themeMode: ThemeMode;
   locale: Locale;
+  detachedAgentToastMode: DetachedAgentToastMode;
 
   setThemeConcept: (concept: ThemeConcept) => void;
   setThemeMode: (mode: ThemeMode) => void;
   setLocale: (locale: Locale) => void;
+  setDetachedAgentToastMode: (mode: DetachedAgentToastMode) => void;
 }
 
 function applyTheme(concept: string, mode: string) {
@@ -76,6 +79,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   themeConcept: 'forest',
   themeMode: 'dark',
   locale: 'ko',
+  detachedAgentToastMode: 'inactive-only',
 
   setThemeConcept: (concept) => {
     set({ themeConcept: concept });
@@ -88,4 +92,5 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   },
 
   setLocale: (locale) => set({ locale }),
+  setDetachedAgentToastMode: (mode) => set({ detachedAgentToastMode: mode }),
 }));

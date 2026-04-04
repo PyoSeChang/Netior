@@ -9,6 +9,7 @@ import { useDetachedShortcuts } from '../../shortcuts/useDetachedShortcuts';
 import { initDetachedBridge } from '../../lib/editor-state-bridge';
 import { useNetiorSync } from '../../hooks/useNetiorSync';
 import { getTabDragDataAsync, isTabDrag } from '../../hooks/useTabDrag';
+import { ToastContainer } from '../ui/Toast';
 
 interface DetachedEditorShellProps {
   hostId: string;
@@ -141,6 +142,7 @@ export function DetachedEditorShell({ hostId }: DetachedEditorShellProps): JSX.E
       </div>
 
       <CloseConfirmDialog />
+      <ToastContainer />
     </div>
   );
 }

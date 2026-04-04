@@ -6,9 +6,14 @@ import {
 } from './claude-terminal-tracker';
 import { showCustomToast } from '../components/ui/Toast';
 import { useEditorStore } from '../stores/editor-store';
+import { useSettingsStore } from '../stores/settings-store';
 
 type AgentProvider = 'claude' | 'codex';
 type AgentStatus = 'idle' | 'working';
+
+type WindowContext =
+  | { kind: 'main' }
+  | { kind: 'detached'; hostId: string };
 
 interface AgentTerminalSnapshot {
   provider: AgentProvider;
@@ -27,8 +32,6 @@ type AgentNotifierGlobal = {
   unsubscribers?: Array<() => void>;
 };
 
-// ── Unacknowledged notification queue ──
-
 interface UnacknowledgedEntry {
   tabId: string;
   provider: AgentProvider;
@@ -37,41 +40,43 @@ interface UnacknowledgedEntry {
 }
 
 const unacknowledgedQueue: UnacknowledgedEntry[] = [];
+const windowContext = getWindowContext();
 
-/** Remove an entry from the queue by tabId (e.g. when the tab is activated). */
+function getWindowContext(): WindowContext {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#/detached/')) return { kind: 'main' };
+
+  const match = hash.match(/^#\/detached\/([^/]+)$/);
+  return { kind: 'detached', hostId: decodeURIComponent(match?.[1] ?? '') };
+}
+
 export function acknowledgeAgent(tabId: string): void {
-  const idx = unacknowledgedQueue.findIndex((e) => e.tabId === tabId);
+  const idx = unacknowledgedQueue.findIndex((entry) => entry.tabId === tabId);
   if (idx >= 0) unacknowledgedQueue.splice(idx, 1);
 }
 
-/** Get the number of unacknowledged notifications. */
 export function getUnacknowledgedCount(): number {
   return unacknowledgedQueue.length;
 }
 
-/** Get a snapshot of the unacknowledged queue. */
 export function getUnacknowledgedEntries(): readonly UnacknowledgedEntry[] {
   return unacknowledgedQueue;
 }
 
-/** Jump to the oldest unacknowledged agent terminal and remove it from the queue. */
 export function jumpToNextUnacknowledgedAgent(): void {
   if (unacknowledgedQueue.length === 0) return;
+
   const entry = unacknowledgedQueue[0];
   const store = useEditorStore.getState();
-  const tab = store.tabs.find((t) => t.id === entry.tabId);
-  if (tab) {
-    // Activate in the correct host and set focus
-    store.setHostActiveTab(tab.hostId, tab.id);
-    store.setFocusedHost(tab.hostId);
-    // acknowledgeAgent will be called by the activeTabId listener
-  } else {
-    // Tab no longer exists — discard
+  const tab = store.tabs.find((candidate) => candidate.id === entry.tabId);
+  if (!tab) {
     unacknowledgedQueue.shift();
+    return;
   }
-}
 
-// ── Auto-acknowledge on tab activation ──
+  store.setHostActiveTab(tab.hostId, tab.id);
+  store.setFocusedHost(tab.hostId);
+}
 
 let activeTabListenerInitialized = false;
 
@@ -83,13 +88,11 @@ function initActiveTabListener(): void {
   let prevHostActiveTabIds: Record<string, string | null> = {};
 
   useEditorStore.subscribe((state) => {
-    // Main host active tab
     if (state.activeTabId !== prevActiveTabId) {
       prevActiveTabId = state.activeTabId;
       if (state.activeTabId) acknowledgeAgent(state.activeTabId);
     }
 
-    // Detached host active tabs
     for (const [hostId, host] of Object.entries(state.hosts)) {
       if (host.activeTabId !== prevHostActiveTabIds[hostId]) {
         prevHostActiveTabIds[hostId] = host.activeTabId;
@@ -97,14 +100,11 @@ function initActiveTabListener(): void {
       }
     }
 
-    // Clean up removed hosts
     for (const hostId of Object.keys(prevHostActiveTabIds)) {
       if (!state.hosts[hostId]) delete prevHostActiveTabIds[hostId];
     }
   });
 }
-
-// ── Core notifier logic ──
 
 const previousStatuses = new Map<string, AgentStatus>();
 const agentNotifierGlobal = window as Window & { __netiorAgentNotifier?: AgentNotifierGlobal };
@@ -146,33 +146,46 @@ function getProviderLabel(provider: AgentProvider): string {
 
 function isTabActiveInHost(tabId: string): boolean {
   const store = useEditorStore.getState();
-  const tab = store.tabs.find((t) => t.id === tabId);
+  const tab = store.tabs.find((candidate) => candidate.id === tabId);
   if (!tab) return false;
 
   if (tab.hostId === 'main') {
     return store.activeTabId === tabId;
   }
+
   const host = store.hosts[tab.hostId];
   return host?.activeTabId === tabId;
+}
+
+function shouldShowDetachedToast(tabHostId: string, tabId: string): boolean {
+  if (windowContext.kind !== 'detached') return false;
+  if (windowContext.hostId !== tabHostId) return false;
+
+  const mode = useSettingsStore.getState().detachedAgentToastMode;
+  if (mode === 'always') return true;
+  return !isTabActiveInHost(tabId);
+}
+
+function shouldShowToast(tabHostId: string, tabId: string): boolean {
+  if (windowContext.kind === 'main') return true;
+  return shouldShowDetachedToast(tabHostId, tabId);
 }
 
 function maybeNotify(snapshot: AgentTerminalSnapshot): void {
   const tabId = getTerminalTabId(snapshot.terminalSessionId);
   const store = useEditorStore.getState();
-
-  // If the tab is already active in its host, no notification needed
-  if (isTabActiveInHost(tabId)) return;
-
   const tab = store.tabs.find((entry) => entry.id === tabId);
   const title = snapshot.terminalName || tab?.title || `${getProviderLabel(snapshot.provider)} Terminal`;
+  const isActive = isTabActiveInHost(tabId);
 
-  // Add to unacknowledged queue (avoid duplicates)
-  if (!unacknowledgedQueue.find((e) => e.tabId === tabId)) {
+  if (!tab) return;
+  if (!shouldShowToast(tab.hostId, tabId)) return;
+
+  if (!isActive && !unacknowledgedQueue.find((entry) => entry.tabId === tabId)) {
     unacknowledgedQueue.push({ tabId, provider: snapshot.provider, title, timestamp: Date.now() });
   }
 
-  // Toast always shows latest only; count excludes the current notification
-  const otherUnread = unacknowledgedQueue.length - 1;
+  const otherUnread = isActive ? unacknowledgedQueue.length : Math.max(unacknowledgedQueue.length - 1, 0);
   const message = otherUnread > 0
     ? `${getProviderLabel(snapshot.provider)} finished responding. (${otherUnread} more unread)`
     : `${getProviderLabel(snapshot.provider)} finished responding.`;
@@ -183,12 +196,10 @@ function maybeNotify(snapshot: AgentTerminalSnapshot): void {
     message,
     duration: 5000,
     icon: snapshot.provider === 'claude' ? <ClaudeIcon /> : undefined,
-    actionLabel: '해당 탭으로 이동하기 (Ctrl+.)',
+    actionLabel: 'Go to Agent (Ctrl+.)',
     onAction: () => {
-      if (tab) {
-        store.setHostActiveTab(tab.hostId, tab.id);
-        store.setFocusedHost(tab.hostId);
-      }
+      store.setHostActiveTab(tab.hostId, tab.id);
+      store.setFocusedHost(tab.hostId);
     },
   });
 }

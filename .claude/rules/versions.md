@@ -27,9 +27,9 @@ packages:
     impact: local
     contracts: []
   desktop-app:
-    version: "0.5.1"
+    version: "0.5.2"
     type: patch
-    summary: "detached 에디터 워크스페이스를 멀티 윈도우 호스트로 정리하고 탭 이동 및 터미널 재부착 동작을 안정화"
+    summary: "메인 허브와 분리 창의 에이전트 토스트 동작을 분리하고 detached 알림 설정을 추가"
     impact: local
     contracts: []
   narre-eval:

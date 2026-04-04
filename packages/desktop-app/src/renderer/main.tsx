@@ -11,13 +11,13 @@ import './styles/globals.css';
 const hash = window.location.hash;
 const isDetached = hash.startsWith('#/detached/');
 
-// Main-window-only module-level inits.
-// MUST NOT run in detached windows — initMainBridge pushes Zustand store to
-// main process cache, which would overwrite the correct state with empty state.
+initTerminalTracker();
+initClaudeTerminalTracker();
+initTerminalAgentNotifier();
+
+// Main-window-only module-level init.
+// Detached windows must not push their local store as the shared source of truth.
 if (!isDetached) {
-  initTerminalTracker();
-  initClaudeTerminalTracker();
-  initTerminalAgentNotifier();
   initMainBridge();
 }
 
