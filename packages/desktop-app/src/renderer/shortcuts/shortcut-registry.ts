@@ -103,6 +103,16 @@ export const SHORTCUT_REGISTRY: ShortcutDefinition[] = [
     implemented: true,
   },
   {
+    id: 'shortcut.global.jumpToLastAgent',
+    labelKey: 'shortcuts.items.global.jumpToLastAgentLabel',
+    descriptionKey: 'shortcuts.items.global.jumpToLastAgent',
+    keybinding: 'Ctrl/Cmd+.',
+    scope: 'global',
+    owner: 'globalDispatcher',
+    priority: 'global',
+    implemented: true,
+  },
+  {
     id: 'shortcut.global.nextPane',
     labelKey: 'shortcuts.items.global.nextPaneLabel',
     descriptionKey: 'shortcuts.items.global.nextPane',

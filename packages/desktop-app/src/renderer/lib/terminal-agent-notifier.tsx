@@ -27,6 +27,66 @@ type AgentNotifierGlobal = {
   unsubscribers?: Array<() => void>;
 };
 
+// ── Unacknowledged notification queue ──
+
+interface UnacknowledgedEntry {
+  tabId: string;
+  provider: AgentProvider;
+  title: string;
+  timestamp: number;
+}
+
+const unacknowledgedQueue: UnacknowledgedEntry[] = [];
+
+/** Remove an entry from the queue by tabId (e.g. when the tab is activated). */
+export function acknowledgeAgent(tabId: string): void {
+  const idx = unacknowledgedQueue.findIndex((e) => e.tabId === tabId);
+  if (idx >= 0) unacknowledgedQueue.splice(idx, 1);
+}
+
+/** Get the number of unacknowledged notifications. */
+export function getUnacknowledgedCount(): number {
+  return unacknowledgedQueue.length;
+}
+
+/** Get a snapshot of the unacknowledged queue. */
+export function getUnacknowledgedEntries(): readonly UnacknowledgedEntry[] {
+  return unacknowledgedQueue;
+}
+
+/** Jump to the oldest unacknowledged agent terminal and remove it from the queue. */
+export function jumpToNextUnacknowledgedAgent(): void {
+  if (unacknowledgedQueue.length === 0) return;
+  const entry = unacknowledgedQueue[0];
+  const { tabs, setActiveTab } = useEditorStore.getState();
+  if (tabs.find((t) => t.id === entry.tabId)) {
+    setActiveTab(entry.tabId);
+    // acknowledgeAgent will be called by the activeTabId listener
+  } else {
+    // Tab no longer exists — discard
+    unacknowledgedQueue.shift();
+  }
+}
+
+// ── Auto-acknowledge on tab activation ──
+
+let activeTabListenerInitialized = false;
+
+function initActiveTabListener(): void {
+  if (activeTabListenerInitialized) return;
+  activeTabListenerInitialized = true;
+
+  let prevActiveTabId: string | null = null;
+  useEditorStore.subscribe((state) => {
+    if (state.activeTabId !== prevActiveTabId) {
+      prevActiveTabId = state.activeTabId;
+      if (state.activeTabId) acknowledgeAgent(state.activeTabId);
+    }
+  });
+}
+
+// ── Core notifier logic ──
+
 const previousStatuses = new Map<string, AgentStatus>();
 const agentNotifierGlobal = window as Window & { __netiorAgentNotifier?: AgentNotifierGlobal };
 agentNotifierGlobal.__netiorAgentNotifier ??= {};
@@ -68,18 +128,31 @@ function getProviderLabel(provider: AgentProvider): string {
 function maybeNotify(snapshot: AgentTerminalSnapshot): void {
   const tabId = getTerminalTabId(snapshot.terminalSessionId);
   const { activeTabId, tabs, setActiveTab } = useEditorStore.getState();
+
+  // If the tab is already active, no notification needed
   if (activeTabId === tabId) return;
 
   const tab = tabs.find((entry) => entry.id === tabId);
   const title = snapshot.terminalName || tab?.title || `${getProviderLabel(snapshot.provider)} Terminal`;
 
+  // Add to unacknowledged queue (avoid duplicates)
+  if (!unacknowledgedQueue.find((e) => e.tabId === tabId)) {
+    unacknowledgedQueue.push({ tabId, provider: snapshot.provider, title, timestamp: Date.now() });
+  }
+
+  // Toast always shows latest only; count excludes the current notification
+  const otherUnread = unacknowledgedQueue.length - 1;
+  const message = otherUnread > 0
+    ? `${getProviderLabel(snapshot.provider)} finished responding. (${otherUnread} more unread)`
+    : `${getProviderLabel(snapshot.provider)} finished responding.`;
+
   showCustomToast({
     type: 'info',
     title,
-    message: `${getProviderLabel(snapshot.provider)} finished responding.`,
+    message,
     duration: 5000,
     icon: snapshot.provider === 'claude' ? <ClaudeIcon /> : undefined,
-    actionLabel: '해당 탭으로 이동하기',
+    actionLabel: '해당 탭으로 이동하기 (Ctrl+.)',
     onAction: () => {
       if (tab) setActiveTab(tab.id);
     },
@@ -114,6 +187,8 @@ export function initTerminalAgentNotifier(): void {
 
   const unsubscribers: Array<() => void> = [];
   agentNotifierGlobal.__netiorAgentNotifier = { initialized: true, unsubscribers };
+
+  initActiveTabListener();
 
   for (const source of SOURCES) {
     processSnapshots(source.getSnapshots());

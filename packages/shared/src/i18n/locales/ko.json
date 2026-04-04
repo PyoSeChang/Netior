@@ -285,6 +285,8 @@
         "previousTab": "이전 탭으로 전환",
         "openTabByIndexLabel": "번호로 탭 열기",
         "openTabByIndex": "번호로 탭 전환, 9는 마지막 탭 열기",
+        "jumpToLastAgentLabel": "마지막 에이전트로 이동",
+        "jumpToLastAgent": "에이전트가 마지막으로 응답을 완료한 터미널로 이동",
         "nextPaneLabel": "다음 패인",
         "nextPane": "다음 패인으로 이동",
         "previousPaneLabel": "이전 패인",

@@ -3,6 +3,7 @@ import { useEditorStore, getActiveLeaf, collectLeaves } from '../stores/editor-s
 import { getSession } from '../lib/editor-session-registry';
 import { useProjectStore } from '../stores/project-store';
 import { useUIStore } from '../stores/ui-store';
+import { jumpToNextUnacknowledgedAgent } from '../lib/terminal-agent-notifier';
 import { isEditableTarget, isPrimaryModifier, logShortcut } from './shortcut-utils';
 
 export function cycleTab(direction: 1 | -1): void {
@@ -107,6 +108,12 @@ export function useGlobalShortcuts(): void {
         cyclePane(-1);
         return;
       }
+
+      if (shortcut === 'jumpToLastAgent') {
+        logShortcut('shortcut.global.jumpToLastAgent');
+        jumpToNextUnacknowledgedAgent();
+        return;
+      }
     };
 
     const handler = (event: KeyboardEvent) => {
@@ -160,6 +167,13 @@ export function useGlobalShortcuts(): void {
         event.preventDefault();
         logShortcut('shortcut.global.openTerminal');
         openTerminalTab();
+        return;
+      }
+
+      if (!event.shiftKey && !event.altKey && key === '.') {
+        event.preventDefault();
+        logShortcut('shortcut.global.jumpToLastAgent');
+        jumpToNextUnacknowledgedAgent();
         return;
       }
 

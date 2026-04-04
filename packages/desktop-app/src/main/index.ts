@@ -130,6 +130,12 @@ function createWindow(): void {
         return;
       }
 
+      if (!input.alt && !input.shift && input.key === '.') {
+        event.preventDefault();
+        mainWindow!.webContents.send('app:shortcut', 'jumpToLastAgent');
+        return;
+      }
+
       if (input.alt && !input.shift && (input.key === 'ArrowRight' || input.key === 'ArrowLeft')) {
         event.preventDefault();
         mainWindow!.webContents.send('app:shortcut', input.key === 'ArrowRight' ? 'nextPane' : 'previousPane');
