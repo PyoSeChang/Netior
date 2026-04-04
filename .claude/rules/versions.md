@@ -15,11 +15,11 @@ packages:
     impact: local
     contracts: []
   mcp:
-    version: "0.1.0"
+    version: "0.2.0"
     type: minor
-    summary: "MCP 서버 초기 구현 - 17개 타입 시스템 도구 + 6개 파일시스템 도구"
-    impact: local
-    contracts: []
+    summary: "PDF TOC 추출/저장 도구 4개 추가, path validation 리팩터링"
+    impact: cross-package
+    contracts: [tooling]
   narre-server:
     version: "0.1.0"
     type: minor
