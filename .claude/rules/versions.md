@@ -3,9 +3,9 @@
 ```yaml
 packages:
   shared:
-    version: "0.3.0"
+    version: "0.4.0"
     type: minor
-    summary: "PDF TOC 타입, PDF 뷰어/EdgePanel i18n 키 추가"
+    summary: "패인 전환, 에이전트 점프 단축키 i18n 키 추가"
     impact: local
     contracts: []
   core:
@@ -27,9 +27,9 @@ packages:
     impact: local
     contracts: []
   desktop-app:
-    version: "0.4.0"
+    version: "0.5.0"
     type: minor
-    summary: "PDF 뷰어 대폭 개선, EdgePanel 공통 컴포넌트, 에디터 뷰 상태 보존 시스템"
+    summary: "패인 인식 탭 단축키, 활성 패인 UI, 에디터 포커스, 에이전트 알림 큐"
     impact: local
     contracts: []
   narre-eval:
