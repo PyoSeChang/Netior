@@ -16,10 +16,12 @@ import { initTerminalTracker } from './lib/terminal-tracker';
 import { initClaudeTerminalTracker } from './lib/claude-terminal-tracker';
 import { initTerminalAgentNotifier } from './lib/terminal-agent-notifier';
 import { useGlobalShortcuts } from './shortcuts/useGlobalShortcuts';
+import { initMainBridge } from './lib/editor-state-bridge';
 
 initTerminalTracker();
 initClaudeTerminalTracker();
 initTerminalAgentNotifier();
+initMainBridge();
 
 function NetiorTitleMark(): JSX.Element {
   return (

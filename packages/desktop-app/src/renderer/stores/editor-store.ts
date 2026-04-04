@@ -76,7 +76,7 @@ interface EditorStore {
   removeHost: (hostId: string) => void;
   detachTab: (tabId: string) => string;
   reattachTab: (tabId: string) => void;
-  moveTabToHost: (tabId: string, targetHostId: string) => void;
+  moveTabToHost: (tabId: string, targetHostId: string, viewMode?: EditorViewMode) => void;
   setHostActiveTab: (hostId: string, tabId: string) => void;
   getHostTabs: (hostId: string) => EditorTab[];
   setFocusedHost: (hostId: string) => void;
@@ -934,7 +934,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     get().moveTabToHost(tabId, MAIN_HOST_ID);
   },
 
-  moveTabToHost: (tabId, targetHostId) => {
+  moveTabToHost: (tabId, targetHostId, viewMode) => {
     const tab = get().tabs.find((t) => t.id === tabId);
     if (!tab || tab.hostId === targetHostId) return;
 
@@ -989,11 +989,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
         const tabUpdate: Partial<EditorTab> = { hostId: targetHostId };
         if (targetHostId === MAIN_HOST_ID) {
-          // Determine view mode for main
-          const mainTabs = s.tabs.filter((t) => t.hostId === MAIN_HOST_ID);
-          const hasFull = mainTabs.some((t) => t.viewMode === 'full' && !t.isMinimized);
-          const hasSide = mainTabs.some((t) => t.viewMode === 'side' && !t.isMinimized);
-          tabUpdate.viewMode = hasFull ? 'full' : hasSide ? 'side' : 'side';
+          if (viewMode && viewMode !== 'detached') {
+            tabUpdate.viewMode = viewMode;
+          } else {
+            // Determine view mode for main based on what's currently open
+            const mainTabs = s.tabs.filter((t) => t.hostId === MAIN_HOST_ID);
+            const hasFull = mainTabs.some((t) => t.viewMode === 'full' && !t.isMinimized);
+            const hasSide = mainTabs.some((t) => t.viewMode === 'side' && !t.isMinimized);
+            tabUpdate.viewMode = hasFull ? 'full' : hasSide ? 'side' : 'side';
+          }
         }
 
         const updatedTabs = s.tabs.map((t) => (t.id === tabId ? { ...t, ...tabUpdate } : t));

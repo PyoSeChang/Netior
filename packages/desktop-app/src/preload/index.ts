@@ -281,6 +281,14 @@ const electronAPI = {
       ipcRenderer.on('editor:reattach-to-mode', handler);
       return () => { ipcRenderer.removeListener('editor:reattach-to-mode', handler); };
     },
+    // Cross-window state sync
+    pushState: (state: unknown) => ipcRenderer.send('editor:pushState', state),
+    getState: () => ipcRenderer.invoke('editor:getState') as Promise<unknown>,
+    onStateSync: (callback: (state: unknown) => void) => {
+      const handler = (_event: IpcRendererEvent, state: unknown) => callback(state);
+      ipcRenderer.on('editor:syncState', handler);
+      return () => { ipcRenderer.removeListener('editor:syncState', handler); };
+    },
   },
 };
 

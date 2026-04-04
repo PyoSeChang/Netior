@@ -32,16 +32,18 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
   } = useEditorStore();
   const { sidebarOpen, setSidebarWidth } = useUIStore();
 
-  // Listen for detached window close events (host-level)
+  // Listen for detached window close events (host-level).
+  // Window close semantics: closing a detached window destroys its tabs,
+  // similar to closing a browser window. This is intentional — the user
+  // explicitly closes the OS window, and tabs are not silently reattached
+  // to main. Use "Move to Main Window" to preserve tabs before closing.
   useEffect(() => {
     const cleanupClosed = window.electron.editor.onDetachedClosed((hostId: string) => {
       const store = useEditorStore.getState();
       const hostTabs = store.tabs.filter((t) => t.hostId === hostId);
-      // Close all tabs in the closed host
       for (const tab of hostTabs) {
         store.closeTab(tab.id);
       }
-      // Clean up host entry if still present
       if (store.hosts[hostId]) {
         store.removeHost(hostId);
       }

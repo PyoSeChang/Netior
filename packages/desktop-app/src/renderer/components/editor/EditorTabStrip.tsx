@@ -14,6 +14,8 @@ interface EditorTabStripProps {
   activeTabId: string | null;
   /** Whether this pane is the globally focused pane */
   isFocusedPane?: boolean;
+  /** Host id for context menu actions (defaults to main) */
+  hostId?: string;
   onActivate: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onTabDrop?: (tabId: string) => void;
@@ -168,7 +170,7 @@ function InlineRenameInput({ value, onSubmit, onCancel }: { value: string; onSub
   );
 }
 
-export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, onActivate, onClose, onTabDrop, rightSlot }: EditorTabStripProps): JSX.Element {
+export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, hostId, onActivate, onClose, onTabDrop, rightSlot }: EditorTabStripProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: ContextMenuEntry[] } | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
@@ -209,8 +211,8 @@ export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, onActi
 
   const handleStripContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    setCtxMenu({ x: e.clientX, y: e.clientY, items: buildStripContextMenu(tabs) });
-  }, [tabs]);
+    setCtxMenu({ x: e.clientX, y: e.clientY, items: buildStripContextMenu(tabs, hostId) });
+  }, [tabs, hostId]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!isTabDrag(e)) return;

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { EditorViewMode } from '@netior/shared/types';
 import { EditorContent } from './EditorContent';
 import { EditorTabStrip } from './EditorTabStrip';
@@ -7,12 +7,25 @@ import { CloseConfirmDialog } from './CloseConfirmDialog';
 import { WindowControls } from '../ui/WindowControls';
 import { useEditorStore, MAIN_HOST_ID } from '../../stores/editor-store';
 import { useDetachedShortcuts } from '../../shortcuts/useDetachedShortcuts';
+import { initDetachedBridge } from '../../lib/editor-state-bridge';
 
 interface DetachedEditorShellProps {
   hostId: string;
 }
 
 export function DetachedEditorShell({ hostId }: DetachedEditorShellProps): JSX.Element {
+  const [ready, setReady] = useState(false);
+
+  // Bootstrap: fetch state from main window via IPC before rendering
+  useEffect(() => {
+    let cleanup: (() => void) | null = null;
+    initDetachedBridge().then((c) => {
+      cleanup = c;
+      setReady(true);
+    });
+    return () => cleanup?.();
+  }, []);
+
   const tabs = useEditorStore((s) => s.tabs.filter((t) => t.hostId === hostId));
   const host = useEditorStore((s) => s.hosts[hostId]);
   const activeTabId = host?.activeTabId ?? null;
@@ -30,18 +43,26 @@ export function DetachedEditorShell({ hostId }: DetachedEditorShellProps): JSX.E
     return () => window.removeEventListener('focus', onFocus);
   }, [hostId]);
 
-  // If host is removed (all tabs closed), close the window
+  // If host is removed (all tabs closed via sync), close the window
   useEffect(() => {
-    if (!host && tabs.length === 0) {
+    if (ready && !host && tabs.length === 0) {
       window.close();
     }
-  }, [host, tabs.length]);
+  }, [ready, host, tabs.length]);
 
   const handleModeChange = (mode: EditorViewMode) => {
     if (mode === 'detached' || !activeTab) return;
-    // Reattach: move tab to main host
-    moveTabToHost(activeTab.id, MAIN_HOST_ID);
+    // Move tab to main host with the user's selected view mode
+    moveTabToHost(activeTab.id, MAIN_HOST_ID, mode);
   };
+
+  if (!ready) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-surface-panel">
+        <span className="text-xs text-muted">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen flex-col bg-surface-panel">
@@ -57,6 +78,7 @@ export function DetachedEditorShell({ hostId }: DetachedEditorShellProps): JSX.E
           <EditorTabStrip
             tabs={tabs}
             activeTabId={activeTabId}
+            hostId={hostId}
             onActivate={(tabId) => setHostActiveTab(hostId, tabId)}
             onClose={requestCloseTab}
             rightSlot={
