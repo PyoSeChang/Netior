@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { SplitLeaf, EditorTab } from '@netior/shared/types';
-import { useEditorStore } from '../../../stores/editor-store';
+import { useEditorStore, collectLeaves } from '../../../stores/editor-store';
 import { EditorViewModeSwitch } from '../EditorViewModeSwitch';
 import { EditorContent } from '../EditorContent';
 import { EditorTabStrip } from '../EditorTabStrip';
@@ -28,12 +28,22 @@ export function FullModeEditor(): JSX.Element | null {
         .map((id) => tabs.find((t) => t.id === id))
         .filter((t): t is EditorTab => t != null);
       const activeTab = leafTabs.find((t) => t.id === leaf.activeTabId) ?? leafTabs[0];
+      const isActivePane = leaf.tabIds.includes(activeTabId!);
+      const isMultiPane = fullLayout ? collectLeaves(fullLayout).length > 1 : false;
 
       return (
-        <div className="flex h-full flex-col overflow-hidden">
+        <div
+          className={`flex h-full flex-col overflow-hidden ${isMultiPane && isActivePane ? 'ring-1 ring-accent/50' : ''}`}
+          onMouseDown={() => {
+            if (!leaf.tabIds.includes(activeTabId!)) {
+              setActiveTab(leaf.activeTabId);
+            }
+          }}
+        >
           <EditorTabStrip
             tabs={leafTabs}
             activeTabId={leaf.activeTabId}
+            isFocusedPane={isActivePane}
             onActivate={setActiveTab}
             onClose={requestCloseTab}
             onTabDrop={(droppedId) => moveTabToPane(droppedId, leaf.activeTabId, 'full')}
@@ -65,7 +75,7 @@ export function FullModeEditor(): JSX.Element | null {
         </div>
       );
     },
-    [tabs, isDragging, setActiveTab, requestCloseTab, setViewMode, toggleMinimize, moveTabToPane, splitTab],
+    [tabs, isDragging, activeTabId, fullLayout, setActiveTab, requestCloseTab, setViewMode, toggleMinimize, moveTabToPane, splitTab],
   );
 
   if (!fullLayout) return null;

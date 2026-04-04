@@ -98,6 +98,33 @@ function getFirstLeaf(node: SplitNode): SplitLeaf {
   return getFirstLeaf(node.children[0]);
 }
 
+function getLastLeaf(node: SplitNode): SplitLeaf {
+  if (node.type === 'leaf') return node;
+  return getLastLeaf(node.children[1]);
+}
+
+/** Collect all leaves in document order (left→right, top→bottom) */
+export function collectLeaves(node: SplitNode): SplitLeaf[] {
+  if (node.type === 'leaf') return [node];
+  return [...collectLeaves(node.children[0]), ...collectLeaves(node.children[1])];
+}
+
+/** Get the leaf containing activeTabId from the active layout, or null (float/detached) */
+export function getActiveLeaf(): { leaf: SplitLeaf; mode: 'side' | 'full' } | null {
+  const { activeTabId, sideLayout, fullLayout } = useEditorStore.getState();
+  if (!activeTabId) return null;
+
+  if (sideLayout) {
+    const leaf = findLeafWithTab(sideLayout, activeTabId);
+    if (leaf) return { leaf, mode: 'side' };
+  }
+  if (fullLayout) {
+    const leaf = findLeafWithTab(fullLayout, activeTabId);
+    if (leaf) return { leaf, mode: 'full' };
+  }
+  return null;
+}
+
 /** Returns the focused tab id in the layout (global active if present, else first leaf's active) */
 export function getActiveTabFromLayout(layout: SplitNode, globalActiveTabId: string | null): string {
   if (globalActiveTabId && containsTab(layout, globalActiveTabId)) {
@@ -118,30 +145,41 @@ function setActiveInLeaf(node: SplitNode, tabId: string): SplitNode {
   return { ...node, children: newChildren };
 }
 
-/** Remove a tab from the tree. If a leaf becomes empty, collapse it. */
-function removeTabFromTree(node: SplitNode, tabId: string): SplitNode | null {
+interface RemoveResult {
+  tree: SplitNode | null;
+  fallbackTabId: string | null;
+}
+
+/** Remove a tab from the tree. If a leaf becomes empty, collapse it. Returns fallback tab for active selection. */
+function removeTabFromTree(node: SplitNode, tabId: string): RemoveResult {
   if (node.type === 'leaf') {
-    if (!node.tabIds.includes(tabId)) return node;
+    if (!node.tabIds.includes(tabId)) return { tree: node, fallbackTabId: null };
     const newTabIds = node.tabIds.filter((id) => id !== tabId);
-    if (newTabIds.length === 0) return null;
+    if (newTabIds.length === 0) return { tree: null, fallbackTabId: null };
+    const newActiveTabId = node.activeTabId === tabId ? newTabIds[newTabIds.length - 1] : node.activeTabId;
     return {
-      ...node,
-      tabIds: newTabIds,
-      activeTabId: node.activeTabId === tabId ? newTabIds[newTabIds.length - 1] : node.activeTabId,
+      tree: { ...node, tabIds: newTabIds, activeTabId: newActiveTabId },
+      fallbackTabId: newActiveTabId,
     };
   }
   const [left, right] = node.children;
-  const newLeft = removeTabFromTree(left, tabId);
-  if (newLeft !== left) {
-    if (!newLeft) return right;
-    return { ...node, children: [newLeft, right] };
+  const leftResult = removeTabFromTree(left, tabId);
+  if (leftResult.tree !== left) {
+    if (!leftResult.tree) {
+      // Left leaf collapsed — fallback to right side's first leaf
+      return { tree: right, fallbackTabId: leftResult.fallbackTabId ?? getFirstLeaf(right).activeTabId };
+    }
+    return { tree: { ...node, children: [leftResult.tree, right] }, fallbackTabId: leftResult.fallbackTabId };
   }
-  const newRight = removeTabFromTree(right, tabId);
-  if (newRight !== right) {
-    if (!newRight) return left;
-    return { ...node, children: [left, newRight] };
+  const rightResult = removeTabFromTree(right, tabId);
+  if (rightResult.tree !== right) {
+    if (!rightResult.tree) {
+      // Right leaf collapsed — fallback to left side's nearest (last) leaf
+      return { tree: left, fallbackTabId: rightResult.fallbackTabId ?? getLastLeaf(left).activeTabId };
+    }
+    return { tree: { ...node, children: [left, rightResult.tree] }, fallbackTabId: rightResult.fallbackTabId };
   }
-  return node;
+  return { tree: node, fallbackTabId: null };
 }
 
 /** Add a tab to the leaf identified by targetLeafTabId */
@@ -214,10 +252,10 @@ function setLayoutForMode(mode: EditorViewMode, layout: SplitNode | null): Parti
 function removeFromLayout(state: EditorStore, oldMode: EditorViewMode, tabId: string): Partial<EditorStore> {
   const update: Partial<EditorStore> = {};
   if (oldMode === 'side' && state.sideLayout && containsTab(state.sideLayout, tabId)) {
-    update.sideLayout = removeTabFromTree(state.sideLayout, tabId);
+    update.sideLayout = removeTabFromTree(state.sideLayout, tabId).tree;
   }
   if (oldMode === 'full' && state.fullLayout && containsTab(state.fullLayout, tabId)) {
-    update.fullLayout = removeTabFromTree(state.fullLayout, tabId);
+    update.fullLayout = removeTabFromTree(state.fullLayout, tabId).tree;
   }
   return update;
 }
@@ -344,22 +382,28 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     clearDraftCache(tabId);
     clearViewState(tabId);
 
-    // Remove from layout trees
+    // Remove from layout trees, collecting pane-local fallback
     const layoutUpdate: Partial<EditorStore> = {};
+    let paneFallbackTabId: string | null = null;
     const { sideLayout, fullLayout } = get();
     if (sideLayout && containsTab(sideLayout, tabId)) {
-      layoutUpdate.sideLayout = removeTabFromTree(sideLayout, tabId);
+      const result = removeTabFromTree(sideLayout, tabId);
+      layoutUpdate.sideLayout = result.tree;
+      paneFallbackTabId = result.fallbackTabId;
     }
     if (fullLayout && containsTab(fullLayout, tabId)) {
-      layoutUpdate.fullLayout = removeTabFromTree(fullLayout, tabId);
+      const result = removeTabFromTree(fullLayout, tabId);
+      layoutUpdate.fullLayout = result.tree;
+      paneFallbackTabId = result.fallbackTabId;
     }
 
     set((s) => {
       const tabs = s.tabs.filter((t) => t.id !== tabId);
-      const activeTabId =
-        s.activeTabId === tabId
-          ? tabs.length > 0 ? tabs[tabs.length - 1].id : null
-          : s.activeTabId;
+      let activeTabId = s.activeTabId;
+      if (activeTabId === tabId) {
+        // Prefer pane-local fallback, then global last tab
+        activeTabId = paneFallbackTabId ?? (tabs.length > 0 ? tabs[tabs.length - 1].id : null);
+      }
       return { ...layoutUpdate, tabs, activeTabId };
     });
   },
@@ -531,8 +575,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     if (mode === 'side' || mode === 'full') {
       const layout = getLayoutForMode(get(), mode);
       if (layout && containsTab(layout, tabId)) {
-        const newLayout = removeTabFromTree(layout, tabId);
-        layoutUpdate = setLayoutForMode(mode, newLayout);
+        layoutUpdate = setLayoutForMode(mode, removeTabFromTree(layout, tabId).tree);
       }
     }
 
@@ -656,9 +699,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     // Remove newTab from this layout if already present (it gets its own leaf)
     if (containsTab(layout, newTabId)) {
-      const result = removeTabFromTree(layout, newTabId);
-      if (!result) return;
-      layout = result;
+      const { tree } = removeTabFromTree(layout, newTabId);
+      if (!tree) return;
+      layout = tree;
     }
 
     // Remove from old mode's layout if different
@@ -695,9 +738,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     // Remove from current position in same layout (if present, e.g. moving between panes)
     if (containsTab(layout, tabId)) {
-      const result = removeTabFromTree(layout, tabId);
-      if (!result) return;
-      layout = result;
+      const { tree } = removeTabFromTree(layout, tabId);
+      if (!tree) return;
+      layout = tree;
     }
 
     // Add to target leaf

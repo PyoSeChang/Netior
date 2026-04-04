@@ -284,7 +284,13 @@
         "previousTabLabel": "Previous Tab",
         "previousTab": "Activate the previous tab",
         "openTabByIndexLabel": "Open Tab by Number",
-        "openTabByIndex": "Activate a tab by index; 9 opens the last tab"
+        "openTabByIndex": "Activate a tab by index; 9 opens the last tab",
+        "jumpToLastAgentLabel": "Jump to Last Agent",
+        "jumpToLastAgent": "Jump to the terminal where an agent last finished responding",
+        "nextPaneLabel": "Next Pane",
+        "nextPane": "Move focus to the next pane",
+        "previousPaneLabel": "Previous Pane",
+        "previousPane": "Move focus to the previous pane"
       },
       "fileTree": {
         "openSelectionLabel": "Open Selection",

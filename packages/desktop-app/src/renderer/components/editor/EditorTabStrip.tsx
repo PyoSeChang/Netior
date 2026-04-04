@@ -12,6 +12,8 @@ import { getClaudeTerminalState, getClaudeTrackerVersion, subscribeClaudeTracker
 interface EditorTabStripProps {
   tabs: EditorTab[];
   activeTabId: string | null;
+  /** Whether this pane is the globally focused pane */
+  isFocusedPane?: boolean;
   onActivate: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onTabDrop?: (tabId: string) => void;
@@ -83,6 +85,7 @@ function TabStatus({ tab, claudeState }: { tab: EditorTab; claudeState: ClaudeTe
 interface TabItemProps {
   tab: EditorTab;
   isActive: boolean;
+  isFocusedPane: boolean;
   isRenaming: boolean;
   onActivate: (tabId: string) => void;
   onClose: (tabId: string) => void;
@@ -92,7 +95,7 @@ interface TabItemProps {
   activeRef: React.RefObject<HTMLDivElement>;
 }
 
-function TabItem({ tab, isActive, isRenaming, onActivate, onClose, onContextMenu, onRenameSubmit, onRenameCancel, activeRef }: TabItemProps): JSX.Element {
+function TabItem({ tab, isActive, isFocusedPane, isRenaming, onActivate, onClose, onContextMenu, onRenameSubmit, onRenameCancel, activeRef }: TabItemProps): JSX.Element {
   const claudeState = useClaudeState(tab.targetId);
   const label = (tab.type === 'terminal' && claudeState?.sessionName) ? claudeState.sessionName : tab.title;
 
@@ -103,7 +106,9 @@ function TabItem({ tab, isActive, isRenaming, onActivate, onClose, onContextMenu
       onDragStart={(e) => setTabDragData(e, tab.id)}
       className={`group flex shrink-0 cursor-pointer items-center gap-1.5 px-3 text-xs transition-colors ${
         isActive
-          ? 'tab-active bg-surface-panel text-default border-t border-l border-r border-default'
+          ? `tab-active bg-surface-panel text-default border-l border-r border-default ${
+              isFocusedPane ? 'border-t-2 border-t-accent' : 'border-t border-t-default'
+            }`
           : 'relative text-secondary hover:text-default hover:bg-surface-hover/40 tab-inactive'
       }`}
       style={{ height: 30 }}
@@ -163,7 +168,7 @@ function InlineRenameInput({ value, onSubmit, onCancel }: { value: string; onSub
   );
 }
 
-export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDrop, rightSlot }: EditorTabStripProps): JSX.Element {
+export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, onActivate, onClose, onTabDrop, rightSlot }: EditorTabStripProps): JSX.Element {
   const [dragOver, setDragOver] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: ContextMenuEntry[] } | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
@@ -250,6 +255,7 @@ export function EditorTabStrip({ tabs, activeTabId, onActivate, onClose, onTabDr
             key={tab.id}
             tab={tab}
             isActive={tab.id === activeTabId}
+            isFocusedPane={isFocusedPane}
             isRenaming={renamingTabId === tab.id}
             onActivate={onActivate}
             onClose={onClose}

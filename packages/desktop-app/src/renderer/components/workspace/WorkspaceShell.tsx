@@ -14,7 +14,7 @@ import { SplitPaneRenderer } from '../editor/SplitPaneRenderer';
 import { DropZoneOverlay } from '../editor/DropZoneOverlay';
 import { CloseConfirmDialog } from '../editor/CloseConfirmDialog';
 import { ResizeHandle } from '../ui/ResizeHandle';
-import { useEditorStore, getActiveTabFromLayout } from '../../stores/editor-store';
+import { useEditorStore, getActiveTabFromLayout, collectLeaves } from '../../stores/editor-store';
 import { useUIStore } from '../../stores/ui-store';
 import { isTabDrag, getTabDragData } from '../../hooks/useTabDrag';
 
@@ -149,11 +149,22 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
         .filter((t): t is EditorTab => t != null);
       const activeLeafTab = leafTabs.find((t) => t.id === leaf.activeTabId) ?? leafTabs[0];
 
+      const isActivePane = leaf.tabIds.includes(activeTabId!);
+      const isMultiPane = sideLayout ? collectLeaves(sideLayout).length > 1 : false;
+
       return (
-        <div className="flex h-full flex-col overflow-hidden">
+        <div
+          className={`flex h-full flex-col overflow-hidden ${isMultiPane && isActivePane ? 'ring-1 ring-accent/50' : ''}`}
+          onMouseDown={() => {
+            if (!leaf.tabIds.includes(activeTabId!)) {
+              setActiveTab(leaf.activeTabId);
+            }
+          }}
+        >
           <EditorTabStrip
             tabs={leafTabs}
             activeTabId={leaf.activeTabId}
+            isFocusedPane={isActivePane}
             onActivate={setActiveTab}
             onClose={requestCloseTab}
             onTabDrop={(droppedId) => moveTabToPane(droppedId, leaf.activeTabId, 'side')}
@@ -185,7 +196,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
         </div>
       );
     },
-    [tabs, isTabDragging, setActiveTab, requestCloseTab, setViewMode, toggleMinimize, moveTabToPane, splitTab],
+    [tabs, isTabDragging, activeTabId, sideLayout, setActiveTab, requestCloseTab, setViewMode, toggleMinimize, moveTabToPane, splitTab],
   );
 
   // Global drag tracking for drop zone activation

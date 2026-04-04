@@ -1,34 +1,57 @@
 import { useEffect } from 'react';
-import { useEditorStore } from '../stores/editor-store';
+import { useEditorStore, getActiveLeaf, collectLeaves } from '../stores/editor-store';
 import { getSession } from '../lib/editor-session-registry';
 import { useProjectStore } from '../stores/project-store';
 import { useUIStore } from '../stores/ui-store';
+import { jumpToNextUnacknowledgedAgent } from '../lib/terminal-agent-notifier';
 import { isEditableTarget, isPrimaryModifier, logShortcut } from './shortcut-utils';
 
-function cycleTab(direction: 1 | -1): void {
-  const { tabs, activeTabId, setActiveTab } = useEditorStore.getState();
-  if (tabs.length === 0) return;
+export function cycleTab(direction: 1 | -1): void {
+  const result = getActiveLeaf();
+  if (!result) return; // float/detached → no-op
 
-  const currentIndex = tabs.findIndex((tab) => tab.id === activeTabId);
-  const startIndex = currentIndex >= 0 ? currentIndex : 0;
-  const nextIndex = (startIndex + direction + tabs.length) % tabs.length;
-  setActiveTab(tabs[nextIndex].id);
+  const { leaf } = result;
+  const { activeTabId, setActiveTab } = useEditorStore.getState();
+  if (!activeTabId) return;
+
+  const idx = leaf.tabIds.indexOf(activeTabId);
+  if (idx < 0) return;
+  const next = (idx + direction + leaf.tabIds.length) % leaf.tabIds.length;
+  setActiveTab(leaf.tabIds[next]);
 }
 
-function activateTabByNumber(indexKey: string): void {
-  const { tabs, setActiveTab } = useEditorStore.getState();
-  if (tabs.length === 0) return;
+export function activateTabByNumber(indexKey: string): void {
+  const result = getActiveLeaf();
+  if (!result) return; // float/detached → no-op
 
   const index = Number(indexKey);
   if (Number.isNaN(index) || index < 1 || index > 9) return;
 
-  const targetTab =
-    index === 9
-      ? tabs[tabs.length - 1]
-      : tabs[index - 1];
-  if (!targetTab) return;
+  const { tabIds } = result.leaf;
+  const target = index === 9 ? tabIds[tabIds.length - 1] : tabIds[index - 1];
+  if (!target) return;
 
-  setActiveTab(targetTab.id);
+  useEditorStore.getState().setActiveTab(target);
+}
+
+export function cyclePane(direction: 1 | -1): void {
+  const result = getActiveLeaf();
+  if (!result) return;
+
+  const layout = result.mode === 'side'
+    ? useEditorStore.getState().sideLayout
+    : useEditorStore.getState().fullLayout;
+  if (!layout) return;
+
+  const leaves = collectLeaves(layout);
+  if (leaves.length <= 1) return;
+
+  const { activeTabId } = useEditorStore.getState();
+  const currentIdx = leaves.findIndex((l) => l.tabIds.includes(activeTabId!));
+  if (currentIdx < 0) return;
+
+  const nextIdx = (currentIdx + direction + leaves.length) % leaves.length;
+  useEditorStore.getState().setActiveTab(leaves[nextIdx].activeTabId);
 }
 
 function openTerminalTab(): void {
@@ -71,6 +94,25 @@ export function useGlobalShortcuts(): void {
         if (!indexKey) return;
         logShortcut('shortcut.global.openTabByIndex');
         activateTabByNumber(indexKey);
+        return;
+      }
+
+      if (shortcut === 'nextPane') {
+        logShortcut('shortcut.global.nextPane');
+        cyclePane(1);
+        return;
+      }
+
+      if (shortcut === 'previousPane') {
+        logShortcut('shortcut.global.previousPane');
+        cyclePane(-1);
+        return;
+      }
+
+      if (shortcut === 'jumpToLastAgent') {
+        logShortcut('shortcut.global.jumpToLastAgent');
+        jumpToNextUnacknowledgedAgent();
+        return;
       }
     };
 
@@ -128,6 +170,13 @@ export function useGlobalShortcuts(): void {
         return;
       }
 
+      if (!event.shiftKey && !event.altKey && key === '.') {
+        event.preventDefault();
+        logShortcut('shortcut.global.jumpToLastAgent');
+        jumpToNextUnacknowledgedAgent();
+        return;
+      }
+
       if (event.altKey && !event.shiftKey && key === 'n') {
         event.preventDefault();
         logShortcut('shortcut.global.openNarre');
@@ -136,6 +185,20 @@ export function useGlobalShortcuts(): void {
       }
 
       if (editable) return;
+
+      if (event.altKey && !event.shiftKey && key === 'arrowright') {
+        event.preventDefault();
+        logShortcut('shortcut.global.nextPane');
+        cyclePane(1);
+        return;
+      }
+
+      if (event.altKey && !event.shiftKey && key === 'arrowleft') {
+        event.preventDefault();
+        logShortcut('shortcut.global.previousPane');
+        cyclePane(-1);
+        return;
+      }
 
       if (key === 'tab') {
         event.preventDefault();
