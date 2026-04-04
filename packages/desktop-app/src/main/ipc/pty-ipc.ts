@@ -14,7 +14,7 @@ export function registerPtyIpc(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.TERMINAL_ATTACH, (_event, sessionId: string) => {
-    const session = terminalBackendService.attach(sessionId);
+    const session = terminalBackendService.attach(sessionId, _event.sender);
     return { success: true, data: session };
   });
 

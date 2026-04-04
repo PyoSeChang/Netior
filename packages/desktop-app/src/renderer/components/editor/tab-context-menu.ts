@@ -5,6 +5,7 @@ import { getEditorType, getAvailableEditors, EDITOR_LABELS, type EditorType } fr
 import { translate, type TranslationKey } from '@netior/shared/i18n';
 import { useSettingsStore } from '../../stores/settings-store';
 import { isTodoEnabled, toggleTodoEnabled } from '../../lib/terminal-todo-store';
+import { openTerminalTab } from '../../lib/terminal/open-terminal-tab';
 
 // ── Common items (all tab types) ──
 
@@ -219,8 +220,7 @@ export function buildStripContextMenu(tabs: EditorTab[], hostId?: string): Conte
     {
       label: '새 터미널',
       onClick: () => {
-        const sessionId = `term-${Date.now()}`;
-        store.openTab({ type: 'terminal', targetId: sessionId, title: 'Terminal', hostId: resolvedHostId });
+        openTerminalTab(resolvedHostId);
       },
     },
   ];

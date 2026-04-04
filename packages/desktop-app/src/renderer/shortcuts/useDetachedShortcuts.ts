@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useEditorStore, MAIN_HOST_ID } from '../stores/editor-store';
 import { getSession } from '../lib/editor-session-registry';
 import { jumpToNextUnacknowledgedAgent } from '../lib/terminal-agent-notifier';
+import { openTerminalTab } from '../lib/terminal/open-terminal-tab';
 import { isEditableTarget, isPrimaryModifier, logShortcut } from './shortcut-utils';
 
 function getHostActiveTabId(hostId: string): string | null {
@@ -105,13 +106,7 @@ export function useDetachedShortcuts(hostId: string): void {
       if (event.shiftKey && !event.altKey && key === 'n') {
         event.preventDefault();
         logShortcut('shortcut.detached.openTerminal');
-        const sessionId = `term-${Date.now()}`;
-        void useEditorStore.getState().openTab({
-          type: 'terminal',
-          targetId: sessionId,
-          title: 'Terminal',
-          hostId,
-        });
+        openTerminalTab(hostId);
         return;
       }
 

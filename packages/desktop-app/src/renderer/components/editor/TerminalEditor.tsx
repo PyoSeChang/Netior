@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { EditorTab } from '@netior/shared/types';
 import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
-import { useModuleStore } from '../../stores/module-store';
 import { useEditorStore } from '../../stores/editor-store';
+import { useProjectStore } from '../../stores/project-store';
 import { getOrCreateTerminalInstance, adjustTerminalFontSize, resetTerminalFontSize } from '../../lib/terminal/terminal-services';
 import { TerminalSearchBar } from './TerminalSearchBar';
 import { TerminalTodoPanel } from './TerminalTodoPanel';
 import { extractFileLinks } from '../../lib/terminal/terminal-link-parser';
 import { subscribeTodoStore, isTodoEnabled } from '../../lib/terminal-todo-store';
 import { logShortcut } from '../../shortcuts/shortcut-utils';
+import { getDefaultTerminalCwd } from '../../lib/terminal/open-terminal-tab';
 
 interface TerminalEditorProps {
   tab: EditorTab;
@@ -18,7 +19,8 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<ITerminalInstance | null>(null);
   const sessionId = tab.targetId;
-  const cwdRef = useRef(tab.terminalCwd ?? useModuleStore.getState().directories[0]?.dir_path);
+  const currentProjectId = useProjectStore((s) => s.currentProject?.id ?? null);
+  const cwdRef = useRef(tab.terminalCwd ?? getDefaultTerminalCwd());
   const updateTitle = useEditorStore((s) => s.updateTitle);
   const [searchVisible, setSearchVisible] = useState(false);
   const todoEnabled = useSyncExternalStore(
@@ -32,15 +34,15 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   }, []);
 
   useEffect(() => {
-    cwdRef.current = tab.terminalCwd ?? useModuleStore.getState().directories[0]?.dir_path;
-  }, [sessionId, tab.terminalCwd]);
+    cwdRef.current = tab.terminalCwd ?? getDefaultTerminalCwd();
+  }, [sessionId, tab.terminalCwd, currentProjectId]);
 
   useEffect(() => {
-    const cwd = cwdRef.current;
-    if (!containerRef.current || !sessionId || !cwd) return;
-
     let disposed = false;
     const container = containerRef.current;
+    if (!container || !sessionId) return;
+
+    let cwd = cwdRef.current;
     let resizeObserver: ResizeObserver | null = null;
     let scrollbarObserver: MutationObserver | null = null;
     let titleListener: { dispose(): void } | null = null;
@@ -75,6 +77,25 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
     };
 
     const attach = async (): Promise<void> => {
+      if (!cwd) {
+        const sessionResult = await window.electron.terminal.getSession(sessionId);
+        if (disposed) return;
+        if (sessionResult.success && sessionResult.data?.cwd) {
+          cwd = sessionResult.data.cwd;
+          cwdRef.current = cwd;
+          console.log(`[TerminalEditor] recovered cwd from session sessionId=${sessionId}, cwd=${cwd}`);
+        } else {
+          cwd = getDefaultTerminalCwd();
+          cwdRef.current = cwd;
+          console.log(`[TerminalEditor] fallback cwd sessionId=${sessionId}, cwd=${cwd ?? 'missing'}`);
+        }
+      }
+
+      if (!cwd) {
+        console.error(`[TerminalEditor] missing cwd sessionId=${sessionId}, tabId=${tab.id}`);
+        return;
+      }
+
       const instance = await getOrCreateTerminalInstance(sessionId, cwd, tab.title);
       instanceRef.current = instance;
       if (disposed) {
@@ -285,7 +306,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       instanceRef.current?.setVisible(false);
       instanceRef.current = null;
     };
-  }, [sessionId, tab.id, tab.title, updateTitle]);
+  }, [sessionId, tab.id, tab.title, updateTitle, currentProjectId]);
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col bg-surface-panel p-2">

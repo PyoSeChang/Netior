@@ -4,6 +4,7 @@ import { useUIStore } from '../../stores/ui-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
+import { openTerminalTab } from '../../lib/terminal/open-terminal-tab';
 import { Tooltip } from '../ui/Tooltip';
 
 
@@ -75,12 +76,7 @@ export function ActivityBar(): JSX.Element {
         <button
           className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
           onClick={() => {
-            const sessionId = `term-${Date.now()}`;
-            useEditorStore.getState().openTab({
-              type: 'terminal',
-              targetId: sessionId,
-              title: 'Terminal',
-            });
+            openTerminalTab();
           }}
         >
           <Terminal size={18} />

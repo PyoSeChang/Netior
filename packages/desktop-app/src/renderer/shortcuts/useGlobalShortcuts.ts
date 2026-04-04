@@ -4,6 +4,7 @@ import { getSession } from '../lib/editor-session-registry';
 import { useProjectStore } from '../stores/project-store';
 import { useUIStore } from '../stores/ui-store';
 import { jumpToNextUnacknowledgedAgent } from '../lib/terminal-agent-notifier';
+import { openTerminalTab as openTerminalTabInHost } from '../lib/terminal/open-terminal-tab';
 import { isEditableTarget, isPrimaryModifier, logShortcut } from './shortcut-utils';
 
 export function cycleTab(direction: 1 | -1): void {
@@ -55,12 +56,7 @@ export function cyclePane(direction: 1 | -1): void {
 }
 
 function openTerminalTab(): void {
-  const sessionId = `term-${Date.now()}`;
-  void useEditorStore.getState().openTab({
-    type: 'terminal',
-    targetId: sessionId,
-    title: 'Terminal',
-  });
+  openTerminalTabInHost();
 }
 
 function openNarreTab(): void {
