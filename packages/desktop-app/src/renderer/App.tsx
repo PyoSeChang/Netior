@@ -12,17 +12,8 @@ import { ShortcutOverlay } from './components/shortcuts/ShortcutOverlay';
 import { ToastContainer } from './components/ui/Toast';
 import { WindowControls } from './components/ui/WindowControls';
 import { MissingFilesDialog } from './components/home/MissingFilesDialog';
-import { initTerminalTracker } from './lib/terminal-tracker';
-import { initClaudeTerminalTracker } from './lib/claude-terminal-tracker';
-import { initTerminalAgentNotifier } from './lib/terminal-agent-notifier';
 import { useGlobalShortcuts } from './shortcuts/useGlobalShortcuts';
-import { initMainBridge } from './lib/editor-state-bridge';
 import { useNetiorSync } from './hooks/useNetiorSync';
-
-initTerminalTracker();
-initClaudeTerminalTracker();
-initTerminalAgentNotifier();
-initMainBridge();
 
 function NetiorTitleMark(): JSX.Element {
   return (

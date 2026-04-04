@@ -52,6 +52,7 @@ export function DropZoneOverlay({ onDrop, centerOnly, active }: DropZoneOverlayP
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
+      console.log(`[DropZoneOverlay] dragOver centerOnly=${!!centerOnly}, zone=${getZone(e, centerOnly)}, types=${JSON.stringify(Array.from(e.dataTransfer.types))}`);
       setActiveZone(getZone(e, centerOnly));
     },
     [centerOnly],
@@ -71,6 +72,7 @@ export function DropZoneOverlay({ onDrop, centerOnly, active }: DropZoneOverlayP
       setActiveZone(null);
 
       const tabId = await getTabDragDataAsync(e);
+      console.log(`[DropZoneOverlay] drop centerOnly=${!!centerOnly}, zone=${zone}, tabId=${tabId}`);
       if (!tabId) return;
       onDrop({ tabId, zone, direction, position });
     },

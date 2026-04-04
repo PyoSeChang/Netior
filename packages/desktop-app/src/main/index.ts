@@ -291,9 +291,18 @@ app.whenReady().then(async () => {
 
   // Cross-window tab drag state (IPC relay for dataTransfer sandboxing)
   let pendingDragTabId: string | null = null;
-  ipcMain.on('editor:dragStart', (_event, tabId: string) => { pendingDragTabId = tabId; });
+  ipcMain.on('editor:dragStart', (_event, tabId: string) => {
+    pendingDragTabId = tabId;
+    console.log(`[DragIPC] dragStart tabId=${tabId}`);
+  });
   ipcMain.handle('editor:getDragData', () => pendingDragTabId);
-  ipcMain.on('editor:dragEnd', () => { pendingDragTabId = null; });
+  ipcMain.on('editor:getDragDataSync', (event) => {
+    event.returnValue = pendingDragTabId;
+  });
+  ipcMain.on('editor:dragEnd', () => {
+    console.log(`[DragIPC] dragEnd clearing tabId=${pendingDragTabId}`);
+    pendingDragTabId = null;
+  });
 
   createWindow();
 

@@ -58,6 +58,7 @@ function getSyncState(): SyncState {
 
 function applySyncState(state: SyncState): void {
   _isSyncing = true;
+  console.log(`[Bridge] applySyncState — hosts=${JSON.stringify(Object.keys(state.hosts))}, tabs=${state.tabs.length}, focusedHost=${state.focusedHostId}`);
   useEditorStore.setState({
     tabs: state.tabs,
     activeTabId: state.activeTabId,
@@ -99,7 +100,9 @@ function schedulePush(): void {
   queueMicrotask(() => {
     _syncScheduled = false;
     if (!_isSyncing) {
-      window.electron.editor.pushState(getSyncState());
+      const state = getSyncState();
+      console.log(`[Bridge] pushState — hosts=${JSON.stringify(Object.keys(state.hosts))}, tabs=${state.tabs.length}`);
+      window.electron.editor.pushState(state);
     }
   });
 }
@@ -155,16 +158,50 @@ export function initMainBridge(): () => void {
   return cleanup;
 }
 
-/** Initialize bridge for a detached window. Fetches state, then starts sync. */
-export async function initDetachedBridge(): Promise<() => void> {
-  // Fetch state cached by main process (from main window's last push)
+/** Initialize bridge for a detached window. Fetches state, then starts sync.
+ *  If the cached state doesn't contain this window's hostId, waits for a sync
+ *  message that does (up to a timeout). This prevents hydrating with stale state. */
+export async function initDetachedBridge(expectedHostId?: string): Promise<() => void> {
   const cached = await window.electron.editor.getState();
-  if (cached) {
-    applySyncState(cached as SyncState);
+  console.log(`[Bridge] initDetachedBridge — cached=${cached ? 'yes' : 'null'}, hosts=${cached ? JSON.stringify(Object.keys((cached as SyncState).hosts)) : 'N/A'}, expecting=${expectedHostId}`);
+
+  const cachedState = cached as SyncState | null;
+  const hostFound = !expectedHostId || (cachedState && expectedHostId in cachedState.hosts);
+
+  if (cachedState && hostFound) {
+    applySyncState(cachedState);
+    startListener();
+    startSubscription();
+    return cleanup;
   }
 
-  startListener();
-  startSubscription();
+  // Host not in cache yet — start listener and wait for a sync that includes it
+  if (cachedState) {
+    applySyncState(cachedState);
+  }
 
-  return cleanup;
+  return new Promise<() => void>((resolve) => {
+    let resolved = false;
+    const timeoutId = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      console.log(`[Bridge] initDetachedBridge — timeout waiting for host ${expectedHostId}, proceeding with current state`);
+      startSubscription();
+      resolve(cleanup);
+    }, 2000);
+
+    _cleanupListener = window.electron.editor.onStateSync((rawState) => {
+      if (_isSyncing) return;
+      const state = rawState as SyncState;
+      applySyncState(state);
+
+      if (!resolved && expectedHostId && expectedHostId in state.hosts) {
+        resolved = true;
+        clearTimeout(timeoutId);
+        console.log(`[Bridge] initDetachedBridge — host ${expectedHostId} found via sync`);
+        startSubscription();
+        resolve(cleanup);
+      }
+    });
+  });
 }

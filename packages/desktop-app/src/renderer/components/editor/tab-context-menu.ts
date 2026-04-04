@@ -65,14 +65,20 @@ function buildHostMoveItems(tab: EditorTab): ContextMenuEntry[] {
     // Tab is in main → offer "Move to New Window"
     items.push({
       label: '새 창으로 이동',
-      onClick: () => store.detachTab(tab.id),
+      onClick: () => {
+        console.log(`[TabContextMenu] detach tabId=${tab.id} from host=${tab.hostId}`);
+        store.detachTab(tab.id);
+      },
     });
   } else {
     // Tab is in detached → offer "Move to Main Window"
     items.push({
       label: '메인 창으로 이동',
       shortcut: 'Ctrl+Shift+M',
-      onClick: () => store.moveTabToHost(tab.id, MAIN_HOST_ID),
+      onClick: () => {
+        console.log(`[TabContextMenu] moveToMain tabId=${tab.id} from host=${tab.hostId}`);
+        store.moveTabToHost(tab.id, MAIN_HOST_ID);
+      },
     });
   }
 
@@ -83,7 +89,10 @@ function buildHostMoveItems(tab: EditorTab): ContextMenuEntry[] {
     for (const host of otherHosts) {
       items.push({
         label: `${host.label} 창으로 이동`,
-        onClick: () => store.moveTabToHost(tab.id, host.id),
+        onClick: () => {
+          console.log(`[TabContextMenu] moveToHost tabId=${tab.id} from host=${tab.hostId} to host=${host.id}`);
+          store.moveTabToHost(tab.id, host.id);
+        },
       });
     }
   }

@@ -111,6 +111,14 @@ function makeHostId(): string {
   return `detached:${Date.now()}-${++hostCounter}`;
 }
 
+function closeDetachedHostSoon(hostId: string): void {
+  console.log(`[EditorStore] schedule closeDetachedWindow hostId=${hostId}`);
+  setTimeout(() => {
+    console.log(`[EditorStore] closeDetachedWindow hostId=${hostId}`);
+    window.electron.editor.closeDetachedWindow(hostId);
+  }, 0);
+}
+
 // ── Split layout tree helpers ──
 
 export function containsTab(node: SplitNode, tabId: string): boolean {
@@ -487,7 +495,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         if (hostTabs.length === 0) {
           // Last tab closed — remove host, close window
           const { [hostId]: _, ...remainingHosts } = s.hosts;
-          window.electron.editor.closeDetachedWindow(hostId);
+          closeDetachedHostSoon(hostId);
           return {
             tabs,
             hosts: remainingHosts,
@@ -830,6 +838,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   moveTabToPane: (tabId, targetPaneTabId, mode) => {
+    console.log(`[EditorStore] moveTabToPane start tabId=${tabId}, targetPaneTabId=${targetPaneTabId}, mode=${mode}`);
     if (tabId === targetPaneTabId) return;
 
     let layout = getLayoutForMode(get(), mode);
@@ -862,7 +871,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         if (remainingHostTabs.length === 0) {
           const { [sourceHostId]: _, ...rest } = hostsUpdate;
           hostsUpdate = rest;
-          window.electron.editor.closeDetachedWindow(sourceHostId);
+          closeDetachedHostSoon(sourceHostId);
         } else {
           const host = hostsUpdate[sourceHostId];
           if (host && host.activeTabId === tabId) {
@@ -925,6 +934,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   detachTab: (tabId) => {
     const tab = get().tabs.find((t) => t.id === tabId);
     if (!tab) return MAIN_HOST_ID;
+    console.log(`[EditorStore] detachTab tabId=${tabId}, title=${tab.title}, sourceHost=${tab.hostId}`);
 
     // Create new host
     const hostId = get().createHost(tab.title);
@@ -950,6 +960,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }));
 
     // Open detached window
+    console.log(`[EditorStore] detachTab openDetachedWindow hostId=${hostId}, tabId=${tabId}`);
     window.electron.editor.detach(hostId, tab.title);
 
     return hostId;
@@ -961,7 +972,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   moveTabToHost: (tabId, targetHostId, viewMode) => {
     const tab = get().tabs.find((t) => t.id === tabId);
-    if (!tab || tab.hostId === targetHostId) return;
+    console.log(`[EditorStore] moveTabToHost start tabId=${tabId}, targetHostId=${targetHostId}, requestedViewMode=${viewMode ?? 'none'}, tabHost=${tab?.hostId ?? 'missing'}`);
+    if (!tab) {
+      console.warn(`[EditorStore] moveTabToHost abort missing tabId=${tabId}`);
+      return;
+    }
+    if (tab.hostId === targetHostId) {
+      console.warn(`[EditorStore] moveTabToHost abort same-host tabId=${tabId}, hostId=${targetHostId}`);
+      return;
+    }
 
     const sourceHostId = tab.hostId;
 
@@ -984,6 +1003,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
             : s.hosts,
         };
       });
+      console.log(`[EditorStore] moveTabToHost main->host tabId=${tabId}, targetHostId=${targetHostId}`);
     } else {
       // Moving from detached host
       set((s) => {
@@ -997,7 +1017,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           // Last tab removed — clean up host
           const { [sourceHostId]: _, ...rest } = hostsUpdate;
           hostsUpdate = rest;
-          window.electron.editor.closeDetachedWindow(sourceHostId);
+          closeDetachedHostSoon(sourceHostId);
         } else if (host) {
           hostsUpdate[sourceHostId] = {
             ...host,
@@ -1027,19 +1047,21 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
         const updatedTabs = s.tabs.map((t) => (t.id === tabId ? { ...t, ...tabUpdate } : t));
 
-        // Add to main layout if moving to main
+        // Add to main layout if moving to main. Float tabs stay out of split layouts.
         let layoutUpdate: Partial<EditorStore> = {};
         if (targetHostId === MAIN_HOST_ID) {
-          const mode = tabUpdate.viewMode as 'side' | 'full';
-          let layout = getLayoutForMode(s as EditorStore, mode);
-          if (!layout) {
-            layout = { type: 'leaf', tabIds: [tabId], activeTabId: tabId };
-          } else {
-            const focusedLeaf = s.activeTabId ? findLeafWithTab(layout, s.activeTabId) : null;
-            const targetLeafTabId = focusedLeaf ? focusedLeaf.activeTabId : getFirstLeaf(layout).activeTabId;
-            layout = addTabToLeaf(layout, targetLeafTabId, tabId);
+          const mode = tabUpdate.viewMode;
+          if (mode === 'side' || mode === 'full') {
+            let layout = getLayoutForMode(s as EditorStore, mode);
+            if (!layout) {
+              layout = { type: 'leaf', tabIds: [tabId], activeTabId: tabId };
+            } else {
+              const focusedLeaf = s.activeTabId ? findLeafWithTab(layout, s.activeTabId) : null;
+              const targetLeafTabId = focusedLeaf ? focusedLeaf.activeTabId : getFirstLeaf(layout).activeTabId;
+              layout = addTabToLeaf(layout, targetLeafTabId, tabId);
+            }
+            layoutUpdate = setLayoutForMode(mode, layout);
           }
-          layoutUpdate = setLayoutForMode(mode, layout);
         }
 
         return {
@@ -1052,6 +1074,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
             : s.focusedHostId,
         };
       });
+      console.log(`[EditorStore] moveTabToHost detached->host tabId=${tabId}, sourceHostId=${sourceHostId}, targetHostId=${targetHostId}`);
     }
   },
 

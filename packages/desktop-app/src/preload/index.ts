@@ -292,6 +292,7 @@ const electronAPI = {
     // Cross-window tab drag
     setDragTab: (tabId: string) => ipcRenderer.send('editor:dragStart', tabId),
     getDragTab: () => ipcRenderer.invoke('editor:getDragData') as Promise<string | null>,
+    getDragTabSync: () => ipcRenderer.sendSync('editor:getDragDataSync') as string | null,
     clearDragTab: () => ipcRenderer.send('editor:dragEnd'),
   },
 };

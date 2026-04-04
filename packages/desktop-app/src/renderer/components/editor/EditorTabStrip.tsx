@@ -114,7 +114,7 @@ function TabItem({ tab, isActive, isFocusedPane, isRenaming, onActivate, onClose
             }`
           : 'relative text-secondary hover:text-default hover:bg-surface-hover/40 tab-inactive'
       }`}
-      style={{ height: 30 }}
+      style={{ height: 30, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       onClick={() => !isRenaming && onActivate(tab.id)}
       onContextMenu={(e) => onContextMenu(e, tab)}
     >
@@ -219,8 +219,9 @@ export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, hostId
     if (!isTabDrag(e)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    console.log(`[EditorTabStrip] dragOver host=${hostId ?? 'main'}, types=${JSON.stringify(Array.from(e.dataTransfer.types))}`);
     setDragOver(true);
-  }, []);
+  }, [hostId]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     if (e.currentTarget.contains(e.relatedTarget as Node)) return;
@@ -232,10 +233,11 @@ export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, hostId
     setDragOver(false);
     if (!onTabDrop) return;
     const tabId = await getTabDragDataAsync(e);
+    console.log(`[EditorTabStrip] drop host=${hostId ?? 'main'}, tabId=${tabId}`);
     if (tabId) {
       onTabDrop(tabId);
     }
-  }, [onTabDrop]);
+  }, [hostId, onTabDrop]);
 
   const handleRenameSubmit = useCallback((tabId: string, newTitle: string) => {
     useEditorStore.getState().updateTitle(tabId, newTitle, true);
@@ -247,7 +249,7 @@ export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, hostId
       className={`tab-strip flex shrink-0 items-end bg-surface-base transition-colors ${
         dragOver ? 'bg-accent/10' : ''
       }`}
-      style={{ height: 35 }}
+      style={{ height: 35, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
