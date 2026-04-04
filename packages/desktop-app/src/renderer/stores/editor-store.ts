@@ -3,6 +3,7 @@ import type { EditorViewMode, EditorTab, EditorTabType, SplitNode, SplitDirectio
 import { editorPrefsService } from '../services';
 import { hasUnsavedChanges, getSession } from '../lib/editor-session-registry';
 import { clearDraftCache } from '../hooks/useEditorSession';
+import { clearViewState } from '../hooks/useViewState';
 import { isTerminalAlive } from '../lib/terminal-tracker';
 import { cleanupSession as cleanupTodoSession } from '../lib/terminal-todo-store';
 
@@ -341,6 +342,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }
 
     clearDraftCache(tabId);
+    clearViewState(tabId);
 
     // Remove from layout trees
     const layoutUpdate: Partial<EditorStore> = {};

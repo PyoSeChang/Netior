@@ -529,6 +529,21 @@
       "summaryError": "Failed"
     }
   },
+  "pdfToc": {
+    "sidebar": "Table of Contents",
+    "tocToggle": "Toggle TOC panel",
+    "emptyTitle": "No table of contents",
+    "emptyHint": "Use /index in Narre to generate a TOC, or write it manually in the metadata editor."
+  },
+  "pdfViewer": {
+    "fitWidth": "Fit to width",
+    "dualView": "Two-page view",
+    "singleView": "Single page view"
+  },
+  "edgePanel": {
+    "pin": "Pin",
+    "unpin": "Unpin"
+  },
   "fileMetadata": {
     "editMetadata": "Edit metadata",
     "fileProperties": "File Properties",

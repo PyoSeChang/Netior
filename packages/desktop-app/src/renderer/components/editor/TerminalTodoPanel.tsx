@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { X, Plus, Pin, GripVertical } from 'lucide-react';
+import { X, Plus, GripVertical } from 'lucide-react';
 import { Checkbox } from '../ui/Checkbox';
 import { useI18n } from '../../hooks/useI18n';
 import { Badge } from '../ui/Badge';
 import { ScrollArea } from '../ui/ScrollArea';
+import { EdgePanel } from '../ui/EdgePanel';
 import {
   subscribeTodoStore,
   getTodoVersion,
@@ -25,10 +26,6 @@ interface TerminalTodoPanelProps {
 
 export function TerminalTodoPanel({ sessionId, autoShowSeconds = 0 }: TerminalTodoPanelProps): JSX.Element {
   const { t } = useI18n();
-  const [hovered, setHovered] = useState(false);
-  const [autoShow, setAutoShow] = useState(autoShowSeconds > 0);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragPosition, setDragPosition] = useState<'before' | 'after'>('after');
   const dragItemRef = useRef<string | null>(null);
@@ -36,32 +33,6 @@ export function TerminalTodoPanel({ sessionId, autoShowSeconds = 0 }: TerminalTo
   useSyncExternalStore(subscribeTodoStore, getTodoVersion);
   const items = getTodoItems(sessionId);
   const pinned = isTodoPinned(sessionId);
-
-  useEffect(() => {
-    if (autoShowSeconds <= 0) return;
-    setAutoShow(true);
-    autoHideTimerRef.current = setTimeout(() => setAutoShow(false), autoShowSeconds * 1000);
-    return () => {
-      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
-    };
-  }, [autoShowSeconds]);
-
-  const handleMouseEnter = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    if (autoHideTimerRef.current) {
-      clearTimeout(autoHideTimerRef.current);
-      autoHideTimerRef.current = null;
-    }
-    hoverTimerRef.current = setTimeout(() => setHovered(true), 150);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => {
-      setHovered(false);
-      setAutoShow(false);
-    }, 500);
-  }, []);
 
   const handleDragEnd = useCallback(() => {
     if (dragItemRef.current && dragOverId && dragItemRef.current !== dragOverId) {
@@ -71,82 +42,54 @@ export function TerminalTodoPanel({ sessionId, autoShowSeconds = 0 }: TerminalTo
     setDragOverId(null);
   }, [sessionId, dragOverId, dragPosition]);
 
-  const visible = pinned || hovered || autoShow;
   const rootItems = items.filter((i) => i.parentId === null);
-  const tabColor = 'color-mix(in srgb, var(--text-muted) 30%, transparent)';
 
   return (
-    <>
-      <svg
-        className="pointer-events-none absolute right-[1px] z-30"
-        style={{ top: '3rem' }}
-        width="6"
-        height="60"
-        viewBox="0 0 6 60"
-      >
-        <path d="M6 0 L6 60 L0 52 L0 8 Z" fill={tabColor} />
-      </svg>
-      <div
-        className="absolute right-0 top-0 z-30 w-1 h-full"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      />
-      <div
-        className={`absolute right-3 top-10 z-30 flex flex-col rounded-lg border border-subtle bg-surface-card shadow-lg transition-all duration-200 ${
-          visible ? 'translate-x-0 opacity-100' : 'translate-x-[calc(100%+12px)] opacity-0'
-        }`}
-        style={{ width: 260, maxHeight: 'calc(100% - 3rem)' }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        {/* Header */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-subtle">
-          <span className="text-xs font-medium text-default">{t('terminal.todoTitle')}</span>
+    <EdgePanel
+      side="right"
+      width={260}
+      pinned={pinned}
+      onPinChange={() => toggleTodoPinned(sessionId)}
+      title={t('terminal.todoTitle')}
+      headerActions={
+        <>
           <Badge>{items.length}</Badge>
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              className="p-0.5 rounded text-muted hover:text-default transition-colors"
-              onClick={() => addTodoItem(sessionId, '')}
-            >
-              <Plus size={12} />
-            </button>
-            <button
-              className={`p-0.5 rounded transition-colors ${
-                pinned ? 'text-accent' : 'text-muted hover:text-default'
-              }`}
-              onClick={() => toggleTodoPinned(sessionId)}
-            >
-              <Pin size={12} className={pinned ? 'fill-current' : ''} />
-            </button>
-          </div>
-        </div>
-
-        {/* List */}
-        <ScrollArea className="flex-1 min-h-0 py-1">
-          {rootItems.length === 0 ? (
-            <p className="px-3 py-4 text-center text-xs text-muted">{t('terminal.todoEmpty')}</p>
-          ) : (
-            rootItems.map((item, idx) => (
-              <React.Fragment key={item.id}>
-                {idx > 0 && <div className="mx-3 my-0.5 border-t border-subtle" />}
-                <TodoTree
-                  item={item}
-                  allItems={items}
-                  sessionId={sessionId}
-                  depth={0}
-                  dragItemRef={dragItemRef}
-                  dragOverId={dragOverId}
-                  dragPosition={dragPosition}
-                  onDragOver={setDragOverId}
-                  onDragPosition={setDragPosition}
-                  onDragEnd={handleDragEnd}
-                />
-              </React.Fragment>
-            ))
-          )}
-        </ScrollArea>
-      </div>
-    </>
+          <button
+            className="p-0.5 rounded text-muted hover:text-default transition-colors"
+            onClick={() => addTodoItem(sessionId, '')}
+          >
+            <Plus size={12} />
+          </button>
+        </>
+      }
+      autoShowMs={autoShowSeconds > 0 ? autoShowSeconds * 1000 : undefined}
+      showDelay={150}
+      hideDelay={500}
+    >
+      <ScrollArea className="flex-1 min-h-0 py-1">
+        {rootItems.length === 0 ? (
+          <p className="px-3 py-4 text-center text-xs text-muted">{t('terminal.todoEmpty')}</p>
+        ) : (
+          rootItems.map((item, idx) => (
+            <React.Fragment key={item.id}>
+              {idx > 0 && <div className="mx-3 my-0.5 border-t border-subtle" />}
+              <TodoTree
+                item={item}
+                allItems={items}
+                sessionId={sessionId}
+                depth={0}
+                dragItemRef={dragItemRef}
+                dragOverId={dragOverId}
+                dragPosition={dragPosition}
+                onDragOver={setDragOverId}
+                onDragPosition={setDragPosition}
+                onDragEnd={handleDragEnd}
+              />
+            </React.Fragment>
+          ))
+        )}
+      </ScrollArea>
+    </EdgePanel>
   );
 }
 

@@ -1,4 +1,7 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { EdgePanel } from '../../ui/EdgePanel';
+import { useI18n } from '../../../hooks/useI18n';
 
 export interface TocHeading {
   lineNumber: number;
@@ -8,8 +11,8 @@ export interface TocHeading {
 
 interface MarkdownTocProps {
   headings: TocHeading[];
+  currentLine: number;
   onNavigate: (lineNumber: number) => void;
-  containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function extractHeadings(content: string): TocHeading[] {
@@ -31,115 +34,217 @@ export function extractHeadings(content: string): TocHeading[] {
   return headings;
 }
 
-// TOC가 표시될 수 있는 최소 여백 (content 600px 왼쪽에 남는 공간)
-const MIN_MARGIN_FOR_TOC = 180;
+// ============================================
+// Tree structure
+// ============================================
 
-export function MarkdownToc({ headings, onNavigate, containerRef }: MarkdownTocProps): JSX.Element | null {
-  const [marginWidth, setMarginWidth] = useState(0);
-  const [hovered, setHovered] = useState(false);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+interface TocTreeNode {
+  heading: TocHeading;
+  children: TocTreeNode[];
+}
 
-  // 컨테이너 폭에서 content(600px)를 빼고 왼쪽 여백 계산
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const available = (entry.contentRect.width - 600) / 2;
-        setMarginWidth(Math.max(0, available));
+function buildHeadingTree(headings: TocHeading[]): TocTreeNode[] {
+  const roots: TocTreeNode[] = [];
+  const stack: TocTreeNode[] = [];
+
+  for (const heading of headings) {
+    const node: TocTreeNode = { heading, children: [] };
+
+    while (stack.length > 0 && stack[stack.length - 1].heading.level >= heading.level) {
+      stack.pop();
+    }
+
+    if (stack.length === 0) {
+      roots.push(node);
+    } else {
+      stack[stack.length - 1].children.push(node);
+    }
+    stack.push(node);
+  }
+
+  return roots;
+}
+
+/** Default expand depth: heading level 1-2 (depth 0-1) always expanded. */
+const DEFAULT_EXPAND_DEPTH = 1;
+
+function findActivePathKeys(
+  tree: TocTreeNode[],
+  currentLine: number,
+): { activeKey: string | null; ancestorKeys: Set<string> } {
+  let bestHeading: TocHeading | null = null;
+  let bestPath: string[] = [];
+
+  function walk(nodes: TocTreeNode[], path: string[]): void {
+    for (const node of nodes) {
+      if (node.heading.lineNumber <= currentLine) {
+        if (!bestHeading || node.heading.lineNumber > bestHeading.lineNumber) {
+          bestHeading = node.heading;
+          bestPath = [...path, toKey(node.heading)];
+        }
+        walk(node.children, [...path, toKey(node.heading)]);
       }
+    }
+  }
+
+  walk(tree, []);
+
+  return {
+    activeKey: bestHeading ? toKey(bestHeading) : null,
+    ancestorKeys: new Set(bestPath.slice(0, -1)),
+  };
+}
+
+function toKey(h: TocHeading): string {
+  return `${h.lineNumber}`;
+}
+
+// ============================================
+// Component
+// ============================================
+
+export function MarkdownToc({ headings, currentLine, onNavigate }: MarkdownTocProps): JSX.Element | null {
+  const { t } = useI18n();
+  const [pinned, setPinned] = useState(false);
+  const [manualExpanded, setManualExpanded] = useState<Set<string>>(new Set());
+  const [manualCollapsed, setManualCollapsed] = useState<Set<string>>(new Set());
+
+  const tree = useMemo(() => buildHeadingTree(headings), [headings]);
+  const { activeKey, ancestorKeys } = useMemo(
+    () => findActivePathKeys(tree, currentLine),
+    [tree, currentLine],
+  );
+
+  const isExpanded = useCallback((key: string, depth: number) => {
+    if (manualCollapsed.has(key)) return false;
+    if (manualExpanded.has(key)) return true;
+    // Auto-expand: active path OR default depth
+    return ancestorKeys.has(key) || depth <= DEFAULT_EXPAND_DEPTH;
+  }, [manualExpanded, manualCollapsed, ancestorKeys]);
+
+  const toggleExpand = useCallback((key: string) => {
+    // Determine current state to toggle (need depth, but we can just check via the callback approach)
+    setManualExpanded((prev) => {
+      const next = new Set(prev);
+      if (manualCollapsed.has(key)) {
+        // Currently collapsed → expand
+        setManualCollapsed((s) => { const n = new Set(s); n.delete(key); return n; });
+        next.add(key);
+      } else {
+        // Currently expanded → collapse
+        setManualCollapsed((s) => { const n = new Set(s); n.add(key); return n; });
+        next.delete(key);
+      }
+      return next;
     });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [containerRef]);
+  }, [manualCollapsed]);
+
+  // Reset manual overrides when active heading changes
+  useEffect(() => {
+    setManualCollapsed(new Set());
+    setManualExpanded(new Set());
+  }, [activeKey]);
 
   if (headings.length === 0) return null;
 
-  const hasSpace = marginWidth >= MIN_MARGIN_FOR_TOC;
+  return (
+    <EdgePanel
+      side="left"
+      width={240}
+      topOffset={8}
+      pinned={pinned}
+      onPinChange={setPinned}
+      title={t('markdown.toc')}
+    >
+      <div className="overflow-y-auto py-1">
+        {tree.map((node) => (
+          <TocNode
+            key={toKey(node.heading)}
+            node={node}
+            activeKey={activeKey}
+            isExpanded={isExpanded}
+            onToggle={toggleExpand}
+            onNavigate={onNavigate}
+            depth={0}
+          />
+        ))}
+      </div>
+    </EdgePanel>
+  );
+}
 
-  const handleMouseEnter = () => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => setHovered(true), 150);
-  };
-  const handleMouseLeave = () => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => setHovered(false), 500);
-  };
+// ============================================
+// Recursive tree node
+// ============================================
 
-  // 여백 충분: 왼쪽 여백에 자연스럽게 배치
-  if (hasSpace) {
-    return (
-      <nav
-        className="absolute top-10 z-10 overflow-y-auto pr-4 pt-2"
-        style={{ left: 8, width: marginWidth - 16, maxHeight: 'calc(100% - 3rem)' }}
-      >
-        <TocList headings={headings} onNavigate={onNavigate} />
-      </nav>
-    );
-  }
+interface TocNodeProps {
+  node: TocTreeNode;
+  activeKey: string | null;
+  isExpanded: (key: string, depth: number) => boolean;
+  onToggle: (key: string) => void;
+  onNavigate: (lineNumber: number) => void;
+  depth: number;
+}
 
-  // 여백 부족: 호버 시 오버레이
-  const tabColor = 'color-mix(in srgb, var(--text-muted) 30%, transparent)';
+function TocNode({ node, activeKey, isExpanded, onToggle, onNavigate, depth }: TocNodeProps): JSX.Element {
+  const { heading, children } = node;
+  const key = toKey(heading);
+  const hasChildren = children.length > 0;
+  const expanded = hasChildren && isExpanded(key, depth);
+  const isActive = key === activeKey;
+  const isRoot = depth === 0;
 
   return (
     <>
-      {/* Trapezoid hint — visual only */}
-      <svg
-        className="pointer-events-none absolute left-[1px] z-30"
-        style={{ top: '3rem' }}
-        width="6"
-        height="60"
-        viewBox="0 0 6 60"
-      >
-        <path d="M0 0 L0 60 L6 52 L6 8 Z" fill={tabColor} />
-      </svg>
-      {/* Hover trigger — thin strip along left edge */}
       <div
-        className="absolute left-0 top-0 z-30 w-1 h-full"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      />
-      <nav
-        className={`absolute left-[1px] top-10 z-30 overflow-y-auto rounded-r-md border-y border-r border-subtle bg-surface-panel pl-3 pr-3 pt-2 pb-4 shadow-lg transition-all duration-200 ${
-          hovered ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'
+        className={`flex w-full items-center gap-0.5 pr-2 transition-colors cursor-pointer hover:bg-surface-hover ${
+          isActive ? 'bg-accent/10' : ''
         }`}
-        style={{ width: 220, maxHeight: 'calc(100% - 3rem)' }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        style={{ paddingLeft: `${8 + depth * 14}px` }}
       >
-        <TocList headings={headings} onNavigate={(lineNumber) => {
-          onNavigate(lineNumber);
-          setHovered(false);
-        }} />
-      </nav>
+        {hasChildren ? (
+          <button
+            className="flex shrink-0 items-center justify-center w-4 h-4 rounded text-muted hover:text-default"
+            onClick={(e) => { e.stopPropagation(); onToggle(key); }}
+          >
+            <ChevronRight
+              size={10}
+              className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
+            />
+          </button>
+        ) : (
+          <span className="w-4 shrink-0" />
+        )}
+
+        <button
+          className={`flex flex-1 items-baseline gap-2 py-1 text-left min-w-0 ${
+            isActive ? 'text-accent' : ''
+          }`}
+          onClick={() => onNavigate(heading.lineNumber)}
+        >
+          <span className={`truncate text-[11px] leading-relaxed ${
+            isRoot ? 'font-semibold text-default' : 'text-secondary'
+          } ${isActive ? '!text-accent' : ''}`}>
+            {heading.text}
+          </span>
+        </button>
+      </div>
+
+      {hasChildren && expanded && (
+        <div>
+          {children.map((child) => (
+            <TocNode
+              key={toKey(child.heading)}
+              node={child}
+              activeKey={activeKey}
+              isExpanded={isExpanded}
+              onToggle={onToggle}
+              onNavigate={onNavigate}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
     </>
-  );
-}
-
-function TocList({ headings, onNavigate }: { headings: TocHeading[]; onNavigate: (n: number) => void }) {
-  return (
-    <div className="space-y-0.5">
-      {headings.map((h, i) => (
-        <TocItem key={`${h.lineNumber}-${i}`} heading={h} onNavigate={onNavigate} />
-      ))}
-    </div>
-  );
-}
-
-function TocItem({ heading, onNavigate }: { heading: TocHeading; onNavigate: (n: number) => void }) {
-  const handleClick = useCallback(() => { onNavigate(heading.lineNumber); }, [heading.lineNumber, onNavigate]);
-  const paddingLeft = (heading.level - 1) * 12;
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="cursor-pointer truncate text-xs text-secondary transition-colors hover:text-default"
-      style={{ paddingLeft }}
-      onClick={handleClick}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
-    >
-      {heading.text}
-    </div>
   );
 }

@@ -529,6 +529,21 @@
       "summaryError": "실패"
     }
   },
+  "pdfToc": {
+    "sidebar": "목차",
+    "tocToggle": "목차 패널 토글",
+    "emptyTitle": "목차 없음",
+    "emptyHint": "Narre에서 /index 명령으로 목차를 생성하거나, 메타데이터 에디터에서 직접 작성하세요."
+  },
+  "pdfViewer": {
+    "fitWidth": "너비에 맞추기",
+    "dualView": "두 쪽 보기",
+    "singleView": "한 쪽 보기"
+  },
+  "edgePanel": {
+    "pin": "고정",
+    "unpin": "고정 해제"
+  },
   "fileMetadata": {
     "editMetadata": "메타데이터 편집",
     "fileProperties": "파일 속성",

@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
-import { EditorView, keymap } from '@codemirror/view';
+import { EditorView, keymap, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { GFM } from '@lezer/markdown';
@@ -9,11 +9,10 @@ import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { livePreviewPlugin, livePreviewTheme } from './live-preview';
 import { MarkdownToc, extractHeadings } from './MarkdownToc';
-import { Toggle } from '../../ui/Toggle';
 import { useI18n } from '../../../hooks/useI18n';
+import { useViewState } from '../../../hooks/useViewState';
 import { getCssColorAsHex } from '../editor-utils';
 
-// Code-only highlight — intentionally skips markdown tags (heading, emphasis, link, etc.)
 const codeHighlightStyle = HighlightStyle.define([
   { tag: tags.keyword, color: '#c678dd' },
   { tag: tags.string, color: '#98c379' },
@@ -37,31 +36,92 @@ const codeHighlightStyle = HighlightStyle.define([
   { tag: tags.tagName, color: '#e06c75' },
 ]);
 
+interface MdViewState {
+  cursorPos: number;
+  scrollTop: number;
+}
+
 interface MarkdownEditorProps {
+  tabId: string;
   content: string;
   filePath: string;
   onChange: (content: string) => void;
 }
 
-export function MarkdownEditor({ content, filePath, onChange }: MarkdownEditorProps): JSX.Element {
+export function MarkdownEditor({ tabId, content, filePath, onChange }: MarkdownEditorProps): JSX.Element {
   const { t } = useI18n();
-  const [showToc, setShowToc] = useState(true);
   const cmRef = useRef<ReactCodeMirrorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const [viewState, setViewState] = useViewState<MdViewState>(tabId, { cursorPos: 0, scrollTop: 0 });
+  const viewStateRef = useRef(viewState);
+  const [currentLine, setCurrentLine] = useState(1);
   const headings = useMemo(() => extractHeadings(content), [content]);
   const isDark = document.documentElement.getAttribute('data-mode') !== 'light';
+
+  // Restore scroll position after CM6 mounts
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    const view = cmRef.current?.view;
+    const scroller = scrollRef.current;
+    if (!view || !scroller) return;
+
+    const vs = viewStateRef.current;
+
+    // Restore cursor
+    if (vs.cursorPos > 0 && vs.cursorPos <= view.state.doc.length) {
+      view.dispatch({ selection: { anchor: vs.cursorPos } });
+      const line = view.state.doc.lineAt(vs.cursorPos).number;
+      setCurrentLine(line);
+    }
+
+    // Restore scroll (defer to next frame so CM6 has laid out)
+    if (vs.scrollTop > 0) {
+      requestAnimationFrame(() => {
+        if (scroller) scroller.scrollTop = vs.scrollTop;
+      });
+    }
+
+    restoredRef.current = true;
+  });
+
+  // Save scroll position
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const handleScroll = () => {
+      setViewState((prev) => ({ ...prev, scrollTop: scroller.scrollTop }));
+    };
+    scroller.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scroller.removeEventListener('scroll', handleScroll);
+  }, [setViewState]);
+
+  // Track cursor line + save cursor pos
+  const cursorPlugin = useMemo(() => ViewPlugin.fromClass(
+    class {
+      update(update: ViewUpdate) {
+        if (update.selectionSet || update.docChanged) {
+          const pos = update.state.selection.main.head;
+          const line = update.state.doc.lineAt(pos).number;
+          setCurrentLine(line);
+          setViewState((prev) => ({ ...prev, cursorPos: pos }));
+        }
+      }
+    },
+  ), [setViewState]);
 
   const extensions = useMemo(() => [
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap]),
     markdown({ extensions: GFM, codeLanguages: languages }),
+    cursorPlugin,
     ...livePreviewPlugin,
     livePreviewTheme,
     syntaxHighlighting(codeHighlightStyle),
     EditorView.lineWrapping,
-  ], []);
+  ], [cursorPlugin]);
 
   const theme = useMemo(() => {
     const bg = getCssColorAsHex('--surface-panel', isDark ? '#1e1e1e' : '#ffffff');
@@ -104,12 +164,9 @@ export function MarkdownEditor({ content, filePath, onChange }: MarkdownEditorPr
     const scroller = scrollRef.current;
     if (!view || !scroller) return;
 
-    // Find the target heading element in the DOM by searching CM6 lines
     const line = view.state.doc.line(Math.min(lineNumber, view.state.doc.lines));
     const block = view.lineBlockAt(line.from);
 
-    // block.top is relative to document start. The scroller scrolls the CM content.
-    // Find the CM editor element's offset within the scroller
     const cmEl = view.dom;
     const cmTop = cmEl.offsetTop;
     const target = Math.max(0, cmTop + block.top - 50);
@@ -134,15 +191,11 @@ export function MarkdownEditor({ content, filePath, onChange }: MarkdownEditorPr
 
   return (
     <div ref={containerRef} className="relative flex h-full">
-      {showToc && headings.length > 0 && (
-        <MarkdownToc headings={headings} onNavigate={handleNavigate} containerRef={containerRef} />
+      {headings.length > 0 && (
+        <MarkdownToc headings={headings} currentLine={currentLine} onNavigate={handleNavigate} />
       )}
 
       <div ref={scrollRef} className="flex-1 overflow-auto">
-        <div className="absolute right-3 top-1.5 z-20">
-          <Toggle checked={showToc} onChange={setShowToc} label={t('markdown.toc')} />
-        </div>
-
         <CodeMirror
           ref={cmRef}
           value={content}

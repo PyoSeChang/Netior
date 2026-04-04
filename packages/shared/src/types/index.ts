@@ -116,6 +116,24 @@ export interface FileEntityUpdate {
 }
 
 // ============================================
+// PDF TOC (file.metadata.pdf_toc)
+// ============================================
+
+export interface PdfTocEntry {
+  id: string;
+  title: string;
+  destPage: number;
+  level: number;
+}
+
+export interface PdfToc {
+  entries: PdfTocEntry[];
+  pageCount: number;
+  analyzedAt: string;
+  sourceMethod: 'text' | 'vision';
+}
+
+// ============================================
 // CanvasNode
 // ============================================
 
@@ -561,6 +579,7 @@ export interface NarreStreamEvent {
   toolResult?: string;
   error?: string;
   card?: NarreCard;
+  sessionId?: string;
 }
 
 // ============================================
