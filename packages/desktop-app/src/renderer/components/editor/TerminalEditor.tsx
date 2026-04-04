@@ -32,6 +32,10 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   }, []);
 
   useEffect(() => {
+    cwdRef.current = tab.terminalCwd ?? useModuleStore.getState().directories[0]?.dir_path;
+  }, [sessionId, tab.terminalCwd]);
+
+  useEffect(() => {
     const cwd = cwdRef.current;
     if (!containerRef.current || !sessionId || !cwd) return;
 

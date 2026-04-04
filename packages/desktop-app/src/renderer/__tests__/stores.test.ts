@@ -7,6 +7,10 @@ const mockElectron = {
     list: vi.fn(),
     delete: vi.fn(),
   },
+  fileEntity: {
+    getByProject: vi.fn(),
+    delete: vi.fn(),
+  },
   concept: {
     create: vi.fn(),
     getByProject: vi.fn(),
@@ -34,6 +38,7 @@ const mockElectron = {
     readFile: vi.fn(),
     writeFile: vi.fn(),
     openDialog: vi.fn(),
+    exists: vi.fn(),
   },
   config: {
     get: vi.fn().mockResolvedValue({ success: true, data: null }),
@@ -54,7 +59,9 @@ const { useUIStore } = await import('../stores/ui-store');
 describe('ProjectStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useProjectStore.setState({ projects: [], currentProject: null, loading: false });
+    mockElectron.fs.exists.mockResolvedValue({ success: true, data: true });
+    mockElectron.fileEntity.getByProject.mockResolvedValue({ success: true, data: [] });
+    useProjectStore.setState({ projects: [], currentProject: null, loading: false, missingFiles: [], missingPathProject: null });
   });
 
   it('should have correct initial state', () => {
@@ -83,13 +90,51 @@ describe('ProjectStore', () => {
     expect(useProjectStore.getState().projects).toHaveLength(1);
   });
 
-  it('should open and close project', () => {
+  it('should open and close project', async () => {
     const project = { id: '1', name: 'P', root_dir: '/x', created_at: '', updated_at: '' };
-    useProjectStore.getState().openProject(project);
+    await useProjectStore.getState().openProject(project);
     expect(useProjectStore.getState().currentProject).toEqual(project);
 
     useProjectStore.getState().closeProject();
     expect(useProjectStore.getState().currentProject).toBeNull();
+  });
+
+  it('should validate relative file entity paths against the project root', async () => {
+    mockElectron.fileEntity.getByProject.mockResolvedValue({
+      success: true,
+      data: [{ id: 'f1', project_id: '1', path: 'docs/readme.md', type: 'file', metadata: null, created_at: '', updated_at: '' }],
+    });
+    mockElectron.fs.exists.mockResolvedValue({ success: true, data: true });
+
+    await useProjectStore.getState().validateFilePaths({
+      id: '1',
+      name: 'P',
+      root_dir: 'C:/project',
+      created_at: '',
+      updated_at: '',
+    });
+
+    expect(mockElectron.fs.exists).toHaveBeenCalledWith('C:/project/docs/readme.md');
+    expect(useProjectStore.getState().missingFiles).toEqual([]);
+  });
+
+  it('should validate absolute file entity paths without prepending the project root', async () => {
+    mockElectron.fileEntity.getByProject.mockResolvedValue({
+      success: true,
+      data: [{ id: 'f1', project_id: '1', path: 'C:/project/docs/readme.md', type: 'file', metadata: null, created_at: '', updated_at: '' }],
+    });
+    mockElectron.fs.exists.mockResolvedValue({ success: true, data: true });
+
+    await useProjectStore.getState().validateFilePaths({
+      id: '1',
+      name: 'P',
+      root_dir: 'C:/project',
+      created_at: '',
+      updated_at: '',
+    });
+
+    expect(mockElectron.fs.exists).toHaveBeenCalledWith('C:/project/docs/readme.md');
+    expect(useProjectStore.getState().missingFiles).toEqual([]);
   });
 });
 

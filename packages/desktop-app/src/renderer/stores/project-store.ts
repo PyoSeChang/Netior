@@ -31,6 +31,23 @@ interface ProjectStore {
   deleteProject: (id: string) => Promise<void>;
 }
 
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/');
+}
+
+function isAbsolutePath(path: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/') || path.startsWith('\\\\');
+}
+
+function resolveFileEntityAbsolutePath(projectRoot: string, filePath: string): string {
+  if (isAbsolutePath(filePath)) {
+    return filePath;
+  }
+  const normalizedRoot = normalizePath(projectRoot).replace(/\/+$/, '');
+  const normalizedFilePath = normalizePath(filePath).replace(/^\/+/, '');
+  return `${normalizedRoot}/${normalizedFilePath}`;
+}
+
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   projects: [],
   currentProject: null,
@@ -103,7 +120,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const files = await fileService.getByProject(project.id);
       const missing: MissingFileEntry[] = [];
       for (const f of files) {
-        const absPath = `${project.root_dir}/${f.path}`;
+        const absPath = resolveFileEntityAbsolutePath(project.root_dir, f.path);
         const exists = unwrapIpc(await window.electron.fs.exists(absPath));
         if (!exists) {
           missing.push({ fileEntity: f });
