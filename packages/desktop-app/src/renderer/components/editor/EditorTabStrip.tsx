@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useSyncExternalStore } from 'react';
 import { X, Terminal, Shapes, Link, Layout, Sparkles, Box, FileText } from 'lucide-react';
 import type { EditorTab } from '@netior/shared/types';
-import { setTabDragData, isTabDrag, getTabDragData } from '../../hooks/useTabDrag';
+import { setTabDragData, isTabDrag, getTabDragDataAsync, clearTabDragData } from '../../hooks/useTabDrag';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuEntry } from '../ui/ContextMenu';
 import { buildTabContextMenu, buildStripContextMenu } from './tab-context-menu';
@@ -106,6 +106,7 @@ function TabItem({ tab, isActive, isFocusedPane, isRenaming, onActivate, onClose
       ref={isActive ? (activeRef as React.LegacyRef<HTMLDivElement>) : undefined}
       draggable={!isRenaming}
       onDragStart={(e) => setTabDragData(e, tab.id)}
+      onDragEnd={() => clearTabDragData()}
       className={`group flex shrink-0 cursor-pointer items-center gap-1.5 px-3 text-xs transition-colors ${
         isActive
           ? `tab-active bg-surface-panel text-default border-l border-r border-default ${
@@ -226,11 +227,12 @@ export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, hostId
     setDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const tabId = getTabDragData(e);
-    if (tabId && onTabDrop) {
+    if (!onTabDrop) return;
+    const tabId = await getTabDragDataAsync(e);
+    if (tabId) {
       onTabDrop(tabId);
     }
   }, [onTabDrop]);

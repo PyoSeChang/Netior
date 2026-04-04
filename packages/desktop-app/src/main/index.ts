@@ -289,8 +289,13 @@ app.whenReady().then(async () => {
     }
   });
 
+  // Cross-window tab drag state (IPC relay for dataTransfer sandboxing)
+  let pendingDragTabId: string | null = null;
+  ipcMain.on('editor:dragStart', (_event, tabId: string) => { pendingDragTabId = tabId; });
+  ipcMain.handle('editor:getDragData', () => pendingDragTabId);
+  ipcMain.on('editor:dragEnd', () => { pendingDragTabId = null; });
+
   createWindow();
-  ptyManager.init(mainWindow!);
 
   // Start Claude Code hook server for terminal integration
   hookServer.init(mainWindow!);

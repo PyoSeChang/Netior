@@ -10,6 +10,7 @@ import type {
   TerminalSessionState,
 } from '@netior/shared/types';
 
+
 function resolveShell(config?: TerminalLaunchConfig): { command: string; args: string[]; title: string } {
   if (config?.shell) {
     return {
@@ -43,11 +44,6 @@ interface TerminalSessionRecord {
 
 class TerminalBackendService {
   private sessions = new Map<string, TerminalSessionRecord>();
-  private mainWindow: BrowserWindow | null = null;
-
-  init(mainWindow: BrowserWindow): void {
-    this.mainWindow = mainWindow;
-  }
 
   createInstance(sessionId: string, launchConfig: TerminalLaunchConfig): TerminalSessionInfo {
     const existing = this.sessions.get(sessionId);
@@ -165,8 +161,10 @@ class TerminalBackendService {
   }
 
   private send(channel: string, payload: unknown): void {
-    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send(channel, payload);
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel, payload);
+      }
     }
   }
 }

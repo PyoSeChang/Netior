@@ -851,12 +851,37 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     layout = addTabToLeaf(layout, targetPaneTabId, tabId);
 
-    set((s) => ({
-      ...oldLayoutUpdate,
-      ...setLayoutForMode(mode, layout!),
-      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: mode, isMinimized: false, hostId: MAIN_HOST_ID } : t)),
-      activeTabId: tabId,
-    }));
+    const sourceHostId = tab.hostId;
+
+    set((s) => {
+      let hostsUpdate = s.hosts;
+
+      // Clean up source detached host if tab came from one
+      if (sourceHostId !== MAIN_HOST_ID) {
+        const remainingHostTabs = s.tabs.filter((t) => t.id !== tabId && t.hostId === sourceHostId);
+        if (remainingHostTabs.length === 0) {
+          const { [sourceHostId]: _, ...rest } = hostsUpdate;
+          hostsUpdate = rest;
+          window.electron.editor.closeDetachedWindow(sourceHostId);
+        } else {
+          const host = hostsUpdate[sourceHostId];
+          if (host && host.activeTabId === tabId) {
+            hostsUpdate = {
+              ...hostsUpdate,
+              [sourceHostId]: { ...host, activeTabId: remainingHostTabs[remainingHostTabs.length - 1].id },
+            };
+          }
+        }
+      }
+
+      return {
+        ...oldLayoutUpdate,
+        ...setLayoutForMode(mode, layout!),
+        tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: mode, isMinimized: false, hostId: MAIN_HOST_ID } : t)),
+        activeTabId: tabId,
+        hosts: hostsUpdate,
+      };
+    });
   },
 
   updateSplitRatio: (mode, path, ratio) => {

@@ -86,6 +86,7 @@ export function DetachedEditorShell({ hostId }: DetachedEditorShellProps): JSX.E
             hostId={hostId}
             onActivate={(tabId) => setHostActiveTab(hostId, tabId)}
             onClose={requestCloseTab}
+            onTabDrop={(tabId) => moveTabToHost(tabId, hostId)}
             rightSlot={
               <EditorViewModeSwitch
                 currentMode="detached"

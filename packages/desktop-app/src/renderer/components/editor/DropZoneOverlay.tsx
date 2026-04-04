@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import type { SplitDirection } from '@netior/shared/types';
-import { isTabDrag, getTabDragData } from '../../hooks/useTabDrag';
+import { isTabDrag, getTabDragDataAsync } from '../../hooks/useTabDrag';
 
 export type DropZone = 'top' | 'bottom' | 'left' | 'right' | 'center';
 
@@ -63,17 +63,16 @@ export function DropZoneOverlay({ onDrop, centerOnly, active }: DropZoneOverlayP
   }, []);
 
   const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
+    async (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
-      const tabId = getTabDragData(e);
-      if (!tabId) return;
-
       const zone = getZone(e, centerOnly);
       const { direction, position } = zoneToSplit(zone);
-      onDrop({ tabId, zone, direction, position });
-
       setActiveZone(null);
+
+      const tabId = await getTabDragDataAsync(e);
+      if (!tabId) return;
+      onDrop({ tabId, zone, direction, position });
     },
     [onDrop, centerOnly],
   );
