@@ -59,8 +59,13 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
   }, []);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
+  const fullActiveTabId = useEditorStore((s) => {
+    if (!s.fullLayout) return null;
+    return getActiveTabFromLayout(s.fullLayout, s.activeTabId);
+  });
 
-  const isFullMode = activeTab && !activeTab.isMinimized && activeTab.viewMode === 'full';
+  const isFullMode = fullActiveTabId !== null
+    && tabs.some((t) => t.id === fullActiveTabId && !t.isMinimized && t.viewMode === 'full');
   const hasSideEditor = !isFullMode && sideLayout !== null
     && tabs.some((t) => t.viewMode === 'side' && !t.isMinimized);
 
@@ -177,7 +182,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
         .filter((t): t is EditorTab => t != null);
       const activeLeafTab = leafTabs.find((t) => t.id === leaf.activeTabId) ?? leafTabs[0];
 
-      const isActivePane = leaf.tabIds.includes(activeTabId!);
+      const isActivePane = sideActiveTabId ? leaf.tabIds.includes(sideActiveTabId) : false;
       const isMultiPane = sideLayout ? collectLeaves(sideLayout).length > 1 : false;
 
       return (

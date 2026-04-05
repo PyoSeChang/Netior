@@ -8,7 +8,13 @@ const mockElectron = {
   config: { get: vi.fn().mockResolvedValue({ success: true, data: null }), set: vi.fn() },
   window: { onAppShortcut: vi.fn().mockReturnValue(() => {}) },
 };
-Object.defineProperty(globalThis, 'window', { value: { electron: mockElectron }, writable: true });
+Object.defineProperty(globalThis, 'window', {
+  value: {
+    electron: mockElectron,
+    location: { hash: '' },
+  },
+  writable: true,
+});
 
 // Import after mock
 const { collectLeaves, getActiveLeaf, useEditorStore, containsTab } = await import('../stores/editor-store');
@@ -174,6 +180,44 @@ describe('closeTab fallback', () => {
     useEditorStore.getState().closeTab('t1');
     expect(useEditorStore.getState().activeTabId).toBeNull();
     expect(useEditorStore.getState().tabs).toHaveLength(0);
+  });
+});
+
+describe('setViewMode float fallback', () => {
+  beforeEach(() => {
+    useEditorStore.setState({
+      tabs: [], activeTabId: null, sideLayout: null, fullLayout: null, hosts: {}, focusedHostId: 'main', pendingCloseTabId: null,
+    });
+  });
+
+  it('reselects same-pane tab when floating the active side tab', () => {
+    useEditorStore.setState({
+      tabs: makeTabs('t1', 't2'),
+      activeTabId: 't2',
+      sideLayout: makeLeaf(['t1', 't2'], 't2'),
+    });
+
+    useEditorStore.getState().setViewMode('t2', 'float');
+    const state = useEditorStore.getState();
+
+    expect(state.activeTabId).toBe('t1');
+    expect(state.tabs.find((t) => t.id === 't2')?.viewMode).toBe('float');
+    expect(state.sideLayout && containsTab(state.sideLayout, 't1')).toBe(true);
+  });
+
+  it('keeps full layout active when floating the active full tab', () => {
+    useEditorStore.setState({
+      tabs: makeTabs('f1', 'f2').map((tab) => ({ ...tab, viewMode: 'full' })),
+      activeTabId: 'f2',
+      fullLayout: makeLeaf(['f1', 'f2'], 'f2'),
+    });
+
+    useEditorStore.getState().setViewMode('f2', 'float');
+    const state = useEditorStore.getState();
+
+    expect(state.activeTabId).toBe('f1');
+    expect(state.tabs.find((t) => t.id === 'f2')?.viewMode).toBe('float');
+    expect(state.fullLayout && containsTab(state.fullLayout, 'f1')).toBe(true);
   });
 });
 

@@ -284,14 +284,22 @@ function setLayoutForMode(mode: EditorViewMode, layout: SplitNode | null): Parti
   return mode === 'side' ? { sideLayout: layout } : { fullLayout: layout };
 }
 
-/** Remove tabId from the layout of oldMode (if present) */
-function removeFromLayout(state: EditorStore, oldMode: EditorViewMode, tabId: string): Partial<EditorStore> {
-  const update: Partial<EditorStore> = {};
+/** Remove tabId from the layout of oldMode (if present) and report the next pane-local active tab */
+function removeFromLayout(
+  state: EditorStore,
+  oldMode: EditorViewMode,
+  tabId: string,
+): Partial<EditorStore> & { fallbackTabId?: string | null } {
+  const update: Partial<EditorStore> & { fallbackTabId?: string | null } = {};
   if (oldMode === 'side' && state.sideLayout && containsTab(state.sideLayout, tabId)) {
-    update.sideLayout = removeTabFromTree(state.sideLayout, tabId).tree;
+    const result = removeTabFromTree(state.sideLayout, tabId);
+    update.sideLayout = result.tree;
+    update.fallbackTabId = result.fallbackTabId;
   }
   if (oldMode === 'full' && state.fullLayout && containsTab(state.fullLayout, tabId)) {
-    update.fullLayout = removeTabFromTree(state.fullLayout, tabId).tree;
+    const result = removeTabFromTree(state.fullLayout, tabId);
+    update.fullLayout = result.tree;
+    update.fallbackTabId = result.fallbackTabId;
   }
   return update;
 }
@@ -579,6 +587,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       const layoutUpdate = removeFromLayout(get(), oldMode, tabId);
       set((s) => ({
         ...layoutUpdate,
+        activeTabId: s.activeTabId === tabId ? (layoutUpdate.fallbackTabId ?? null) : s.activeTabId,
         tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: 'float' } : t)),
       }));
       if (oldTab.type === 'concept') debouncedSavePrefs(oldTab.targetId, { view_mode: mode });

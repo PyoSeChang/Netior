@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type { SplitLeaf, EditorTab } from '@netior/shared/types';
-import { useEditorStore, collectLeaves } from '../../../stores/editor-store';
+import { useEditorStore, collectLeaves, getActiveTabFromLayout } from '../../../stores/editor-store';
 import { EditorViewModeSwitch } from '../EditorViewModeSwitch';
 import { EditorContent } from '../EditorContent';
 import { EditorTabStrip } from '../EditorTabStrip';
@@ -14,6 +14,10 @@ export function FullModeEditor(): JSX.Element | null {
     setActiveTab, requestCloseTab, setViewMode, toggleMinimize,
     updateSplitRatio, splitTab, moveTabToPane,
   } = useEditorStore();
+  const layoutActiveTabId = useEditorStore((s) => {
+    if (!s.fullLayout) return null;
+    return getActiveTabFromLayout(s.fullLayout, s.activeTabId);
+  });
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
@@ -28,7 +32,7 @@ export function FullModeEditor(): JSX.Element | null {
         .map((id) => tabs.find((t) => t.id === id))
         .filter((t): t is EditorTab => t != null);
       const activeTab = leafTabs.find((t) => t.id === leaf.activeTabId) ?? leafTabs[0];
-      const isActivePane = leaf.tabIds.includes(activeTabId!);
+      const isActivePane = layoutActiveTabId ? leaf.tabIds.includes(layoutActiveTabId) : false;
       const isMultiPane = fullLayout ? collectLeaves(fullLayout).length > 1 : false;
 
       return (
@@ -75,7 +79,7 @@ export function FullModeEditor(): JSX.Element | null {
         </div>
       );
     },
-    [tabs, isDragging, activeTabId, fullLayout, setActiveTab, requestCloseTab, setViewMode, toggleMinimize, moveTabToPane, splitTab],
+    [tabs, isDragging, activeTabId, layoutActiveTabId, fullLayout, setActiveTab, requestCloseTab, setViewMode, toggleMinimize, moveTabToPane, splitTab],
   );
 
   if (!fullLayout) return null;
