@@ -33,7 +33,7 @@ export function ActivityBar(): JSX.Element {
   };
 
   return (
-    <nav className="flex h-full w-10 shrink-0 flex-col items-center border-r border-subtle bg-surface-panel py-2">
+    <nav className="flex h-full w-10 shrink-0 flex-col items-center border-r border-subtle bg-[var(--surface-sidebar)] py-2">
       <div className="flex flex-1 flex-col items-center gap-1">
         {ITEMS.map(({ key, icon: Icon, label }) => {
           const isActive = sidebarOpen && sidebarView === key;

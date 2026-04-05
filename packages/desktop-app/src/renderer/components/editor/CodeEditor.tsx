@@ -2,8 +2,10 @@ import React, { useCallback, useRef } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import { getCssColorAsHex } from './editor-utils';
 import { useViewState } from '../../hooks/useViewState';
+import { useSettingsStore } from '../../stores/settings-store';
 
 type MonacoEditor = Parameters<OnMount>[0];
+type MonacoNamespace = Parameters<NonNullable<Parameters<typeof Editor>[0]['beforeMount']>>[0];
 
 interface CodeViewState {
   cursorLine: number;
@@ -20,8 +22,11 @@ interface CodeEditorProps {
 
 export function CodeEditor({ tabId, content, language, onChange }: CodeEditorProps): JSX.Element {
   const editorRef = useRef<MonacoEditor | null>(null);
+  const monacoRef = useRef<MonacoNamespace | null>(null);
   const [viewState, setViewState] = useViewState<CodeViewState>(tabId, { cursorLine: 1, cursorColumn: 1, scrollTop: 0 });
   const viewStateRef = useRef(viewState);
+  const resolvedThemeMode = useSettingsStore((s) => s.resolvedThemeMode);
+  const themeRevision = useSettingsStore((s) => s.themeRevision);
 
   const handleMount: OnMount = useCallback((editor) => {
     editorRef.current = editor;
@@ -55,10 +60,11 @@ export function CodeEditor({ tabId, content, language, onChange }: CodeEditorPro
     onChange(value ?? '');
   }, [onChange]);
 
-  const isDark = document.documentElement.getAttribute('data-mode') !== 'light';
+  const isDark = resolvedThemeMode !== 'light';
   const bg = getCssColorAsHex('--surface-panel', isDark ? '#1e1e1e' : '#ffffff');
 
-  const handleBeforeMount = useCallback((monaco: Parameters<NonNullable<Parameters<typeof Editor>[0]['beforeMount']>>[0]) => {
+  const handleBeforeMount = useCallback((monaco: MonacoNamespace) => {
+    monacoRef.current = monaco;
     monaco.editor.defineTheme('netior-dark', {
       base: 'vs-dark',
       inherit: true,
@@ -72,6 +78,24 @@ export function CodeEditor({ tabId, content, language, onChange }: CodeEditorPro
       colors: { 'editor.background': bg },
     });
   }, [bg]);
+
+  React.useEffect(() => {
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+    monaco.editor.defineTheme('netior-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: { 'editor.background': bg },
+    });
+    monaco.editor.defineTheme('netior-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [],
+      colors: { 'editor.background': bg },
+    });
+    monaco.editor.setTheme(isDark ? 'netior-dark' : 'netior-light');
+  }, [bg, isDark, themeRevision]);
 
   return (
     <Editor

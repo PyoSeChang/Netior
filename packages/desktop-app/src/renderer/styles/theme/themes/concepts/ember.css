@@ -32,18 +32,18 @@
     --palette-neutral-950: hsl(14, 20%, 6%);
 
     --theme-background-image:
-        radial-gradient(circle at top center, hsla(18, 73%, 57%, 0.18), transparent 28%),
-        radial-gradient(circle at bottom right, hsla(8, 60%, 34%, 0.14), transparent 32%);
-    --theme-dark-surface-base: hsl(14, 26%, 8%);
-    --theme-dark-surface-panel: hsl(14, 24%, 10%);
-    --theme-dark-surface-card: hsl(15, 22%, 13%);
-    --theme-dark-surface-hover: hsl(15, 18%, 18%);
-    --theme-dark-surface-modal: hsl(14, 24%, 10%);
-    --theme-dark-input-bg: hsl(15, 22%, 13%);
-    --theme-light-surface-base: hsl(18, 52%, 96%);
-    --theme-light-surface-panel: hsl(18, 42%, 99%);
-    --theme-light-surface-card: hsl(18, 34%, 98%);
-    --theme-light-surface-hover: hsl(18, 30%, 92%);
-    --theme-light-surface-modal: hsl(18, 42%, 99%);
+        radial-gradient(circle at top center, hsla(18, 73%, 57%, 0.19), transparent 26%),
+        radial-gradient(circle at bottom right, hsla(8, 58%, 28%, 0.16), transparent 30%);
+    --theme-dark-surface-base: hsl(14, 28%, 7%);
+    --theme-dark-surface-panel: hsl(14, 24%, 9%);
+    --theme-dark-surface-card: hsl(15, 21%, 12%);
+    --theme-dark-surface-hover: hsl(15, 18%, 17%);
+    --theme-dark-surface-modal: hsl(14, 25%, 8%);
+    --theme-dark-input-bg: hsl(15, 20%, 11%);
+    --theme-light-surface-base: hsl(18, 54%, 95%);
+    --theme-light-surface-panel: hsl(18, 30%, 98%);
+    --theme-light-surface-card: hsl(18, 28%, 96%);
+    --theme-light-surface-hover: hsl(18, 28%, 90%);
+    --theme-light-surface-modal: hsl(18, 26%, 99%);
     --theme-light-input-bg: hsl(0, 0%, 100%);
 }

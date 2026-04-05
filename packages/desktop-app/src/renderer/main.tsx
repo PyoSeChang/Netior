@@ -6,18 +6,20 @@ import { initTerminalTracker } from './lib/terminal-tracker';
 import { initClaudeTerminalTracker } from './lib/claude-terminal-tracker';
 import { initTerminalAgentNotifier } from './lib/terminal-agent-notifier';
 import { initMainBridge } from './lib/editor-state-bridge';
+import { initializeSettingsStore } from './stores/settings-store';
 import './styles/globals.css';
 
 const hash = window.location.hash;
 const isDetached = hash.startsWith('#/detached/');
 
-// Main-window-only module-level inits.
-// MUST NOT run in detached windows — initMainBridge pushes Zustand store to
-// main process cache, which would overwrite the correct state with empty state.
+initTerminalTracker();
+initClaudeTerminalTracker();
+initTerminalAgentNotifier();
+initializeSettingsStore();
+
+// Main-window-only module-level init.
+// Detached windows must not push their local store as the shared source of truth.
 if (!isDetached) {
-  initTerminalTracker();
-  initClaudeTerminalTracker();
-  initTerminalAgentNotifier();
   initMainBridge();
 }
 

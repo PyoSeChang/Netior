@@ -1,44 +1,77 @@
 :root[data-mode="light"] {
-    /* Surface */
-    --surface-base: var(--theme-light-surface-base, var(--palette-neutral-50));
-    --surface-panel: var(--theme-light-surface-panel, #ffffff);
-    --surface-card: var(--theme-light-surface-card, #ffffff);
-    --surface-hover: var(--theme-light-surface-hover, var(--palette-neutral-100));
-    --surface-modal: var(--theme-light-surface-modal, #ffffff);
-    --surface-overlay: rgba(0, 0, 0, 0.4);
+    /* Core roles */
+    --bg-app: var(--theme-light-surface-base, var(--palette-neutral-50));
+    --bg-sidebar: color-mix(in srgb, var(--theme-light-surface-panel, white) 92%, var(--palette-primary-50));
+    --bg-workspace: color-mix(in srgb, var(--bg-app) 88%, white);
+    --bg-canvas: color-mix(in srgb, var(--bg-app) 84%, var(--palette-primary-50));
+    --bg-panel: var(--theme-light-surface-panel, #ffffff);
+    --bg-elevated: var(--theme-light-surface-card, #ffffff);
+    --bg-float: color-mix(in srgb, var(--theme-light-surface-modal, white) 94%, var(--palette-primary-50));
+    --bg-titlebar: color-mix(in srgb, var(--bg-app) 58%, var(--palette-neutral-200));
+    --bg-tabstrip: var(--bg-titlebar);
+    --bg-sidebar-panel: color-mix(in srgb, var(--bg-sidebar) 68%, var(--palette-primary-100));
+    --bg-tool-panel: color-mix(in srgb, var(--bg-panel) 64%, var(--palette-primary-100));
+    --bg-editor: color-mix(in srgb, var(--bg-panel) 88%, var(--palette-neutral-100));
+    --bg-document: hsl(0, 0%, 100%);
+    --bg-document-shadow: rgba(15, 23, 42, 0.14);
+    --bg-input: var(--theme-light-input-bg, #ffffff);
+    --bg-overlay: rgba(12, 18, 28, 0.42);
+    --bg-node: color-mix(in srgb, var(--theme-light-surface-card, #ffffff) 80%, var(--palette-primary-50));
+    --bg-node-selected: color-mix(in srgb, var(--bg-node) 74%, var(--palette-primary-100));
+    --bg-interactive-hover: color-mix(in srgb, var(--theme-light-surface-hover, var(--palette-neutral-100)) 82%, var(--palette-primary-50));
+    --bg-interactive-selected: color-mix(in srgb, var(--palette-primary-600) 12%, white);
+    --bg-interactive-muted: color-mix(in srgb, var(--palette-primary-600) 8%, white);
+    --bg-selection-soft: color-mix(in srgb, var(--palette-primary-600) 16%, white);
 
-    /* Text */
+    --text-strong: var(--palette-neutral-950);
     --text-default: var(--palette-neutral-900);
-    --text-secondary: var(--palette-neutral-600);
-    --text-muted: var(--palette-neutral-400);
+    --text-subtle: var(--palette-neutral-600);
+    --text-dim: var(--palette-neutral-500);
     --text-on-accent: white;
+    --text-accent: var(--palette-primary-700);
 
-    /* Border */
-    --border-subtle: var(--palette-neutral-100);
-    --border-default: var(--palette-neutral-200);
-    --border-strong: var(--palette-neutral-300);
+    --border-faint: color-mix(in srgb, var(--palette-neutral-300) 86%, transparent);
+    --border-default: var(--palette-neutral-400);
+    --border-strong: var(--palette-neutral-500);
+    --border-accent: color-mix(in srgb, var(--palette-primary-600) 78%, white);
 
-    /* Accent */
     --accent: var(--palette-primary-600);
-    /* Slightly darker for contrast on light bg */
     --accent-hover: var(--palette-primary-700);
-    --accent-muted: var(--palette-primary-100);
+    --accent-muted: color-mix(in srgb, var(--palette-primary-600) 12%, white);
 
-    /* Status Colors */
+    /* Status */
     --status-success: #16a34a;
     --status-warning: #ca8a04;
     --status-error: #dc2626;
     --status-info: #2563eb;
 
-    /* Input/Form Specifics */
-    --input-bg: var(--theme-light-input-bg, #ffffff);
-    --input-border: var(--palette-neutral-300);
-    --input-placeholder: var(--text-muted);
+    --input-bg: var(--bg-input);
+    --input-border: var(--border-default);
+    --input-placeholder: var(--text-dim);
 
-    /* Focus Ring */
-    --accent-ring: color-mix(in srgb, var(--accent) 30%, transparent);
+    --accent-ring: color-mix(in srgb, var(--accent) 22%, transparent);
+    --edge-default: color-mix(in srgb, var(--palette-neutral-400) 84%, var(--palette-primary-200));
+    --edge-hover: var(--palette-primary-700);
 
-    /* Canvas Edge (Synapse visualization) */
-    --edge-default: var(--palette-neutral-400);
-    --edge-hover: var(--accent);
+    --shadow-panel: 0 10px 22px -18px rgba(15, 23, 42, 0.18);
+    --shadow-float: 0 22px 44px -24px rgba(15, 23, 42, 0.22);
+    --shadow-node: 0 14px 26px -20px rgba(15, 23, 42, 0.18);
+    --shadow-document: 0 24px 44px -26px var(--bg-document-shadow);
+    --shadow-focus: 0 0 0 1px color-mix(in srgb, var(--border-accent) 74%, transparent),
+        0 0 0 4px color-mix(in srgb, var(--accent) 14%, white);
+
+    /* Legacy aliases */
+    --surface-base: var(--bg-app);
+    --surface-panel: var(--bg-panel);
+    --surface-card: var(--bg-elevated);
+    --surface-sidebar: var(--bg-sidebar);
+    --surface-sidebar-panel: var(--bg-sidebar-panel);
+    --surface-tool-panel: var(--bg-tool-panel);
+    --surface-editor: var(--bg-editor);
+    --surface-hover: var(--bg-interactive-hover);
+    --surface-modal: var(--bg-float);
+    --surface-overlay: var(--bg-overlay);
+    --text-secondary: var(--text-subtle);
+    --text-muted: var(--text-dim);
+    --border-subtle: var(--border-faint);
 }

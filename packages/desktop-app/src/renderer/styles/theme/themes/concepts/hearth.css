@@ -1,0 +1,49 @@
+:root[data-concept="hearth"] {
+    /*
+     * Hearth
+     * Warm gray workspace.
+     * Parchment and ash tones with minimal brown bias.
+     */
+
+    /* Primary Scale (Warm gray accent) */
+    --palette-primary-50: hsl(24, 16%, 94%);
+    --palette-primary-100: hsl(24, 14%, 88%);
+    --palette-primary-200: hsl(24, 12%, 78%);
+    --palette-primary-300: hsl(24, 10%, 66%);
+    --palette-primary-400: hsl(24, 9%, 56%);
+    --palette-primary-500: hsl(24, 10%, 46%);
+    --palette-primary-600: hsl(24, 11%, 38%);
+    --palette-primary-700: hsl(24, 12%, 30%);
+    --palette-primary-800: hsl(24, 13%, 23%);
+    --palette-primary-900: hsl(24, 15%, 16%);
+    --palette-primary-950: hsl(24, 17%, 10%);
+
+    /* Neutral Scale (Warm paper gray) */
+    --palette-neutral-50: hsl(28, 18%, 95%);
+    --palette-neutral-100: hsl(26, 15%, 90%);
+    --palette-neutral-200: hsl(24, 12%, 82%);
+    --palette-neutral-300: hsl(22, 10%, 70%);
+    --palette-neutral-400: hsl(20, 8%, 56%);
+    --palette-neutral-500: hsl(18, 8%, 38%);
+    --palette-neutral-600: hsl(16, 9%, 28%);
+    --palette-neutral-700: hsl(14, 10%, 21%);
+    --palette-neutral-800: hsl(12, 11%, 16%);
+    --palette-neutral-900: hsl(10, 13%, 11%);
+    --palette-neutral-950: hsl(8, 14%, 8%);
+
+    --theme-background-image:
+        radial-gradient(circle at top left, hsla(24, 12%, 58%, 0.10), transparent 24%),
+        radial-gradient(circle at bottom right, hsla(16, 10%, 28%, 0.14), transparent 28%);
+    --theme-dark-surface-base: hsl(18, 14%, 8%);
+    --theme-dark-surface-panel: hsl(18, 12%, 10%);
+    --theme-dark-surface-card: hsl(18, 11%, 13%);
+    --theme-dark-surface-hover: hsl(18, 10%, 18%);
+    --theme-dark-surface-modal: hsl(18, 13%, 9%);
+    --theme-dark-input-bg: hsl(18, 10%, 12%);
+    --theme-light-surface-base: hsl(28, 24%, 94%);
+    --theme-light-surface-panel: hsl(28, 18%, 97%);
+    --theme-light-surface-card: hsl(28, 16%, 95%);
+    --theme-light-surface-hover: hsl(26, 14%, 89%);
+    --theme-light-surface-modal: hsl(28, 16%, 98%);
+    --theme-light-input-bg: hsl(30, 14%, 99%);
+}

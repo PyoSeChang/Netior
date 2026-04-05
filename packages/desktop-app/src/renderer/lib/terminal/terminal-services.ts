@@ -169,7 +169,7 @@ export async function ensureTerminalServices(): Promise<void> {
       });
       themeObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['data-mode', 'data-concept'],
+        attributeFilter: ['data-mode', 'data-concept', 'data-theme-variant', 'style'],
       });
     }
   })();

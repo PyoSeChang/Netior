@@ -1,12 +1,11 @@
 /* Concepts */
 @import './concepts/forest.css';
-@import './concepts/slate.css';
-@import './concepts/graphite.css';
+@import './concepts/alloy.css';
+@import './concepts/hearth.css';
 @import './concepts/tide.css';
 @import './concepts/dune.css';
 @import './concepts/ember.css';
 @import './concepts/pastel.css';
-@import './concepts/neon.css';
 
 /* Modes */
 @import './modes/dark.css';

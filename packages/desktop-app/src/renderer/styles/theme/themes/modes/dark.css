@@ -1,44 +1,77 @@
 :root[data-mode="dark"] {
-    /* Surface */
-    --surface-base: var(--theme-dark-surface-base, var(--palette-neutral-950));
-    --surface-panel: var(--theme-dark-surface-panel, var(--palette-neutral-900));
-    --surface-card: var(--theme-dark-surface-card, var(--palette-neutral-800));
-    --surface-hover: var(--theme-dark-surface-hover, var(--palette-neutral-700));
-    --surface-modal: var(--theme-dark-surface-modal, var(--palette-neutral-900));
-    --surface-overlay: rgba(0, 0, 0, 0.7);
+    /* Core roles */
+    --bg-app: var(--theme-dark-surface-base, var(--palette-neutral-950));
+    --bg-sidebar: color-mix(in srgb, var(--theme-dark-surface-panel, var(--palette-neutral-900)) 88%, black);
+    --bg-workspace: color-mix(in srgb, var(--theme-dark-surface-panel, var(--palette-neutral-900)) 94%, var(--bg-app));
+    --bg-canvas: color-mix(in srgb, var(--bg-app) 82%, var(--palette-primary-950));
+    --bg-panel: var(--theme-dark-surface-panel, var(--palette-neutral-900));
+    --bg-elevated: var(--theme-dark-surface-card, var(--palette-neutral-800));
+    --bg-float: color-mix(in srgb, var(--theme-dark-surface-modal, var(--palette-neutral-900)) 92%, black);
+    --bg-titlebar: color-mix(in srgb, var(--bg-app) 88%, black);
+    --bg-tabstrip: var(--bg-titlebar);
+    --bg-sidebar-panel: color-mix(in srgb, var(--bg-sidebar) 92%, var(--palette-primary-950));
+    --bg-tool-panel: color-mix(in srgb, var(--bg-panel) 82%, var(--palette-primary-950));
+    --bg-editor: color-mix(in srgb, var(--bg-panel) 88%, black);
+    --bg-document: hsl(220, 18%, 97%);
+    --bg-document-shadow: rgba(0, 0, 0, 0.32);
+    --bg-input: var(--theme-dark-input-bg, var(--palette-neutral-800));
+    --bg-overlay: rgba(0, 0, 0, 0.72);
+    --bg-node: color-mix(in srgb, var(--theme-dark-surface-card, var(--palette-neutral-800)) 92%, var(--palette-primary-950));
+    --bg-node-selected: color-mix(in srgb, var(--bg-node) 84%, var(--palette-primary-900));
+    --bg-interactive-hover: color-mix(in srgb, var(--theme-dark-surface-hover, var(--palette-neutral-700)) 82%, var(--palette-primary-900));
+    --bg-interactive-selected: color-mix(in srgb, var(--palette-primary-500) 18%, transparent);
+    --bg-interactive-muted: color-mix(in srgb, var(--palette-primary-500) 10%, transparent);
+    --bg-selection-soft: color-mix(in srgb, var(--palette-primary-400) 20%, transparent);
 
-    /* Text */
-    --text-default: var(--palette-neutral-50);
-    --text-secondary: var(--palette-neutral-300);
-    --text-muted: var(--palette-neutral-400);
+    --text-strong: var(--palette-neutral-50);
+    --text-default: var(--palette-neutral-100);
+    --text-subtle: var(--palette-neutral-300);
+    --text-dim: var(--palette-neutral-400);
     --text-on-accent: white;
+    --text-accent: var(--palette-primary-300);
 
-    /* Border */
-    --border-subtle: var(--palette-neutral-700);
+    --border-faint: color-mix(in srgb, var(--palette-neutral-700) 80%, transparent);
     --border-default: var(--palette-neutral-600);
     --border-strong: var(--palette-neutral-500);
+    --border-accent: color-mix(in srgb, var(--palette-primary-400) 88%, white);
 
-    /* Accent */
     --accent: var(--palette-primary-500);
     --accent-hover: var(--palette-primary-400);
-    --accent-muted: var(--palette-primary-900);
-    /* Background for badges etc */
+    --accent-muted: color-mix(in srgb, var(--palette-primary-500) 18%, transparent);
 
-    /* Status Colors (Hardcoded or potentially another palette axis, keeping simple for now) */
+    /* Status */
     --status-success: #22c55e;
     --status-warning: #eab308;
     --status-error: #ef4444;
     --status-info: #3b82f6;
 
-    /* Input/Form Specifics */
-    --input-bg: var(--theme-dark-input-bg, var(--palette-neutral-800));
-    --input-border: var(--palette-neutral-500);
-    --input-placeholder: var(--text-muted);
+    --input-bg: var(--bg-input);
+    --input-border: var(--border-default);
+    --input-placeholder: var(--text-dim);
 
-    /* Focus Ring */
-    --accent-ring: color-mix(in srgb, var(--accent) 30%, transparent);
-
-    /* Canvas Edge (Synapse visualization) */
+    --accent-ring: color-mix(in srgb, var(--accent) 34%, transparent);
     --edge-default: var(--palette-neutral-500);
-    --edge-hover: var(--accent);
+    --edge-hover: var(--palette-primary-300);
+
+    --shadow-panel: 0 12px 32px -18px rgba(0, 0, 0, 0.7);
+    --shadow-float: 0 26px 60px -24px rgba(0, 0, 0, 0.78);
+    --shadow-node: 0 18px 32px -24px rgba(0, 0, 0, 0.8);
+    --shadow-document: 0 18px 48px -28px var(--bg-document-shadow);
+    --shadow-focus: 0 0 0 1px color-mix(in srgb, var(--border-accent) 72%, transparent),
+        0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent);
+
+    /* Legacy aliases */
+    --surface-base: var(--bg-app);
+    --surface-panel: var(--bg-panel);
+    --surface-card: var(--bg-elevated);
+    --surface-sidebar: var(--bg-sidebar);
+    --surface-sidebar-panel: var(--bg-sidebar-panel);
+    --surface-tool-panel: var(--bg-tool-panel);
+    --surface-editor: var(--bg-editor);
+    --surface-hover: var(--bg-interactive-hover);
+    --surface-modal: var(--bg-float);
+    --surface-overlay: var(--bg-overlay);
+    --text-secondary: var(--text-subtle);
+    --text-muted: var(--text-dim);
+    --border-subtle: var(--border-faint);
 }

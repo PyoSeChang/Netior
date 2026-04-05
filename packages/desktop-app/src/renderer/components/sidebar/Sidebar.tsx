@@ -80,7 +80,7 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
 
   return (
     <div
-      className="flex h-full shrink-0 flex-col bg-surface-panel"
+      className="flex h-full shrink-0 flex-col bg-[var(--surface-sidebar-panel)]"
       style={{ width: sidebarWidth }}
     >
       <ScrollArea className="flex-1">

@@ -1,0 +1,49 @@
+:root[data-concept="alloy"] {
+    /*
+     * Alloy
+     * Neutral gray workspace inspired by Claude, Discord, and Obsidian.
+     * Strict grayscale layering with no blue bias.
+     */
+
+    /* Primary Scale (Neutral gray accent) */
+    --palette-primary-50: hsl(0, 0%, 95%);
+    --palette-primary-100: hsl(0, 0%, 89%);
+    --palette-primary-200: hsl(0, 0%, 79%);
+    --palette-primary-300: hsl(0, 0%, 67%);
+    --palette-primary-400: hsl(0, 0%, 57%);
+    --palette-primary-500: hsl(0, 0%, 47%);
+    --palette-primary-600: hsl(0, 0%, 39%);
+    --palette-primary-700: hsl(0, 0%, 31%);
+    --palette-primary-800: hsl(0, 0%, 24%);
+    --palette-primary-900: hsl(0, 0%, 16%);
+    --palette-primary-950: hsl(0, 0%, 10%);
+
+    /* Neutral Scale (Layered true gray) */
+    --palette-neutral-50: hsl(0, 0%, 96%);
+    --palette-neutral-100: hsl(0, 0%, 91%);
+    --palette-neutral-200: hsl(0, 0%, 82%);
+    --palette-neutral-300: hsl(0, 0%, 70%);
+    --palette-neutral-400: hsl(0, 0%, 56%);
+    --palette-neutral-500: hsl(0, 0%, 38%);
+    --palette-neutral-600: hsl(0, 0%, 28%);
+    --palette-neutral-700: hsl(0, 0%, 21%);
+    --palette-neutral-800: hsl(0, 0%, 16%);
+    --palette-neutral-900: hsl(0, 0%, 11%);
+    --palette-neutral-950: hsl(0, 0%, 8%);
+
+    --theme-background-image:
+        radial-gradient(circle at top left, hsla(0, 0%, 58%, 0.08), transparent 24%),
+        radial-gradient(circle at bottom right, hsla(0, 0%, 30%, 0.12), transparent 28%);
+    --theme-dark-surface-base: hsl(0, 0%, 8%);
+    --theme-dark-surface-panel: hsl(0, 0%, 10%);
+    --theme-dark-surface-card: hsl(0, 0%, 13%);
+    --theme-dark-surface-hover: hsl(0, 0%, 18%);
+    --theme-dark-surface-modal: hsl(0, 0%, 9%);
+    --theme-dark-input-bg: hsl(0, 0%, 12%);
+    --theme-light-surface-base: hsl(0, 0%, 95%);
+    --theme-light-surface-panel: hsl(0, 0%, 98%);
+    --theme-light-surface-card: hsl(0, 0%, 96%);
+    --theme-light-surface-hover: hsl(0, 0%, 90%);
+    --theme-light-surface-modal: hsl(0, 0%, 99%);
+    --theme-light-input-bg: hsl(0, 0%, 100%);
+}

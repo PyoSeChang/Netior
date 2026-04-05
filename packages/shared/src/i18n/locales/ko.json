@@ -204,10 +204,11 @@
     "openInEditor": "에디터에서 열기",
     "noFileSelected": "선택된 파일 없음",
     "cannotPreview": ".{ext} 파일은 미리 볼 수 없습니다",
-    "modeFloat": "플로트",
-    "modeFull": "전체",
-    "modeSide": "사이드",
-    "modeDetached": "분리",
+    "modeFloat": "현재 탭 플로팅",
+    "modeFull": "이 편집영역 전체 모드",
+    "modeSide": "이 편집영역 사이드 모드",
+    "modeDetached": "현재 탭 분리 창으로",
+    "minimizePane": "이 편집영역 최소화",
     "unsavedChanges": "저장하지 않은 변경사항",
     "unsavedChangesMessage": "\"{title}\"에 저장하지 않은 변경사항이 있습니다. 어떻게 하시겠습니까?",
     "closeWithoutSaving": "저장하지 않고 닫기",
@@ -221,14 +222,122 @@
     "search": "설정 검색",
     "categoryAppearance": "외관",
     "categoryLanguage": "언어 및 지역",
+    "categoryNotifications": "알림",
+    "appearanceMode": "표시 모드",
+    "appearanceModeDesc": "이 창이 시스템 모드를 따를지, 항상 하나의 밝기 모드를 사용할지 선택합니다.",
     "mode": "모드",
     "modeDesc": "앱의 밝기 모드를 선택합니다.",
+    "system": "시스템",
     "dark": "다크",
     "light": "라이트",
     "theme": "테마",
     "themeDesc": "앱의 색상 테마를 선택합니다.",
+    "lightTheme": "라이트 테마",
+    "darkTheme": "다크 테마",
+    "themeFamily": "패밀리",
+    "themeVariant": "변형",
+    "primaryPalette": "프라이머리 팔레트",
+    "primaryRecommended": "추천",
+    "primaryCustom": "커스텀",
+    "customColor": "커스텀 색상",
+    "openColorPicker": "색상 선택",
+    "currentlyActive": "현재 이 창에 적용 중입니다.",
+    "savedPresetDesc": "별도로 저장되며, 이 모드가 활성화될 때 적용됩니다.",
+    "activeNow": "현재 적용 중",
+    "savedPreset": "저장된 프리셋",
+    "currentResolvedMode": "현재 해석된 모드",
+    "currentThemeSetup": "현재 테마 구성",
+    "currentThemeSetupDesc": "현재 라이트/다크에 배정된 테마입니다. 위에서 상태를 보고, 아래에서 루트 테마를 골라 세부 설정으로 들어가면 됩니다.",
+    "themeLibrary": "테마 라이브러리",
+    "themeLibraryDesc": "먼저 루트 테마를 고르고, 그 다음 라이트/다크/둘 다 중 어디에 쓸지 정합니다.",
+    "editScope": "적용 대상",
+    "editScopeDesc": "확장된 테마 편집기가 어느 모드 슬롯을 조정할지 선택합니다.",
+    "bothModes": "둘 다",
+    "selectedFamilyPending": "아직 이 패밀리가 적용되지 않았습니다",
+    "selectedFamilyPendingBoth": "variant와 primary를 함께 조정하려면 먼저 이 루트 테마를 라이트와 다크 둘 다에 적용하세요.",
+    "selectedFamilyPendingSingle": "variant와 primary를 조정하려면 먼저 이 루트 테마를 선택한 모드에 적용하세요.",
+    "applyFamilyToLight": "라이트에 적용",
+    "applyFamilyToDark": "다크에 적용",
+    "applyFamilyToBoth": "둘 다에 적용",
+    "bothModesWillSync": "현재 라이트와 다크 설정이 다릅니다. 둘 다 모드에서 수정하면 variant와 primary가 같은 값으로 동기화됩니다.",
+    "editLight": "라이트 편집",
+    "editDark": "다크 편집",
     "language": "언어",
-    "languageDesc": "앱의 표시 언어를 선택합니다."
+    "languageDesc": "앱의 표시 언어를 선택합니다.",
+    "detachedAgentToasts": "분리 창 에이전트 토스트",
+    "detachedAgentToastsDesc": "분리된 창에서도 에이전트 완료 토스트를 언제 표시할지 선택합니다. 메인 창 토스트는 항상 표시됩니다.",
+    "detachedAgentToastsAlways": "항상 표시",
+    "detachedAgentToastsInactiveOnly": "탭 비활성 시에만 표시",
+    "themeFamilies": {
+      "alloy": {
+        "label": "Alloy",
+        "description": "층이 분리된 차콜/페이퍼 그레이 기반의 정통 그레이스케일 작업공간",
+        "variants": {
+          "neutral": { "label": "중립", "description": "균형 잡힌 모노크롬 그레이" },
+          "warm": { "label": "웜", "description": "따뜻한 기색이 도는 종이빛 그레이" },
+          "cool": { "label": "쿨", "description": "스틸 톤이 섞인 차가운 그레이" }
+        }
+      },
+      "hearth": {
+        "label": "Hearth",
+        "description": "양피지 같은 밝은 면과 그을린 차콜 깊이를 가진 웜그레이 작업공간",
+        "variants": {
+          "warm": { "label": "웜", "description": "연기 낀 듯한 웜그레이" },
+          "paper": { "label": "페이퍼", "description": "더 밝고 종이 질감이 강한 웜그레이" },
+          "soot": { "label": "수트", "description": "차콜 비중이 더 큰 짙은 웜그레이" }
+        }
+      },
+      "pastel": {
+        "label": "Pastel",
+        "description": "부드러운 분리감과 흐린 표면감을 가진 파스텔 작업공간",
+        "variants": {
+          "violet": { "label": "바이올렛", "description": "클래식 라벤더 파스텔" },
+          "mint": { "label": "민트", "description": "씨폼 톤의 파스텔 표면" },
+          "peach": { "label": "피치", "description": "로지 크림 계열 파스텔 표면" }
+        }
+      },
+      "forest": {
+        "label": "Forest",
+        "description": "이끼빛 패널과 가벼운 캔버스 명도를 가진 유기적 그린 테마",
+        "variants": {
+          "moss": { "label": "모스", "description": "대표적인 포레스트 무드" }
+        }
+      },
+      "tide": {
+        "label": "Tide",
+        "description": "차가운 오버레이와 또렷한 해양 패널을 가진 씨글래스 틸 테마",
+        "variants": {
+          "sea": { "label": "씨", "description": "대표적인 마린 무드" }
+        }
+      },
+      "dune": {
+        "label": "Dune",
+        "description": "먼지 낀 사이드바와 밝은 문서 공간을 가진 샌드스톤 웜 테마",
+        "variants": {
+          "sand": { "label": "샌드", "description": "대표적인 사암 무드" }
+        }
+      },
+      "ember": {
+        "label": "Ember",
+        "description": "훈연된 표면 위에 테라코타 열감을 얹은 고대비 테마",
+        "variants": {
+          "ember": { "label": "엠버", "description": "대표적인 테라코타 무드" }
+        }
+      }
+    },
+    "primaryPresets": {
+      "gray": { "label": "그레이", "description": "완전한 중립 회색" },
+      "warmGray": { "label": "웜그레이", "description": "부드러운 양피지 톤 회색" },
+      "coolGray": { "label": "쿨그레이", "description": "가벼운 공기감의 차가운 회색" },
+      "violet": { "label": "바이올렛", "description": "부드러운 라벤더 포인트" },
+      "mint": { "label": "민트", "description": "가벼운 민트 포인트" },
+      "peach": { "label": "피치", "description": "절제된 피치 포인트" },
+      "teal": { "label": "틸", "description": "씨글래스 느낌의 틸 포인트" },
+      "moss": { "label": "모스", "description": "이끼빛 그린 포인트" },
+      "amber": { "label": "앰버", "description": "가라앉은 앰버 포인트" },
+      "ember": { "label": "엠버", "description": "테라코타 계열 포인트" },
+      "sky": { "label": "스카이", "description": "채도를 낮춘 하늘색 포인트" }
+    }
   },
   "shortcuts": {
     "overlay": {

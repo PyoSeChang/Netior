@@ -111,7 +111,7 @@ export function EdgePanel({
       )}
 
       <div
-        className={`absolute ${panelPos} z-30 flex flex-col overflow-hidden ${panelRounded} ${panelBorder} bg-surface-panel shadow-lg transition-all duration-200 ${
+        className={`absolute ${panelPos} z-30 flex flex-col overflow-hidden ${panelRounded} ${panelBorder} bg-[var(--surface-tool-panel)] shadow-lg transition-all duration-200 ${
           visible ? 'translate-x-0 opacity-100' : `${hiddenTransform} opacity-0 pointer-events-none`
         }`}
         style={{ width, top: topOffset, maxHeight: `calc(80% - ${topOffset}px)` }}

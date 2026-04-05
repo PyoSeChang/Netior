@@ -204,10 +204,11 @@
     "openInEditor": "Open in Editor",
     "noFileSelected": "No file selected",
     "cannotPreview": ".{ext} files cannot be previewed",
-    "modeFloat": "Float",
-    "modeFull": "Full",
-    "modeSide": "Side",
-    "modeDetached": "Detached",
+    "modeFloat": "Float Current Tab",
+    "modeFull": "Set This Pane to Full Mode",
+    "modeSide": "Set This Pane to Side Mode",
+    "modeDetached": "Move Current Tab to Detached Window",
+    "minimizePane": "Minimize This Pane",
     "unsavedChanges": "Unsaved Changes",
     "unsavedChangesMessage": "\"{title}\" has unsaved changes. What would you like to do?",
     "closeWithoutSaving": "Close Without Saving",
@@ -222,18 +223,121 @@
     "categoryAppearance": "Appearance",
     "categoryLanguage": "Language & Region",
     "categoryNotifications": "Notifications",
+    "appearanceMode": "Appearance Mode",
+    "appearanceModeDesc": "Choose whether this window follows the system mode or always uses one brightness mode.",
     "mode": "Mode",
     "modeDesc": "Choose the brightness mode for the app.",
+    "system": "System",
     "dark": "Dark",
     "light": "Light",
     "theme": "Theme",
     "themeDesc": "Choose the color theme for the app.",
+    "lightTheme": "Light Theme",
+    "darkTheme": "Dark Theme",
+    "themeFamily": "Family",
+    "themeVariant": "Variant",
+    "primaryPalette": "Primary Palette",
+    "primaryRecommended": "Recommended",
+    "primaryCustom": "Custom",
+    "customColor": "Custom Color",
+    "openColorPicker": "Pick Color",
+    "currentlyActive": "Currently active for this window.",
+    "savedPresetDesc": "Saved separately and applied when this mode becomes active.",
+    "activeNow": "Active Now",
+    "savedPreset": "Saved Preset",
+    "currentResolvedMode": "Current resolved mode",
+    "currentThemeSetup": "Current Theme Setup",
+    "currentThemeSetupDesc": "This is the current light and dark assignment. Start here, then drill into a root theme below.",
+    "themeLibrary": "Theme Library",
+    "themeLibraryDesc": "Choose a root theme first, then decide whether to use it for light, dark, or both.",
+    "editScope": "Apply To",
+    "editScopeDesc": "Pick which mode slot this expanded theme editor should control.",
+    "bothModes": "Both",
+    "selectedFamilyPending": "This family is not assigned yet",
+    "selectedFamilyPendingBoth": "Apply this root theme to both light and dark before editing variants and primary colors together.",
+    "selectedFamilyPendingSingle": "Apply this root theme to the selected mode before editing its variant and primary color.",
+    "applyFamilyToLight": "Use for Light",
+    "applyFamilyToDark": "Use for Dark",
+    "applyFamilyToBoth": "Use for Both",
+    "bothModesWillSync": "Light and dark currently differ. Editing in Both mode will sync both slots to the same variant and primary setup.",
+    "editLight": "Edit Light",
+    "editDark": "Edit Dark",
     "language": "Language",
     "languageDesc": "Choose the display language for the app.",
     "detachedAgentToasts": "Detached Agent Toasts",
     "detachedAgentToastsDesc": "Choose when detached windows should also show agent-complete toast notifications. Main window toasts always remain enabled.",
     "detachedAgentToastsAlways": "Always Show",
-    "detachedAgentToastsInactiveOnly": "Only When Tab Inactive"
+    "detachedAgentToastsInactiveOnly": "Only When Tab Inactive",
+    "themeFamilies": {
+      "alloy": {
+        "label": "Alloy",
+        "description": "True grayscale workspace with layered charcoal and paper-gray surfaces",
+        "variants": {
+          "neutral": { "label": "Neutral", "description": "Balanced monochrome gray" },
+          "warm": { "label": "Warm", "description": "Paper gray with a warm cast" },
+          "cool": { "label": "Cool", "description": "Cool gray with a steel cast" }
+        }
+      },
+      "hearth": {
+        "label": "Hearth",
+        "description": "Warm gray workspace with parchment light and soot-charcoal depth",
+        "variants": {
+          "warm": { "label": "Warm", "description": "Smoky warm gray" },
+          "paper": { "label": "Paper", "description": "Lighter, parchment-heavy warm gray" },
+          "soot": { "label": "Soot", "description": "Darker charcoal-heavy warm gray" }
+        }
+      },
+      "pastel": {
+        "label": "Pastel",
+        "description": "Soft pastel workspace with cloudy separation and gentle surfaces",
+        "variants": {
+          "violet": { "label": "Violet", "description": "Classic lavender pastel" },
+          "mint": { "label": "Mint", "description": "Seafoam pastel surfaces" },
+          "peach": { "label": "Peach", "description": "Rosy cream pastel surfaces" }
+        }
+      },
+      "forest": {
+        "label": "Forest",
+        "description": "Organic greens with mossy panels and airy canvas light",
+        "variants": {
+          "moss": { "label": "Moss", "description": "Signature forest mood" }
+        }
+      },
+      "tide": {
+        "label": "Tide",
+        "description": "Sea-glass teal with crisp marine panels and cooler overlays",
+        "variants": {
+          "sea": { "label": "Sea", "description": "Signature marine mood" }
+        }
+      },
+      "dune": {
+        "label": "Dune",
+        "description": "Sandstone warmth with dusty sidebars and bright document space",
+        "variants": {
+          "sand": { "label": "Sand", "description": "Signature sandstone mood" }
+        }
+      },
+      "ember": {
+        "label": "Ember",
+        "description": "Terracotta heat over smoked panels with ember-lit contrast",
+        "variants": {
+          "ember": { "label": "Ember", "description": "Signature terracotta mood" }
+        }
+      }
+    },
+    "primaryPresets": {
+      "gray": { "label": "Gray", "description": "True neutral gray" },
+      "warmGray": { "label": "Warm Gray", "description": "Soft parchment gray" },
+      "coolGray": { "label": "Cool Gray", "description": "Airy cool gray" },
+      "violet": { "label": "Violet", "description": "Soft lavender accent" },
+      "mint": { "label": "Mint", "description": "Light mint accent" },
+      "peach": { "label": "Peach", "description": "Muted peach accent" },
+      "teal": { "label": "Teal", "description": "Sea-glass teal accent" },
+      "moss": { "label": "Moss", "description": "Mossy green accent" },
+      "amber": { "label": "Amber", "description": "Dusty amber accent" },
+      "ember": { "label": "Ember", "description": "Terracotta ember accent" },
+      "sky": { "label": "Sky", "description": "Muted sky blue accent" }
+    }
   },
   "shortcuts": {
     "overlay": {

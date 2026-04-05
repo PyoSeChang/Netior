@@ -8,10 +8,11 @@
       "@/*": ["src/*"],
       "@main/*": ["src/main/*"],
       "@renderer/*": ["src/renderer/*"],
-      "@shared/*": ["src/shared/*"]
+      "@shared/*": ["src/shared/*"],
+      "@netior/shared/types": ["../shared/src/types/index.ts"]
     },
     "jsx": "react-jsx"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "release"]
+  "exclude": ["node_modules", "dist", "release", "src/**/*.next.tsx"]
 }

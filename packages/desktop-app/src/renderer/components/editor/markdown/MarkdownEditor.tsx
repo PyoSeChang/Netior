@@ -12,6 +12,7 @@ import { MarkdownToc, extractHeadings } from './MarkdownToc';
 import { useI18n } from '../../../hooks/useI18n';
 import { useViewState } from '../../../hooks/useViewState';
 import { getCssColorAsHex } from '../editor-utils';
+import { useSettingsStore } from '../../../stores/settings-store';
 
 const codeHighlightStyle = HighlightStyle.define([
   { tag: tags.keyword, color: '#c678dd' },
@@ -58,7 +59,9 @@ export function MarkdownEditor({ tabId, content, filePath, onChange }: MarkdownE
   const viewStateRef = useRef(viewState);
   const [currentLine, setCurrentLine] = useState(1);
   const headings = useMemo(() => extractHeadings(content), [content]);
-  const isDark = document.documentElement.getAttribute('data-mode') !== 'light';
+  const resolvedThemeMode = useSettingsStore((s) => s.resolvedThemeMode);
+  const themeRevision = useSettingsStore((s) => s.themeRevision);
+  const isDark = resolvedThemeMode !== 'light';
 
   // Restore scroll position after CM6 mounts
   const restoredRef = useRef(false);
@@ -153,7 +156,7 @@ export function MarkdownEditor({ tabId, content, filePath, onChange }: MarkdownE
         backgroundColor: isDark ? 'rgba(86, 156, 214, 0.3)' : 'rgba(0, 120, 212, 0.2)',
       },
     });
-  }, [isDark]);
+  }, [isDark, themeRevision]);
 
   const handleChange = useCallback((value: string) => {
     onChange(value);
