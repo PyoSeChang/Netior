@@ -163,7 +163,7 @@ function TitleBar(): JSX.Element {
 
   return (
     <div
-      className="relative z-20 flex h-9 shrink-0 items-center border-b border-subtle px-4"
+      className="relative z-20 flex h-9 shrink-0 items-center border-b border-subtle pl-4"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
       {/* Left: app name + project */}
