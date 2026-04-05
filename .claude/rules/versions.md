@@ -27,9 +27,9 @@ packages:
     impact: cross-package
     contracts: [prompt, tooling]
   desktop-app:
-    version: "0.6.0"
+    version: "0.7.0"
     type: minor
-    summary: "Narre /index PDF 목차 워크플로우, 파일 멘션 시스템, ELECTRON_RUN_AS_NODE MCP 호환"
+    summary: "테마 벽지색/accent 분리, interactive state 토큰 통일, 설정 모달 UX 개선"
     impact: local
     contracts: []
   narre-eval:
