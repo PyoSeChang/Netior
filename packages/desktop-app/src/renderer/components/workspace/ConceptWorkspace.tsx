@@ -631,7 +631,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
       )}
 
       {edgeLinkingState && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 bg-accent/90 text-text-on-accent px-4 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 bg-accent text-text-on-accent px-4 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg">
           <span>{t('canvas.selectTarget') ?? 'Click a node to connect'}</span>
           <button
             type="button"

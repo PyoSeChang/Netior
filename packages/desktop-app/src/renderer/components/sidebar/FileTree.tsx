@@ -328,12 +328,12 @@ function FileTreeItem({
 
   const rowClassName = `flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs outline-none transition-opacity ${
     isSelected
-      ? 'bg-accent/10 text-accent'
+      ? 'bg-interactive-selected text-accent'
       : node.type === 'directory'
         ? 'text-default hover:bg-surface-hover'
         : 'text-secondary hover:bg-surface-hover hover:text-default'
   } ${isFocused && !isSelected ? 'ring-1 ring-border-default' : ''} ${isCut ? 'opacity-45' : ''} ${
-    isDropTarget ? 'bg-accent/15' : ''
+    isDropTarget ? 'bg-interactive-selected' : ''
   }`;
 
   if (node.type === 'directory') {

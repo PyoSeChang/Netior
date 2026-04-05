@@ -126,7 +126,7 @@ export function ModuleSelector({ projectId, onAddDirectory }: ModuleSelectorProp
                 key={m.id}
                 className={`group flex cursor-pointer items-center gap-2 px-2 py-1 text-xs transition-colors ${
                   m.id === activeModuleId
-                    ? 'bg-accent/10 text-accent'
+                    ? 'bg-interactive-selected text-accent'
                     : 'text-secondary hover:bg-surface-hover hover:text-default'
                 }`}
                 onClick={() => handleSelect(m.id)}

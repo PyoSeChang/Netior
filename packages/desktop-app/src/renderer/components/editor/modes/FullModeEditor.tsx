@@ -37,7 +37,7 @@ export function FullModeEditor(): JSX.Element | null {
 
       return (
         <div
-          className={`flex h-full flex-col overflow-hidden ${isMultiPane && isActivePane ? 'ring-1 ring-accent/50' : ''}`}
+          className={`flex h-full flex-col overflow-hidden ${isMultiPane && isActivePane ? 'ring-1 ring-accent' : ''}`}
           onMouseDown={() => {
             if (!leaf.tabIds.includes(activeTabId!)) {
               setActiveTab(leaf.activeTabId);

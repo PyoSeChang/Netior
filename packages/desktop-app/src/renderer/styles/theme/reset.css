@@ -37,7 +37,7 @@ select {
 button {
     cursor: pointer;
     background: none;
-    border: none;
+    border-width: 0;
 }
 
 a {

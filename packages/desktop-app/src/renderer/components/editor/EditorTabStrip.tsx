@@ -247,7 +247,7 @@ export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, hostId
   return (
     <div
       className={`tab-strip flex shrink-0 items-end bg-surface-base transition-colors ${
-        dragOver ? 'bg-accent/10' : ''
+        dragOver ? 'bg-interactive-muted' : ''
       }`}
       style={{ height: 35, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       onDragOver={handleDragOver}

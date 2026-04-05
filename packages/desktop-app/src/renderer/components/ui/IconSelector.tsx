@@ -124,7 +124,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange, pla
                 <button
                   className={`flex w-full items-center rounded-md px-3 py-1.5 text-sm transition-colors mb-0.5 ${
                     activeCategory === 'all'
-                      ? 'bg-accent/10 text-accent'
+                      ? 'bg-interactive-selected text-accent'
                       : 'text-secondary hover:bg-surface-hover hover:text-default'
                   }`}
                   onClick={() => setActiveCategory('all')}
@@ -142,7 +142,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange, pla
                       key={cat}
                       className={`flex w-full items-center rounded-md px-3 py-1.5 text-sm transition-colors mb-0.5 ${
                         activeCategory === cat
-                          ? 'bg-accent/10 text-accent'
+                          ? 'bg-interactive-selected text-accent'
                           : 'text-secondary hover:bg-surface-hover hover:text-default'
                       }`}
                       onClick={() => setActiveCategory(cat)}

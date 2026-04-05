@@ -48,6 +48,8 @@ module.exports = {
         overlay: 'var(--surface-overlay)',
         input: 'var(--input-bg)',
         'on-accent': 'var(--text-on-accent)',
+        'interactive-selected': 'var(--bg-interactive-selected)',
+        'interactive-muted': 'var(--bg-interactive-muted)',
       },
       boxShadow: {
         'primary-sm': 'var(--shadow-primary-sm)',

@@ -166,7 +166,7 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange }) =
             <button
               className={`px-2.5 py-1.5 text-xs text-left transition-colors ${
                 activeCategory === 'all'
-                  ? 'bg-accent/10 text-accent'
+                  ? 'bg-interactive-selected text-accent'
                   : 'text-secondary hover:bg-surface-hover hover:text-default'
               }`}
               onClick={() => setActiveCategory('all')}
@@ -181,7 +181,7 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange }) =
                   key={cat.key}
                   className={`px-2.5 py-1.5 text-xs text-left transition-colors ${
                     activeCategory === cat.key
-                      ? 'bg-accent/10 text-accent'
+                      ? 'bg-interactive-selected text-accent'
                       : 'text-secondary hover:bg-surface-hover hover:text-default'
                   }`}
                   onClick={() => setActiveCategory(cat.key)}

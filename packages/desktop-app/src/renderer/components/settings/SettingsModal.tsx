@@ -126,7 +126,7 @@ function ThemeSetupPanel({
             <button
               key={family.id}
               type="button"
-              className="flex w-full items-center justify-between gap-4 rounded-2xl border border-subtle bg-surface-base p-4 text-left transition-all hover:border-default hover:bg-surface-card"
+              className="flex w-full items-center justify-between gap-4 rounded-2xl border border-subtle bg-surface-card p-4 text-left transition-all hover:border-default hover:bg-surface-hover"
               onClick={() => {
                 onSelectFamily(family.id);
                 targetModes.forEach((mode) => applyFamilyIfNeeded(mode, family.id));
@@ -171,7 +171,7 @@ function ThemeSetupPanel({
             <div
               key={family.id}
               className={`overflow-hidden rounded-2xl border transition-all ${
-                expanded ? 'border-accent/50 bg-surface-card shadow-sm' : 'border-subtle bg-surface-base'
+                expanded ? 'border-accent bg-surface-card shadow-sm' : 'border-subtle bg-surface-card'
               }`}
             >
               <button
@@ -211,7 +211,7 @@ function ThemeSetupPanel({
                           type="button"
                           className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                             target === item.id
-                              ? 'border-accent bg-accent/10 text-accent'
+                              ? 'border-accent bg-accent text-on-accent'
                               : 'border-subtle text-secondary hover:border-default hover:text-default'
                           }`}
                           onClick={() => {
@@ -242,7 +242,7 @@ function ThemeSetupPanel({
                               type="button"
                               className={`rounded-xl border p-3 text-left transition-all ${
                                 referenceSlot.variant === variant.id
-                                  ? 'border-accent bg-accent/10 text-accent shadow-sm'
+                                  ? 'border-accent bg-interactive-selected text-accent shadow-sm'
                                   : 'border-subtle text-secondary hover:border-default hover:bg-surface-hover/60 hover:text-default'
                               }`}
                               onClick={() => applyToTargetModes((mode) => onSetVariant(mode, variant.id))}
@@ -271,7 +271,7 @@ function ThemeSetupPanel({
                               type="button"
                               className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                                 referenceSlot.primaryMode === item.id
-                                  ? 'border-accent bg-accent/10 text-accent'
+                                  ? 'border-accent bg-accent text-on-accent'
                                   : 'border-subtle text-secondary hover:border-default hover:text-default'
                               }`}
                               onClick={() => applyToTargetModes((mode) => onSetPrimaryMode(mode, item.id))}
@@ -289,7 +289,7 @@ function ThemeSetupPanel({
                                 type="button"
                                 className={`rounded-xl border p-3 text-left transition-all ${
                                   referenceSlot.primaryPresetId === preset.id
-                                    ? 'border-accent bg-accent/10 text-accent shadow-sm'
+                                    ? 'border-accent bg-interactive-selected text-accent shadow-sm'
                                     : 'border-subtle text-secondary hover:border-default hover:bg-surface-hover/60 hover:text-default'
                                 }`}
                                 onClick={() => applyToTargetModes((mode) => onSetPrimaryPreset(mode, preset.id))}
@@ -490,7 +490,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative z-10 m-auto flex h-[90vh] w-[min(94vw,1120px)] overflow-hidden rounded-xl border border-subtle bg-surface-modal shadow-2xl ring-1 ring-black/10 animate-in zoom-in-95 duration-200">
-        <div className="flex w-60 shrink-0 flex-col border-r border-subtle bg-surface-panel">
+        <div className="flex w-60 shrink-0 flex-col border-r border-subtle bg-[var(--surface-sidebar-panel)]">
           <div className="p-3">
             <div className="flex items-center gap-2 rounded-md border border-subtle bg-surface-base px-3 py-1.5">
               <Search size={14} className="shrink-0 text-muted" />
@@ -511,7 +511,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                 <button
                   className={`flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                     activeCategory === key
-                      ? 'bg-accent/10 text-accent'
+                      ? 'bg-interactive-selected text-accent'
                       : 'text-secondary hover:bg-surface-hover hover:text-default'
                   }`}
                   onClick={() => handleCategoryClick(key)}
@@ -537,7 +537,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
           </nav>
         </div>
 
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col bg-surface-panel">
           <div className="flex items-center justify-between border-b border-subtle px-6 py-4">
             <h2 className="text-lg font-semibold text-default">
               {categories.find((c) => c.key === activeCategory)?.label ?? t('settings.title')}
@@ -566,7 +566,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                         key={key}
                         className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
                           appearanceMode === key
-                            ? 'border-accent bg-accent/10 text-accent'
+                            ? 'border-accent bg-accent text-on-accent'
                             : 'border-subtle text-secondary hover:border-default hover:text-default'
                         }`}
                         onClick={() => setAppearanceMode(key)}
@@ -652,7 +652,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                         key={key}
                         className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
                           locale === key
-                            ? 'border-accent bg-accent/10 text-accent'
+                            ? 'border-accent bg-accent text-on-accent'
                             : 'border-subtle text-secondary hover:border-default hover:text-default'
                         }`}
                         onClick={() => setLocale(key)}
@@ -681,7 +681,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
                         key={key}
                         className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
                           detachedAgentToastMode === key
-                            ? 'border-accent bg-accent/10 text-accent'
+                            ? 'border-accent bg-accent text-on-accent'
                             : 'border-subtle text-secondary hover:border-default hover:text-default'
                         }`}
                         onClick={() => setDetachedAgentToastMode(key)}

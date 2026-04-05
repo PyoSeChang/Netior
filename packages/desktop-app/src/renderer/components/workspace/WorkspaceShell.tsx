@@ -187,7 +187,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
 
       return (
         <div
-          className={`flex h-full flex-col overflow-hidden ${isMultiPane && isActivePane ? 'ring-1 ring-accent/50' : ''}`}
+          className={`flex h-full flex-col overflow-hidden ${isMultiPane && isActivePane ? 'ring-1 ring-accent' : ''}`}
           onMouseDown={() => {
             if (!leaf.tabIds.includes(activeTabId!)) {
               setActiveTab(leaf.activeTabId);
@@ -356,7 +356,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
               {showFloatDropHint && (
                 <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
                   <div
-                    className="pointer-events-auto rounded-lg border-2 border-dashed border-accent bg-accent/10 px-6 py-3 text-sm font-medium text-accent"
+                    className="pointer-events-auto rounded-lg border-2 border-dashed border-accent bg-interactive-muted px-6 py-3 text-sm font-medium text-accent"
                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                     onDrop={handleCanvasDrop}
                   >
@@ -366,7 +366,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
               )}
               {showSideDropHint && (
                 <div
-                  className="absolute right-0 top-0 bottom-0 z-20 w-20 bg-accent/20 border-l-2 border-accent flex items-center justify-center"
+                  className="absolute right-0 top-0 bottom-0 z-20 w-20 bg-interactive-selected border-l-2 border-accent flex items-center justify-center"
                   onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
                   onDrop={handleSideHintDrop}
                 >

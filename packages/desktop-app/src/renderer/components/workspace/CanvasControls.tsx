@@ -102,7 +102,7 @@ export function CanvasControls({
           <button
             className={`rounded p-1 transition-colors ${
               mode === 'edit'
-                ? 'bg-accent/10 text-accent'
+                ? 'bg-interactive-selected text-accent'
                 : 'text-secondary hover:bg-surface-hover hover:text-default'
             }`}
             onClick={onToggleMode}

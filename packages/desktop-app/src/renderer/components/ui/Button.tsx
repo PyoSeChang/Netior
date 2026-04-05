@@ -5,10 +5,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  isActive?: boolean;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', isLoading, children, className = '', disabled, ...props }, ref) => {
+  ({ variant = 'primary', size = 'md', isLoading, isActive, children, className = '', disabled, ...props }, ref) => {
     const baseStyle = 'inline-flex items-center justify-center gap-2 rounded-lg font-medium leading-tight transition-all duration-fast whitespace-nowrap select-none disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variants = {
@@ -16,6 +17,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       secondary: 'bg-surface-card text-default border border-default hover:enabled:bg-surface-hover',
       ghost: 'bg-transparent text-secondary hover:enabled:bg-surface-hover hover:enabled:text-default',
       danger: 'bg-status-error text-white hover:enabled:brightness-110',
+    };
+
+    const activeStyles: Record<string, string> = {
+      primary: 'bg-accent text-on-accent',
+      secondary: 'bg-interactive-selected text-accent border border-accent',
+      ghost: 'bg-interactive-selected text-accent',
+      danger: 'bg-status-error text-white',
     };
 
     const sizes = {
@@ -26,7 +34,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const cls = [
       baseStyle,
-      variants[variant],
+      isActive ? activeStyles[variant] : variants[variant],
       sizes[size],
       className,
     ].filter(Boolean).join(' ');

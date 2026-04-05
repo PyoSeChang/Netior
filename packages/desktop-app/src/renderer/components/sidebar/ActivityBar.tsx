@@ -42,7 +42,7 @@ export function ActivityBar(): JSX.Element {
               <button
                 className={`flex h-8 w-8 items-center justify-center rounded transition-colors ${
                   isActive
-                    ? 'bg-accent/10 text-accent'
+                    ? 'bg-interactive-selected text-accent'
                     : 'text-secondary hover:bg-surface-hover hover:text-default'
                 }`}
                 onClick={() => handleClick(key)}

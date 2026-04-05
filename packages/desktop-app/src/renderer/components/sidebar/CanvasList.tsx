@@ -107,7 +107,7 @@ function TreeNode({
       <div
         className={`group flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-xs transition-colors ${
           isActive
-            ? 'bg-accent/10 text-accent'
+            ? 'bg-interactive-selected text-accent'
             : 'text-secondary hover:bg-surface-hover hover:text-default'
         }`}
         style={{ paddingLeft: depth * 14 + 4 }}

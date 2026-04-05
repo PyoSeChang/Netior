@@ -18,6 +18,12 @@
     --palette-primary-900: hsl(184, 55%, 13%);
     --palette-primary-950: hsl(188, 49%, 8%);
 
+    /* Tint Scale (Fixed wallpaper tones — NOT overridden by user accent) */
+    --palette-tint-50: hsl(176, 67%, 96%);
+    --palette-tint-100: hsl(176, 61%, 90%);
+    --palette-tint-900: hsl(184, 55%, 13%);
+    --palette-tint-950: hsl(188, 49%, 8%);
+
     /* Neutral Scale (Blue-green tinted) */
     --palette-neutral-50: hsl(180, 20%, 96%);
     --palette-neutral-100: hsl(183, 17%, 92%);

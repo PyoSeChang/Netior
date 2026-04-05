@@ -45,7 +45,7 @@ function PreviewPanel({ item, t }: { item: MentionResult; t: (key: TranslationKe
       </div>
 
       {/* Type badge */}
-      <span className="inline-flex self-start rounded px-1.5 py-0.5 text-[10px] font-medium bg-accent/10 text-accent">
+      <span className="inline-flex self-start rounded px-1.5 py-0.5 text-[10px] font-medium bg-interactive-selected text-accent">
         {catLabel ? t(catLabel as TranslationKey) : item.type}
       </span>
 
@@ -232,7 +232,7 @@ export function NarreMentionPicker({
             key={cat.key}
             className={`px-2.5 py-1.5 text-xs text-left transition-colors ${
               activeCategory === cat.key
-                ? 'bg-accent/10 text-accent'
+                ? 'bg-interactive-selected text-accent'
                 : 'text-secondary hover:bg-surface-hover hover:text-default'
             }`}
             onClick={() => { setActiveCategory(cat.key); setSelectedIndex(0); }}

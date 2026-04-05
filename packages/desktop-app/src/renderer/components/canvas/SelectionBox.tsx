@@ -22,7 +22,7 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({
 
   return (
     <div
-      className="border border-dashed border-accent bg-accent/10"
+      className="border border-dashed border-accent bg-interactive-muted"
       style={{
         position: 'absolute',
         left: x,

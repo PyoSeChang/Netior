@@ -1,24 +1,24 @@
 :root[data-mode="light"] {
     /* Core roles */
     --bg-app: var(--theme-light-surface-base, var(--palette-neutral-50));
-    --bg-sidebar: color-mix(in srgb, var(--theme-light-surface-panel, white) 92%, var(--palette-primary-50));
+    --bg-sidebar: color-mix(in srgb, var(--theme-light-surface-panel, white) 92%, var(--palette-tint-50));
     --bg-workspace: color-mix(in srgb, var(--bg-app) 88%, white);
-    --bg-canvas: color-mix(in srgb, var(--bg-app) 84%, var(--palette-primary-50));
+    --bg-canvas: color-mix(in srgb, var(--bg-app) 84%, var(--palette-tint-50));
     --bg-panel: var(--theme-light-surface-panel, #ffffff);
     --bg-elevated: var(--theme-light-surface-card, #ffffff);
-    --bg-float: color-mix(in srgb, var(--theme-light-surface-modal, white) 94%, var(--palette-primary-50));
+    --bg-float: color-mix(in srgb, var(--theme-light-surface-modal, white) 94%, var(--palette-tint-50));
     --bg-titlebar: color-mix(in srgb, var(--bg-app) 58%, var(--palette-neutral-200));
     --bg-tabstrip: var(--bg-titlebar);
-    --bg-sidebar-panel: color-mix(in srgb, var(--bg-sidebar) 68%, var(--palette-primary-100));
-    --bg-tool-panel: color-mix(in srgb, var(--bg-panel) 64%, var(--palette-primary-100));
+    --bg-sidebar-panel: color-mix(in srgb, var(--bg-sidebar) 68%, var(--palette-tint-100));
+    --bg-tool-panel: color-mix(in srgb, var(--bg-panel) 64%, var(--palette-tint-100));
     --bg-editor: color-mix(in srgb, var(--bg-panel) 88%, var(--palette-neutral-100));
     --bg-document: hsl(0, 0%, 100%);
     --bg-document-shadow: rgba(15, 23, 42, 0.14);
     --bg-input: var(--theme-light-input-bg, #ffffff);
     --bg-overlay: rgba(12, 18, 28, 0.42);
-    --bg-node: color-mix(in srgb, var(--theme-light-surface-card, #ffffff) 80%, var(--palette-primary-50));
-    --bg-node-selected: color-mix(in srgb, var(--bg-node) 74%, var(--palette-primary-100));
-    --bg-interactive-hover: color-mix(in srgb, var(--theme-light-surface-hover, var(--palette-neutral-100)) 82%, var(--palette-primary-50));
+    --bg-node: color-mix(in srgb, var(--theme-light-surface-card, #ffffff) 80%, var(--palette-tint-50));
+    --bg-node-selected: color-mix(in srgb, var(--bg-node) 74%, var(--palette-tint-100));
+    --bg-interactive-hover: color-mix(in srgb, var(--theme-light-surface-hover, var(--palette-neutral-100)) 82%, var(--palette-tint-50));
     --bg-interactive-selected: color-mix(in srgb, var(--palette-primary-600) 12%, white);
     --bg-interactive-muted: color-mix(in srgb, var(--palette-primary-600) 8%, white);
     --bg-selection-soft: color-mix(in srgb, var(--palette-primary-600) 16%, white);
