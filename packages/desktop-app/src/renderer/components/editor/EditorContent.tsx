@@ -5,9 +5,8 @@ import { FileEditor } from './FileEditor';
 import { ArchetypeEditor } from './ArchetypeEditor';
 import { TerminalEditor } from './TerminalEditor';
 import { RelationTypeEditor } from './RelationTypeEditor';
-import { CanvasTypeEditor } from './CanvasTypeEditor';
 import { EdgeEditor } from './EdgeEditor';
-import { CanvasEditor } from './CanvasEditor';
+import { NetworkEditor } from './NetworkEditor';
 import { NarreEditor } from './NarreEditor';
 import { FileMetadataEditor } from './FileMetadataEditor';
 import { useEditorStore, MAIN_HOST_ID } from '../../stores/editor-store';
@@ -62,12 +61,10 @@ export function EditorContent({ tab }: EditorContentProps): JSX.Element {
       content = <TerminalEditor tab={tab} />; break;
     case 'relationType':
       content = <RelationTypeEditor tab={tab} />; break;
-    case 'canvasType':
-      content = <CanvasTypeEditor tab={tab} />; break;
     case 'edge':
       content = <EdgeEditor tab={tab} />; break;
-    case 'canvas':
-      content = <CanvasEditor tab={tab} />; break;
+    case 'network':
+      content = <NetworkEditor tab={tab} />; break;
     case 'narre':
       content = <NarreEditor tab={tab} />; break;
     case 'fileMetadata':

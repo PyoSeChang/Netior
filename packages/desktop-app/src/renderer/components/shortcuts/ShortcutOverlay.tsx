@@ -16,7 +16,7 @@ interface ShortcutGroup {
   scopes: ShortcutScope[];
   labelKey:
     | 'shortcuts.sections.app'
-    | 'shortcuts.sections.canvas'
+    | 'shortcuts.sections.network'
     | 'shortcuts.sections.fileTree'
     | 'shortcuts.sections.terminal'
     | 'shortcuts.sections.narre'
@@ -28,7 +28,7 @@ interface ShortcutGroup {
 
 const SHORTCUT_GROUPS: ShortcutGroup[] = [
   { key: 'global', scopes: ['global'], labelKey: 'shortcuts.sections.app' },
-  { key: 'canvas', scopes: ['canvas'], labelKey: 'shortcuts.sections.canvas' },
+  { key: 'network', scopes: ['network'], labelKey: 'shortcuts.sections.network' },
   { key: 'fileTree', scopes: ['fileTree'], labelKey: 'shortcuts.sections.fileTree' },
   { key: 'terminal', scopes: ['terminal'], labelKey: 'shortcuts.sections.terminal' },
   {

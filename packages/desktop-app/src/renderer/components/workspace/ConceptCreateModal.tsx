@@ -64,7 +64,7 @@ export function ConceptCreateModal({ open, onClose, onCreate }: ConceptCreateMod
     <Modal
       open={open}
       onClose={handleClose}
-      title={t('canvas.createConcept')}
+      title={t('network.createConcept')}
       width="400px"
       footer={
         <>

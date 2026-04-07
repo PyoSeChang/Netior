@@ -36,7 +36,7 @@ export function registerArchetypeTools(server: McpServer): void {
       name: z.string().describe('Archetype name'),
       icon: z.string().optional().describe('Icon identifier'),
       color: z.string().optional().describe('Color value'),
-      node_shape: z.string().optional().describe('Node shape for canvas rendering'),
+      node_shape: z.string().optional().describe('Node shape for network rendering'),
       description: z.string().optional().describe('Archetype description'),
     },
     async ({ project_id, name, icon, color, node_shape, description }) => {

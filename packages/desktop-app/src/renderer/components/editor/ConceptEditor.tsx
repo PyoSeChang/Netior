@@ -6,7 +6,7 @@ import { useConceptStore } from '../../stores/concept-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
-import { useCanvasStore } from '../../stores/canvas-store';
+import { useNetworkStore } from '../../stores/network-store';
 import { useEditorSession } from '../../hooks/useEditorSession';
 import { ScrollArea } from '../ui/ScrollArea';
 import { Select } from '../ui/Select';
@@ -42,7 +42,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
   const archetypes = useArchetypeStore((s) => s.archetypes);
   const fields = useArchetypeStore((s) => s.fields);
   const loadFields = useArchetypeStore((s) => s.loadFields);
-  const { addNode, openCanvas } = useCanvasStore();
+  const { addNode, openNetwork } = useNetworkStore();
 
   const concept = isDraft ? undefined : concepts.find((c) => c.id === tab.targetId);
   const [viewMode, setViewMode] = useState<ConceptViewMode>('human');
@@ -100,18 +100,18 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
               await upsertProperty({ concept_id: newConcept.id, field_id: fieldId, value });
             }
           }
-          // Add node to canvas if draft has canvas info
-          if (draft?.canvasId) {
+          // Add node to network if draft has network info
+          if (draft?.networkId) {
             await addNode({
-              canvas_id: draft.canvasId,
+              network_id: draft.networkId,
               concept_id: newConcept.id,
               position_x: draft.positionX ?? 0,
               position_y: draft.positionY ?? 0,
             });
-            await openCanvas(draft.canvasId);
-            const canvasStore = useCanvasStore.getState();
-            if (canvasStore.currentCanvas?.project_id) {
-              await canvasStore.loadCanvasTree(canvasStore.currentCanvas.project_id);
+            await openNetwork(draft.networkId);
+            const networkStore = useNetworkStore.getState();
+            if (networkStore.currentNetwork?.project_id) {
+              await networkStore.loadNetworkTree(networkStore.currentNetwork.project_id);
             }
           }
           // Close draft tab, open real concept tab

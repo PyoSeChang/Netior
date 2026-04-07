@@ -43,23 +43,23 @@ const electronAPI = {
       ipcRenderer.invoke('concept:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('concept:delete', id),
   },
-  canvas: {
-    create: (data: Record<string, unknown>) => ipcRenderer.invoke('canvas:create', data),
+  network: {
+    create: (data: Record<string, unknown>) => ipcRenderer.invoke('network:create', data),
     list: (projectId: string, rootOnly?: boolean) =>
-      ipcRenderer.invoke('canvas:list', projectId, rootOnly),
+      ipcRenderer.invoke('network:list', projectId, rootOnly),
     update: (id: string, data: Record<string, unknown>) =>
-      ipcRenderer.invoke('canvas:update', id, data),
-    delete: (id: string) => ipcRenderer.invoke('canvas:delete', id),
-    getFull: (canvasId: string) => ipcRenderer.invoke('canvas:getFull', canvasId),
-    getByConcept: (conceptId: string) => ipcRenderer.invoke('canvas:getByConcept', conceptId),
-    getAncestors: (canvasId: string) => ipcRenderer.invoke('canvas:getAncestors', canvasId),
-    getTree: (projectId: string) => ipcRenderer.invoke('canvas:getTree', projectId),
+      ipcRenderer.invoke('network:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('network:delete', id),
+    getFull: (networkId: string) => ipcRenderer.invoke('network:getFull', networkId),
+    getByConcept: (conceptId: string) => ipcRenderer.invoke('network:getByConcept', conceptId),
+    getAncestors: (networkId: string) => ipcRenderer.invoke('network:getAncestors', networkId),
+    getTree: (projectId: string) => ipcRenderer.invoke('network:getTree', projectId),
   },
-  canvasNode: {
-    add: (data: Record<string, unknown>) => ipcRenderer.invoke('canvasNode:add', data),
+  networkNode: {
+    add: (data: Record<string, unknown>) => ipcRenderer.invoke('networkNode:add', data),
     update: (id: string, data: Record<string, unknown>) =>
-      ipcRenderer.invoke('canvasNode:update', id, data),
-    remove: (id: string) => ipcRenderer.invoke('canvasNode:remove', id),
+      ipcRenderer.invoke('networkNode:update', id, data),
+    remove: (id: string) => ipcRenderer.invoke('networkNode:remove', id),
   },
   edge: {
     create: (data: Record<string, unknown>) => ipcRenderer.invoke('edge:create', data),
@@ -103,19 +103,6 @@ const electronAPI = {
     deleteField: (id: string) => ipcRenderer.invoke('archetypeField:delete', id),
     reorderFields: (archetypeId: string, orderedIds: string[]) =>
       ipcRenderer.invoke('archetypeField:reorder', archetypeId, orderedIds),
-  },
-  canvasType: {
-    create: (data: Record<string, unknown>) => ipcRenderer.invoke('canvasType:create', data),
-    list: (projectId: string) => ipcRenderer.invoke('canvasType:list', projectId),
-    get: (id: string) => ipcRenderer.invoke('canvasType:get', id),
-    update: (id: string, data: Record<string, unknown>) =>
-      ipcRenderer.invoke('canvasType:update', id, data),
-    delete: (id: string) => ipcRenderer.invoke('canvasType:delete', id),
-    addRelation: (canvasTypeId: string, relationTypeId: string) =>
-      ipcRenderer.invoke('canvasType:addRelation', canvasTypeId, relationTypeId),
-    removeRelation: (canvasTypeId: string, relationTypeId: string) =>
-      ipcRenderer.invoke('canvasType:removeRelation', canvasTypeId, relationTypeId),
-    listRelations: (canvasTypeId: string) => ipcRenderer.invoke('canvasType:listRelations', canvasTypeId),
   },
   relationType: {
     create: (data: Record<string, unknown>) => ipcRenderer.invoke('relationType:create', data),

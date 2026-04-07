@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import type { EditorTab } from '@netior/shared/types';
-import { useCanvasStore } from '../../stores/canvas-store';
-import { useCanvasTypeStore } from '../../stores/canvas-type-store';
+import { useNetworkStore } from '../../stores/network-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
 import { useConceptStore } from '../../stores/concept-store';
 import { useEditorStore } from '../../stores/editor-store';
@@ -14,22 +13,20 @@ import { Button } from '../ui/Button';
 import { ScrollArea } from '../ui/ScrollArea';
 import { listLayouts, getLayout } from '../workspace/layout-plugins/registry';
 
-interface CanvasEditorProps {
+interface NetworkEditorProps {
   tab: EditorTab;
 }
 
-interface CanvasState {
+interface NetworkState {
   name: string;
-  canvas_type_id: string | null;
   layout: string;
   layout_config: Record<string, unknown>;
 }
 
-export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
+export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
   const { t } = useI18n();
-  const canvasId = tab.targetId;
-  const { canvases, updateCanvas, deleteCanvas } = useCanvasStore();
-  const canvasTypes = useCanvasTypeStore((s) => s.canvasTypes);
+  const networkId = tab.targetId;
+  const { networks, updateNetwork, deleteNetwork } = useNetworkStore();
 
   const archetypes = useArchetypeStore((s) => s.archetypes);
   const fields = useArchetypeStore((s) => s.fields);
@@ -42,36 +39,30 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
     }
   }, [archetypes, fields, loadFields]);
 
-  const canvas = canvases.find((c) => c.id === canvasId);
+  const network = networks.find((c) => c.id === networkId);
 
-  const session = useEditorSession<CanvasState>({
+  const session = useEditorSession<NetworkState>({
     tabId: tab.id,
     load: () => {
-      const c = useCanvasStore.getState().canvases.find((cv) => cv.id === canvasId);
-      if (!c) return { name: '', canvas_type_id: null, layout: 'freeform', layout_config: {} };
+      const c = useNetworkStore.getState().networks.find((cv) => cv.id === networkId);
+      if (!c) return { name: '', layout: 'freeform', layout_config: {} };
       return {
         name: c.name,
-        canvas_type_id: c.canvas_type_id,
         layout: c.layout,
         layout_config: c.layout_config ?? {},
       };
     },
     save: async (state) => {
-      await updateCanvas(canvasId, state);
+      await updateNetwork(networkId, state);
       useEditorStore.getState().updateTitle(tab.id, state.name);
     },
-    deps: [canvasId],
+    deps: [networkId],
   });
 
-  const canvasTypeOptions = useMemo(() => [
-    { value: '', label: t('canvasType.noType') ?? 'None' },
-    ...canvasTypes.map((ct) => ({ value: ct.id, label: ct.name })),
-  ], [canvasTypes, t]);
-
   const handleDelete = useCallback(async () => {
-    await deleteCanvas(canvasId);
+    await deleteNetwork(networkId);
     useEditorStore.getState().closeTab(tab.id);
-  }, [canvasId, deleteCanvas, tab.id]);
+  }, [networkId, deleteNetwork, tab.id]);
 
   const layoutOptions = useMemo(() =>
     listLayouts().map((p) => ({ value: p.key, label: p.displayName })),
@@ -81,7 +72,7 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
   const layoutConfig = session.state?.layout_config ?? {};
   const fieldMappings = (layoutConfig.field_mappings ?? {}) as Record<string, Record<string, string>>;
 
-  const update = (patch: Partial<CanvasState>) => {
+  const update = (patch: Partial<NetworkState>) => {
     session.setState((prev) => ({ ...prev, ...patch }));
   };
 
@@ -99,10 +90,10 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
     updateLayoutConfig({ field_mappings: currentMappings });
   };
 
-  if (!canvas) {
+  if (!network) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-muted">
-        {t('canvas.notFound') ?? 'Canvas not found'}
+        {t('network.notFound') ?? 'Network not found'}
       </div>
     );
   }
@@ -115,29 +106,16 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
         <div className="flex flex-col gap-6 p-6 w-full max-w-[600px]">
           {/* Name */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted">{t('canvas.name') ?? 'Name'}</label>
+            <label className="text-xs font-medium text-muted">{t('network.name') ?? 'Name'}</label>
             <Input
               value={session.state.name}
               onChange={(e) => update({ name: e.target.value })}
             />
           </div>
 
-          {/* Canvas Type */}
-          {canvasTypes.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted">{t('canvasType.title')}</label>
-              <Select
-                options={canvasTypeOptions}
-                value={session.state.canvas_type_id ?? ''}
-                onChange={(e) => update({ canvas_type_id: e.target.value || null })}
-                selectSize="sm"
-              />
-            </div>
-          )}
-
           {/* Layout */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-muted">{t('canvas.layout') ?? 'Layout'}</label>
+            <label className="text-xs font-medium text-muted">{t('network.layout') ?? 'Layout'}</label>
             <Select
               options={layoutOptions}
               value={session.state.layout}
@@ -153,7 +131,7 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
           {/* Layout Config */}
           {activePlugin.key !== 'freeform' && (
             <div className="flex flex-col gap-3 p-3 bg-surface-card rounded-md border border-subtle">
-              <div className="text-xs font-medium text-muted">{t('canvas.layoutSettings') ?? 'Layout Settings'}</div>
+              <div className="text-xs font-medium text-muted">{t('network.layoutSettings') ?? 'Layout Settings'}</div>
 
               {activePlugin.configSchema.map((field) => (
                 <div key={field.key} className="flex flex-col gap-1">
@@ -188,10 +166,10 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
           {activePlugin.requiredFields.length > 0 && archetypes.length > 0 && (
             <div className="flex flex-col gap-3 p-3 bg-surface-card rounded-md border border-subtle">
               <div className="flex items-center justify-between">
-                <div className="text-xs font-medium text-muted">{t('canvas.fieldMappings') ?? 'Field Mappings'}</div>
+                <div className="text-xs font-medium text-muted">{t('network.fieldMappings') ?? 'Field Mappings'}</div>
                 <Select
                   options={[
-                    { value: '', label: t('canvas.addArchetype') ?? 'Add Archetype...' },
+                    { value: '', label: t('network.addArchetype') ?? 'Add Archetype...' },
                     ...archetypes
                       .filter((a) => !fieldMappings[a.id])
                       .map((a) => ({ value: a.id, label: a.name })),
@@ -268,11 +246,11 @@ export function CanvasEditor({ tab }: CanvasEditorProps): JSX.Element {
           )}
 
           {/* Info */}
-          {canvas.concept_id && (
+          {network.concept_id && (
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted">{t('canvas.parentConcept') ?? 'Parent Concept'}</label>
+              <label className="text-xs font-medium text-muted">{t('network.parentConcept') ?? 'Parent Concept'}</label>
               <Input
-                value={concepts.find((c) => c.id === canvas.concept_id)?.title ?? canvas.concept_id}
+                value={concepts.find((c) => c.id === network.concept_id)?.title ?? network.concept_id}
                 readOnly
                 className="text-secondary cursor-default"
               />

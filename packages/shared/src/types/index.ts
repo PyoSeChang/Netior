@@ -52,14 +52,13 @@ export interface ConceptUpdate {
 }
 
 // ============================================
-// Canvas
+// Network
 // ============================================
 
-export interface Canvas {
+export interface Network {
   id: string;
   project_id: string;
   concept_id: string | null;
-  canvas_type_id: string | null;
   name: string;
   layout: string;
   layout_config: Record<string, unknown> | null;
@@ -70,18 +69,16 @@ export interface Canvas {
   updated_at: string;
 }
 
-export interface CanvasCreate {
+export interface NetworkCreate {
   project_id: string;
   name: string;
   concept_id?: string;
-  canvas_type_id?: string;
   layout?: string;
   layout_config?: Record<string, unknown>;
 }
 
-export interface CanvasUpdate {
+export interface NetworkUpdate {
   name?: string;
-  canvas_type_id?: string | null;
   layout?: string;
   layout_config?: Record<string, unknown> | null;
   viewport_x?: number;
@@ -134,12 +131,12 @@ export interface PdfToc {
 }
 
 // ============================================
-// CanvasNode
+// NetworkNode
 // ============================================
 
-export interface CanvasNode {
+export interface NetworkNode {
   id: string;
-  canvas_id: string;
+  network_id: string;
   concept_id: string | null;
   file_id: string | null;
   metadata: string | null;
@@ -149,8 +146,8 @@ export interface CanvasNode {
   height: number | null;
 }
 
-export interface CanvasNodeCreate {
-  canvas_id: string;
+export interface NetworkNodeCreate {
+  network_id: string;
   concept_id?: string;
   file_id?: string;
   metadata?: string;
@@ -160,7 +157,7 @@ export interface CanvasNodeCreate {
   height?: number;
 }
 
-export interface CanvasNodeUpdate {
+export interface NetworkNodeUpdate {
   position_x?: number;
   position_y?: number;
   width?: number | null;
@@ -174,7 +171,7 @@ export interface CanvasNodeUpdate {
 
 export interface Edge {
   id: string;
-  canvas_id: string;
+  network_id: string;
   source_node_id: string;
   target_node_id: string;
   relation_type_id: string | null;
@@ -186,7 +183,7 @@ export interface Edge {
 }
 
 export interface EdgeCreate {
-  canvas_id: string;
+  network_id: string;
   source_node_id: string;
   target_node_id: string;
   relation_type_id?: string;
@@ -404,58 +401,22 @@ export interface RelationTypeUpdate {
 }
 
 // ============================================
-// CanvasType
+// Network Tree
 // ============================================
 
-export interface CanvasType {
-  id: string;
-  project_id: string;
-  name: string;
-  description: string | null;
-  icon: string | null;
-  color: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CanvasTypeCreate {
-  project_id: string;
-  name: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-}
-
-export interface CanvasTypeUpdate {
-  name?: string;
-  description?: string | null;
-  icon?: string | null;
-  color?: string | null;
-}
-
-export interface CanvasTypeAllowedRelation {
-  id: string;
-  canvas_type_id: string;
-  relation_type_id: string;
-}
-
-// ============================================
-// Canvas Tree
-// ============================================
-
-export interface CanvasTreeNode {
-  canvas: Canvas;
+export interface NetworkTreeNode {
+  network: Network;
   conceptTitle: string | null;
-  children: CanvasTreeNode[];
+  children: NetworkTreeNode[];
 }
 
 // ============================================
-// Canvas Breadcrumb
+// Network Breadcrumb
 // ============================================
 
-export interface CanvasBreadcrumbItem {
-  canvasId: string;
-  canvasName: string;
+export interface NetworkBreadcrumbItem {
+  networkId: string;
+  networkName: string;
   conceptTitle: string | null;
 }
 
@@ -464,7 +425,7 @@ export interface CanvasBreadcrumbItem {
 // ============================================
 
 export type EditorViewMode = 'float' | 'full' | 'side' | 'detached';
-export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'canvasType' | 'canvas' | 'narre' | 'fileMetadata';
+export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'network' | 'narre' | 'fileMetadata';
 
 /** Identifies a window that hosts editor tabs (main window or detached window) */
 export interface EditorHostState {
@@ -517,13 +478,13 @@ export interface EditorTab {
   activeFilePath: string | null;
   /** Override editor type for file tabs (when user switches via context menu) */
   editorType?: string;
-  /** Canvas context for fileMetadata tabs (which canvas this node belongs to) */
-  canvasId?: string;
+  /** Network context for fileMetadata tabs (which network this node belongs to) */
+  networkId?: string;
   /** Working directory override for terminal tabs */
   terminalCwd?: string;
   /** Draft data for unsaved new entities (concept creation flow) */
   draftData?: {
-    canvasId?: string;
+    networkId?: string;
     positionX?: number;
     positionY?: number;
     allowedArchetypeIds?: string[];
@@ -574,7 +535,7 @@ export interface NarreMessage {
 }
 
 export interface NarreMention {
-  type: 'concept' | 'canvas' | 'edge' | 'archetype' | 'relationType' | 'canvasType' | 'module' | 'file';
+  type: 'concept' | 'network' | 'edge' | 'archetype' | 'relationType' | 'module' | 'file';
   id?: string;
   path?: string;
   display: string;
@@ -674,7 +635,7 @@ export interface NarreSummaryCard {
 export type NarreCard = NarreProposalCard | NarrePermissionCard | NarreInterviewCard | NarreSummaryCard;
 
 export interface NetiorChangeEvent {
-  type: 'archetypes' | 'concepts' | 'relationTypes' | 'canvasTypes' | 'canvases' | 'edges';
+  type: 'archetypes' | 'concepts' | 'relationTypes' | 'networks' | 'edges';
   action: 'created' | 'updated' | 'deleted';
   id: string;
 }

@@ -15,8 +15,7 @@ import { toAbsolutePath } from '../../../utils/path-utils';
 import { buildIndexMessage } from '../../../utils/pdf-toc-utils';
 import { useConceptStore } from '../../../stores/concept-store';
 import { useRelationTypeStore } from '../../../stores/relation-type-store';
-import { useCanvasTypeStore } from '../../../stores/canvas-type-store';
-import { useCanvasStore } from '../../../stores/canvas-store';
+import { useNetworkStore } from '../../../stores/network-store';
 
 interface NarreChatProps {
   sessionId: string | null;
@@ -29,8 +28,7 @@ function refreshStores(projectId: string): void {
   useArchetypeStore.getState().loadByProject(projectId);
   useConceptStore.getState().loadByProject(projectId);
   useRelationTypeStore.getState().loadByProject(projectId);
-  useCanvasTypeStore.getState().loadByProject(projectId);
-  useCanvasStore.getState().loadCanvases(projectId);
+  useNetworkStore.getState().loadNetworks(projectId);
 }
 
 export function NarreChat({

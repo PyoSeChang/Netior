@@ -7,7 +7,7 @@ import type { IpcResult, NarreSession, NarreStreamEvent } from '@netior/shared/t
 import { IPC_CHANNELS } from '@netior/shared/constants';
 import {
   getSetting, setSetting,
-  searchConcepts, listArchetypes, listRelationTypes, listCanvasTypes, listCanvases,
+  searchConcepts, listArchetypes, listRelationTypes, listNetworks,
   getProjectById, getFileEntitiesByProject,
 } from '@netior/core';
 import { startNarreServer, isNarreServerRunning } from '../process/narre-server-manager';
@@ -207,26 +207,14 @@ export function registerNarreIpc(): void {
         }
       }
 
-      // Search canvas types
-      const canvasTypes = listCanvasTypes(projectId);
-      for (const ct of canvasTypes) {
+      // Search networks
+      const networks = listNetworks(projectId);
+      for (const nw of networks) {
         if (results.length >= maxResults) break;
-        if (ct.name.toLowerCase().includes(lowerQuery)) {
+        if (nw.name.toLowerCase().includes(lowerQuery)) {
           results.push({
-            type: 'canvasType', id: ct.id, display: ct.name, color: ct.color, icon: ct.icon,
-            description: ct.description,
-          });
-        }
-      }
-
-      // Search canvases
-      const canvases = listCanvases(projectId);
-      for (const cv of canvases) {
-        if (results.length >= maxResults) break;
-        if (cv.name.toLowerCase().includes(lowerQuery)) {
-          results.push({
-            type: 'canvas', id: cv.id, display: cv.name,
-            meta: { conceptId: cv.concept_id, canvasTypeId: cv.canvas_type_id },
+            type: 'network', id: nw.id, display: nw.name,
+            meta: { conceptId: nw.concept_id },
           });
         }
       }
@@ -268,13 +256,11 @@ export function registerNarreIpc(): void {
       const project = getProjectById(projectId);
       const archetypes = project ? listArchetypes(projectId) : [];
       const relationTypes = project ? listRelationTypes(projectId) : [];
-      const canvasTypes = project ? listCanvasTypes(projectId) : [];
 
       const projectMetadata = {
         projectName: project?.name ?? projectId,
         archetypes: archetypes.map((a) => ({ name: a.name, icon: a.icon, color: a.color, node_shape: a.node_shape })),
         relationTypes: relationTypes.map((r) => ({ name: r.name, directed: r.directed, line_style: r.line_style, color: r.color })),
-        canvasTypes: canvasTypes.map((c) => ({ name: c.name, description: c.description })),
       };
 
       const body = JSON.stringify({ sessionId, projectId, message, mentions, projectMetadata });

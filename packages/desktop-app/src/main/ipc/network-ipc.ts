@@ -1,110 +1,110 @@
 import { ipcMain } from 'electron';
 import type { IpcResult } from '@netior/shared/types';
 import {
-  createCanvas, listCanvases, updateCanvas, deleteCanvas, getCanvasFull,
-  getCanvasesByConceptId, getCanvasAncestors, getCanvasTree,
-  addCanvasNode, updateCanvasNode, removeCanvasNode,
+  createNetwork, listNetworks, updateNetwork, deleteNetwork, getNetworkFull,
+  getNetworksByConceptId, getNetworkAncestors, getNetworkTree,
+  addNetworkNode, updateNetworkNode, removeNetworkNode,
   createEdge, getEdge, updateEdge, deleteEdge,
 } from '@netior/core';
 import { broadcastChange } from './broadcast-change';
 
-export function registerCanvasIpc(): void {
-  // Canvas CRUD
-  ipcMain.handle('canvas:create', async (_e, data): Promise<IpcResult<unknown>> => {
+export function registerNetworkIpc(): void {
+  // Network CRUD
+  ipcMain.handle('network:create', async (_e, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = createCanvas(data);
-      broadcastChange({ type: 'canvases', action: 'created', id: result.id });
+      const result = createNetwork(data);
+      broadcastChange({ type: 'networks', action: 'created', id: result.id });
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvas:list', async (_e, projectId: string, rootOnly?: boolean): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('network:list', async (_e, projectId: string, rootOnly?: boolean): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: listCanvases(projectId, rootOnly) };
+      return { success: true, data: listNetworks(projectId, rootOnly) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvas:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('network:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateCanvas(id, data);
-      broadcastChange({ type: 'canvases', action: 'updated', id });
+      const result = updateNetwork(id, data);
+      broadcastChange({ type: 'networks', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvas:delete', async (_e, id: string): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('network:delete', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = deleteCanvas(id);
-      broadcastChange({ type: 'canvases', action: 'deleted', id });
+      const result = deleteNetwork(id);
+      broadcastChange({ type: 'networks', action: 'deleted', id });
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvas:getFull', async (_e, canvasId: string): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('network:getFull', async (_e, networkId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getCanvasFull(canvasId) };
+      return { success: true, data: getNetworkFull(networkId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvas:getByConcept', async (_e, conceptId: string): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('network:getByConcept', async (_e, conceptId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getCanvasesByConceptId(conceptId) };
+      return { success: true, data: getNetworksByConceptId(conceptId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvas:getAncestors', async (_e, canvasId: string): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('network:getAncestors', async (_e, networkId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getCanvasAncestors(canvasId) };
+      return { success: true, data: getNetworkAncestors(networkId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvas:getTree', async (_e, projectId: string): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('network:getTree', async (_e, projectId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getCanvasTree(projectId) };
+      return { success: true, data: getNetworkTree(projectId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  // Canvas Node
-  ipcMain.handle('canvasNode:add', async (_e, data): Promise<IpcResult<unknown>> => {
+  // Network Node
+  ipcMain.handle('networkNode:add', async (_e, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = addCanvasNode(data);
-      broadcastChange({ type: 'canvases', action: 'updated', id: data.canvas_id });
+      const result = addNetworkNode(data);
+      broadcastChange({ type: 'networks', action: 'updated', id: data.network_id });
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvasNode:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('networkNode:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateCanvasNode(id, data);
-      broadcastChange({ type: 'canvases', action: 'updated', id });
+      const result = updateNetworkNode(id, data);
+      broadcastChange({ type: 'networks', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  ipcMain.handle('canvasNode:remove', async (_e, id: string): Promise<IpcResult<unknown>> => {
+  ipcMain.handle('networkNode:remove', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = removeCanvasNode(id);
-      broadcastChange({ type: 'canvases', action: 'updated', id });
+      const result = removeNetworkNode(id);
+      broadcastChange({ type: 'networks', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
       return { success: false, error: (err as Error).message };

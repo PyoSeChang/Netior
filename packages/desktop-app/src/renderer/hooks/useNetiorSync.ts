@@ -3,8 +3,7 @@ import type { NetiorChangeEvent } from '@netior/shared/types';
 import { useArchetypeStore } from '../stores/archetype-store';
 import { useConceptStore } from '../stores/concept-store';
 import { useRelationTypeStore } from '../stores/relation-type-store';
-import { useCanvasTypeStore } from '../stores/canvas-type-store';
-import { useCanvasStore } from '../stores/canvas-store';
+import { useNetworkStore } from '../stores/network-store';
 
 export function useNetiorSync(projectId: string | null): void {
   useEffect(() => {
@@ -22,17 +21,14 @@ export function useNetiorSync(projectId: string | null): void {
         case 'relationTypes':
           useRelationTypeStore.getState().loadByProject(projectId);
           break;
-        case 'canvasTypes':
-          useCanvasTypeStore.getState().loadByProject(projectId);
-          break;
-        case 'canvases':
-          useCanvasStore.getState().loadCanvases(projectId);
+        case 'networks':
+          useNetworkStore.getState().loadNetworks(projectId);
           break;
         case 'edges': {
-          // Refresh the current canvas to get updated edges
-          const currentCanvas = useCanvasStore.getState().currentCanvas;
-          if (currentCanvas) {
-            useCanvasStore.getState().openCanvas(currentCanvas.id);
+          // Refresh the current network to get updated edges
+          const currentNetwork = useNetworkStore.getState().currentNetwork;
+          if (currentNetwork) {
+            useNetworkStore.getState().openNetwork(currentNetwork.id);
           }
           break;
         }

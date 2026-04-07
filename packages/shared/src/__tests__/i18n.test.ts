@@ -31,7 +31,7 @@ describe('translate', () => {
     const keys = [
       'common.create', 'common.delete', 'common.cancel', 'common.save',
       'project.create', 'project.name',
-      'canvas.create', 'canvas.defaultName',
+      'network.create', 'network.defaultName',
       'concept.create', 'concept.defaultTitle',
       'edge.connect', 'edge.delete',
       'editor.unsaved', 'editor.openExternal',

@@ -32,7 +32,7 @@ export function createNarreUiServer(sendCard: (card: NarreCard) => void) {
     tools: [
       tool(
         'propose',
-        'Present a proposal table to the user for review and inline editing. Use this when suggesting archetypes, relation types, canvas types, or concepts.',
+        'Present a proposal table to the user for review and inline editing. Use this when suggesting archetypes, relation types, or concepts.',
         {
           title: z.string().describe('Title for the proposal (e.g. "Archetype 제안")'),
           columns: z.array(z.object({

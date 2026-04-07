@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Plus, ArrowRightLeft, File } from 'lucide-react';
-import type { Canvas } from '@netior/shared/types';
-import { useCanvasStore } from '../../stores/canvas-store';
-import { canvasService } from '../../services';
+import type { Network } from '@netior/shared/types';
+import { useNetworkStore } from '../../stores/network-store';
+import { networkService } from '../../services';
 import { useI18n } from '../../hooks/useI18n';
 
-interface CanvasContextMenuProps {
+interface NetworkContextMenuProps {
   x: number;
   y: number;
   onCreateConcept: () => void;
@@ -13,10 +13,10 @@ interface CanvasContextMenuProps {
   onClose: () => void;
 }
 
-export function CanvasContextMenu({ x, y, onCreateConcept, onAddFileNode, onClose }: CanvasContextMenuProps): JSX.Element {
+export function NetworkContextMenu({ x, y, onCreateConcept, onAddFileNode, onClose }: NetworkContextMenuProps): JSX.Element {
   const { t } = useI18n();
-  const { currentCanvas, canvases, openCanvas } = useCanvasStore();
-  const [siblingCanvases, setSiblingCanvases] = useState<Canvas[]>([]);
+  const { currentNetwork, networks, openNetwork } = useNetworkStore();
+  const [siblingNetworks, setSiblingNetworks] = useState<Network[]>([]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -26,20 +26,20 @@ export function CanvasContextMenu({ x, y, onCreateConcept, onAddFileNode, onClos
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Load sibling canvases
+  // Load sibling networks
   useEffect(() => {
-    if (!currentCanvas) return;
-    if (currentCanvas.concept_id) {
-      canvasService.getCanvasesByConcept(currentCanvas.concept_id).then((list) => {
-        setSiblingCanvases(list.filter((c) => c.id !== currentCanvas.id));
+    if (!currentNetwork) return;
+    if (currentNetwork.concept_id) {
+      networkService.getNetworksByConcept(currentNetwork.concept_id).then((list) => {
+        setSiblingNetworks(list.filter((c) => c.id !== currentNetwork.id));
       });
     } else {
-      setSiblingCanvases(canvases.filter((c) => c.id !== currentCanvas.id));
+      setSiblingNetworks(networks.filter((c) => c.id !== currentNetwork.id));
     }
-  }, [currentCanvas, canvases]);
+  }, [currentNetwork, networks]);
 
-  const handleSwitch = async (canvasId: string) => {
-    await openCanvas(canvasId);
+  const handleSwitch = async (networkId: string) => {
+    await openNetwork(networkId);
     onClose();
   };
 
@@ -57,7 +57,7 @@ export function CanvasContextMenu({ x, y, onCreateConcept, onAddFileNode, onClos
         }}
       >
         <Plus size={14} />
-        {t('canvas.createConcept')}
+        {t('network.createConcept')}
       </button>
 
       {onAddFileNode && (
@@ -69,18 +69,18 @@ export function CanvasContextMenu({ x, y, onCreateConcept, onAddFileNode, onClos
           }}
         >
           <File size={14} />
-          {t('canvas.addFileNode')}
+          {t('network.addFileNode')}
         </button>
       )}
 
-      {siblingCanvases.length > 0 && (
+      {siblingNetworks.length > 0 && (
         <>
           <div className="my-1 border-t border-subtle" />
           <div className="px-3 py-1 text-[10px] text-muted uppercase tracking-wider flex items-center gap-1">
             <ArrowRightLeft size={10} />
-            {t('canvas.switchCanvas') ?? 'Switch Canvas'}
+            {t('network.switchNetwork') ?? 'Switch Network'}
           </div>
-          {siblingCanvases.map((c) => (
+          {siblingNetworks.map((c) => (
             <button
               key={c.id}
               className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"

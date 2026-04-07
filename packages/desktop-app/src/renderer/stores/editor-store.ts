@@ -21,7 +21,7 @@ interface OpenTabParams {
   title: string;
   viewMode?: EditorViewMode;
   draftData?: EditorTab['draftData'];
-  canvasId?: string;
+  networkId?: string;
   terminalCwd?: string;
   /** Host to open the tab in (defaults to MAIN_HOST_ID) */
   hostId?: string;
@@ -313,7 +313,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   focusedHostId: MAIN_HOST_ID,
   pendingCloseTabId: null,
 
-  openTab: async ({ type, targetId, title, viewMode, draftData, canvasId, terminalCwd, hostId }) => {
+  openTab: async ({ type, targetId, title, viewMode, draftData, networkId, terminalCwd, hostId }) => {
     const { tabs } = get();
     const tabId = makeTabId(type, targetId);
     const resolvedHostId = hostId ?? MAIN_HOST_ID;
@@ -404,7 +404,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       isDirty: !!draftData,
       activeFilePath: null,
       draftData,
-      canvasId,
+      networkId,
       terminalCwd,
     };
 

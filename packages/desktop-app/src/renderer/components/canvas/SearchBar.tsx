@@ -43,7 +43,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         ref={inputRef}
         className="flex-1"
         type="text"
-        placeholder={t('canvas.searchPlaceholder')}
+        placeholder={t('network.searchPlaceholder')}
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
       />
@@ -52,7 +52,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         value={filterSemanticType ?? ''}
         onChange={(e) => onFilterChange(e.target.value || null)}
       >
-        <option value="">{t('canvas.allTypes')}</option>
+        <option value="">{t('network.allTypes')}</option>
         {semanticTypes.map((st) => (
           <option key={st.key} value={st.key}>
             {st.label}

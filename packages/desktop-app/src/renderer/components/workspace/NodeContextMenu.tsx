@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { FileText, Layers, Link, Plus, Trash2 } from 'lucide-react';
-import type { Canvas } from '@netior/shared/types';
-import { useCanvasStore } from '../../stores/canvas-store';
+import type { Network } from '@netior/shared/types';
+import { useNetworkStore } from '../../stores/network-store';
 import { useEditorStore } from '../../stores/editor-store';
-import { canvasService } from '../../services';
+import { networkService } from '../../services';
 import { useI18n } from '../../hooks/useI18n';
 import type { CanvasMode } from '../../stores/ui-store';
 
@@ -17,7 +17,7 @@ interface NodeContextMenuProps {
   canvasCount: number;
   mode: CanvasMode;
   onAddConnection?: (nodeId: string) => void;
-  onCreateCanvas?: (conceptId: string) => void;
+  onCreateNetwork?: (conceptId: string) => void;
   onClose: () => void;
 }
 
@@ -31,12 +31,12 @@ export function NodeContextMenu({
   canvasCount,
   mode,
   onAddConnection,
-  onCreateCanvas,
+  onCreateNetwork,
   onClose,
 }: NodeContextMenuProps): JSX.Element {
   const { t } = useI18n();
-  const { drillInto, removeNode, currentCanvas } = useCanvasStore();
-  const [canvases, setCanvases] = useState<Canvas[]>([]);
+  const { drillInto, removeNode, currentNetwork } = useNetworkStore();
+  const [networks, setNetworks] = useState<Network[]>([]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -46,27 +46,27 @@ export function NodeContextMenu({
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Load canvases for this concept
+  // Load networks for this concept
   useEffect(() => {
     if (conceptId) {
-      canvasService.getCanvasesByConcept(conceptId).then(setCanvases);
+      networkService.getNetworksByConcept(conceptId).then(setNetworks);
     }
   }, [conceptId]);
 
-  const handleNavigateToCanvas = useCallback(async (canvasId: string) => {
-    if (currentCanvas) {
-      useCanvasStore.setState((s) => ({
-        canvasHistory: [...s.canvasHistory, currentCanvas.id],
+  const handleNavigateToNetwork = useCallback(async (networkId: string) => {
+    if (currentNetwork) {
+      useNetworkStore.setState((s) => ({
+        networkHistory: [...s.networkHistory, currentNetwork.id],
       }));
     }
-    await useCanvasStore.getState().openCanvas(canvasId);
+    await useNetworkStore.getState().openNetwork(networkId);
     onClose();
-  }, [currentCanvas, onClose]);
+  }, [currentNetwork, onClose]);
 
-  const handleCreateCanvas = useCallback(() => {
-    if (conceptId) onCreateCanvas?.(conceptId);
+  const handleCreateNetwork = useCallback(() => {
+    if (conceptId) onCreateNetwork?.(conceptId);
     onClose();
-  }, [onCreateCanvas, conceptId, onClose]);
+  }, [onCreateNetwork, conceptId, onClose]);
 
   const handleAddConnection = useCallback(() => {
     onAddConnection?.(nodeId);
@@ -84,18 +84,18 @@ export function NodeContextMenu({
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* Canvas list section */}
-      {conceptId && canvases.length > 0 && (
+      {/* Network list section */}
+      {conceptId && networks.length > 0 && (
         <>
           <div className="px-3 py-1 text-[10px] text-muted uppercase tracking-wider flex items-center gap-1">
             <Layers size={10} />
-            {t('canvas.canvasesForConcept') ?? 'Canvases'}
+            {t('network.networksForConcept') ?? 'Networks'}
           </div>
-          {canvases.map((c) => (
+          {networks.map((c) => (
             <button
               key={c.id}
               className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
-              onClick={() => handleNavigateToCanvas(c.id)}
+              onClick={() => handleNavigateToNetwork(c.id)}
             >
               {c.name}
             </button>
@@ -104,19 +104,19 @@ export function NodeContextMenu({
         </>
       )}
 
-      {/* Canvas creation */}
+      {/* Network creation */}
       {conceptId && (
         <button
           className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
-          onClick={handleCreateCanvas}
+          onClick={handleCreateNetwork}
         >
           <Plus size={14} />
-          {t('canvas.createCanvas')}
+          {t('network.createNetwork')}
         </button>
       )}
 
       {/* Edit metadata (file/dir nodes only) */}
-      {fileId && currentCanvas && (
+      {fileId && currentNetwork && (
         <button
           className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-text-default hover:bg-surface-hover cursor-pointer"
           onClick={() => {
@@ -124,7 +124,7 @@ export function NodeContextMenu({
               type: 'fileMetadata',
               targetId: fileId,
               title: filePath?.replace(/\\/g, '/').split('/').pop() ?? 'Metadata',
-              canvasId: currentCanvas.id,
+              networkId: currentNetwork.id,
             });
             onClose();
           }}

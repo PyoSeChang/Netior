@@ -5,10 +5,9 @@ export type { InitDatabaseOptions } from './connection';
 // Repositories
 export * from './repositories/project';
 export * from './repositories/concept';
-export * from './repositories/canvas';
+export * from './repositories/network';
 export * from './repositories/archetype';
 export * from './repositories/relation-type';
-export * from './repositories/canvas-type';
 export * from './repositories/file';
 export * from './repositories/concept-property';
 export * from './repositories/editor-prefs';

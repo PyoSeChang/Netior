@@ -36,7 +36,7 @@ export function FileNodeAddModal({ open, onClose, onSelect }: FileNodeAddModalPr
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={t('canvas.addFileNode')}>
+    <Modal open={open} onClose={onClose} title={t('network.addFileNode')}>
       <div className="flex flex-col gap-3 min-h-[300px] max-h-[500px]">
         <div className="flex-1 overflow-auto border border-subtle rounded-md">
           {fileTree.length > 0 ? (

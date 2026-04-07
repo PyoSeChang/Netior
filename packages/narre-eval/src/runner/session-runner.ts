@@ -1,7 +1,6 @@
 import {
   listArchetypes,
   listRelationTypes,
-  listCanvasTypes,
 } from '@netior/core';
 import type { NarreCard } from '@netior/shared/types';
 import type { EvalAgentAdapter, CardHandler } from '../agents/base.js';
@@ -163,10 +162,5 @@ function buildProjectMetadata(projectId: string): Record<string, unknown> {
     color: r.color,
   }));
 
-  const canvasTypes = listCanvasTypes(projectId).map((c) => ({
-    name: c.name,
-    description: c.description,
-  }));
-
-  return { projectName: projectId, archetypes, relationTypes, canvasTypes };
+  return { projectName: projectId, archetypes, relationTypes };
 }

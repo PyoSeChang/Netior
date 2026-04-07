@@ -1,6 +1,6 @@
 import { registerProjectIpc } from './project-ipc';
 import { registerConceptIpc } from './concept-ipc';
-import { registerCanvasIpc } from './canvas-ipc';
+import { registerNetworkIpc } from './network-ipc';
 import { registerFileIpc } from './file-ipc';
 import { registerFsIpc } from './fs-ipc';
 import { registerModuleIpc } from './module-ipc';
@@ -11,13 +11,12 @@ import { registerConceptContentIpc } from './concept-content-ipc';
 import { registerPtyIpc } from './pty-ipc';
 import { registerConfigIpc } from './config-ipc';
 import { registerRelationTypeIpc } from './relation-type-ipc';
-import { registerCanvasTypeIpc } from './canvas-type-ipc';
 import { registerNarreIpc } from './narre-ipc';
 
 export function registerAllIpc(): void {
   registerProjectIpc();
   registerConceptIpc();
-  registerCanvasIpc();
+  registerNetworkIpc();
   registerFileIpc();
   registerFsIpc();
   registerModuleIpc();
@@ -28,6 +27,5 @@ export function registerAllIpc(): void {
   registerPtyIpc();
   registerConfigIpc();
   registerRelationTypeIpc();
-  registerCanvasTypeIpc();
   registerNarreIpc();
 }

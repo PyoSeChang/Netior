@@ -2,7 +2,7 @@ import type { TranslationKey } from '@netior/shared/i18n';
 
 export type ShortcutScope =
   | 'global'
-  | 'canvas'
+  | 'network'
   | 'terminal'
   | 'fileTree'
   | 'narreChat'
@@ -13,7 +13,7 @@ export type ShortcutScope =
 
 export type ShortcutOwner =
   | 'globalDispatcher'
-  | 'canvasContext'
+  | 'networkContext'
   | 'terminalEditor'
   | 'fileTree'
   | 'narreChat'

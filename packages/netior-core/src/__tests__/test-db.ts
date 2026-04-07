@@ -12,6 +12,7 @@ import { migrate006 } from '../migrations/006-canvas-1n-and-types';
 import { migrate007 } from '../migrations/007-edge-visual-overrides';
 import { migrate008 } from '../migrations/008-canvas-layout';
 import { migrate009 } from '../migrations/009-file-entity';
+import { migrate010 } from '../migrations/010-canvas-to-network';
 
 let testDb: Database.Database | null = null;
 
@@ -29,6 +30,7 @@ export function setupTestDb(): Database.Database {
   migrate007(testDb);
   migrate008(testDb);
   migrate009(testDb);
+  migrate010(testDb);
   testDb.pragma('foreign_keys = ON');
   return testDb;
 }

@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo } from 'react';
 import type { EditorTab } from '@netior/shared/types';
-import { useCanvasStore } from '../../stores/canvas-store';
+import { useNetworkStore } from '../../stores/network-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useEditorSession } from '../../hooks/useEditorSession';
-import { canvasService } from '../../services';
+import { networkService } from '../../services';
 import { useI18n } from '../../hooks/useI18n';
 import { Select } from '../ui/Select';
 import { TextArea } from '../ui/TextArea';
@@ -28,9 +28,9 @@ interface EdgeState {
 export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
   const { t } = useI18n();
   const edgeId = tab.targetId;
-  const edges = useCanvasStore((s) => s.edges);
-  const nodes = useCanvasStore((s) => s.nodes);
-  const { removeEdge, openCanvas, currentCanvas } = useCanvasStore();
+  const edges = useNetworkStore((s) => s.edges);
+  const nodes = useNetworkStore((s) => s.nodes);
+  const { removeEdge, openNetwork, currentNetwork } = useNetworkStore();
   const relationTypes = useRelationTypeStore((s) => s.relationTypes);
 
   const edge = edges.find((e) => e.id === edgeId);
@@ -38,7 +38,7 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
   const session = useEditorSession<EdgeState>({
     tabId: tab.id,
     load: () => {
-      const e = useCanvasStore.getState().edges.find((ed) => ed.id === edgeId);
+      const e = useNetworkStore.getState().edges.find((ed) => ed.id === edgeId);
       if (!e) return { relation_type_id: null, description: null, color: null, line_style: null, directed: null };
       return {
         relation_type_id: e.relation_type_id,
@@ -49,9 +49,9 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
       };
     },
     save: async (state) => {
-      await canvasService.edge.update(edgeId, state);
-      const canvas = useCanvasStore.getState().currentCanvas;
-      if (canvas) await openCanvas(canvas.id);
+      await networkService.edge.update(edgeId, state);
+      const network = useNetworkStore.getState().currentNetwork;
+      if (network) await openNetwork(network.id);
     },
     deps: [edgeId],
   });

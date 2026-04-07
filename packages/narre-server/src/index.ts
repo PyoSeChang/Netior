@@ -151,7 +151,6 @@ app.post('/chat', async (req, res) => {
       projectName: projectId,
       archetypes: [],
       relationTypes: [],
-      canvasTypes: [],
     };
     const commandName = parsedCommand?.command.name;
     const promptBuilder = commandName && commandPromptBuilders[commandName];
@@ -317,11 +316,10 @@ function resolveMcpServerPath(): string | null {
 function buildMentionTag(mention: NarreMention): string {
   switch (mention.type) {
     case 'concept': return `[concept:id=${mention.id}, title="${mention.display}"]`;
-    case 'canvas': return `[canvas:id=${mention.id}, name="${mention.display}"]`;
+    case 'network': return `[network:id=${mention.id}, name="${mention.display}"]`;
     case 'edge': return `[edge:id=${mention.id}]`;
     case 'archetype': return `[archetype:id=${mention.id}, name="${mention.display}"]`;
     case 'relationType': return `[relationType:id=${mention.id}, name="${mention.display}"]`;
-    case 'canvasType': return `[canvasType:id=${mention.id}, name="${mention.display}"]`;
     case 'module': return `[module:path="${mention.path}"]`;
     case 'file': return `[file:path="${mention.path}"]`;
     default: return mention.display;

@@ -8,7 +8,6 @@ import {
   createProject,
   createArchetype,
   createRelationType,
-  createCanvasType,
   createConcept,
   createModule,
   addModuleDirectory,
@@ -68,9 +67,6 @@ export async function setupScenario(
     },
     createRelationType(data) {
       return createRelationType(data);
-    },
-    createCanvasType(data) {
-      return createCanvasType(data);
     },
     createConcept(data) {
       return createConcept(data);

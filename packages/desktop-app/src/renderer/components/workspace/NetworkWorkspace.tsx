@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NodeLayer } from './NodeLayer';
 import { EdgeLayer } from './EdgeLayer';
 import { NodeContextMenu } from './NodeContextMenu';
-import { CanvasContextMenu } from './CanvasContextMenu';
-import { CanvasControls } from './CanvasControls';
+import { NetworkContextMenu } from './NetworkContextMenu';
+import { NetworkControls } from './NetworkControls';
 import { useInteraction } from './InteractionLayer';
 import { EdgeContextMenu } from './EdgeContextMenu';
 import { FileNodeAddModal } from './FileNodeAddModal';
-import { useCanvasStore, type CanvasNodeWithConcept, type EdgeWithRelationType } from '../../stores/canvas-store';
-import { canvasService, fileService } from '../../services';
+import { useNetworkStore, type NetworkNodeWithConcept, type EdgeWithRelationType } from '../../stores/network-store';
+import { networkService, fileService } from '../../services';
 import { conceptPropertyService } from '../../services';
 import { useConceptStore } from '../../stores/concept-store';
 import { useEditorStore } from '../../stores/editor-store';
@@ -20,13 +20,13 @@ import type { RenderNode, RenderEdge } from './types';
 import { getLayout } from './layout-plugins/registry';
 import type { LayoutRenderNode } from './layout-plugins/types';
 import { isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
-import { useCanvasShortcuts } from './useCanvasShortcuts';
+import { useNetworkShortcuts } from './useNetworkShortcuts';
 
-interface ConceptWorkspaceProps {
+interface NetworkWorkspaceProps {
   projectId: string;
 }
 
-function toRenderNodes(nodes: CanvasNodeWithConcept[], archetypes: Archetype[]): RenderNode[] {
+function toRenderNodes(nodes: NetworkNodeWithConcept[], archetypes: Archetype[]): RenderNode[] {
   const archMap = new Map(archetypes.map((a) => [a.id, a]));
   return nodes.map((n) => {
     if (n.concept) {
@@ -43,7 +43,7 @@ function toRenderNodes(nodes: CanvasNodeWithConcept[], archetypes: Archetype[]):
         width: n.width ?? 160,
         height: n.height ?? 60,
         conceptId: n.concept_id ?? undefined,
-        canvasCount: n.canvas_count,
+        canvasCount: n.network_count,
         nodeType: 'concept' as const,
       };
     }
@@ -91,14 +91,14 @@ function toRenderEdges(edges: EdgeWithRelationType[]): RenderEdge[] {
   }));
 }
 
-export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Element {
+export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Element {
   const {
-    currentCanvas, nodes, edges,
-    loadCanvases, openCanvas,
+    currentNetwork, nodes, edges,
+    loadNetworks, openNetwork,
     addNode, updateNode, removeNode,
     addEdge, removeEdge, saveViewport,
     drillInto, navigateBack,
-  } = useCanvasStore();
+  } = useNetworkStore();
   const { createConcept } = useConceptStore();
   const { canvasMode } = useUIStore();
   const { t } = useI18n();
@@ -110,46 +110,46 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
+  const [networkContextMenu, setNetworkContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   const [edgeLinkingState, setEdgeLinkingState] = useState<{ sourceNodeId: string } | null>(null);
   const [fileNodeModalOpen, setFileNodeModalOpen] = useState(false);
 
-  // Load canvases and open first one
+  // Load networks and open first one
   useEffect(() => {
-    loadCanvases(projectId).then(() => {
-      const store = useCanvasStore.getState();
-      if (store.canvases.length > 0 && !store.currentCanvas) {
-        store.openCanvas(store.canvases[0].id);
+    loadNetworks(projectId).then(() => {
+      const store = useNetworkStore.getState();
+      if (store.networks.length > 0 && !store.currentNetwork) {
+        store.openNetwork(store.networks[0].id);
       }
     });
-  }, [projectId, loadCanvases]);
+  }, [projectId, loadNetworks]);
 
   // Cancel edge linking when mode changes
   useEffect(() => {
     setEdgeLinkingState(null);
   }, [canvasMode]);
 
-  // Restore viewport from canvas (freeform only — timeline always resets to today)
+  // Restore viewport from network (freeform only — timeline always resets to today)
   useEffect(() => {
-    if (!currentCanvas) return;
-    if (currentCanvas.layout === 'horizontal-timeline') return; // handled by layout reset effect
-    setZoom(currentCanvas.viewport_zoom);
-    setPanX(currentCanvas.viewport_x);
-    setPanY(currentCanvas.viewport_y);
-  }, [currentCanvas?.id]);
+    if (!currentNetwork) return;
+    if (currentNetwork.layout === 'horizontal-timeline') return; // handled by layout reset effect
+    setZoom(currentNetwork.viewport_zoom);
+    setPanX(currentNetwork.viewport_x);
+    setPanY(currentNetwork.viewport_y);
+  }, [currentNetwork?.id]);
 
   // Reset viewport when layout changes (e.g., freeform → timeline)
-  // Reset viewport for timeline canvases (always center on today)
-  const prevCanvasIdRef = useRef<string | undefined>(undefined);
+  // Reset viewport for timeline networks (always center on today)
+  const prevNetworkIdRef = useRef<string | undefined>(undefined);
   const prevLayoutRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!currentCanvas || !containerSize.width) return;
-    const newLayout = currentCanvas.layout;
-    const canvasChanged = prevCanvasIdRef.current !== currentCanvas.id;
+    if (!currentNetwork || !containerSize.width) return;
+    const newLayout = currentNetwork.layout;
+    const networkChanged = prevNetworkIdRef.current !== currentNetwork.id;
     const layoutChanged = prevLayoutRef.current !== undefined && prevLayoutRef.current !== newLayout;
 
-    if (newLayout === 'horizontal-timeline' && (canvasChanged || layoutChanged)) {
+    if (newLayout === 'horizontal-timeline' && (networkChanged || layoutChanged)) {
       setZoom(1);
       setPanX(containerSize.width / 2);
       setPanY(0);
@@ -159,9 +159,9 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
       setPanY(containerSize.height / 2);
     }
 
-    prevCanvasIdRef.current = currentCanvas.id;
+    prevNetworkIdRef.current = currentNetwork.id;
     prevLayoutRef.current = newLayout;
-  }, [currentCanvas?.layout, currentCanvas?.id, containerSize]);
+  }, [currentNetwork?.layout, currentNetwork?.id, containerSize]);
 
   // Container resize observer — shift viewport center when canvas resizes
   const prevSizeRef = useRef<{ width: number; height: number } | null>(null);
@@ -191,8 +191,8 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
   const renderEdges = useMemo(() => toRenderEdges(edges), [edges]);
 
   // --- Layout plugin ---
-  const layoutPlugin = useMemo(() => getLayout(currentCanvas?.layout), [currentCanvas?.layout]);
-  const layoutConfig = currentCanvas?.layout_config ?? {};
+  const layoutPlugin = useMemo(() => getLayout(currentNetwork?.layout), [currentNetwork?.layout]);
+  const layoutConfig = currentNetwork?.layout_config ?? {};
 
   // Load concept_properties for all concept nodes
   // Re-fetch when concept store properties change (user edits in concept editor)
@@ -206,7 +206,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
   }, [conceptStoreProperties]);
 
   useEffect(() => {
-    if (currentCanvas?.layout === 'freeform' || !currentCanvas) return;
+    if (currentNetwork?.layout === 'freeform' || !currentNetwork) return;
     const conceptIds = nodes.filter((n) => n.concept_id).map((n) => n.concept_id!);
     if (conceptIds.length === 0) return;
 
@@ -219,7 +219,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
       for (const [cid, props] of results) map[cid] = props;
       setNodeProperties(map);
     });
-  }, [nodes, currentCanvas?.layout, currentCanvas?.id, propsVersion]);
+  }, [nodes, currentNetwork?.layout, currentNetwork?.id, propsVersion]);
 
   // Build LayoutRenderNodes with metadata from field_mappings + concept_properties
   const fieldMappingsConfig = (layoutConfig.field_mappings ?? {}) as Record<string, Record<string, string>>;
@@ -291,7 +291,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
   const cardRenderNodes = useMemo<RenderNode[]>(() => cardNodes, [cardNodes]);
 
   if (layoutPlugin.key !== 'freeform' && cardNodes.length > 0) {
-    console.log('[CW] cardNodes:', cardNodes.map(n => ({ id: n.id.slice(0,8), label: n.label, x: n.x, y: n.y, role: (n as any).metadata?.role, tv: (n as any).metadata?.time_value })));
+    console.log('[NW] cardNodes:', cardNodes.map(n => ({ id: n.id.slice(0,8), label: n.label, x: n.x, y: n.y, role: (n as any).metadata?.role, tv: (n as any).metadata?.time_value })));
   }
 
   // --- Mouse interaction (via useInteraction, same pattern as Culturium) ---
@@ -320,7 +320,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
       return;
     }
 
-    // Freeform: Ctrl+wheel = canvas hierarchy, wheel = zoom-toward-cursor
+    // Freeform: Ctrl+wheel = network hierarchy, wheel = zoom-toward-cursor
     if (e.ctrlKey) {
       if (e.deltaY < 0) {
         const rect = containerRef.current?.getBoundingClientRect();
@@ -332,7 +332,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
           const h = n.height ?? 60;
           return (
             n.concept_id &&
-            n.canvas_count > 0 &&
+            n.network_count > 0 &&
             worldX >= n.position_x - w / 2 &&
             worldX <= n.position_x + w / 2 &&
             worldY >= n.position_y - h / 2 &&
@@ -368,7 +368,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
           newX: x,
           newY: y,
           zoom,
-          config: currentCanvas?.layout_config ?? {},
+          config: currentNetwork?.layout_config ?? {},
           node,
         });
         await updateNode(nodeId, { position_x: result.position.x, position_y: result.position.y });
@@ -377,17 +377,17 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
       }
     }
     await updateNode(nodeId, { position_x: x, position_y: y });
-  }, [updateNode, layoutPlugin, positionedNodes, currentCanvas]);
+  }, [updateNode, layoutPlugin, positionedNodes, currentNetwork]);
 
   const handlePanChange = useCallback((newPanX: number, newPanY: number) => {
     setPanX(newPanX);
     setPanY(newPanY);
   }, []);
 
-  const handleCanvasClick = useCallback(() => {
+  const handleNetworkClick = useCallback(() => {
     setSelectedIds(new Set());
     setContextMenu(null);
-    setCanvasContextMenu(null);
+    setNetworkContextMenu(null);
     setEdgeLinkingState(null);
     setEdgeContextMenu(null);
   }, []);
@@ -407,13 +407,13 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     onPanChange: handlePanChange,
     onNodeDragEnd: handleNodeDragEnd,
     onSelectionBox: handleSelectionBox,
-    onCanvasClick: handleCanvasClick,
+    onCanvasClick: handleNetworkClick,
     onWheel: handleWheel,
   });
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    if (!currentCanvas) return;
+    if (!currentNetwork) return;
 
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -422,17 +422,17 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     const my = e.clientY - rect.top;
     const worldX = (mx - panX) / zoom;
     const worldY = (my - panY) / zoom;
-    setCanvasContextMenu({ x: e.clientX, y: e.clientY, worldX, worldY });
-  }, [currentCanvas, panX, panY, zoom]);
+    setNetworkContextMenu({ x: e.clientX, y: e.clientY, worldX, worldY });
+  }, [currentNetwork, panX, panY, zoom]);
 
   // Save viewport on change (debounced)
   useEffect(() => {
-    if (!currentCanvas) return;
+    if (!currentNetwork) return;
     const timer = setTimeout(() => {
       saveViewport({ viewport_x: panX, viewport_y: panY, viewport_zoom: zoom });
     }, 500);
     return () => clearTimeout(timer);
-  }, [panX, panY, zoom, currentCanvas, saveViewport]);
+  }, [panX, panY, zoom, currentNetwork, saveViewport]);
 
   const fitToScreen = useCallback(() => {
     if (renderNodes.length === 0 || !containerSize.width) return;
@@ -459,12 +459,12 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     setPanY(containerSize.height / 2 - centerY * newZoom);
   }, [renderNodes, containerSize]);
 
-  const canvasHistory = useCanvasStore((s) => s.canvasHistory);
+  const networkHistory = useNetworkStore((s) => s.networkHistory);
   const toggleMode = useCallback(() => {
     useUIStore.getState().setCanvasMode(canvasMode === 'browse' ? 'edit' : 'browse');
   }, [canvasMode]);
 
-  useCanvasShortcuts({
+  useNetworkShortcuts({
     selectedIds,
     renderNodes,
     edgeLinkingActive: !!edgeLinkingState,
@@ -479,10 +479,10 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
     onFitToScreen: fitToScreen,
   });
 
-  if (!currentCanvas) {
+  if (!currentNetwork) {
     return (
       <div className="flex h-full items-center justify-center text-muted">
-        {t('canvas.noCanvasSelected')}
+        {t('network.noNetworkSelected')}
       </div>
     );
   }
@@ -493,7 +493,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
       className="relative h-full w-full overflow-hidden bg-surface-base"
       style={{ cursor: dragState.type === 'pan' ? 'grabbing' : dragState.type === 'node' ? 'move' : 'default' }}
       onMouseDown={(e) => {
-        setCanvasContextMenu(null);
+        setNetworkContextMenu(null);
         setContextMenu(null);
         setEdgeContextMenu(null);
         handleCanvasMouseDown(e);
@@ -507,7 +507,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
       }}
       onDrop={async (e) => {
         const raw = e.dataTransfer.getData('application/netior-node');
-        if (!raw || !currentCanvas) return;
+        if (!raw || !currentNetwork) return;
         e.preventDefault();
         const data = JSON.parse(raw) as { type: 'file' | 'dir'; path: string };
         const rect = containerRef.current?.getBoundingClientRect();
@@ -524,17 +524,17 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
           });
         }
         await addNode({
-          canvas_id: currentCanvas.id,
+          network_id: currentNetwork.id,
           file_id: fileEntity.id,
           position_x: worldX,
           position_y: worldY,
         });
       }}
     >
-      <CanvasControls
+      <NetworkControls
         mode={canvasMode}
         zoom={zoom}
-        canGoBack={canvasHistory.length > 0}
+        canGoBack={networkHistory.length > 0}
         canGoForward={false}
         onToggleMode={toggleMode}
         onZoomIn={() => setZoom((z) => Math.min(5, z * 1.2))}
@@ -557,7 +557,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
         panY={panY}
         nodes={positionedNodes}
         edges={renderEdges}
-        config={currentCanvas.layout_config ?? {}}
+        config={currentNetwork.layout_config ?? {}}
         nodeDragOffset={nodeDragOffset}
       />
 
@@ -597,7 +597,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
           panY={panY}
           nodes={positionedNodes}
           edges={renderEdges}
-          config={currentCanvas.layout_config ?? {}}
+          config={currentNetwork.layout_config ?? {}}
           nodeDragOffset={nodeDragOffset}
           onNodeClick={(id, event) => {
             setSelectedIds(new Set([id]));
@@ -622,7 +622,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
                   conceptId: node.concept_id ?? undefined,
                   fileId: node.file_id ?? undefined,
                   filePath: node.file?.path ?? undefined,
-                  canvasCount: node.canvas_count,
+                  canvasCount: node.network_count,
                 });
               }
             }
@@ -632,7 +632,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
 
       {edgeLinkingState && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 bg-accent text-text-on-accent px-4 py-1.5 rounded-full text-xs flex items-center gap-2 shadow-lg">
-          <span>{t('canvas.selectTarget') ?? 'Click a node to connect'}</span>
+          <span>{t('network.selectTarget') ?? 'Click a node to connect'}</span>
           <button
             type="button"
             className="underline opacity-80 hover:opacity-100"
@@ -655,13 +655,13 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
         nodeDragOffset={nodeDragOffset}
         onNodeClick={(id) => {
           if (edgeLinkingState) {
-            if (id !== edgeLinkingState.sourceNodeId && currentCanvas) {
+            if (id !== edgeLinkingState.sourceNodeId && currentNetwork) {
               addEdge({
-                canvas_id: currentCanvas.id,
+                network_id: currentNetwork.id,
                 source_node_id: edgeLinkingState.sourceNodeId,
                 target_node_id: id,
               }).then((edge) => {
-                openCanvas(currentCanvas.id);
+                openNetwork(currentNetwork.id);
                 const srcNode = nodes.find((n) => n.id === edgeLinkingState.sourceNodeId);
                 const tgtNode = nodes.find((n) => n.id === id);
                 const srcLabel = srcNode?.concept?.title ?? '?';
@@ -706,7 +706,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
                 conceptId: node.concept_id ?? undefined,
                 fileId: node.file_id ?? undefined,
                 filePath: node.file?.path ?? undefined,
-                canvasCount: node.canvas_count,
+                canvasCount: node.network_count,
               });
             }
           }
@@ -729,23 +729,23 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
             setEdgeLinkingState({ sourceNodeId: nodeId });
             setContextMenu(null);
           }}
-          onCreateCanvas={async (conceptId) => {
-            if (!currentCanvas) return;
+          onCreateNetwork={async (conceptId) => {
+            if (!currentNetwork) return;
             const node = nodes.find((n) => n.concept_id === conceptId);
-            const name = node?.concept ? `${node.concept.title} Canvas` : 'New Canvas';
-            const canvas = await canvasService.create({
-              project_id: currentCanvas.project_id,
+            const name = node?.concept ? `${node.concept.title} Network` : 'New Network';
+            const network = await networkService.create({
+              project_id: currentNetwork.project_id,
               name,
               concept_id: conceptId,
             });
-            // Reload to update canvas_count + canvases list
-            await openCanvas(currentCanvas.id);
-            await useCanvasStore.getState().loadCanvases(currentCanvas.project_id);
-            // Open CanvasEditor for the new canvas
+            // Reload to update network_count + networks list
+            await openNetwork(currentNetwork.id);
+            await useNetworkStore.getState().loadNetworks(currentNetwork.project_id);
+            // Open NetworkEditor for the new network
             useEditorStore.getState().openTab({
-              type: 'canvas',
-              targetId: canvas.id,
-              title: canvas.name,
+              type: 'network',
+              targetId: network.id,
+              title: network.name,
             });
           }}
           onClose={() => setContextMenu(null)}
@@ -761,22 +761,22 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
         />
       )}
 
-      {canvasContextMenu && (
-        <CanvasContextMenu
-          x={canvasContextMenu.x}
-          y={canvasContextMenu.y}
+      {networkContextMenu && (
+        <NetworkContextMenu
+          x={networkContextMenu.x}
+          y={networkContextMenu.y}
           onCreateConcept={() => {
-            if (!currentCanvas) return;
+            if (!currentNetwork) return;
             const draftId = `draft-${Date.now()}`;
-            const worldX = canvasContextMenu.worldX;
-            const worldY = canvasContextMenu.worldY;
-            setCanvasContextMenu(null);
+            const worldX = networkContextMenu.worldX;
+            const worldY = networkContextMenu.worldY;
+            setNetworkContextMenu(null);
             useEditorStore.getState().openTab({
               type: 'concept',
               targetId: draftId,
               title: t('concept.defaultTitle'),
               draftData: {
-                canvasId: currentCanvas.id,
+                networkId: currentNetwork.id,
                 positionX: worldX,
                 positionY: worldY,
                 allowedArchetypeIds: isTimeline ? Object.keys(fieldMappingsConfig) : undefined,
@@ -785,9 +785,9 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
           }}
           onAddFileNode={() => {
             setFileNodeModalOpen(true);
-            setCanvasContextMenu(null);
+            setNetworkContextMenu(null);
           }}
-          onClose={() => setCanvasContextMenu(null)}
+          onClose={() => setNetworkContextMenu(null)}
         />
       )}
 
@@ -795,7 +795,7 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
         open={fileNodeModalOpen}
         onClose={() => setFileNodeModalOpen(false)}
         onSelect={async (path, type) => {
-          if (!currentCanvas) return;
+          if (!currentNetwork) return;
           let fileEntity = await fileService.getByPath(projectId, path);
           if (!fileEntity) {
             fileEntity = await fileService.create({
@@ -805,10 +805,10 @@ export function ConceptWorkspace({ projectId }: ConceptWorkspaceProps): JSX.Elem
             });
           }
           await addNode({
-            canvas_id: currentCanvas.id,
+            network_id: currentNetwork.id,
             file_id: fileEntity.id,
-            position_x: canvasContextMenu?.worldX ?? 0,
-            position_y: canvasContextMenu?.worldY ?? 0,
+            position_x: networkContextMenu?.worldX ?? 0,
+            position_y: networkContextMenu?.worldY ?? 0,
           });
           setFileNodeModalOpen(false);
         }}

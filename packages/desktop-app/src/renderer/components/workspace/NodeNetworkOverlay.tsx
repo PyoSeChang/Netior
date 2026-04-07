@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Layers } from 'lucide-react';
-import type { Canvas } from '@netior/shared/types';
-import { canvasService } from '../../services';
-import { useCanvasStore } from '../../stores/canvas-store';
+import type { Network } from '@netior/shared/types';
+import { networkService } from '../../services';
+import { useNetworkStore } from '../../stores/network-store';
 import { useI18n } from '../../hooks/useI18n';
 
-interface NodeCanvasOverlayProps {
+interface NodeNetworkOverlayProps {
   conceptId: string;
   /** Screen-space position of the node */
   x: number;
@@ -13,24 +13,24 @@ interface NodeCanvasOverlayProps {
   onClose: () => void;
 }
 
-export function NodeCanvasOverlay({ conceptId, x, y, onClose }: NodeCanvasOverlayProps): JSX.Element | null {
+export function NodeNetworkOverlay({ conceptId, x, y, onClose }: NodeNetworkOverlayProps): JSX.Element | null {
   const { t } = useI18n();
-  const [canvases, setCanvases] = useState<Canvas[]>([]);
-  const { openCanvas, currentCanvas } = useCanvasStore();
+  const [networks, setNetworks] = useState<Network[]>([]);
+  const { openNetwork, currentNetwork } = useNetworkStore();
 
   useEffect(() => {
-    canvasService.getCanvasesByConcept(conceptId).then(setCanvases);
+    networkService.getNetworksByConcept(conceptId).then(setNetworks);
   }, [conceptId]);
 
-  if (canvases.length === 0) return null;
+  if (networks.length === 0) return null;
 
-  const handleClick = async (canvasId: string) => {
-    if (currentCanvas) {
-      useCanvasStore.setState((s) => ({
-        canvasHistory: [...s.canvasHistory, currentCanvas.id],
+  const handleClick = async (networkId: string) => {
+    if (currentNetwork) {
+      useNetworkStore.setState((s) => ({
+        networkHistory: [...s.networkHistory, currentNetwork.id],
       }));
     }
-    await openCanvas(canvasId);
+    await openNetwork(networkId);
     onClose();
   };
 
@@ -42,9 +42,9 @@ export function NodeCanvasOverlay({ conceptId, x, y, onClose }: NodeCanvasOverla
     >
       <div className="px-2 py-1 text-[10px] text-muted uppercase tracking-wider flex items-center gap-1">
         <Layers size={10} />
-        {t('canvas.canvasesForConcept') ?? 'Canvases'}
+        {t('network.networksForConcept') ?? 'Networks'}
       </div>
-      {canvases.map((c) => (
+      {networks.map((c) => (
         <button
           key={c.id}
           type="button"

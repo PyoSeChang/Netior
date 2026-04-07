@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import type { EditorTab, CanvasNode } from '@netior/shared/types';
-import { fileService, canvasService } from '../../services';
-import { useCanvasStore } from '../../stores/canvas-store';
+import type { EditorTab, NetworkNode } from '@netior/shared/types';
+import { fileService, networkService } from '../../services';
+import { useNetworkStore } from '../../stores/network-store';
 import { useEditorSession } from '../../hooks/useEditorSession';
 import { ScrollArea } from '../ui/ScrollArea';
 import { TextArea } from '../ui/TextArea';
@@ -32,20 +32,20 @@ interface FileMetadataEditorProps {
 export function FileMetadataEditor({ tab }: FileMetadataEditorProps): JSX.Element {
   const { t } = useI18n();
   const fileId = tab.targetId;
-  const canvasId = tab.canvasId;
+  const networkId = tab.networkId;
 
   const [nodeId, setNodeId] = useState<string | null>(null);
   const [fileType, setFileType] = useState<string>('file');
 
-  // Find the canvas node for this file
+  // Find the network node for this file
   useEffect(() => {
-    if (!canvasId) return;
-    canvasService.getFull(canvasId).then((full) => {
+    if (!networkId) return;
+    networkService.getFull(networkId).then((full) => {
       if (!full) return;
       const node = full.nodes.find((n) => n.file_id === fileId);
       if (node) setNodeId(node.id);
     });
-  }, [canvasId, fileId]);
+  }, [networkId, fileId]);
 
   const session = useEditorSession<FileMetadataState>({
     tabId: tab.id,
@@ -55,8 +55,8 @@ export function FileMetadataEditor({ tab }: FileMetadataEditorProps): JSX.Elemen
       if (file) setFileType(file.type);
 
       let nodeMeta: NodeMetadata = {};
-      if (canvasId) {
-        const full = await canvasService.getFull(canvasId);
+      if (networkId) {
+        const full = await networkService.getFull(networkId);
         const node = full?.nodes.find((n) => n.file_id === fileId);
         if (node?.metadata) nodeMeta = JSON.parse(node.metadata);
       }
@@ -68,15 +68,15 @@ export function FileMetadataEditor({ tab }: FileMetadataEditorProps): JSX.Elemen
         metadata: JSON.stringify(state.fileMeta),
       });
       if (nodeId) {
-        await canvasService.node.update(nodeId, {
+        await networkService.node.update(nodeId, {
           metadata: JSON.stringify(state.nodeMeta),
         });
       }
-      // Refresh canvas to reflect changes
-      const canvas = useCanvasStore.getState().currentCanvas;
-      if (canvas) await useCanvasStore.getState().openCanvas(canvas.id);
+      // Refresh network to reflect changes
+      const network = useNetworkStore.getState().currentNetwork;
+      if (network) await useNetworkStore.getState().openNetwork(network.id);
     },
-    deps: [fileId, canvasId, nodeId],
+    deps: [fileId, networkId, nodeId],
   });
 
   if (session.isLoading) return <></>;
@@ -158,11 +158,11 @@ export function FileMetadataEditor({ tab }: FileMetadataEditorProps): JSX.Elemen
             </div>
           </section>
 
-          {/* Node-level metadata (only if canvas context) */}
-          {canvasId && (
+          {/* Node-level metadata (only if network context) */}
+          {networkId && (
             <section>
               <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">
-                {t('fileMetadata.canvasContext')}
+                {t('fileMetadata.networkContext')}
               </h3>
 
               <div className="flex flex-col gap-4">

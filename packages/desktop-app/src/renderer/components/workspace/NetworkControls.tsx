@@ -12,7 +12,7 @@ interface ExtraControlItem {
   onClick: () => void;
 }
 
-interface CanvasControlsProps {
+interface NetworkControlsProps {
   mode: 'browse' | 'edit';
   zoom: number;
   canGoBack: boolean;
@@ -27,7 +27,7 @@ interface CanvasControlsProps {
   extraItems?: ExtraControlItem[];
 }
 
-export function CanvasControls({
+export function NetworkControls({
   mode,
   zoom,
   canGoBack,
@@ -40,7 +40,7 @@ export function CanvasControls({
   onNavigateForward,
   hiddenControls = [],
   extraItems = [],
-}: CanvasControlsProps): JSX.Element {
+}: NetworkControlsProps): JSX.Element {
   const { t } = useI18n();
   const [pos, setPos] = useState({ x: -1, y: -1 }); // -1 = default position
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
@@ -98,7 +98,7 @@ export function CanvasControls({
 
       {/* Mode toggle */}
       {showMode && (
-        <Tooltip content={mode === 'browse' ? t('canvas.editMode') : t('canvas.browseMode')} position="bottom">
+        <Tooltip content={mode === 'browse' ? t('network.editMode') : t('network.browseMode')} position="bottom">
           <button
             className={`rounded p-1 transition-colors ${
               mode === 'edit'
@@ -119,7 +119,7 @@ export function CanvasControls({
       {/* Navigation */}
       {showNav && mode === 'browse' && (
         <>
-          <Tooltip content={t('canvas.navBack')} position="bottom">
+          <Tooltip content={t('network.navBack')} position="bottom">
             <button
               className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default disabled:opacity-30 disabled:cursor-not-allowed"
               disabled={!canGoBack}
@@ -128,7 +128,7 @@ export function CanvasControls({
               <ChevronLeft size={14} />
             </button>
           </Tooltip>
-          <Tooltip content={t('canvas.navForward')} position="bottom">
+          <Tooltip content={t('network.navForward')} position="bottom">
             <button
               className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default disabled:opacity-30 disabled:cursor-not-allowed"
               disabled={!canGoForward}
@@ -144,7 +144,7 @@ export function CanvasControls({
       {/* Zoom controls */}
       {showZoom && (
         <>
-          <Tooltip content={t('canvas.zoomOut')} position="bottom">
+          <Tooltip content={t('network.zoomOut')} position="bottom">
             <button
               className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default"
               onClick={onZoomOut}
@@ -157,7 +157,7 @@ export function CanvasControls({
             {Math.round(zoom * 100)}%
           </span>
 
-          <Tooltip content={t('canvas.zoomIn')} position="bottom">
+          <Tooltip content={t('network.zoomIn')} position="bottom">
             <button
               className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default"
               onClick={onZoomIn}
@@ -169,7 +169,7 @@ export function CanvasControls({
       )}
 
       {showFit && (
-        <Tooltip content={t('canvas.fitToScreen')} position="bottom">
+        <Tooltip content={t('network.fitToScreen')} position="bottom">
           <button
             className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default"
             onClick={onFitToScreen}

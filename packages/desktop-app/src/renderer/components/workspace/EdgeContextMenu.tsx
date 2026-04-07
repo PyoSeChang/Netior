@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
-import { useCanvasStore } from '../../stores/canvas-store';
+import { useNetworkStore } from '../../stores/network-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useI18n } from '../../hooks/useI18n';
 
@@ -13,7 +13,7 @@ interface EdgeContextMenuProps {
 
 export function EdgeContextMenu({ x, y, edgeId, onClose }: EdgeContextMenuProps): JSX.Element {
   const { t } = useI18n();
-  const { removeEdge } = useCanvasStore();
+  const { removeEdge } = useNetworkStore();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

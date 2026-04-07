@@ -4,15 +4,14 @@ import {
   getProjectById,
   listArchetypes,
   listRelationTypes,
-  listCanvasTypes,
   getConceptsByProject,
-  listCanvases,
+  listNetworks,
 } from '@netior/core';
 
 export function registerProjectTools(server: McpServer): void {
   server.tool(
     'get_project_summary',
-    'Get a summary of a project including counts and names of archetypes, relation types, canvas types, concepts, and canvases',
+    'Get a summary of a project including counts and names of archetypes, relation types, concepts, and networks',
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
@@ -26,9 +25,8 @@ export function registerProjectTools(server: McpServer): void {
 
         const archetypes = listArchetypes(project_id);
         const relationTypes = listRelationTypes(project_id);
-        const canvasTypes = listCanvasTypes(project_id);
         const concepts = getConceptsByProject(project_id);
-        const canvases = listCanvases(project_id);
+        const networks = listNetworks(project_id);
 
         const summary = {
           project: {
@@ -44,17 +42,13 @@ export function registerProjectTools(server: McpServer): void {
             count: relationTypes.length,
             items: relationTypes.map((r) => ({ id: r.id, name: r.name, directed: r.directed, line_style: r.line_style })),
           },
-          canvas_types: {
-            count: canvasTypes.length,
-            items: canvasTypes.map((c) => ({ id: c.id, name: c.name, icon: c.icon, color: c.color })),
-          },
           concepts: {
             count: concepts.length,
             items: concepts.map((c) => ({ id: c.id, title: c.title, archetype_id: c.archetype_id })),
           },
-          canvases: {
-            count: canvases.length,
-            items: canvases.map((c) => ({ id: c.id, name: c.name, concept_id: c.concept_id })),
+          networks: {
+            count: networks.length,
+            items: networks.map((n) => ({ id: n.id, name: n.name, concept_id: n.concept_id })),
           },
         };
 

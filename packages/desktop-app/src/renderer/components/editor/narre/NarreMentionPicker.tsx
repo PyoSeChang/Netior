@@ -18,10 +18,9 @@ interface NarreMentionPickerProps {
 const MENTION_CATEGORIES = [
   { key: 'all', i18nKey: 'narre.mentionAll' },
   { key: 'concept', i18nKey: 'narre.mentionConcept' },
-  { key: 'canvas', i18nKey: 'narre.mentionCanvas' },
+  { key: 'network', i18nKey: 'narre.mentionNetwork' },
   { key: 'archetype', i18nKey: 'narre.mentionArchetype' },
   { key: 'relationType', i18nKey: 'narre.mentionRelationType' },
-  { key: 'canvasType', i18nKey: 'narre.mentionCanvasType' },
   { key: 'file', i18nKey: 'narre.mentionFile' },
 ] as const;
 

@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Project, EditorViewMode, SplitLeaf, EditorTab } from '@netior/shared/types';
 import { ActivityBar } from '../sidebar/ActivityBar';
 import { Sidebar } from '../sidebar/Sidebar';
-import { ConceptWorkspace } from './ConceptWorkspace';
-import { CanvasBreadcrumb } from './CanvasBreadcrumb';
+import { NetworkWorkspace } from './NetworkWorkspace';
 import { FloatWindowLayer } from '../editor/modes/FloatWindowLayer';
 import { FullModeEditor } from '../editor/modes/FullModeEditor';
 import { EditorDockBar } from '../editor/EditorDockBar';
@@ -328,7 +327,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
                 onDragOver={handleCanvasDragOver}
                 onDrop={handleCanvasDrop}
               >
-                <ConceptWorkspace projectId={project.id} />
+                <NetworkWorkspace projectId={project.id} />
               </div>
 
               {/* Side editor */}

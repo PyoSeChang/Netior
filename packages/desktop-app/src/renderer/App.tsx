@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronRight, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useProjectStore } from './stores/project-store';
-import { useCanvasStore } from './stores/canvas-store';
+import { useNetworkStore } from './stores/network-store';
 import { useUIStore } from './stores/ui-store';
 import { hasCachedState } from './stores/project-state-cache';
 import { useI18n } from './hooks/useI18n';
@@ -54,7 +54,7 @@ function NetiorTitleMark(): JSX.Element {
 }
 
 function TitleBarBreadcrumb(): JSX.Element | null {
-  const { breadcrumbs, canvasHistory, navigateToBreadcrumb, navigateBack } = useCanvasStore();
+  const { breadcrumbs, networkHistory, navigateToBreadcrumb, navigateBack } = useNetworkStore();
 
   if (breadcrumbs.length <= 1) return null;
 
@@ -62,23 +62,23 @@ function TitleBarBreadcrumb(): JSX.Element | null {
     <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
       <button
         className="flex items-center justify-center rounded p-0.5 text-secondary hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
-        disabled={canvasHistory.length === 0}
+        disabled={networkHistory.length === 0}
         onClick={() => navigateBack()}
       >
         <ArrowLeft size={12} />
       </button>
       {breadcrumbs.map((crumb, idx) => {
         const isLast = idx === breadcrumbs.length - 1;
-        const label = crumb.conceptTitle ?? crumb.canvasName;
+        const label = crumb.conceptTitle ?? crumb.networkName;
         return (
-          <React.Fragment key={crumb.canvasId}>
+          <React.Fragment key={crumb.networkId}>
             {idx > 0 && <ChevronRight size={10} className="text-muted shrink-0" />}
             {isLast ? (
               <span className="text-xs text-accent font-medium truncate max-w-[120px]">{label}</span>
             ) : (
               <button
                 className="text-xs text-secondary hover:text-default hover:underline truncate max-w-[120px]"
-                onClick={() => navigateToBreadcrumb(crumb.canvasId)}
+                onClick={() => navigateToBreadcrumb(crumb.networkId)}
               >
                 {label}
               </button>

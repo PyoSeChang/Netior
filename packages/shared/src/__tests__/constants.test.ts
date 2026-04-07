@@ -13,9 +13,9 @@ describe('IPC_CHANNELS', () => {
     expect(IPC_CHANNELS.CONCEPT_GET_BY_PROJECT).toBe('concept:getByProject');
   });
 
-  it('should have canvas channels', () => {
-    expect(IPC_CHANNELS.CANVAS_CREATE).toBe('canvas:create');
-    expect(IPC_CHANNELS.CANVAS_GET_FULL).toBe('canvas:getFull');
+  it('should have network channels', () => {
+    expect(IPC_CHANNELS.NETWORK_CREATE).toBe('network:create');
+    expect(IPC_CHANNELS.NETWORK_GET_FULL).toBe('network:getFull');
   });
 
   it('should have fs channels', () => {
@@ -32,10 +32,10 @@ describe('IPC_CHANNELS', () => {
 });
 
 describe('DEFAULTS', () => {
-  it('should have canvas defaults', () => {
-    expect(DEFAULTS.CANVAS_ZOOM).toBe(1.0);
-    expect(DEFAULTS.CANVAS_PAN_X).toBe(0);
-    expect(DEFAULTS.CANVAS_PAN_Y).toBe(0);
+  it('should have network defaults', () => {
+    expect(DEFAULTS.NETWORK_ZOOM).toBe(1.0);
+    expect(DEFAULTS.NETWORK_PAN_X).toBe(0);
+    expect(DEFAULTS.NETWORK_PAN_Y).toBe(0);
   });
 
   it('should have window defaults', () => {

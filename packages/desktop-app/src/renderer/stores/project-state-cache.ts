@@ -1,30 +1,28 @@
-import { useCanvasStore, type CanvasNodeWithConcept, type EdgeWithRelationType } from './canvas-store';
+import { useNetworkStore, type NetworkNodeWithConcept, type EdgeWithRelationType } from './network-store';
 import { useEditorStore } from './editor-store';
 import { useModuleStore } from './module-store';
 import { useConceptStore } from './concept-store';
 import { useArchetypeStore } from './archetype-store';
 import { useRelationTypeStore } from './relation-type-store';
-import { useCanvasTypeStore } from './canvas-type-store';
 import { useFileStore, type OpenFile, type ClipboardAction, type ClipboardState } from './file-store';
 import type {
-  Canvas, CanvasNode, Edge, Concept, RelationType,
-  CanvasBreadcrumbItem, CanvasTreeNode,
+  Network, NetworkNode, Edge, Concept, RelationType,
+  NetworkBreadcrumbItem, NetworkTreeNode,
   EditorTab, SplitNode,
   Module, ModuleDirectory,
   ConceptProperty,
   Archetype, ArchetypeField,
-  CanvasType,
   FileTreeNode,
 } from '@netior/shared/types';
 
-interface CanvasSnapshot {
-  canvases: Canvas[];
-  currentCanvas: Canvas | null;
-  nodes: CanvasNodeWithConcept[];
+interface NetworkSnapshot {
+  networks: Network[];
+  currentNetwork: Network | null;
+  nodes: NetworkNodeWithConcept[];
   edges: EdgeWithRelationType[];
-  breadcrumbs: CanvasBreadcrumbItem[];
-  canvasHistory: string[];
-  canvasTree: CanvasTreeNode[];
+  breadcrumbs: NetworkBreadcrumbItem[];
+  networkHistory: string[];
+  networkTree: NetworkTreeNode[];
 }
 
 interface EditorSnapshot {
@@ -54,11 +52,6 @@ interface RelationTypeSnapshot {
   relationTypes: RelationType[];
 }
 
-interface CanvasTypeSnapshot {
-  canvasTypes: CanvasType[];
-  allowedRelations: Record<string, RelationType[]>;
-}
-
 interface FileSnapshot {
   fileTree: FileTreeNode[];
   openFiles: OpenFile[];
@@ -68,37 +61,35 @@ interface FileSnapshot {
 }
 
 interface ProjectSnapshot {
-  canvas: CanvasSnapshot;
+  network: NetworkSnapshot;
   editor: EditorSnapshot;
   module: ModuleSnapshot;
   concept: ConceptSnapshot;
   archetype: ArchetypeSnapshot;
   relationType: RelationTypeSnapshot;
-  canvasType: CanvasTypeSnapshot;
   file: FileSnapshot;
 }
 
 const cache = new Map<string, ProjectSnapshot>();
 
 function capture(): ProjectSnapshot {
-  const canvas = useCanvasStore.getState();
+  const network = useNetworkStore.getState();
   const editor = useEditorStore.getState();
   const module = useModuleStore.getState();
   const concept = useConceptStore.getState();
   const archetype = useArchetypeStore.getState();
   const relationType = useRelationTypeStore.getState();
-  const canvasType = useCanvasTypeStore.getState();
   const file = useFileStore.getState();
 
   return {
-    canvas: {
-      canvases: canvas.canvases,
-      currentCanvas: canvas.currentCanvas,
-      nodes: canvas.nodes,
-      edges: canvas.edges,
-      breadcrumbs: canvas.breadcrumbs,
-      canvasHistory: canvas.canvasHistory,
-      canvasTree: canvas.canvasTree,
+    network: {
+      networks: network.networks,
+      currentNetwork: network.currentNetwork,
+      nodes: network.nodes,
+      edges: network.edges,
+      breadcrumbs: network.breadcrumbs,
+      networkHistory: network.networkHistory,
+      networkTree: network.networkTree,
     },
     editor: {
       tabs: editor.tabs,
@@ -122,10 +113,6 @@ function capture(): ProjectSnapshot {
     relationType: {
       relationTypes: relationType.relationTypes,
     },
-    canvasType: {
-      canvasTypes: canvasType.canvasTypes,
-      allowedRelations: canvasType.allowedRelations,
-    },
     file: {
       fileTree: file.fileTree,
       openFiles: file.openFiles,
@@ -137,24 +124,22 @@ function capture(): ProjectSnapshot {
 }
 
 function restore(snapshot: ProjectSnapshot): void {
-  useCanvasStore.setState(snapshot.canvas);
+  useNetworkStore.setState(snapshot.network);
   useEditorStore.setState(snapshot.editor);
   useModuleStore.setState(snapshot.module);
   useConceptStore.setState(snapshot.concept);
   useArchetypeStore.setState(snapshot.archetype);
   useRelationTypeStore.setState(snapshot.relationType);
-  useCanvasTypeStore.setState(snapshot.canvasType);
   useFileStore.setState(snapshot.file);
 }
 
 export function clearAllProjectStores(): void {
-  useCanvasStore.getState().clear();
+  useNetworkStore.getState().clear();
   useEditorStore.getState().clear();
   useModuleStore.getState().clear();
   useConceptStore.getState().clear();
   useArchetypeStore.getState().clear();
   useRelationTypeStore.getState().clear();
-  useCanvasTypeStore.getState().clear();
   useFileStore.getState().clear();
 }
 

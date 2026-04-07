@@ -1,118 +1,118 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
 import type {
-  Canvas, CanvasCreate, CanvasUpdate,
-  CanvasNode, CanvasNodeCreate, CanvasNodeUpdate,
+  Network, NetworkCreate, NetworkUpdate,
+  NetworkNode, NetworkNodeCreate, NetworkNodeUpdate,
   Edge, EdgeCreate, EdgeUpdate,
   Concept,
   FileEntity,
   RelationType,
-  CanvasBreadcrumbItem,
+  NetworkBreadcrumbItem,
 } from '@netior/shared/types';
 
-// ── Canvas ──
+// ── Network ──
 
 /** Parse layout_config JSON from DB row */
-function parseCanvasRow(row: Record<string, unknown>): Canvas {
+function parseNetworkRow(row: Record<string, unknown>): Network {
   return {
     ...row,
     layout_config: row.layout_config ? JSON.parse(row.layout_config as string) : null,
-  } as Canvas;
+  } as Network;
 }
 
-export function createCanvas(data: CanvasCreate): Canvas {
+export function createNetwork(data: NetworkCreate): Network {
   const db = getDatabase();
   const id = randomUUID();
   const now = new Date().toISOString();
 
   db.prepare(
-    `INSERT INTO canvases (id, project_id, name, concept_id, canvas_type_id, layout, layout_config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO networks (id, project_id, name, concept_id, layout, layout_config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id, data.project_id, data.name,
-    data.concept_id ?? null, data.canvas_type_id ?? null,
+    data.concept_id ?? null,
     data.layout ?? 'freeform',
     data.layout_config ? JSON.stringify(data.layout_config) : null,
     now, now,
   );
 
-  const row = db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Record<string, unknown>;
-  return parseCanvasRow(row);
+  const row = db.prepare('SELECT * FROM networks WHERE id = ?').get(id) as Record<string, unknown>;
+  return parseNetworkRow(row);
 }
 
-export function listCanvases(projectId: string, rootOnly = false): Canvas[] {
+export function listNetworks(projectId: string, rootOnly = false): Network[] {
   const db = getDatabase();
   const sql = rootOnly
-    ? 'SELECT * FROM canvases WHERE project_id = ? AND concept_id IS NULL ORDER BY created_at'
-    : 'SELECT * FROM canvases WHERE project_id = ? ORDER BY created_at';
+    ? 'SELECT * FROM networks WHERE project_id = ? AND concept_id IS NULL ORDER BY created_at'
+    : 'SELECT * FROM networks WHERE project_id = ? ORDER BY created_at';
   const rows = db.prepare(sql).all(projectId) as Record<string, unknown>[];
-  return rows.map(parseCanvasRow);
+  return rows.map(parseNetworkRow);
 }
 
-export interface CanvasTreeNode {
-  canvas: Canvas;
+export interface NetworkTreeNode {
+  network: Network;
   conceptTitle: string | null;
-  children: CanvasTreeNode[];
+  children: NetworkTreeNode[];
 }
 
-export function getCanvasTree(projectId: string): CanvasTreeNode[] {
+export function getNetworkTree(projectId: string): NetworkTreeNode[] {
   const db = getDatabase();
 
-  // All canvases for this project
-  const allCanvases = (db.prepare('SELECT * FROM canvases WHERE project_id = ? ORDER BY created_at')
-    .all(projectId) as Record<string, unknown>[]).map(parseCanvasRow);
+  // All networks for this project
+  const allNetworks = (db.prepare('SELECT * FROM networks WHERE project_id = ? ORDER BY created_at')
+    .all(projectId) as Record<string, unknown>[]).map(parseNetworkRow);
 
-  // All canvas_nodes: which concept is placed in which canvas
+  // All network_nodes: which concept is placed in which network
   const nodeRows = db.prepare(
-    `SELECT cn.canvas_id, cn.concept_id, c.title as concept_title
-     FROM canvas_nodes cn
-     JOIN concepts c ON cn.concept_id = c.id
-     WHERE cn.concept_id IS NOT NULL
-       AND cn.canvas_id IN (SELECT id FROM canvases WHERE project_id = ?)`,
-  ).all(projectId) as { canvas_id: string; concept_id: string; concept_title: string }[];
+    `SELECT nn.network_id, nn.concept_id, c.title as concept_title
+     FROM network_nodes nn
+     JOIN concepts c ON nn.concept_id = c.id
+     WHERE nn.concept_id IS NOT NULL
+       AND nn.network_id IN (SELECT id FROM networks WHERE project_id = ?)`,
+  ).all(projectId) as { network_id: string; concept_id: string; concept_title: string }[];
 
-  // Map: concept_id → which canvas it's placed in (parent canvas)
-  const conceptToParentCanvas = new Map<string, string>();
+  // Map: concept_id → which network it's placed in (parent network)
+  const conceptToParentNetwork = new Map<string, string>();
   const conceptTitles = new Map<string, string>();
   for (const row of nodeRows) {
-    conceptToParentCanvas.set(row.concept_id, row.canvas_id);
+    conceptToParentNetwork.set(row.concept_id, row.network_id);
     conceptTitles.set(row.concept_id, row.concept_title);
   }
 
-  // Map: canvas_id → Canvas
-  const canvasMap = new Map(allCanvases.map((c) => [c.id, c]));
+  // Map: network_id → Network
+  const networkMap = new Map(allNetworks.map((n) => [n.id, n]));
 
-  // Group canvases by their parent canvas
-  // A canvas's parent = the canvas that contains its concept_id as a node
-  const childrenOf = new Map<string, CanvasTreeNode[]>(); // parent_canvas_id → children
-  const roots: CanvasTreeNode[] = [];
+  // Group networks by their parent network
+  // A network's parent = the network that contains its concept_id as a node
+  const childrenOf = new Map<string, NetworkTreeNode[]>(); // parent_network_id → children
+  const roots: NetworkTreeNode[] = [];
 
-  for (const canvas of allCanvases) {
-    const node: CanvasTreeNode = {
-      canvas,
-      conceptTitle: canvas.concept_id ? (conceptTitles.get(canvas.concept_id) ?? null) : null,
+  for (const network of allNetworks) {
+    const node: NetworkTreeNode = {
+      network,
+      conceptTitle: network.concept_id ? (conceptTitles.get(network.concept_id) ?? null) : null,
       children: [],
     };
 
-    if (!canvas.concept_id) {
-      // Root canvas
+    if (!network.concept_id) {
+      // Root network
       roots.push(node);
     } else {
-      const parentCanvasId = conceptToParentCanvas.get(canvas.concept_id);
-      if (parentCanvasId) {
-        const siblings = childrenOf.get(parentCanvasId) ?? [];
+      const parentNetworkId = conceptToParentNetwork.get(network.concept_id);
+      if (parentNetworkId) {
+        const siblings = childrenOf.get(parentNetworkId) ?? [];
         siblings.push(node);
-        childrenOf.set(parentCanvasId, siblings);
+        childrenOf.set(parentNetworkId, siblings);
       } else {
-        // Concept exists but isn't placed on any canvas — treat as orphan root
+        // Concept exists but isn't placed on any network — treat as orphan root
         roots.push(node);
       }
     }
   }
 
   // Recursively attach children
-  function attachChildren(nodes: CanvasTreeNode[]): void {
+  function attachChildren(nodes: NetworkTreeNode[]): void {
     for (const node of nodes) {
-      node.children = childrenOf.get(node.canvas.id) ?? [];
+      node.children = childrenOf.get(node.network.id) ?? [];
       attachChildren(node.children);
     }
   }
@@ -121,58 +121,58 @@ export function getCanvasTree(projectId: string): CanvasTreeNode[] {
   return roots;
 }
 
-export function getCanvasesByConceptId(conceptId: string): Canvas[] {
+export function getNetworksByConceptId(conceptId: string): Network[] {
   const db = getDatabase();
   const rows = db
-    .prepare('SELECT * FROM canvases WHERE concept_id = ? ORDER BY created_at')
+    .prepare('SELECT * FROM networks WHERE concept_id = ? ORDER BY created_at')
     .all(conceptId) as Record<string, unknown>[];
-  return rows.map(parseCanvasRow);
+  return rows.map(parseNetworkRow);
 }
 
-export function getCanvasAncestors(canvasId: string): CanvasBreadcrumbItem[] {
+export function getNetworkAncestors(networkId: string): NetworkBreadcrumbItem[] {
   const db = getDatabase();
-  const breadcrumbs: CanvasBreadcrumbItem[] = [];
+  const breadcrumbs: NetworkBreadcrumbItem[] = [];
   const visited = new Set<string>();
-  let currentId: string | null = canvasId;
+  let currentId: string | null = networkId;
 
   while (currentId) {
     if (visited.has(currentId)) break;
     visited.add(currentId);
 
-    const canvasRow = db.prepare('SELECT * FROM canvases WHERE id = ?').get(currentId) as Record<string, unknown> | undefined;
-    if (!canvasRow) break;
-    const canvas = parseCanvasRow(canvasRow);
+    const networkRow = db.prepare('SELECT * FROM networks WHERE id = ?').get(currentId) as Record<string, unknown> | undefined;
+    if (!networkRow) break;
+    const network = parseNetworkRow(networkRow);
 
     let conceptTitle: string | null = null;
-    if (canvas.concept_id) {
-      const concept = db.prepare('SELECT title FROM concepts WHERE id = ?').get(canvas.concept_id) as { title: string } | undefined;
+    if (network.concept_id) {
+      const concept = db.prepare('SELECT title FROM concepts WHERE id = ?').get(network.concept_id) as { title: string } | undefined;
       conceptTitle = concept?.title ?? null;
     }
 
     breadcrumbs.unshift({
-      canvasId: canvas.id,
-      canvasName: canvas.name,
+      networkId: network.id,
+      networkName: network.name,
       conceptTitle,
     });
 
-    if (!canvas.concept_id) break;
+    if (!network.concept_id) break;
 
-    // Find parent canvas: which canvas contains this concept as a node?
+    // Find parent network: which network contains this concept as a node?
     const parentNode = db.prepare(
-      'SELECT canvas_id FROM canvas_nodes WHERE concept_id = ? LIMIT 1',
-    ).get(canvas.concept_id) as { canvas_id: string } | undefined;
+      'SELECT network_id FROM network_nodes WHERE concept_id = ? LIMIT 1',
+    ).get(network.concept_id) as { network_id: string } | undefined;
 
-    currentId = parentNode?.canvas_id ?? null;
+    currentId = parentNode?.network_id ?? null;
   }
 
   return breadcrumbs;
 }
 
-export function updateCanvas(id: string, data: CanvasUpdate): Canvas | undefined {
+export function updateNetwork(id: string, data: NetworkUpdate): Network | undefined {
   const db = getDatabase();
-  const existingRow = db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+  const existingRow = db.prepare('SELECT * FROM networks WHERE id = ?').get(id) as Record<string, unknown> | undefined;
   if (!existingRow) return undefined;
-  const existing = parseCanvasRow(existingRow);
+  const existing = parseNetworkRow(existingRow);
 
   const now = new Date().toISOString();
   const newLayoutConfig = data.layout_config !== undefined
@@ -180,10 +180,9 @@ export function updateCanvas(id: string, data: CanvasUpdate): Canvas | undefined
     : (existingRow.layout_config as string | null);
 
   db.prepare(
-    `UPDATE canvases SET name = ?, canvas_type_id = ?, layout = ?, layout_config = ?, viewport_x = ?, viewport_y = ?, viewport_zoom = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE networks SET name = ?, layout = ?, layout_config = ?, viewport_x = ?, viewport_y = ?, viewport_zoom = ?, updated_at = ? WHERE id = ?`,
   ).run(
     data.name !== undefined ? data.name : existing.name,
-    data.canvas_type_id !== undefined ? data.canvas_type_id : existing.canvas_type_id,
     data.layout !== undefined ? data.layout : existing.layout,
     newLayoutConfig,
     data.viewport_x !== undefined ? data.viewport_x : existing.viewport_x,
@@ -193,50 +192,50 @@ export function updateCanvas(id: string, data: CanvasUpdate): Canvas | undefined
     id,
   );
 
-  const row = db.prepare('SELECT * FROM canvases WHERE id = ?').get(id) as Record<string, unknown>;
-  return parseCanvasRow(row);
+  const row = db.prepare('SELECT * FROM networks WHERE id = ?').get(id) as Record<string, unknown>;
+  return parseNetworkRow(row);
 }
 
-export function deleteCanvas(id: string): boolean {
+export function deleteNetwork(id: string): boolean {
   const db = getDatabase();
-  const result = db.prepare('DELETE FROM canvases WHERE id = ?').run(id);
+  const result = db.prepare('DELETE FROM networks WHERE id = ?').run(id);
   return result.changes > 0;
 }
 
-// ── Canvas Full Data ──
+// ── Network Full Data ──
 
-export interface CanvasFullData {
-  canvas: Canvas;
-  nodes: (CanvasNode & { concept?: Concept; file?: FileEntity; canvas_count: number })[];
+export interface NetworkFullData {
+  network: Network;
+  nodes: (NetworkNode & { concept?: Concept; file?: FileEntity; network_count: number })[];
   edges: (Edge & { relation_type?: RelationType })[];
 }
 
 type RelationTypeRow = Omit<RelationType, 'directed'> & { directed: number };
 
-export function getCanvasFull(canvasId: string): CanvasFullData | undefined {
+export function getNetworkFull(networkId: string): NetworkFullData | undefined {
   const db = getDatabase();
-  const canvasRow = db.prepare('SELECT * FROM canvases WHERE id = ?').get(canvasId) as Record<string, unknown> | undefined;
-  if (!canvasRow) return undefined;
-  const canvas = parseCanvasRow(canvasRow);
+  const networkRow = db.prepare('SELECT * FROM networks WHERE id = ?').get(networkId) as Record<string, unknown> | undefined;
+  if (!networkRow) return undefined;
+  const network = parseNetworkRow(networkRow);
 
   const nodes = db.prepare(
-    `SELECT cn.*, c.title, c.color, c.icon, c.archetype_id, c.project_id as concept_project_id,
+    `SELECT nn.*, c.title, c.color, c.icon, c.archetype_id, c.project_id as concept_project_id,
             c.created_at as concept_created_at, c.updated_at as concept_updated_at,
             f.id as f_id, f.project_id as f_project_id, f.path as f_path, f.type as f_type,
             f.metadata as f_metadata, f.created_at as f_created_at, f.updated_at as f_updated_at,
-            (SELECT COUNT(*) FROM canvases sub WHERE sub.concept_id = cn.concept_id) as canvas_count
-     FROM canvas_nodes cn
-     LEFT JOIN concepts c ON cn.concept_id = c.id
-     LEFT JOIN files f ON cn.file_id = f.id
-     WHERE cn.canvas_id = ?`,
-  ).all(canvasId) as (Record<string, unknown>)[];
+            (SELECT COUNT(*) FROM networks sub WHERE sub.concept_id = nn.concept_id) as network_count
+     FROM network_nodes nn
+     LEFT JOIN concepts c ON nn.concept_id = c.id
+     LEFT JOIN files f ON nn.file_id = f.id
+     WHERE nn.network_id = ?`,
+  ).all(networkId) as (Record<string, unknown>)[];
 
   const parsedNodes = nodes.map((row) => {
     const hasConcept = row.concept_id != null && row.title != null;
     const hasFile = row.f_id != null;
     return {
       id: row.id as string,
-      canvas_id: row.canvas_id as string,
+      network_id: row.network_id as string,
       concept_id: (row.concept_id as string | null) ?? null,
       file_id: (row.file_id as string | null) ?? null,
       metadata: (row.metadata as string | null) ?? null,
@@ -269,7 +268,7 @@ export function getCanvasFull(canvasId: string): CanvasFullData | undefined {
           updated_at: row.f_updated_at as string,
         },
       } : {}),
-      canvas_count: (row.canvas_count as number) ?? 0,
+      network_count: (row.network_count as number) ?? 0,
     };
   });
 
@@ -280,14 +279,14 @@ export function getCanvasFull(canvasId: string): CanvasFullData | undefined {
             rt.created_at as rt_created_at, rt.updated_at as rt_updated_at
      FROM edges e
      LEFT JOIN relation_types rt ON e.relation_type_id = rt.id
-     WHERE e.canvas_id = ?`,
-  ).all(canvasId) as (Record<string, unknown>)[];
+     WHERE e.network_id = ?`,
+  ).all(networkId) as (Record<string, unknown>)[];
 
   const edges = edgeRows.map((row) => {
     const hasRelationType = row.rt_id != null;
     return {
       id: row.id as string,
-      canvas_id: row.canvas_id as string,
+      network_id: row.network_id as string,
       source_node_id: row.source_node_id as string,
       target_node_id: row.target_node_id as string,
       relation_type_id: (row.relation_type_id as string | null) ?? null,
@@ -312,12 +311,12 @@ export function getCanvasFull(canvasId: string): CanvasFullData | undefined {
     };
   });
 
-  return { canvas, nodes: parsedNodes, edges } as CanvasFullData;
+  return { network, nodes: parsedNodes, edges } as NetworkFullData;
 }
 
-// ── Canvas Node ──
+// ── Network Node ──
 
-export function addCanvasNode(data: CanvasNodeCreate): CanvasNode {
+export function addNetworkNode(data: NetworkNodeCreate): NetworkNode {
   const db = getDatabase();
   const id = randomUUID();
 
@@ -328,24 +327,24 @@ export function addCanvasNode(data: CanvasNodeCreate): CanvasNode {
   }
 
   db.prepare(
-    `INSERT INTO canvas_nodes (id, canvas_id, concept_id, file_id, metadata, position_x, position_y, width, height)
+    `INSERT INTO network_nodes (id, network_id, concept_id, file_id, metadata, position_x, position_y, width, height)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
-    id, data.canvas_id,
+    id, data.network_id,
     data.concept_id ?? null, data.file_id ?? null, data.metadata ?? null,
     data.position_x, data.position_y, data.width ?? null, data.height ?? null,
   );
 
-  return db.prepare('SELECT * FROM canvas_nodes WHERE id = ?').get(id) as CanvasNode;
+  return db.prepare('SELECT * FROM network_nodes WHERE id = ?').get(id) as NetworkNode;
 }
 
-export function updateCanvasNode(id: string, data: CanvasNodeUpdate): CanvasNode | undefined {
+export function updateNetworkNode(id: string, data: NetworkNodeUpdate): NetworkNode | undefined {
   const db = getDatabase();
-  const existing = db.prepare('SELECT * FROM canvas_nodes WHERE id = ?').get(id) as CanvasNode | undefined;
+  const existing = db.prepare('SELECT * FROM network_nodes WHERE id = ?').get(id) as NetworkNode | undefined;
   if (!existing) return undefined;
 
   db.prepare(
-    `UPDATE canvas_nodes SET position_x = ?, position_y = ?, width = ?, height = ?, metadata = ? WHERE id = ?`,
+    `UPDATE network_nodes SET position_x = ?, position_y = ?, width = ?, height = ?, metadata = ? WHERE id = ?`,
   ).run(
     data.position_x !== undefined ? data.position_x : existing.position_x,
     data.position_y !== undefined ? data.position_y : existing.position_y,
@@ -355,12 +354,12 @@ export function updateCanvasNode(id: string, data: CanvasNodeUpdate): CanvasNode
     id,
   );
 
-  return db.prepare('SELECT * FROM canvas_nodes WHERE id = ?').get(id) as CanvasNode;
+  return db.prepare('SELECT * FROM network_nodes WHERE id = ?').get(id) as NetworkNode;
 }
 
-export function removeCanvasNode(id: string): boolean {
+export function removeNetworkNode(id: string): boolean {
   const db = getDatabase();
-  const result = db.prepare('DELETE FROM canvas_nodes WHERE id = ?').run(id);
+  const result = db.prepare('DELETE FROM network_nodes WHERE id = ?').run(id);
   return result.changes > 0;
 }
 
@@ -372,10 +371,10 @@ export function createEdge(data: EdgeCreate): Edge {
   const now = new Date().toISOString();
 
   db.prepare(
-    `INSERT INTO edges (id, canvas_id, source_node_id, target_node_id, relation_type_id, description, color, line_style, directed, created_at)
+    `INSERT INTO edges (id, network_id, source_node_id, target_node_id, relation_type_id, description, color, line_style, directed, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
-    id, data.canvas_id, data.source_node_id, data.target_node_id,
+    id, data.network_id, data.source_node_id, data.target_node_id,
     data.relation_type_id ?? null, data.description ?? null,
     data.color ?? null, data.line_style ?? null, data.directed != null ? (data.directed ? 1 : 0) : null,
     now,

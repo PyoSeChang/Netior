@@ -8,8 +8,6 @@ import type {
   ArchetypeCreate,
   RelationType,
   RelationTypeCreate,
-  CanvasType,
-  CanvasTypeCreate,
   Concept,
   ConceptCreate,
   Module,
@@ -164,7 +162,6 @@ export interface SeedContext {
   createProject(data: ProjectCreate): Project;
   createArchetype(data: ArchetypeCreate): Archetype;
   createRelationType(data: RelationTypeCreate): RelationType;
-  createCanvasType(data: CanvasTypeCreate): CanvasType;
   createConcept(data: ConceptCreate): Concept;
   createModule(data: ModuleCreate): Module;
   addModuleDirectory(data: ModuleDirectoryCreate): ModuleDirectory;

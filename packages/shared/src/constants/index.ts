@@ -37,20 +37,20 @@ export const IPC_CHANNELS = {
   CONCEPT_SYNC_TO_AGENT: 'concept:syncToAgent',
   CONCEPT_SYNC_FROM_AGENT: 'concept:syncFromAgent',
 
-  // Canvas
-  CANVAS_CREATE: 'canvas:create',
-  CANVAS_LIST: 'canvas:list',
-  CANVAS_UPDATE: 'canvas:update',
-  CANVAS_DELETE: 'canvas:delete',
-  CANVAS_GET_FULL: 'canvas:getFull',
-  CANVAS_GET_BY_CONCEPT: 'canvas:getByConcept',
-  CANVAS_GET_TREE: 'canvas:getTree',
-  CANVAS_GET_ANCESTORS: 'canvas:getAncestors',
+  // Network
+  NETWORK_CREATE: 'network:create',
+  NETWORK_LIST: 'network:list',
+  NETWORK_UPDATE: 'network:update',
+  NETWORK_DELETE: 'network:delete',
+  NETWORK_GET_FULL: 'network:getFull',
+  NETWORK_GET_BY_CONCEPT: 'network:getByConcept',
+  NETWORK_GET_TREE: 'network:getTree',
+  NETWORK_GET_ANCESTORS: 'network:getAncestors',
 
-  // Canvas Node
-  CANVAS_NODE_ADD: 'canvasNode:add',
-  CANVAS_NODE_UPDATE: 'canvasNode:update',
-  CANVAS_NODE_REMOVE: 'canvasNode:remove',
+  // Network Node
+  NETWORK_NODE_ADD: 'networkNode:add',
+  NETWORK_NODE_UPDATE: 'networkNode:update',
+  NETWORK_NODE_REMOVE: 'networkNode:remove',
 
   // Edge
   EDGE_CREATE: 'edge:create',
@@ -98,16 +98,6 @@ export const IPC_CHANNELS = {
   RELATION_TYPE_GET: 'relationType:get',
   RELATION_TYPE_UPDATE: 'relationType:update',
   RELATION_TYPE_DELETE: 'relationType:delete',
-
-  // CanvasType
-  CANVAS_TYPE_CREATE: 'canvasType:create',
-  CANVAS_TYPE_LIST: 'canvasType:list',
-  CANVAS_TYPE_GET: 'canvasType:get',
-  CANVAS_TYPE_UPDATE: 'canvasType:update',
-  CANVAS_TYPE_DELETE: 'canvasType:delete',
-  CANVAS_TYPE_ADD_RELATION: 'canvasType:addRelation',
-  CANVAS_TYPE_REMOVE_RELATION: 'canvasType:removeRelation',
-  CANVAS_TYPE_LIST_RELATIONS: 'canvasType:listRelations',
 
   // Concept Property
   CONCEPT_PROP_UPSERT: 'conceptProp:upsert',
@@ -166,9 +156,9 @@ export const IPC_CHANNELS = {
 // ============================================
 
 export const DEFAULTS = {
-  CANVAS_ZOOM: 1.0,
-  CANVAS_PAN_X: 0,
-  CANVAS_PAN_Y: 0,
+  NETWORK_ZOOM: 1.0,
+  NETWORK_PAN_X: 0,
+  NETWORK_PAN_Y: 0,
   WINDOW_WIDTH: 1200,
   WINDOW_HEIGHT: 800,
 } as const;

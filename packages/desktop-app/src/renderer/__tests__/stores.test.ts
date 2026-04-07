@@ -17,14 +17,14 @@ const mockElectron = {
     update: vi.fn(),
     delete: vi.fn(),
   },
-  canvas: {
+  network: {
     create: vi.fn(),
     list: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
     getFull: vi.fn(),
   },
-  canvasNode: {
+  networkNode: {
     add: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),

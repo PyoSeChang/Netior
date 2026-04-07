@@ -58,8 +58,7 @@ function TabIcon({ tab }: { tab: EditorTab }): JSX.Element {
     case 'relationType':
     case 'edge':
       return <Link size={ICON_SIZE} style={{ flexShrink: 0 }} />;
-    case 'canvasType':
-    case 'canvas':
+    case 'network':
       return <Layout size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'narre':
       return <Sparkles size={ICON_SIZE} style={{ flexShrink: 0 }} />;
