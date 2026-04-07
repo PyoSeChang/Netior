@@ -27,9 +27,9 @@ packages:
     impact: local
     contracts: []
   desktop-app:
-    version: "0.7.0"
-    type: patch
-    summary: "초기 버전"
+    version: "0.8.0"
+    type: minor
+    summary: "에디터 버그 수정, 목차 상태 저장, 단축키 추가, 뷰모드 스위치 리팩토링"
     impact: local
     contracts: []
   narre-eval:
