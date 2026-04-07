@@ -15,7 +15,7 @@ import { createProject, listProjects, deleteProject } from '../repositories/proj
 import { createConcept, getConceptsByProject, updateConcept, deleteConcept, searchConcepts } from '../repositories/concept';
 import {
   createNetwork, listNetworks, updateNetwork, deleteNetwork, getNetworkFull,
-  getNetworkAncestors, getNetworkTree, addNetworkNode, removeNetworkNode,
+  getNetworkAncestors, getNetworkTree, addNetworkNode, updateNetworkNode, removeNetworkNode,
   createEdge, getEdge, updateEdge, deleteEdge,
   ensureAppRootNetwork, getAppRootNetwork, getProjectRootNetwork,
 } from '../repositories/network';
@@ -187,6 +187,15 @@ describe('Repositories', () => {
       expect(deleteObjectByRef('concept', 'del-by-ref')).toBe(true);
       expect(getObjectByRef('concept', 'del-by-ref')).toBeUndefined();
     });
+
+    it('should return undefined for nonexistent object', () => {
+      expect(getObject('nonexistent-id')).toBeUndefined();
+    });
+
+    it('should return false when deleting nonexistent object', () => {
+      expect(deleteObject('nonexistent-id')).toBe(false);
+      expect(deleteObjectByRef('concept', 'nonexistent-ref')).toBe(false);
+    });
   });
 
   // --- Network + Nodes + Edges ---
@@ -292,6 +301,90 @@ describe('Repositories', () => {
 
       deleteNetwork(network.id);
       expect(getNetworkFull(network.id)).toBeUndefined();
+    });
+
+    it('should return false when deleting nonexistent network', () => {
+      expect(deleteNetwork('nonexistent')).toBe(false);
+    });
+
+    it('should return undefined when updating nonexistent network', () => {
+      expect(updateNetwork('nonexistent', { name: 'X' })).toBeUndefined();
+    });
+
+    it('should update network scope', () => {
+      const n = createNetwork({ project_id: projectId, name: 'N', scope: 'project' });
+      const updated = updateNetwork(n.id, { scope: 'app' });
+      expect(updated?.scope).toBe('app');
+    });
+
+    it('should update network node metadata', () => {
+      const network = createNetwork({ project_id: projectId, name: 'N' });
+      const concept = createConcept({ project_id: projectId, title: 'C' });
+      const obj = getObjectByRef('concept', concept.id)!;
+      const node = addNetworkNode({ network_id: network.id, object_id: obj.id });
+      expect(node.metadata).toBeNull();
+
+      const updated = updateNetworkNode(node.id, { metadata: '{"label":"test"}' });
+      expect(updated.metadata).toBe('{"label":"test"}');
+    });
+
+    it('should update edge description', () => {
+      const network = createNetwork({ project_id: projectId, name: 'N' });
+      const c1 = createConcept({ project_id: projectId, title: 'A' });
+      const c2 = createConcept({ project_id: projectId, title: 'B' });
+      const obj1 = getObjectByRef('concept', c1.id)!;
+      const obj2 = getObjectByRef('concept', c2.id)!;
+      const n1 = addNetworkNode({ network_id: network.id, object_id: obj1.id });
+      const n2 = addNetworkNode({ network_id: network.id, object_id: obj2.id });
+
+      const edge = createEdge({ network_id: network.id, source_node_id: n1.id, target_node_id: n2.id, description: 'initial' });
+      expect(edge.description).toBe('initial');
+
+      const updated = updateEdge(edge.id, { description: 'modified' });
+      expect(updated?.description).toBe('modified');
+    });
+
+    it('should return undefined when updating nonexistent edge', () => {
+      expect(updateEdge('nonexistent', { description: 'x' })).toBeUndefined();
+    });
+
+    it('should delete object record when network is deleted', () => {
+      const network = createNetwork({ project_id: projectId, name: 'ObjDel' });
+      deleteNetwork(network.id);
+      expect(getObjectByRef('network', network.id)).toBeUndefined();
+    });
+
+    it('should list root-only networks', () => {
+      const root = createNetwork({ project_id: projectId, name: 'Root' });
+      createNetwork({ project_id: projectId, name: 'Child', parent_network_id: root.id });
+      const all = listNetworks(projectId);
+      const rootOnly = listNetworks(projectId, true);
+      expect(all).toHaveLength(2);
+      expect(rootOnly).toHaveLength(1);
+      expect(rootOnly[0].name).toBe('Root');
+    });
+
+    it('should remove network node', () => {
+      const network = createNetwork({ project_id: projectId, name: 'N' });
+      const concept = createConcept({ project_id: projectId, title: 'C' });
+      const obj = getObjectByRef('concept', concept.id)!;
+      const node = addNetworkNode({ network_id: network.id, object_id: obj.id });
+      expect(removeNetworkNode(node.id)).toBe(true);
+      expect(getNetworkFull(network.id)!.nodes).toHaveLength(0);
+    });
+
+    it('should cascade delete edges when node is removed', () => {
+      const network = createNetwork({ project_id: projectId, name: 'N' });
+      const c1 = createConcept({ project_id: projectId, title: 'A' });
+      const c2 = createConcept({ project_id: projectId, title: 'B' });
+      const obj1 = getObjectByRef('concept', c1.id)!;
+      const obj2 = getObjectByRef('concept', c2.id)!;
+      const n1 = addNetworkNode({ network_id: network.id, object_id: obj1.id });
+      const n2 = addNetworkNode({ network_id: network.id, object_id: obj2.id });
+      createEdge({ network_id: network.id, source_node_id: n1.id, target_node_id: n2.id });
+
+      removeNetworkNode(n1.id);
+      expect(getNetworkFull(network.id)!.edges).toHaveLength(0);
     });
   });
 
@@ -888,6 +981,79 @@ describe('Repositories', () => {
       expect(full.edgeVisuals).toHaveLength(1);
       expect(JSON.parse(full.edgeVisuals[0].visualJson).color).toBe('#ff0000');
     });
+
+    it('should not include relation_type for edge without relation_type_id', () => {
+      const edge = createEdge({ network_id: networkId, source_node_id: n1Id, target_node_id: n2Id });
+      const full = getNetworkFull(networkId)!;
+      expect(full.edges).toHaveLength(1);
+      expect(full.edges[0].relation_type).toBeUndefined();
+      expect(full.edges[0].relation_type_id).toBeNull();
+    });
+  });
+
+  // --- getNetworkFull Integration ---
+
+  describe('getNetworkFull integration', () => {
+    it('should return all parts: network, layout, nodes, edges, positions, visuals', () => {
+      const project = createProject({ name: 'Int', root_dir: '/int-test' });
+      const network = createNetwork({ project_id: project.id, name: 'Full' });
+
+      // Create concept + file nodes
+      const concept = createConcept({ project_id: project.id, title: 'Concept Node' });
+      const file = createFileEntity({ project_id: project.id, path: 'test.md', type: 'file' });
+      const conceptObj = getObjectByRef('concept', concept.id)!;
+      const fileObj = getObjectByRef('file', file.id)!;
+      const n1 = addNetworkNode({ network_id: network.id, object_id: conceptObj.id });
+      const n2 = addNetworkNode({ network_id: network.id, object_id: fileObj.id });
+
+      // Create edge with relation type
+      const rt = createRelationType({ project_id: project.id, name: 'References', directed: true });
+      const edge = createEdge({
+        network_id: network.id,
+        source_node_id: n1.id,
+        target_node_id: n2.id,
+        relation_type_id: rt.id,
+        description: 'concept references file',
+      });
+
+      // Set layout data
+      const layout = getLayoutByNetwork(network.id)!;
+      setNodePosition(layout.id, n1.id, JSON.stringify({ x: 0, y: 0 }));
+      setNodePosition(layout.id, n2.id, JSON.stringify({ x: 200, y: 100 }));
+      setEdgeVisual(layout.id, edge.id, JSON.stringify({ color: '#00ff00' }));
+
+      // Verify full data
+      const full = getNetworkFull(network.id)!;
+      expect(full.network.name).toBe('Full');
+      expect(full.layout).toBeDefined();
+      expect(full.layout!.layout_type).toBe('freeform');
+      expect(full.nodes).toHaveLength(2);
+      expect(full.edges).toHaveLength(1);
+      expect(full.nodePositions).toHaveLength(2);
+      expect(full.edgeVisuals).toHaveLength(1);
+
+      // Verify concept node has concept data
+      const conceptNode = full.nodes.find((n) => n.object?.object_type === 'concept')!;
+      expect(conceptNode.concept?.title).toBe('Concept Node');
+      expect(conceptNode.file).toBeUndefined();
+
+      // Verify file node has file data
+      const fileNode = full.nodes.find((n) => n.object?.object_type === 'file')!;
+      expect(fileNode.file?.path).toBe('test.md');
+      expect(fileNode.concept).toBeUndefined();
+
+      // Verify edge has relation_type
+      expect(full.edges[0].relation_type?.name).toBe('References');
+      expect(full.edges[0].relation_type?.directed).toBe(true);
+      expect(full.edges[0].description).toBe('concept references file');
+
+      // Verify node positions
+      const pos1 = full.nodePositions.find((p) => p.nodeId === n1.id)!;
+      expect(JSON.parse(pos1.positionJson)).toEqual({ x: 0, y: 0 });
+
+      // Verify edge visuals
+      expect(JSON.parse(full.edgeVisuals[0].visualJson).color).toBe('#00ff00');
+    });
   });
 
   // --- Context ---
@@ -985,6 +1151,30 @@ describe('Repositories', () => {
       const ctx = createContext({ network_id: networkId, name: 'Unique' });
       addContextMember(ctx.id, 'object', 'dup-id');
       expect(() => addContextMember(ctx.id, 'object', 'dup-id')).toThrow();
+    });
+
+    it('should allow same member_id with different member_type', () => {
+      const ctx = createContext({ network_id: networkId, name: 'MixTypes' });
+      addContextMember(ctx.id, 'object', 'shared-id');
+      expect(() => addContextMember(ctx.id, 'edge', 'shared-id')).not.toThrow();
+      expect(getContextMembers(ctx.id)).toHaveLength(2);
+    });
+
+    it('should create context with description', () => {
+      const ctx = createContext({ network_id: networkId, name: 'Desc', description: 'A viewpoint' });
+      expect(ctx.description).toBe('A viewpoint');
+    });
+
+    it('should return undefined when updating nonexistent context', () => {
+      expect(updateContext('nonexistent', { name: 'X' })).toBeUndefined();
+    });
+
+    it('should return false when deleting nonexistent context', () => {
+      expect(deleteContext('nonexistent')).toBe(false);
+    });
+
+    it('should return false when removing nonexistent member', () => {
+      expect(removeContextMember('nonexistent')).toBe(false);
     });
   });
 
