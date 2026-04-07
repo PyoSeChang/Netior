@@ -11,6 +11,7 @@ import type {
   AgentInfo,
   MetricValue,
   ScenarioVersionInfo,
+  ProvenanceInfo,
 } from './types.js';
 
 /** Bump when verifier types, grading logic, or metric definitions change. */
@@ -24,6 +25,7 @@ export interface GradeContext {
   agent: AgentInfo;
   durationMs: number;
   versionInfo: ScenarioVersionInfo | null;
+  executedBy: ProvenanceInfo;
 }
 
 const UNSUPPORTED: MetricValue = { value: null, source: 'unsupported', confidence: 'none' };
@@ -121,6 +123,8 @@ export async function gradeScenario(
     timestamp: new Date().toISOString(),
     status,
     agent: ctx.agent,
+    scenarioAuthor: ctx.versionInfo?.created_by ?? null,
+    executedBy: ctx.executedBy,
     scenarioVersion: ctx.versionInfo?.scenario_version ?? null,
     schemaVersion: ctx.versionInfo?.schema_version ?? null,
     gradingVersion: GRADING_VERSION,

@@ -7,12 +7,17 @@ import { NarreServerAdapter } from './agents/narre-server.js';
 import { gradeScenario, errorMetrics, skippedMetrics, GRADING_VERSION, type GradeContext } from './grader.js';
 import { recordResult, recordRunResult, printSummary } from './report.js';
 import { findBaselineRunDir, loadBaselineResult, compareResults } from './comparator.js';
-import type { EvalOptions, ScenarioResult, EvalScenario } from './types.js';
+import type { EvalOptions, ScenarioResult, EvalScenario, ProvenanceInfo } from './types.js';
 import type { EvalAgentAdapter } from './agents/base.js';
 import { randomUUID } from 'crypto';
 
 const APPDATA = process.env.APPDATA || process.env.HOME || '.';
 const EVAL_DATA_DIR = join(APPDATA, 'netior', 'data', 'eval');
+const EXECUTOR_INFO: ProvenanceInfo = {
+  id: process.env.NARRE_EVAL_EXECUTOR_ID || 'narre-eval-cli',
+  name: process.env.NARRE_EVAL_EXECUTOR_NAME || 'narre-eval CLI',
+  source: process.env.NARRE_EVAL_EXECUTOR_SOURCE || 'manual-cli',
+};
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -85,6 +90,8 @@ function buildSkippedResult(
     timestamp: new Date().toISOString(),
     status: 'skipped',
     agent: adapter.getAgentInfo(),
+    scenarioAuthor: scenario.versionInfo?.created_by ?? null,
+    executedBy: EXECUTOR_INFO,
     scenarioVersion: scenario.versionInfo?.scenario_version ?? null,
     schemaVersion: scenario.versionInfo?.schema_version ?? null,
     gradingVersion: GRADING_VERSION,
@@ -167,7 +174,7 @@ async function main() {
 
         console.log('  Sending turns...');
         const startTime = Date.now();
-        const transcript = await runScenario(adapter, scenario, setup.projectId);
+        const transcript = await runScenario(adapter, scenario, setup.projectId, setup.templateVars);
         const durationMs = Date.now() - startTime;
 
         console.log(`  Completed in ${(durationMs / 1000).toFixed(1)}s (${transcript.totalToolCalls} tool calls)`);
@@ -178,6 +185,7 @@ async function main() {
           agent: agentInfo,
           durationMs,
           versionInfo: scenario.versionInfo,
+          executedBy: EXECUTOR_INFO,
         };
         const result = await gradeScenario(
           scenario.id,
@@ -203,11 +211,13 @@ async function main() {
         const errResult: ScenarioResult = {
           runId,
           scenarioId: scenario.id,
-          timestamp: new Date().toISOString(),
-          status: 'error',
-          agent: agentInfo,
-          scenarioVersion: scenario.versionInfo?.scenario_version ?? null,
-          schemaVersion: scenario.versionInfo?.schema_version ?? null,
+            timestamp: new Date().toISOString(),
+            status: 'error',
+            agent: agentInfo,
+            scenarioAuthor: scenario.versionInfo?.created_by ?? null,
+            executedBy: EXECUTOR_INFO,
+            scenarioVersion: scenario.versionInfo?.scenario_version ?? null,
+            schemaVersion: scenario.versionInfo?.schema_version ?? null,
           gradingVersion: GRADING_VERSION,
           verifyResults: { passed: 0, total: 0, results: [] },
           judgeScores: [],
@@ -234,6 +244,7 @@ async function main() {
     startedAt,
     finishedAt,
     agent: agentInfo,
+    executedBy: EXECUTOR_INFO,
     scenarioIds: allResults.map((r) => r.scenarioId),
   }, allResults);
 

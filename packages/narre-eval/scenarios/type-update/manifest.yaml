@@ -22,3 +22,9 @@ assets:
     - verify/checks.yaml
   rubrics:
     - rubrics/quality.yaml
+
+provenance:
+  created_by:
+    id: netior-team
+    name: Netior Team
+    source: repo-scenario

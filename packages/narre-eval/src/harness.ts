@@ -21,6 +21,7 @@ export interface SetupResult {
   projectId: string;
   tempDir: string;
   dbPath: string;
+  templateVars: Record<string, string>;
 }
 
 export function getRunId(): string {
@@ -54,6 +55,7 @@ export async function setupScenario(
   initDatabase(dbPath);
 
   let projectId: string | null = null;
+  let templateVars: Record<string, string> = {};
 
   const ctx: SeedContext = {
     tempDir,
@@ -88,6 +90,9 @@ export async function setupScenario(
       }
       cpSync(fixturesDir, tempDir, { recursive: true });
     },
+    setTemplateVars(vars) {
+      templateVars = { ...templateVars, ...vars };
+    },
   };
 
   await seedFn(ctx);
@@ -96,7 +101,7 @@ export async function setupScenario(
     throw new Error('seed function must call ctx.createProject()');
   }
 
-  return { projectId, tempDir, dbPath };
+  return { projectId, tempDir, dbPath, templateVars };
 }
 
 export function teardownScenario(tempDir: string): void {

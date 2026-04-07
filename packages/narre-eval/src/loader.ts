@@ -136,6 +136,7 @@ async function loadFromManifest(scenarioDir: string, manifestPath: string): Prom
       schema_version: manifest.schema_version,
       supported_agents: manifest.execution?.supported_agents ?? [],
       required_capabilities: manifest.execution?.required_capabilities ?? [],
+      created_by: manifest.provenance?.created_by ?? null,
     },
   };
 }

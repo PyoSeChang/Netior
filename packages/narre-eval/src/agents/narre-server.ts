@@ -231,7 +231,7 @@ export class NarreServerAdapter implements EvalAgentAdapter {
     let assistantText = '';
     const toolCalls: ToolCallRecord[] = [];
     const errors: string[] = [];
-    let currentTool: Partial<ToolCallRecord> | null = null;
+    const pendingTools: ToolCallRecord[] = [];
     let sessionId: string | null = null;
     let cardResponseCount = 0;
 
@@ -266,17 +266,29 @@ export class NarreServerAdapter implements EvalAgentAdapter {
             if (event.content) assistantText += event.content;
             break;
           case 'tool_start':
-            currentTool = { tool: event.tool, input: event.toolInput ?? {} };
+            pendingTools.push({
+              tool: event.tool ?? 'unknown_tool',
+              input: event.toolInput ?? {},
+            });
             break;
           case 'tool_end':
-            if (currentTool) {
-              toolCalls.push({
-                tool: currentTool.tool!,
-                input: currentTool.input!,
-                result: event.toolResult,
-              });
-              currentTool = null;
+            if (event.tool) {
+              const pendingIndex = pendingTools.findIndex((tc) => tc.tool === event.tool);
+              if (pendingIndex >= 0) {
+                const [pending] = pendingTools.splice(pendingIndex, 1);
+                toolCalls.push({
+                  tool: pending.tool,
+                  input: pending.input,
+                  result: event.toolResult,
+                });
+                break;
+              }
             }
+            toolCalls.push({
+              tool: event.tool ?? 'unknown_tool',
+              input: {},
+              result: event.toolResult,
+            });
             break;
           case 'card': {
             const card = event.card;

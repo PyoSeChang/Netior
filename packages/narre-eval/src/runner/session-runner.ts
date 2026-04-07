@@ -16,6 +16,7 @@ export async function runScenario(
   adapter: EvalAgentAdapter,
   scenario: EvalScenario,
   projectId: string,
+  templateVars: Record<string, string> = {},
 ): Promise<Transcript> {
   // NOTE: buildProjectMetadata uses @netior/core directly. This is
   // narre-server-specific — a future CLI/SDK adapter may need a different
@@ -24,9 +25,9 @@ export async function runScenario(
   const projectMetadata = buildProjectMetadata(projectId);
 
   if (scenario.type === 'conversation') {
-    return runConversation(adapter, scenario, projectId, projectMetadata);
+    return runConversation(adapter, scenario, projectId, projectMetadata, templateVars);
   }
-  return runSingleTurn(adapter, scenario, projectId, projectMetadata);
+  return runSingleTurn(adapter, scenario, projectId, projectMetadata, templateVars);
 }
 
 // ── Single-Turn ──
@@ -36,22 +37,29 @@ async function runSingleTurn(
   scenario: EvalScenario,
   projectId: string,
   projectMetadata: Record<string, unknown>,
+  templateVars: Record<string, string>,
 ): Promise<Transcript> {
   const turns: TurnTranscript[] = [];
   let totalToolCalls = 0;
   let cardResponseCount = 0;
+  const responderCtx: ResponderContext = { cardIndex: 0, previousCards: [] };
+  const onCard: CardHandler | undefined = scenario.responder
+    ? buildCardHandler(scenario.responder, responderCtx)
+    : undefined;
 
   for (const turn of scenario.turns) {
+    const resolvedTurn = resolveTurnTemplates(turn, templateVars);
     const result = await adapter.sendTurn({
       sessionId: null,
       projectId,
-      message: turn.content,
-      mentions: turn.mentions,
+      message: resolvedTurn.content,
+      mentions: resolvedTurn.mentions,
       projectMetadata,
+      onCard,
     });
 
     turns.push({
-      user: turn.content,
+      user: resolvedTurn.content,
       assistant: result.assistantText,
       toolCalls: result.toolCalls,
       events: result.events,
@@ -79,6 +87,7 @@ async function runConversation(
   scenario: EvalScenario,
   projectId: string,
   projectMetadata: Record<string, unknown>,
+  templateVars: Record<string, string>,
 ): Promise<Transcript> {
   const turns: TurnTranscript[] = [];
   let totalToolCalls = 0;
@@ -93,6 +102,7 @@ async function runConversation(
     : undefined;
 
   for (const turn of scenario.turns) {
+    const resolvedTurn = resolveTurnTemplates(turn, templateVars);
     if (sessionId) {
       sessionResumeCount++;
     }
@@ -100,14 +110,14 @@ async function runConversation(
     const result = await adapter.sendTurn({
       sessionId,
       projectId,
-      message: turn.content,
-      mentions: turn.mentions,
+      message: resolvedTurn.content,
+      mentions: resolvedTurn.mentions,
       projectMetadata,
       onCard,
     });
 
     turns.push({
-      user: turn.content,
+      user: resolvedTurn.content,
       assistant: result.assistantText,
       toolCalls: result.toolCalls,
       events: result.events,
@@ -169,4 +179,29 @@ function buildProjectMetadata(projectId: string): Record<string, unknown> {
   }));
 
   return { projectName: projectId, archetypes, relationTypes, canvasTypes };
+}
+
+function resolveTurnTemplates<T extends { content: string; mentions?: unknown[] }>(
+  turn: T,
+  templateVars: Record<string, string>,
+): T {
+  if (Object.keys(templateVars).length === 0) {
+    return turn;
+  }
+
+  return {
+    ...turn,
+    content: applyTemplateVars(turn.content, templateVars),
+    mentions: turn.mentions
+      ? JSON.parse(applyTemplateVars(JSON.stringify(turn.mentions), templateVars)) as unknown[]
+      : undefined,
+  };
+}
+
+function applyTemplateVars(text: string, templateVars: Record<string, string>): string {
+  let resolved = text;
+  for (const [key, value] of Object.entries(templateVars)) {
+    resolved = resolved.replaceAll(`{{${key}}}`, value);
+  }
+  return resolved;
 }

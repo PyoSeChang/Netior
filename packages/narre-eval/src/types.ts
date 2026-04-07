@@ -47,6 +47,9 @@ export interface ScenarioManifest {
     rubrics?: string[];
     goldens?: string[];
   };
+  provenance?: {
+    created_by?: ProvenanceInfo;
+  };
 }
 
 /** Manifest metadata carried through to results. Null for legacy-loaded scenarios. */
@@ -55,6 +58,13 @@ export interface ScenarioVersionInfo {
   schema_version: number;
   supported_agents: string[];
   required_capabilities: string[];
+  created_by: ProvenanceInfo | null;
+}
+
+export interface ProvenanceInfo {
+  id: string;
+  name: string;
+  source: string;
 }
 
 export interface EvalScenario {
@@ -169,6 +179,7 @@ export interface SeedContext {
   createModule(data: ModuleCreate): Module;
   addModuleDirectory(data: ModuleDirectoryCreate): ModuleDirectory;
   copyFixtures(): Promise<void>;
+  setTemplateVars(vars: Record<string, string>): void;
 }
 
 // ── Responder Context ──
@@ -249,6 +260,8 @@ export interface ScenarioResult {
   timestamp: string;
   status: ScenarioStatus;
   agent: AgentInfo;
+  scenarioAuthor: ProvenanceInfo | null;
+  executedBy: ProvenanceInfo;
   scenarioVersion: string | null;
   schemaVersion: number | null;
   gradingVersion: string;
@@ -268,6 +281,7 @@ export interface RunMetadata {
   startedAt: string;
   finishedAt: string;
   agent: AgentInfo;
+  executedBy: ProvenanceInfo;
   scenarioIds: string[];
 }
 
