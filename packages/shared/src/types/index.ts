@@ -123,22 +123,45 @@ export interface PdfToc {
 }
 
 // ============================================
+// Network Object
+// ============================================
+
+export type NetworkObjectType =
+  | 'concept' | 'network' | 'project' | 'archetype'
+  | 'relation_type' | 'agent' | 'context'
+  | 'file' | 'module' | 'folder';
+
+export type NodeType = 'basic' | 'portal' | 'box';
+
+export interface ObjectRecord {
+  id: string;
+  object_type: NetworkObjectType;
+  scope: string;
+  project_id: string | null;
+  ref_id: string;
+  created_at: string;
+}
+
+// ============================================
 // NetworkNode
 // ============================================
 
 export interface NetworkNode {
   id: string;
   network_id: string;
-  concept_id: string | null;
-  file_id: string | null;
+  object_id: string;
+  node_type: NodeType;
+  parent_node_id: string | null;
   metadata: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface NetworkNodeCreate {
   network_id: string;
-  concept_id?: string;
-  file_id?: string;
-  metadata?: string;
+  object_id: string;
+  node_type?: NodeType;
+  parent_node_id?: string;
 }
 
 export interface NetworkNodeUpdate {

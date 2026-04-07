@@ -1,10 +1,12 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
 import { createLayout, getLayoutByNetwork, getNodePositions, getEdgeVisuals } from './layout';
+import { createObject, deleteObjectByRef } from './objects';
 import type {
   Network, NetworkCreate, NetworkUpdate,
   NetworkNode, NetworkNodeCreate,
   Edge, EdgeCreate, EdgeUpdate,
+  ObjectRecord,
   Concept,
   FileEntity,
   RelationType,
@@ -18,19 +20,23 @@ export function createNetwork(data: NetworkCreate): Network {
   const db = getDatabase();
   const id = randomUUID();
   const now = new Date().toISOString();
+  const scope = data.scope ?? 'project';
 
   db.prepare(
     `INSERT INTO networks (id, project_id, name, scope, parent_network_id, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id, data.project_id, data.name,
-    data.scope ?? 'project',
+    scope,
     data.parent_network_id ?? null,
     now, now,
   );
 
   // Auto-create layout for this network
   createLayout({ networkId: id });
+
+  // Register object record for the network
+  createObject('network', scope, data.project_id ?? null, id);
 
   return db.prepare('SELECT * FROM networks WHERE id = ?').get(id) as Network;
 }
@@ -127,7 +133,11 @@ export function updateNetwork(id: string, data: NetworkUpdate): Network | undefi
 export function deleteNetwork(id: string): boolean {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM networks WHERE id = ?').run(id);
-  return result.changes > 0;
+  if (result.changes > 0) {
+    deleteObjectByRef('network', id);
+    return true;
+  }
+  return false;
 }
 
 // ── App / Project Root ──
@@ -153,6 +163,7 @@ export function ensureAppRootNetwork(): Network {
   ).run(id, null, 'App Root', 'app', null, now, now);
 
   createLayout({ networkId: id });
+  createObject('network', 'app', null, id);
 
   return db.prepare('SELECT * FROM networks WHERE id = ?').get(id) as Network;
 }
@@ -172,7 +183,11 @@ export function getProjectRootNetwork(projectId: string): Network | undefined {
 export interface NetworkFullData {
   network: Network;
   layout: Layout | undefined;
-  nodes: (NetworkNode & { concept?: Concept; file?: FileEntity })[];
+  nodes: (NetworkNode & {
+    object?: ObjectRecord;
+    concept?: Concept;
+    file?: FileEntity;
+  })[];
   edges: (Edge & { relation_type?: RelationType })[];
   nodePositions: LayoutNodePosition[];
   edgeVisuals: LayoutEdgeVisual[];
@@ -188,28 +203,45 @@ export function getNetworkFull(networkId: string): NetworkFullData | undefined {
   const layout = getLayoutByNetwork(networkId);
 
   const nodes = db.prepare(
-    `SELECT nn.*, c.title, c.color, c.icon, c.archetype_id, c.project_id as concept_project_id,
+    `SELECT nn.*,
+            o.id as o_id, o.object_type as o_object_type, o.scope as o_scope,
+            o.project_id as o_project_id, o.ref_id as o_ref_id, o.created_at as o_created_at,
+            c.title, c.color, c.icon, c.archetype_id, c.project_id as concept_project_id,
             c.created_at as concept_created_at, c.updated_at as concept_updated_at,
             f.id as f_id, f.project_id as f_project_id, f.path as f_path, f.type as f_type,
             f.metadata as f_metadata, f.created_at as f_created_at, f.updated_at as f_updated_at
      FROM network_nodes nn
-     LEFT JOIN concepts c ON nn.concept_id = c.id
-     LEFT JOIN files f ON nn.file_id = f.id
+     JOIN objects o ON nn.object_id = o.id
+     LEFT JOIN concepts c ON o.object_type = 'concept' AND o.ref_id = c.id
+     LEFT JOIN files f ON o.object_type = 'file' AND o.ref_id = f.id
      WHERE nn.network_id = ?`,
   ).all(networkId) as (Record<string, unknown>)[];
 
   const parsedNodes = nodes.map((row) => {
-    const hasConcept = row.concept_id != null && row.title != null;
-    const hasFile = row.f_id != null;
+    const objectType = row.o_object_type as string;
+    const hasConcept = objectType === 'concept' && row.title != null;
+    const hasFile = objectType === 'file' && row.f_id != null;
+
     return {
       id: row.id as string,
       network_id: row.network_id as string,
-      concept_id: (row.concept_id as string | null) ?? null,
-      file_id: (row.file_id as string | null) ?? null,
+      object_id: row.object_id as string,
+      node_type: (row.node_type as string) ?? 'basic',
+      parent_node_id: (row.parent_node_id as string | null) ?? null,
       metadata: (row.metadata as string | null) ?? null,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string,
+      object: {
+        id: row.o_id as string,
+        object_type: row.o_object_type as string,
+        scope: row.o_scope as string,
+        project_id: (row.o_project_id as string | null) ?? null,
+        ref_id: row.o_ref_id as string,
+        created_at: row.o_created_at as string,
+      },
       ...(hasConcept ? {
         concept: {
-          id: row.concept_id as string,
+          id: row.o_ref_id as string,
           project_id: row.concept_project_id as string,
           archetype_id: (row.archetype_id as string | null) ?? null,
           title: row.title as string,
@@ -282,19 +314,18 @@ export function getNetworkFull(networkId: string): NetworkFullData | undefined {
 export function addNetworkNode(data: NetworkNodeCreate): NetworkNode {
   const db = getDatabase();
   const id = randomUUID();
-
-  // Validate: exactly one of concept_id, file_id must be set
-  const setCount = [data.concept_id, data.file_id].filter(Boolean).length;
-  if (setCount !== 1) {
-    throw new Error('Exactly one of concept_id or file_id must be provided');
-  }
+  const now = new Date().toISOString();
 
   db.prepare(
-    `INSERT INTO network_nodes (id, network_id, concept_id, file_id, metadata)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO network_nodes (id, network_id, object_id, node_type, parent_node_id, metadata, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id, data.network_id,
-    data.concept_id ?? null, data.file_id ?? null, data.metadata ?? null,
+    data.object_id,
+    data.node_type ?? 'basic',
+    data.parent_node_id ?? null,
+    null,
+    now, now,
   );
 
   return db.prepare('SELECT * FROM network_nodes WHERE id = ?').get(id) as NetworkNode;
@@ -311,6 +342,8 @@ export function updateNetworkNode(id: string, data: { metadata?: string | null }
     return db.prepare('SELECT * FROM network_nodes WHERE id = ?').get(id) as NetworkNode;
   }
 
+  sets.push('updated_at = ?');
+  values.push(new Date().toISOString());
   values.push(id);
   db.prepare(`UPDATE network_nodes SET ${sets.join(', ')} WHERE id = ?`).run(...values);
   return db.prepare('SELECT * FROM network_nodes WHERE id = ?').get(id) as NetworkNode;

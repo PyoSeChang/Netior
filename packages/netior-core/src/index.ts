@@ -13,6 +13,7 @@ export * from './repositories/file';
 export * from './repositories/concept-property';
 export * from './repositories/editor-prefs';
 export * from './repositories/module';
+export * from './repositories/objects';
 export * from './repositories/settings';
 
 // Services

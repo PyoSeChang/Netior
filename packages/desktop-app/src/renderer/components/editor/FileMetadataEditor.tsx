@@ -42,7 +42,7 @@ export function FileMetadataEditor({ tab }: FileMetadataEditorProps): JSX.Elemen
     if (!networkId) return;
     networkService.getFull(networkId).then((full) => {
       if (!full) return;
-      const node = full.nodes.find((n) => n.file_id === fileId);
+      const node = full.nodes.find((n) => n.object?.object_type === 'file' && n.object.ref_id === fileId);
       if (node) setNodeId(node.id);
     });
   }, [networkId, fileId]);
@@ -57,7 +57,7 @@ export function FileMetadataEditor({ tab }: FileMetadataEditorProps): JSX.Elemen
       let nodeMeta: NodeMetadata = {};
       if (networkId) {
         const full = await networkService.getFull(networkId);
-        const node = full?.nodes.find((n) => n.file_id === fileId);
+        const node = full?.nodes.find((n) => n.object?.object_type === 'file' && n.object.ref_id === fileId);
         if (node?.metadata) nodeMeta = JSON.parse(node.metadata);
       }
 

@@ -78,6 +78,10 @@ const electronAPI = {
     remove: (layoutId: string, edgeId: string) =>
       ipcRenderer.invoke('layoutEdge:remove', layoutId, edgeId),
   },
+  object: {
+    get: (id: string) => ipcRenderer.invoke('object:get', id),
+    getByRef: (objectType: string, refId: string) => ipcRenderer.invoke('object:getByRef', objectType, refId),
+  },
   edge: {
     create: (data: Record<string, unknown>) => ipcRenderer.invoke('edge:create', data),
     get: (id: string) => ipcRenderer.invoke('edge:get', id),

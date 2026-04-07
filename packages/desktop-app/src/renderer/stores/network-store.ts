@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import type {
   Network, NetworkCreate, NetworkUpdate,
   NetworkNode, NetworkNodeCreate,
-  Edge, EdgeCreate, Concept, FileEntity, RelationType,
+  Edge, EdgeCreate, ObjectRecord, Concept, FileEntity, RelationType,
   NetworkBreadcrumbItem, NetworkTreeNode, Layout,
 } from '@netior/shared/types';
 import { networkService, layoutService } from '../services';
 import type { NetworkFullData, NodePosition, EdgeVisual } from '../services/network-service';
 
-export interface NetworkNodeWithConcept extends NetworkNode {
+export interface NetworkNodeWithObject extends NetworkNode {
+  object?: ObjectRecord;
   concept?: Concept;
   file?: FileEntity;
 }
@@ -19,7 +20,7 @@ interface NetworkStore {
   networks: Network[];
   currentNetwork: Network | null;
   currentLayout: Layout | null;
-  nodes: NetworkNodeWithConcept[];
+  nodes: NetworkNodeWithObject[];
   edges: EdgeWithRelationType[];
   nodePositions: NodePosition[];
   edgeVisuals: EdgeVisual[];

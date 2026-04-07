@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
+import { createObject, deleteObjectByRef } from './objects';
 import type { Project, ProjectCreate } from '@netior/shared/types';
 
 export function createProject(data: ProjectCreate): Project {
@@ -10,6 +11,8 @@ export function createProject(data: ProjectCreate): Project {
   db.prepare(
     `INSERT INTO projects (id, name, root_dir, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
   ).run(id, data.name, data.root_dir, now, now);
+
+  createObject('project', 'app', null, id);
 
   return db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as Project;
 }
@@ -34,5 +37,9 @@ export function updateProjectRootDir(id: string, rootDir: string): Project | und
 export function deleteProject(id: string): boolean {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM projects WHERE id = ?').run(id);
-  return result.changes > 0;
+  if (result.changes > 0) {
+    deleteObjectByRef('project', id);
+    return true;
+  }
+  return false;
 }

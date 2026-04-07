@@ -51,6 +51,10 @@ export const IPC_CHANNELS = {
   NETWORK_NODE_UPDATE: 'networkNode:update',
   NETWORK_NODE_REMOVE: 'networkNode:remove',
 
+  // Object
+  OBJECT_GET: 'object:get',
+  OBJECT_GET_BY_REF: 'object:getByRef',
+
   // Layout
   LAYOUT_GET: 'layout:get',
   LAYOUT_GET_BY_NETWORK: 'layout:getByNetwork',

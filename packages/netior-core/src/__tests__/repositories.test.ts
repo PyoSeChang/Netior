@@ -28,6 +28,7 @@ import { createFileEntity, getFileEntity, getFileEntityByPath, getFileEntitiesBy
 import { createModule, listModules, updateModule, deleteModule, addModuleDirectory, listModuleDirectories, removeModuleDirectory } from '../repositories/module';
 import { getEditorPrefs, upsertEditorPrefs } from '../repositories/editor-prefs';
 import { createRelationType, listRelationTypes, getRelationType, updateRelationType, deleteRelationType } from '../repositories/relation-type';
+import { createObject, getObject, getObjectByRef, deleteObject, deleteObjectByRef } from '../repositories/objects';
 
 describe('Repositories', () => {
   beforeEach(() => {
@@ -61,6 +62,21 @@ describe('Repositories', () => {
     it('should reject duplicate root_dir', () => {
       createProject({ name: 'A', root_dir: '/tmp/dup' });
       expect(() => createProject({ name: 'B', root_dir: '/tmp/dup' })).toThrow();
+    });
+
+    it('should create object record when creating project', () => {
+      const p = createProject({ name: 'P', root_dir: '/tmp/obj-test' });
+      const obj = getObjectByRef('project', p.id);
+      expect(obj).toBeDefined();
+      expect(obj!.object_type).toBe('project');
+      expect(obj!.scope).toBe('app');
+      expect(obj!.project_id).toBeNull();
+    });
+
+    it('should delete object record when deleting project', () => {
+      const p = createProject({ name: 'P', root_dir: '/tmp/obj-del' });
+      deleteProject(p.id);
+      expect(getObjectByRef('project', p.id)).toBeUndefined();
     });
   });
 
@@ -110,6 +126,64 @@ describe('Repositories', () => {
       deleteProject(projectId);
       expect(getConceptsByProject(projectId)).toHaveLength(0);
     });
+
+    it('should create object record when creating concept', () => {
+      const c = createConcept({ project_id: projectId, title: 'C' });
+      const obj = getObjectByRef('concept', c.id);
+      expect(obj).toBeDefined();
+      expect(obj!.object_type).toBe('concept');
+      expect(obj!.scope).toBe('project');
+      expect(obj!.project_id).toBe(projectId);
+    });
+
+    it('should delete object record when deleting concept', () => {
+      const c = createConcept({ project_id: projectId, title: 'C' });
+      deleteConcept(c.id);
+      expect(getObjectByRef('concept', c.id)).toBeUndefined();
+    });
+  });
+
+  // --- Objects ---
+
+  describe('Objects', () => {
+    it('should create and get object', () => {
+      const obj = createObject('concept', 'project', null, 'ref-123');
+      expect(obj.id).toBeDefined();
+      expect(obj.object_type).toBe('concept');
+      expect(obj.ref_id).toBe('ref-123');
+
+      const fetched = getObject(obj.id);
+      expect(fetched?.id).toBe(obj.id);
+    });
+
+    it('should get object by ref', () => {
+      createObject('concept', 'project', null, 'ref-456');
+      const found = getObjectByRef('concept', 'ref-456');
+      expect(found?.ref_id).toBe('ref-456');
+      expect(getObjectByRef('concept', 'nonexistent')).toBeUndefined();
+    });
+
+    it('should enforce unique object_type + ref_id', () => {
+      createObject('concept', 'project', null, 'dup-ref');
+      expect(() => createObject('concept', 'project', null, 'dup-ref')).toThrow();
+    });
+
+    it('should allow same ref_id with different object_type', () => {
+      createObject('concept', 'project', null, 'shared-ref');
+      expect(() => createObject('file', 'project', null, 'shared-ref')).not.toThrow();
+    });
+
+    it('should delete object', () => {
+      const obj = createObject('concept', 'project', null, 'del-ref');
+      expect(deleteObject(obj.id)).toBe(true);
+      expect(getObject(obj.id)).toBeUndefined();
+    });
+
+    it('should delete object by ref', () => {
+      createObject('concept', 'project', null, 'del-by-ref');
+      expect(deleteObjectByRef('concept', 'del-by-ref')).toBe(true);
+      expect(getObjectByRef('concept', 'del-by-ref')).toBeUndefined();
+    });
   });
 
   // --- Network + Nodes + Edges ---
@@ -142,18 +216,27 @@ describe('Repositories', () => {
       expect(layout!.network_id).toBe(network.id);
     });
 
+    it('should create object record when creating network', () => {
+      const network = createNetwork({ project_id: projectId, name: 'N' });
+      const obj = getObjectByRef('network', network.id);
+      expect(obj).toBeDefined();
+      expect(obj!.object_type).toBe('network');
+      expect(obj!.scope).toBe('project');
+    });
+
     it('should update network name', () => {
       const n = createNetwork({ project_id: projectId, name: 'Old' });
       const updated = updateNetwork(n.id, { name: 'New' });
       expect(updated?.name).toBe('New');
     });
 
-    it('should add nodes and get full network', () => {
+    it('should add nodes with object_id and get full network', () => {
       const network = createNetwork({ project_id: projectId, name: 'N' });
       const concept = createConcept({ project_id: projectId, title: 'Node1' });
+      const conceptObj = getObjectByRef('concept', concept.id)!;
       const node = addNetworkNode({
         network_id: network.id,
-        concept_id: concept.id,
+        object_id: conceptObj.id,
       });
 
       // Set position via layout
@@ -164,16 +247,18 @@ describe('Repositories', () => {
       expect(full).toBeDefined();
       expect(full!.nodes).toHaveLength(1);
       expect(full!.nodes[0]!.concept!.title).toBe('Node1');
+      expect(full!.nodes[0]!.object!.object_type).toBe('concept');
       expect(full!.nodePositions).toHaveLength(1);
       expect(JSON.parse(full!.nodePositions[0].positionJson).x).toBe(50);
     });
 
-    it('should enforce unique concept per network', () => {
+    it('should enforce unique object per network', () => {
       const network = createNetwork({ project_id: projectId, name: 'N' });
       const concept = createConcept({ project_id: projectId, title: 'N' });
-      addNetworkNode({ network_id: network.id, concept_id: concept.id });
+      const conceptObj = getObjectByRef('concept', concept.id)!;
+      addNetworkNode({ network_id: network.id, object_id: conceptObj.id });
       expect(() =>
-        addNetworkNode({ network_id: network.id, concept_id: concept.id }),
+        addNetworkNode({ network_id: network.id, object_id: conceptObj.id }),
       ).toThrow();
     });
 
@@ -181,8 +266,10 @@ describe('Repositories', () => {
       const network = createNetwork({ project_id: projectId, name: 'N' });
       const c1 = createConcept({ project_id: projectId, title: 'A' });
       const c2 = createConcept({ project_id: projectId, title: 'B' });
-      const n1 = addNetworkNode({ network_id: network.id, concept_id: c1.id });
-      const n2 = addNetworkNode({ network_id: network.id, concept_id: c2.id });
+      const obj1 = getObjectByRef('concept', c1.id)!;
+      const obj2 = getObjectByRef('concept', c2.id)!;
+      const n1 = addNetworkNode({ network_id: network.id, object_id: obj1.id });
+      const n2 = addNetworkNode({ network_id: network.id, object_id: obj2.id });
 
       const edge = createEdge({ network_id: network.id, source_node_id: n1.id, target_node_id: n2.id });
       expect(edge.id).toBeDefined();
@@ -197,7 +284,8 @@ describe('Repositories', () => {
     it('should cascade delete nodes when network is deleted', () => {
       const network = createNetwork({ project_id: projectId, name: 'N' });
       const concept = createConcept({ project_id: projectId, title: 'N' });
-      addNetworkNode({ network_id: network.id, concept_id: concept.id });
+      const conceptObj = getObjectByRef('concept', concept.id)!;
+      addNetworkNode({ network_id: network.id, object_id: conceptObj.id });
 
       deleteNetwork(network.id);
       expect(getNetworkFull(network.id)).toBeUndefined();
@@ -239,7 +327,8 @@ describe('Repositories', () => {
 
     it('should set and get node positions', () => {
       const concept = createConcept({ project_id: projectId, title: 'C' });
-      const node = addNetworkNode({ network_id: networkId, concept_id: concept.id });
+      const conceptObj = getObjectByRef('concept', concept.id)!;
+      const node = addNetworkNode({ network_id: networkId, object_id: conceptObj.id });
 
       setNodePosition(layoutId, node.id, JSON.stringify({ x: 10, y: 20 }));
       const positions = getNodePositions(layoutId);
@@ -250,7 +339,8 @@ describe('Repositories', () => {
 
     it('should upsert node position on conflict', () => {
       const concept = createConcept({ project_id: projectId, title: 'C' });
-      const node = addNetworkNode({ network_id: networkId, concept_id: concept.id });
+      const conceptObj = getObjectByRef('concept', concept.id)!;
+      const node = addNetworkNode({ network_id: networkId, object_id: conceptObj.id });
 
       setNodePosition(layoutId, node.id, JSON.stringify({ x: 10, y: 20 }));
       setNodePosition(layoutId, node.id, JSON.stringify({ x: 30, y: 40 }));
@@ -261,7 +351,8 @@ describe('Repositories', () => {
 
     it('should remove node position', () => {
       const concept = createConcept({ project_id: projectId, title: 'C' });
-      const node = addNetworkNode({ network_id: networkId, concept_id: concept.id });
+      const conceptObj = getObjectByRef('concept', concept.id)!;
+      const node = addNetworkNode({ network_id: networkId, object_id: conceptObj.id });
 
       setNodePosition(layoutId, node.id, JSON.stringify({ x: 10, y: 20 }));
       expect(removeNodePosition(layoutId, node.id)).toBe(true);
@@ -271,8 +362,10 @@ describe('Repositories', () => {
     it('should set and get edge visuals', () => {
       const c1 = createConcept({ project_id: projectId, title: 'A' });
       const c2 = createConcept({ project_id: projectId, title: 'B' });
-      const n1 = addNetworkNode({ network_id: networkId, concept_id: c1.id });
-      const n2 = addNetworkNode({ network_id: networkId, concept_id: c2.id });
+      const obj1 = getObjectByRef('concept', c1.id)!;
+      const obj2 = getObjectByRef('concept', c2.id)!;
+      const n1 = addNetworkNode({ network_id: networkId, object_id: obj1.id });
+      const n2 = addNetworkNode({ network_id: networkId, object_id: obj2.id });
       const edge = createEdge({ network_id: networkId, source_node_id: n1.id, target_node_id: n2.id });
 
       const visual = JSON.stringify({ color: '#ff0000', lineStyle: 'dashed', directed: true });
@@ -286,8 +379,10 @@ describe('Repositories', () => {
     it('should remove edge visual', () => {
       const c1 = createConcept({ project_id: projectId, title: 'A' });
       const c2 = createConcept({ project_id: projectId, title: 'B' });
-      const n1 = addNetworkNode({ network_id: networkId, concept_id: c1.id });
-      const n2 = addNetworkNode({ network_id: networkId, concept_id: c2.id });
+      const obj1 = getObjectByRef('concept', c1.id)!;
+      const obj2 = getObjectByRef('concept', c2.id)!;
+      const n1 = addNetworkNode({ network_id: networkId, object_id: obj1.id });
+      const n2 = addNetworkNode({ network_id: networkId, object_id: obj2.id });
       const edge = createEdge({ network_id: networkId, source_node_id: n1.id, target_node_id: n2.id });
 
       setEdgeVisual(layoutId, edge.id, JSON.stringify({ color: '#00ff00' }));
@@ -297,7 +392,8 @@ describe('Repositories', () => {
 
     it('should cascade delete layout_nodes when layout is deleted', () => {
       const concept = createConcept({ project_id: projectId, title: 'C' });
-      const node = addNetworkNode({ network_id: networkId, concept_id: concept.id });
+      const conceptObj = getObjectByRef('concept', concept.id)!;
+      const node = addNetworkNode({ network_id: networkId, object_id: conceptObj.id });
       setNodePosition(layoutId, node.id, JSON.stringify({ x: 0, y: 0 }));
 
       deleteLayout(layoutId);
@@ -401,6 +497,20 @@ describe('Repositories', () => {
       createFileEntity({ project_id: projectId, path: 'cascade.md', type: 'file' });
       deleteProject(projectId);
       expect(getFileEntitiesByProject(projectId)).toHaveLength(0);
+    });
+
+    it('should create object record when creating file entity', () => {
+      const f = createFileEntity({ project_id: projectId, path: 'obj.md', type: 'file' });
+      const obj = getObjectByRef('file', f.id);
+      expect(obj).toBeDefined();
+      expect(obj!.object_type).toBe('file');
+      expect(obj!.scope).toBe('project');
+    });
+
+    it('should delete object record when deleting file entity', () => {
+      const f = createFileEntity({ project_id: projectId, path: 'obj-del.md', type: 'file' });
+      deleteFileEntity(f.id);
+      expect(getObjectByRef('file', f.id)).toBeUndefined();
     });
   });
 
@@ -631,7 +741,7 @@ describe('Repositories', () => {
     });
   });
 
-  describe('NetworkNode expansion', () => {
+  describe('NetworkNode with objects', () => {
     let projectId: string;
     let networkId: string;
 
@@ -641,51 +751,67 @@ describe('Repositories', () => {
       networkId = createNetwork({ project_id: projectId, name: 'Network' }).id;
     });
 
-    it('should add node with file_id (file)', () => {
-      const file = createFileEntity({ project_id: projectId, path: 'readme.md', type: 'file' });
-      const node = addNetworkNode({ network_id: networkId, file_id: file.id });
-      expect(node.file_id).toBe(file.id);
-      expect(node.concept_id).toBeNull();
-    });
-
-    it('should add node with file_id (directory)', () => {
-      const dir = createFileEntity({ project_id: projectId, path: 'docs', type: 'directory' });
-      const node = addNetworkNode({ network_id: networkId, file_id: dir.id });
-      expect(node.file_id).toBe(dir.id);
-      expect(node.concept_id).toBeNull();
-    });
-
-    it('should reject node with no concept/file', () => {
-      expect(() => addNetworkNode({ network_id: networkId })).toThrow();
-    });
-
-    it('should reject node with both concept and file', () => {
+    it('should add node with concept object', () => {
       const concept = createConcept({ project_id: projectId, title: 'C' });
-      const file = createFileEntity({ project_id: projectId, path: 'x.md', type: 'file' });
-      expect(() => addNetworkNode({ network_id: networkId, concept_id: concept.id, file_id: file.id })).toThrow();
+      const obj = getObjectByRef('concept', concept.id)!;
+      const node = addNetworkNode({ network_id: networkId, object_id: obj.id });
+      expect(node.object_id).toBe(obj.id);
+      expect(node.node_type).toBe('basic');
+    });
+
+    it('should add node with file object', () => {
+      const file = createFileEntity({ project_id: projectId, path: 'readme.md', type: 'file' });
+      const obj = getObjectByRef('file', file.id)!;
+      const node = addNetworkNode({ network_id: networkId, object_id: obj.id });
+      expect(node.object_id).toBe(obj.id);
+      expect(node.node_type).toBe('basic');
+    });
+
+    it('should add node with custom node_type', () => {
+      const concept = createConcept({ project_id: projectId, title: 'Portal' });
+      const obj = getObjectByRef('concept', concept.id)!;
+      const node = addNetworkNode({ network_id: networkId, object_id: obj.id, node_type: 'portal' });
+      expect(node.node_type).toBe('portal');
+    });
+
+    it('should add node with parent_node_id', () => {
+      const c1 = createConcept({ project_id: projectId, title: 'Parent' });
+      const c2 = createConcept({ project_id: projectId, title: 'Child' });
+      const obj1 = getObjectByRef('concept', c1.id)!;
+      const obj2 = getObjectByRef('concept', c2.id)!;
+      const parentNode = addNetworkNode({ network_id: networkId, object_id: obj1.id, node_type: 'box' });
+      const childNode = addNetworkNode({ network_id: networkId, object_id: obj2.id, parent_node_id: parentNode.id });
+      expect(childNode.parent_node_id).toBe(parentNode.id);
     });
 
     it('should return file nodes with file data in getNetworkFull', () => {
       const file = createFileEntity({ project_id: projectId, path: 'test.md', type: 'file' });
-      addNetworkNode({ network_id: networkId, file_id: file.id });
+      const obj = getObjectByRef('file', file.id)!;
+      addNetworkNode({ network_id: networkId, object_id: obj.id });
       const full = getNetworkFull(networkId)!;
       expect(full.nodes).toHaveLength(1);
-      expect(full.nodes[0].file_id).toBe(file.id);
+      expect(full.nodes[0].object!.object_type).toBe('file');
       expect(full.nodes[0].file?.path).toBe('test.md');
       expect(full.nodes[0].concept).toBeUndefined();
     });
 
-    it('should support node metadata', () => {
-      const file = createFileEntity({ project_id: projectId, path: 'doc.pdf', type: 'file' });
-      const meta = JSON.stringify({ description: 'Reference material' });
-      const node = addNetworkNode({ network_id: networkId, file_id: file.id, metadata: meta });
-      expect(node.metadata).toBe(meta);
+    it('should return concept nodes with concept data in getNetworkFull', () => {
+      const concept = createConcept({ project_id: projectId, title: 'My Concept' });
+      const obj = getObjectByRef('concept', concept.id)!;
+      addNetworkNode({ network_id: networkId, object_id: obj.id });
+      const full = getNetworkFull(networkId)!;
+      expect(full.nodes).toHaveLength(1);
+      expect(full.nodes[0].object!.object_type).toBe('concept');
+      expect(full.nodes[0].concept?.title).toBe('My Concept');
+      expect(full.nodes[0].file).toBeUndefined();
     });
 
-    it('should cascade delete node when file is deleted', () => {
-      const file = createFileEntity({ project_id: projectId, path: 'cascade.md', type: 'file' });
-      addNetworkNode({ network_id: networkId, file_id: file.id });
-      deleteFileEntity(file.id);
+    it('should cascade delete node when object is deleted', () => {
+      const concept = createConcept({ project_id: projectId, title: 'Cascade' });
+      const obj = getObjectByRef('concept', concept.id)!;
+      addNetworkNode({ network_id: networkId, object_id: obj.id });
+      // Deleting the concept deletes the object (via deleteObjectByRef), which cascades to network_nodes
+      deleteConcept(concept.id);
       const full = getNetworkFull(networkId)!;
       expect(full.nodes).toHaveLength(0);
     });
@@ -703,8 +829,10 @@ describe('Repositories', () => {
       networkId = createNetwork({ project_id: projectId, name: 'Network' }).id;
       const c1 = createConcept({ project_id: projectId, title: 'A' });
       const c2 = createConcept({ project_id: projectId, title: 'B' });
-      n1Id = addNetworkNode({ network_id: networkId, concept_id: c1.id }).id;
-      n2Id = addNetworkNode({ network_id: networkId, concept_id: c2.id }).id;
+      const obj1 = getObjectByRef('concept', c1.id)!;
+      const obj2 = getObjectByRef('concept', c2.id)!;
+      n1Id = addNetworkNode({ network_id: networkId, object_id: obj1.id }).id;
+      n2Id = addNetworkNode({ network_id: networkId, object_id: obj2.id }).id;
     });
 
     it('should create edge with relation_type_id', () => {

@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
+import { createObject, deleteObjectByRef } from './objects';
 import type { Concept, ConceptCreate, ConceptUpdate, Archetype, ArchetypeField } from '@netior/shared/types';
 import { renderTemplate, serializeToAgent } from '../services/concept-content-sync';
 
@@ -41,6 +42,9 @@ export function createConcept(data: ConceptCreate): Concept {
     `INSERT INTO concepts (id, project_id, archetype_id, title, color, icon, content, agent_content, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(id, data.project_id, data.archetype_id ?? null, data.title, color, icon, content, null, now, now);
+
+  // Register object record
+  createObject('concept', 'project', data.project_id, id);
 
   // Generate initial agent_content after insert (needs full concept)
   const concept = db.prepare('SELECT * FROM concepts WHERE id = ?').get(id) as Concept;
@@ -87,7 +91,11 @@ export function updateConcept(id: string, data: ConceptUpdate): Concept | undefi
 export function deleteConcept(id: string): boolean {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM concepts WHERE id = ?').run(id);
-  return result.changes > 0;
+  if (result.changes > 0) {
+    deleteObjectByRef('concept', id);
+    return true;
+  }
+  return false;
 }
 
 export function searchConcepts(projectId: string, query: string): Concept[] {

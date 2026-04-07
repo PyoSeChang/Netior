@@ -1,4 +1,4 @@
-import { useNetworkStore, type NetworkNodeWithConcept, type EdgeWithRelationType } from './network-store';
+import { useNetworkStore, type NetworkNodeWithObject, type EdgeWithRelationType } from './network-store';
 import { useEditorStore } from './editor-store';
 import { useModuleStore } from './module-store';
 import { useConceptStore } from './concept-store';
@@ -18,7 +18,7 @@ import type {
 interface NetworkSnapshot {
   networks: Network[];
   currentNetwork: Network | null;
-  nodes: NetworkNodeWithConcept[];
+  nodes: NetworkNodeWithObject[];
   edges: EdgeWithRelationType[];
   breadcrumbs: NetworkBreadcrumbItem[];
   networkHistory: string[];

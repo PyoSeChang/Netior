@@ -10,5 +10,6 @@ export { editorPrefsService } from './editor-prefs-service';
 export { archetypeService } from './archetype-service';
 export { conceptPropertyService } from './concept-property-service';
 export { conceptContentService } from './concept-content-service';
+export { objectService } from './object-service';
 export { narreService } from './narre-service';
 export { unwrapIpc } from './ipc';

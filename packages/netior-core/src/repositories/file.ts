@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
+import { createObject, deleteObjectByRef } from './objects';
 import type { FileEntity, FileEntityCreate, FileEntityUpdate } from '@netior/shared/types';
 
 export function createFileEntity(data: FileEntityCreate): FileEntity {
@@ -10,6 +11,8 @@ export function createFileEntity(data: FileEntityCreate): FileEntity {
   db.prepare(
     `INSERT INTO files (id, project_id, path, type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(id, data.project_id, data.path, data.type, now, now);
+
+  createObject('file', 'project', data.project_id, id);
 
   return db.prepare('SELECT * FROM files WHERE id = ?').get(id) as FileEntity;
 }
@@ -66,5 +69,9 @@ export function updateFileMetadataField(id: string, key: string, value: unknown)
 export function deleteFileEntity(id: string): boolean {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM files WHERE id = ?').run(id);
-  return result.changes > 0;
+  if (result.changes > 0) {
+    deleteObjectByRef('file', id);
+    return true;
+  }
+  return false;
 }

@@ -7,8 +7,8 @@ import { NetworkControls } from './NetworkControls';
 import { useInteraction } from './InteractionLayer';
 import { EdgeContextMenu } from './EdgeContextMenu';
 import { FileNodeAddModal } from './FileNodeAddModal';
-import { useNetworkStore, type NetworkNodeWithConcept, type EdgeWithRelationType } from '../../stores/network-store';
-import { networkService, fileService } from '../../services';
+import { useNetworkStore, type NetworkNodeWithObject, type EdgeWithRelationType } from '../../stores/network-store';
+import { networkService, fileService, objectService } from '../../services';
 import { conceptPropertyService } from '../../services';
 import type { NodePosition, EdgeVisual } from '../../services/network-service';
 import { useConceptStore } from '../../stores/concept-store';
@@ -53,11 +53,12 @@ function buildVisualMap(visuals: EdgeVisual[]): Map<string, { color?: string; li
   return map;
 }
 
-function toRenderNodes(nodes: NetworkNodeWithConcept[], archetypes: Archetype[], posMap: Map<string, { x: number; y: number; width?: number; height?: number }>): RenderNode[] {
+function toRenderNodes(nodes: NetworkNodeWithObject[], archetypes: Archetype[], posMap: Map<string, { x: number; y: number; width?: number; height?: number }>): RenderNode[] {
   const archMap = new Map(archetypes.map((a) => [a.id, a]));
   return nodes.map((n) => {
     const pos = posMap.get(n.id);
-    if (n.concept) {
+    const objectType = n.object?.object_type;
+    if (objectType === 'concept' && n.concept) {
       const arch = n.concept.archetype_id ? archMap.get(n.concept.archetype_id) : undefined;
       return {
         id: n.id,
@@ -70,29 +71,44 @@ function toRenderNodes(nodes: NetworkNodeWithConcept[], archetypes: Archetype[],
         semanticTypeLabel: arch?.name || 'Concept',
         width: pos?.width ?? 160,
         height: pos?.height ?? 60,
-        conceptId: n.concept_id ?? undefined,
+        conceptId: n.object?.ref_id ?? undefined,
         canvasCount: 0,
         nodeType: 'concept' as const,
       };
     }
-    // file or dir node
-    const isFile = n.file?.type === 'file';
-    const filePath = n.file?.path;
-    const fileName = filePath?.replace(/\\/g, '/').split('/').pop() || '?';
+    if (objectType === 'file' && n.file) {
+      const isFile = n.file.type === 'file';
+      const filePath = n.file.path;
+      const fileName = filePath?.replace(/\\/g, '/').split('/').pop() || '?';
+      return {
+        id: n.id,
+        x: pos?.x ?? 0,
+        y: pos?.y ?? 0,
+        label: fileName,
+        icon: isFile ? `file:${fileName}` : `folder:${fileName}`,
+        semanticType: isFile ? 'file' : 'directory',
+        semanticTypeLabel: isFile ? 'File' : 'Directory',
+        width: pos?.width ?? 140,
+        height: pos?.height ?? 50,
+        canvasCount: 0,
+        nodeType: isFile ? 'file' as const : 'dir' as const,
+        fileId: n.object?.ref_id ?? undefined,
+        filePath: filePath ?? undefined,
+      };
+    }
+    // Generic object node (network, archetype, etc.)
     return {
       id: n.id,
       x: pos?.x ?? 0,
       y: pos?.y ?? 0,
-      label: fileName,
-      icon: isFile ? `file:${fileName}` : `folder:${fileName}`,
-      semanticType: isFile ? 'file' : 'directory',
-      semanticTypeLabel: isFile ? 'File' : 'Directory',
+      label: objectType ?? 'Unknown',
+      icon: '📦',
+      semanticType: objectType ?? 'unknown',
+      semanticTypeLabel: objectType ?? 'Unknown',
       width: pos?.width ?? 140,
       height: pos?.height ?? 50,
       canvasCount: 0,
-      nodeType: isFile ? 'file' as const : 'dir' as const,
-      fileId: n.file_id ?? undefined,
-      filePath: filePath ?? undefined,
+      nodeType: 'concept' as const,
     };
   });
 }
@@ -250,7 +266,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
   useEffect(() => {
     if (layoutType === 'freeform' || !currentNetwork) return;
-    const conceptIds = nodes.filter((n) => n.concept_id).map((n) => n.concept_id!);
+    const conceptIds = nodes.filter((n) => n.object?.object_type === 'concept').map((n) => n.object!.ref_id);
     if (conceptIds.length === 0) return;
 
     Promise.all(
@@ -539,7 +555,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         if (!rect) return;
         const worldX = (e.clientX - rect.left - panX) / zoom;
         const worldY = (e.clientY - rect.top - panY) / zoom;
-        // Create or find existing FileEntity, then add node with file_id
+        // Create or find existing FileEntity, then add node with object_id
         let fileEntity = await fileService.getByPath(projectId, data.path);
         if (!fileEntity) {
           fileEntity = await fileService.create({
@@ -548,9 +564,11 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
             type: data.type === 'file' ? 'file' : 'directory',
           });
         }
+        const fileObj = await objectService.getByRef('file', fileEntity.id);
+        if (!fileObj) return;
         const node = await addNode({
           network_id: currentNetwork.id,
-          file_id: fileEntity.id,
+          object_id: fileObj.id,
         });
         await setNodePosition(node.id, JSON.stringify({ x: worldX, y: worldY }));
       }}
@@ -628,10 +646,10 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           }}
           onNodeDoubleClick={(id) => {
             const node = nodes.find((n) => n.id === id);
-            if (node?.concept_id && node.concept) {
+            if (node?.object?.object_type === 'concept' && node.concept) {
               useEditorStore.getState().openTab({
                 type: 'concept',
-                targetId: node.concept_id,
+                targetId: node.object.ref_id,
                 title: node.concept.title,
               });
             }
@@ -640,11 +658,13 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
             if (type === 'node' && targetId) {
               const node = nodes.find((n) => n.id === targetId);
               if (node) {
+                const isConcept = node.object?.object_type === 'concept';
+                const isFile = node.object?.object_type === 'file';
                 setContextMenu({
                   x, y,
                   nodeId: targetId,
-                  conceptId: node.concept_id ?? undefined,
-                  fileId: node.file_id ?? undefined,
+                  conceptId: isConcept ? node.object?.ref_id : undefined,
+                  fileId: isFile ? node.object?.ref_id : undefined,
                   filePath: node.file?.path ?? undefined,
                 });
               }
@@ -703,10 +723,10 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         }}
         onNodeDoubleClick={(id) => {
           const node = nodes.find((n) => n.id === id);
-          if (node?.concept_id && node.concept) {
+          if (node?.object?.object_type === 'concept' && node.concept) {
             useEditorStore.getState().openTab({
               type: 'concept',
-              targetId: node.concept_id,
+              targetId: node.object.ref_id,
               title: node.concept.title,
             });
           } else if (node?.file?.path) {
@@ -722,12 +742,14 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           if (type === 'node' && targetId) {
             const node = nodes.find((n) => n.id === targetId);
             if (node) {
+              const isConcept = node.object?.object_type === 'concept';
+              const isFile = node.object?.object_type === 'file';
               setContextMenu({
                 x,
                 y,
                 nodeId: targetId,
-                conceptId: node.concept_id ?? undefined,
-                fileId: node.file_id ?? undefined,
+                conceptId: isConcept ? node.object?.ref_id : undefined,
+                fileId: isFile ? node.object?.ref_id : undefined,
                 filePath: node.file?.path ?? undefined,
               });
             }
@@ -752,7 +774,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           }}
           onCreateNetwork={async (conceptId) => {
             if (!currentNetwork) return;
-            const node = nodes.find((n) => n.concept_id === conceptId);
+            const node = nodes.find((n) => n.object?.object_type === 'concept' && n.object.ref_id === conceptId);
             const name = node?.concept ? `${node.concept.title} Network` : 'New Network';
             const network = await networkService.create({
               project_id: currentNetwork.project_id,
@@ -827,9 +849,11 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
               type: type === 'file' ? 'file' : 'directory',
             });
           }
+          const fileObj = await objectService.getByRef('file', fileEntity.id);
+          if (!fileObj) return;
           const node = await addNode({
             network_id: currentNetwork.id,
-            file_id: fileEntity.id,
+            object_id: fileObj.id,
           });
           await setNodePosition(node.id, JSON.stringify({ x: networkContextMenu?.worldX ?? 0, y: networkContextMenu?.worldY ?? 0 }));
           setFileNodeModalOpen(false);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import type { EditorTab } from '@netior/shared/types';
 import { Eye, Bot } from 'lucide-react';
-import { conceptPropertyService } from '../../services';
+import { conceptPropertyService, objectService } from '../../services';
 import { useConceptStore } from '../../stores/concept-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
 import { useEditorStore } from '../../stores/editor-store';
@@ -102,10 +102,13 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           }
           // Add node to network if draft has network info
           if (draft?.networkId) {
-            await addNode({
-              network_id: draft.networkId,
-              concept_id: newConcept.id,
-            });
+            const conceptObj = await objectService.getByRef('concept', newConcept.id);
+            if (conceptObj) {
+              await addNode({
+                network_id: draft.networkId,
+                object_id: conceptObj.id,
+              });
+            }
             await openNetwork(draft.networkId);
             const networkStore = useNetworkStore.getState();
             if (networkStore.currentNetwork?.project_id) {

@@ -12,6 +12,7 @@ import { registerConceptContentIpc } from './concept-content-ipc';
 import { registerPtyIpc } from './pty-ipc';
 import { registerConfigIpc } from './config-ipc';
 import { registerRelationTypeIpc } from './relation-type-ipc';
+import { registerObjectIpc } from './object-ipc';
 import { registerNarreIpc } from './narre-ipc';
 
 export function registerAllIpc(): void {
@@ -29,5 +30,6 @@ export function registerAllIpc(): void {
   registerPtyIpc();
   registerConfigIpc();
   registerRelationTypeIpc();
+  registerObjectIpc();
   registerNarreIpc();
 }
