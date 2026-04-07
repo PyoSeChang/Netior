@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { FileText, Link, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, FileText, Link, Plus, Trash2 } from 'lucide-react';
 import { useNetworkStore } from '../../stores/network-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useI18n } from '../../hooks/useI18n';
@@ -12,8 +12,10 @@ interface NodeContextMenuProps {
   conceptId?: string;
   fileId?: string;
   filePath?: string;
+  networkId?: string;
   mode: CanvasMode;
   onAddConnection?: (nodeId: string) => void;
+  onOpenNetwork?: (networkId: string) => void;
   onCreateNetwork?: (conceptId: string) => void;
   onClose: () => void;
 }
@@ -25,8 +27,10 @@ export function NodeContextMenu({
   conceptId,
   fileId,
   filePath,
+  networkId,
   mode,
   onAddConnection,
+  onOpenNetwork,
   onCreateNetwork,
   onClose,
 }: NodeContextMenuProps): JSX.Element {
@@ -40,6 +44,11 @@ export function NodeContextMenu({
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
+
+  const handleOpenNetwork = useCallback(() => {
+    if (networkId) onOpenNetwork?.(networkId);
+    onClose();
+  }, [onOpenNetwork, networkId, onClose]);
 
   const handleCreateNetwork = useCallback(() => {
     if (conceptId) onCreateNetwork?.(conceptId);
@@ -62,6 +71,17 @@ export function NodeContextMenu({
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {/* Portal: open network */}
+      {networkId && (
+        <button
+          className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
+          onClick={handleOpenNetwork}
+        >
+          <ExternalLink size={14} />
+          {t('network.openSubNetwork')}
+        </button>
+      )}
+
       {/* Network creation */}
       {conceptId && (
         <button

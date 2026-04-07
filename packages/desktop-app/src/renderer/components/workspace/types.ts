@@ -5,7 +5,7 @@ export interface Viewport {
   panY: number;
 }
 
-export type CanvasNodeType = 'concept' | 'file' | 'dir';
+export type CanvasNodeType = 'concept' | 'file' | 'dir' | 'network';
 
 /** Node data for rendering */
 export interface RenderNode {
@@ -24,6 +24,7 @@ export interface RenderNode {
   nodeType: CanvasNodeType;
   fileId?: string;
   filePath?: string;
+  networkId?: string;
 }
 
 /** Edge data for rendering */

@@ -13,6 +13,7 @@ import { migrate009 } from './migrations/009-file-entity';
 import { migrate010 } from './migrations/010-canvas-to-network';
 import { migrate011 } from './migrations/011-network-structure-and-layouts';
 import { migrate012 } from './migrations/012-objects-and-entity-nodes';
+import { migrate013 } from './migrations/013-contexts';
 
 let db: Database.Database | null = null;
 
@@ -34,6 +35,7 @@ const migrations: Migration[] = [
   { version: 10, migrate: migrate010 },
   { version: 11, migrate: migrate011 },
   { version: 12, migrate: migrate012 },
+  { version: 13, migrate: migrate013 },
 ];
 
 export function hasColumn(db: Database.Database, table: string, column: string): boolean {

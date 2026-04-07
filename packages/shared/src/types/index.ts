@@ -123,6 +123,37 @@ export interface PdfToc {
 }
 
 // ============================================
+// Context
+// ============================================
+
+export interface Context {
+  id: string;
+  network_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContextCreate {
+  network_id: string;
+  name: string;
+  description?: string;
+}
+
+export interface ContextUpdate {
+  name?: string;
+  description?: string | null;
+}
+
+export interface ContextMember {
+  id: string;
+  context_id: string;
+  member_type: 'object' | 'edge';
+  member_id: string;
+}
+
+// ============================================
 // Network Object
 // ============================================
 
@@ -452,7 +483,7 @@ export interface NetworkBreadcrumbItem {
 // ============================================
 
 export type EditorViewMode = 'float' | 'full' | 'side' | 'detached';
-export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'network' | 'narre' | 'fileMetadata';
+export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'network' | 'narre' | 'fileMetadata' | 'context';
 
 /** Identifies a window that hosts editor tabs (main window or detached window) */
 export interface EditorHostState {
@@ -662,7 +693,7 @@ export interface NarreSummaryCard {
 export type NarreCard = NarreProposalCard | NarrePermissionCard | NarreInterviewCard | NarreSummaryCard;
 
 export interface NetiorChangeEvent {
-  type: 'archetypes' | 'concepts' | 'relationTypes' | 'networks' | 'edges' | 'layouts';
+  type: 'archetypes' | 'concepts' | 'relationTypes' | 'networks' | 'edges' | 'layouts' | 'contexts';
   action: 'created' | 'updated' | 'deleted';
   id: string;
 }

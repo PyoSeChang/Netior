@@ -53,7 +53,7 @@ function buildVisualMap(visuals: EdgeVisual[]): Map<string, { color?: string; li
   return map;
 }
 
-function toRenderNodes(nodes: NetworkNodeWithObject[], archetypes: Archetype[], posMap: Map<string, { x: number; y: number; width?: number; height?: number }>): RenderNode[] {
+function toRenderNodes(nodes: NetworkNodeWithObject[], archetypes: Archetype[], posMap: Map<string, { x: number; y: number; width?: number; height?: number }>, networkNames: Map<string, string>): RenderNode[] {
   const archMap = new Map(archetypes.map((a) => [a.id, a]));
   return nodes.map((n) => {
     const pos = posMap.get(n.id);
@@ -96,7 +96,26 @@ function toRenderNodes(nodes: NetworkNodeWithObject[], archetypes: Archetype[], 
         filePath: filePath ?? undefined,
       };
     }
-    // Generic object node (network, archetype, etc.)
+    if (objectType === 'network') {
+      const refId = n.object?.ref_id;
+      const networkName = refId ? networkNames.get(refId) : undefined;
+      return {
+        id: n.id,
+        x: pos?.x ?? 0,
+        y: pos?.y ?? 0,
+        label: networkName ?? 'Network',
+        icon: '🌐',
+        shape: 'dashed' as string | undefined,
+        semanticType: 'network',
+        semanticTypeLabel: 'Network',
+        width: pos?.width ?? 160,
+        height: pos?.height ?? 60,
+        canvasCount: 0,
+        nodeType: 'network' as const,
+        networkId: refId ?? undefined,
+      };
+    }
+    // Generic object node (archetype, etc.)
     return {
       id: n.id,
       x: pos?.x ?? 0,
@@ -120,6 +139,7 @@ interface ContextMenuState {
   conceptId?: string;
   fileId?: string;
   filePath?: string;
+  networkId?: string;
 }
 
 function toRenderEdges(edges: EdgeWithRelationType[], visualMap: Map<string, { color?: string; lineStyle?: string; directed?: boolean }>): RenderEdge[] {
@@ -240,9 +260,11 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   }, []);
 
   const archetypes = useArchetypeStore((s) => s.archetypes);
+  const networks = useNetworkStore((s) => s.networks);
+  const networkNames = useMemo(() => new Map(networks.map((n) => [n.id, n.name])), [networks]);
   const posMap = useMemo(() => buildPositionMap(nodePositions), [nodePositions]);
   const visualMap = useMemo(() => buildVisualMap(edgeVisuals), [edgeVisuals]);
-  const renderNodes = useMemo(() => toRenderNodes(nodes, archetypes, posMap), [nodes, archetypes, posMap]);
+  const renderNodes = useMemo(() => toRenderNodes(nodes, archetypes, posMap, networkNames), [nodes, archetypes, posMap, networkNames]);
   const renderEdges = useMemo(() => toRenderEdges(edges, visualMap), [edges, visualMap]);
 
   // --- Layout plugin ---
@@ -646,7 +668,9 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           }}
           onNodeDoubleClick={(id) => {
             const node = nodes.find((n) => n.id === id);
-            if (node?.object?.object_type === 'concept' && node.concept) {
+            if (node?.object?.object_type === 'network') {
+              navigateToChild(node.object.ref_id);
+            } else if (node?.object?.object_type === 'concept' && node.concept) {
               useEditorStore.getState().openTab({
                 type: 'concept',
                 targetId: node.object.ref_id,
@@ -660,12 +684,14 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
               if (node) {
                 const isConcept = node.object?.object_type === 'concept';
                 const isFile = node.object?.object_type === 'file';
+                const isNetwork = node.object?.object_type === 'network';
                 setContextMenu({
                   x, y,
                   nodeId: targetId,
                   conceptId: isConcept ? node.object?.ref_id : undefined,
                   fileId: isFile ? node.object?.ref_id : undefined,
                   filePath: node.file?.path ?? undefined,
+                  networkId: isNetwork ? node.object?.ref_id : undefined,
                 });
               }
             }
@@ -723,7 +749,9 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         }}
         onNodeDoubleClick={(id) => {
           const node = nodes.find((n) => n.id === id);
-          if (node?.object?.object_type === 'concept' && node.concept) {
+          if (node?.object?.object_type === 'network') {
+            navigateToChild(node.object.ref_id);
+          } else if (node?.object?.object_type === 'concept' && node.concept) {
             useEditorStore.getState().openTab({
               type: 'concept',
               targetId: node.object.ref_id,
@@ -744,12 +772,14 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
             if (node) {
               const isConcept = node.object?.object_type === 'concept';
               const isFile = node.object?.object_type === 'file';
+              const isNetwork = node.object?.object_type === 'network';
               setContextMenu({
                 x,
                 y,
                 nodeId: targetId,
                 conceptId: isConcept ? node.object?.ref_id : undefined,
                 fileId: isFile ? node.object?.ref_id : undefined,
+                networkId: isNetwork ? node.object?.ref_id : undefined,
                 filePath: node.file?.path ?? undefined,
               });
             }
@@ -767,9 +797,14 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           conceptId={contextMenu.conceptId}
           fileId={contextMenu.fileId}
           filePath={contextMenu.filePath}
+          networkId={contextMenu.networkId}
           mode={canvasMode}
           onAddConnection={(nodeId) => {
             setEdgeLinkingState({ sourceNodeId: nodeId });
+            setContextMenu(null);
+          }}
+          onOpenNetwork={(networkId) => {
+            navigateToChild(networkId);
             setContextMenu(null);
           }}
           onCreateNetwork={async (conceptId) => {

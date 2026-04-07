@@ -9,6 +9,7 @@ import { EdgeEditor } from './EdgeEditor';
 import { NetworkEditor } from './NetworkEditor';
 import { NarreEditor } from './NarreEditor';
 import { FileMetadataEditor } from './FileMetadataEditor';
+import { ContextEditor } from './ContextEditor';
 import { useEditorStore, MAIN_HOST_ID } from '../../stores/editor-store';
 
 interface EditorContentProps {
@@ -69,6 +70,8 @@ export function EditorContent({ tab }: EditorContentProps): JSX.Element {
       content = <NarreEditor tab={tab} />; break;
     case 'fileMetadata':
       content = <FileMetadataEditor tab={tab} />; break;
+    case 'context':
+      content = <ContextEditor tab={tab} />; break;
     default:
       content = (
         <div className="flex h-full items-center justify-center text-xs text-muted">

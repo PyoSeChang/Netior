@@ -184,6 +184,13 @@
     "notFound": "Relation type not found",
     "noRelationTypes": "No relation types yet"
   },
+  "context": {
+    "title": "Context",
+    "name": "Name",
+    "description": "Description",
+    "newDefault": "New Context",
+    "notFound": "Context not found"
+  },
   "editor": {
     "unsaved": "Unsaved changes",
     "openExternal": "Open in External App",

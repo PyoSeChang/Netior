@@ -14,6 +14,7 @@ import { registerConfigIpc } from './config-ipc';
 import { registerRelationTypeIpc } from './relation-type-ipc';
 import { registerObjectIpc } from './object-ipc';
 import { registerNarreIpc } from './narre-ipc';
+import { registerContextIpc } from './context-ipc';
 
 export function registerAllIpc(): void {
   registerProjectIpc();
@@ -32,4 +33,5 @@ export function registerAllIpc(): void {
   registerRelationTypeIpc();
   registerObjectIpc();
   registerNarreIpc();
+  registerContextIpc();
 }

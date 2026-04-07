@@ -66,6 +66,16 @@ export const IPC_CHANNELS = {
   LAYOUT_EDGE_GET_VISUALS: 'layoutEdge:getVisuals',
   LAYOUT_EDGE_REMOVE: 'layoutEdge:remove',
 
+  // Context
+  CONTEXT_CREATE: 'context:create',
+  CONTEXT_LIST: 'context:list',
+  CONTEXT_GET: 'context:get',
+  CONTEXT_UPDATE: 'context:update',
+  CONTEXT_DELETE: 'context:delete',
+  CONTEXT_ADD_MEMBER: 'context:addMember',
+  CONTEXT_REMOVE_MEMBER: 'context:removeMember',
+  CONTEXT_GET_MEMBERS: 'context:getMembers',
+
   // Edge
   EDGE_CREATE: 'edge:create',
   EDGE_GET: 'edge:get',

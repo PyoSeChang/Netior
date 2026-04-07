@@ -89,6 +89,18 @@ const electronAPI = {
       ipcRenderer.invoke('edge:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('edge:delete', id),
   },
+  context: {
+    create: (data: Record<string, unknown>) => ipcRenderer.invoke('context:create', data),
+    list: (networkId: string) => ipcRenderer.invoke('context:list', networkId),
+    get: (id: string) => ipcRenderer.invoke('context:get', id),
+    update: (id: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('context:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('context:delete', id),
+    addMember: (contextId: string, memberType: string, memberId: string) =>
+      ipcRenderer.invoke('context:addMember', contextId, memberType, memberId),
+    removeMember: (id: string) => ipcRenderer.invoke('context:removeMember', id),
+    getMembers: (contextId: string) => ipcRenderer.invoke('context:getMembers', contextId),
+  },
   fileEntity: {
     create: (data: Record<string, unknown>) => ipcRenderer.invoke('file:create', data),
     get: (id: string) => ipcRenderer.invoke('file:get', id),

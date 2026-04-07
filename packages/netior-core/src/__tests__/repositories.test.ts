@@ -29,6 +29,7 @@ import { createModule, listModules, updateModule, deleteModule, addModuleDirecto
 import { getEditorPrefs, upsertEditorPrefs } from '../repositories/editor-prefs';
 import { createRelationType, listRelationTypes, getRelationType, updateRelationType, deleteRelationType } from '../repositories/relation-type';
 import { createObject, getObject, getObjectByRef, deleteObject, deleteObjectByRef } from '../repositories/objects';
+import { createContext, listContexts, getContext, updateContext, deleteContext, addContextMember, removeContextMember, getContextMembers } from '../repositories/context';
 
 describe('Repositories', () => {
   beforeEach(() => {
@@ -884,6 +885,104 @@ describe('Repositories', () => {
       const full = getNetworkFull(networkId)!;
       expect(full.edgeVisuals).toHaveLength(1);
       expect(JSON.parse(full.edgeVisuals[0].visualJson).color).toBe('#ff0000');
+    });
+  });
+
+  // --- Context ---
+
+  describe('Context', () => {
+    let projectId: string;
+    let networkId: string;
+
+    beforeEach(() => {
+      const project = createProject({ name: 'Test', root_dir: '/ctx-test' });
+      projectId = project.id;
+      networkId = createNetwork({ project_id: projectId, name: 'Network' }).id;
+    });
+
+    it('should create and list contexts', () => {
+      const ctx = createContext({ network_id: networkId, name: 'View A' });
+      expect(ctx.id).toBeDefined();
+      expect(ctx.name).toBe('View A');
+      expect(ctx.network_id).toBe(networkId);
+      expect(ctx.description).toBeNull();
+
+      const list = listContexts(networkId);
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe(ctx.id);
+    });
+
+    it('should get context by id', () => {
+      const ctx = createContext({ network_id: networkId, name: 'Ctx' });
+      expect(getContext(ctx.id)?.name).toBe('Ctx');
+      expect(getContext('nonexistent')).toBeUndefined();
+    });
+
+    it('should update context', () => {
+      const ctx = createContext({ network_id: networkId, name: 'Old' });
+      const updated = updateContext(ctx.id, { name: 'New', description: 'desc' });
+      expect(updated?.name).toBe('New');
+      expect(updated?.description).toBe('desc');
+    });
+
+    it('should delete context', () => {
+      const ctx = createContext({ network_id: networkId, name: 'Del' });
+      expect(deleteContext(ctx.id)).toBe(true);
+      expect(listContexts(networkId)).toHaveLength(0);
+    });
+
+    it('should create object record when creating context', () => {
+      const ctx = createContext({ network_id: networkId, name: 'ObjTest' });
+      const obj = getObjectByRef('context', ctx.id);
+      expect(obj).toBeDefined();
+      expect(obj!.object_type).toBe('context');
+      expect(obj!.scope).toBe('project');
+    });
+
+    it('should delete object record when deleting context', () => {
+      const ctx = createContext({ network_id: networkId, name: 'ObjDel' });
+      deleteContext(ctx.id);
+      expect(getObjectByRef('context', ctx.id)).toBeUndefined();
+    });
+
+    it('should add and get context members', () => {
+      const ctx = createContext({ network_id: networkId, name: 'Members' });
+      const member = addContextMember(ctx.id, 'object', 'some-object-id');
+      expect(member.context_id).toBe(ctx.id);
+      expect(member.member_type).toBe('object');
+      expect(member.member_id).toBe('some-object-id');
+
+      const members = getContextMembers(ctx.id);
+      expect(members).toHaveLength(1);
+      expect(members[0].id).toBe(member.id);
+    });
+
+    it('should remove context member', () => {
+      const ctx = createContext({ network_id: networkId, name: 'Rm' });
+      const member = addContextMember(ctx.id, 'edge', 'some-edge-id');
+      expect(removeContextMember(member.id)).toBe(true);
+      expect(getContextMembers(ctx.id)).toHaveLength(0);
+    });
+
+    it('should cascade delete members when context is deleted', () => {
+      const ctx = createContext({ network_id: networkId, name: 'Cascade' });
+      addContextMember(ctx.id, 'object', 'obj-1');
+      addContextMember(ctx.id, 'edge', 'edge-1');
+      deleteContext(ctx.id);
+      expect(getContextMembers(ctx.id)).toHaveLength(0);
+    });
+
+    it('should cascade delete contexts when network is deleted', () => {
+      createContext({ network_id: networkId, name: 'C1' });
+      createContext({ network_id: networkId, name: 'C2' });
+      deleteNetwork(networkId);
+      expect(listContexts(networkId)).toHaveLength(0);
+    });
+
+    it('should enforce unique context member', () => {
+      const ctx = createContext({ network_id: networkId, name: 'Unique' });
+      addContextMember(ctx.id, 'object', 'dup-id');
+      expect(() => addContextMember(ctx.id, 'object', 'dup-id')).toThrow();
     });
   });
 });
