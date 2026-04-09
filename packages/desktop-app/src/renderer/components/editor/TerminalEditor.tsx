@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { EditorTab } from '@netior/shared/types';
 import type { TranslationKey } from '@netior/shared/i18n';
 import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
@@ -60,6 +60,132 @@ interface TerminalLinkUnderlineSegment {
   x: number;
   y: number;
   width: number;
+}
+
+interface TerminalActionOverlayPosition {
+  key: string;
+  left: number;
+  top: number;
+  maxHeight: number;
+  ready: boolean;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getActionOverlayKey(overlay: TerminalActionOverlayState): string {
+  return [
+    overlay.x,
+    overlay.y,
+    overlay.selectedText,
+    overlay.url ?? '',
+    overlay.fileInput ?? '',
+    overlay.resolvedFile?.path ?? '',
+    overlay.resolving ? 'resolving' : 'resolved',
+  ].join('\n');
+}
+
+function setActionOverlayPosition(
+  update: React.Dispatch<React.SetStateAction<TerminalActionOverlayPosition | null>>,
+  next: TerminalActionOverlayPosition,
+): void {
+  update((current) => {
+    if (
+      current?.key === next.key
+      && current.left === next.left
+      && current.top === next.top
+      && current.maxHeight === next.maxHeight
+      && current.ready === next.ready
+    ) {
+      return current;
+    }
+    return next;
+  });
+}
+
+function useTerminalActionOverlayPosition(
+  overlayState: TerminalActionOverlayState | null,
+  overlayRef: React.RefObject<HTMLDivElement>,
+): TerminalActionOverlayPosition | null {
+  const [position, setPosition] = useState<TerminalActionOverlayPosition | null>(null);
+  const overlayKey = overlayState ? getActionOverlayKey(overlayState) : null;
+
+  const updatePosition = useCallback((ready: boolean) => {
+    const overlay = overlayRef.current;
+    if (!overlayState || !overlay || !overlayKey) {
+      setPosition(null);
+      return;
+    }
+
+    const gutter = 8;
+    const offset = 10;
+    const rect = overlay.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const overlayWidth = Math.max(1, rect.width);
+    const overlayHeight = Math.max(1, rect.height);
+    const spaceBelow = viewportHeight - gutter - overlayState.y - offset;
+    const spaceAbove = overlayState.y - gutter - offset;
+    const maxAvailableHeight = Math.max(1, Math.max(spaceBelow, spaceAbove));
+    const maxHeight = Math.max(1, Math.min(480, viewportHeight - gutter * 2, maxAvailableHeight));
+    const measuredHeight = Math.min(overlayHeight, maxHeight);
+
+    const left = clamp(
+      overlayState.x + offset,
+      gutter,
+      Math.max(gutter, viewportWidth - overlayWidth - gutter),
+    );
+
+    const shouldOpenAbove = overlayHeight > spaceBelow && spaceAbove > spaceBelow;
+    const preferredTop = shouldOpenAbove
+      ? overlayState.y - offset - measuredHeight
+      : overlayState.y + offset;
+    const top = clamp(
+      preferredTop,
+      gutter,
+      Math.max(gutter, viewportHeight - measuredHeight - gutter),
+    );
+
+    setActionOverlayPosition(setPosition, {
+      key: overlayKey,
+      left,
+      top,
+      maxHeight,
+      ready,
+    });
+  }, [overlayKey, overlayRef, overlayState]);
+
+  useLayoutEffect(() => {
+    if (!overlayState || !overlayKey) {
+      setPosition(null);
+      return undefined;
+    }
+
+    updatePosition(false);
+    const frame = window.requestAnimationFrame(() => updatePosition(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [overlayKey, overlayState, updatePosition]);
+
+  useEffect(() => {
+    if (!overlayState || !overlayKey) return undefined;
+
+    const handleViewportChange = (): void => updatePosition(true);
+    const resizeObserver = new ResizeObserver(handleViewportChange);
+    if (overlayRef.current) {
+      resizeObserver.observe(overlayRef.current);
+    }
+
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [overlayKey, overlayRef, overlayState, updatePosition]);
+
+  return position?.key === overlayKey ? position : null;
 }
 
 function getTerminalTextLinkKey(link: TerminalTextLink | undefined): string | null {
@@ -812,6 +938,8 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   ]);
 
   const paneOptions = actionOverlay?.resolvedFile ? getFileOpenPaneOptions(tab.id) : [];
+  const actionOverlayPosition = useTerminalActionOverlayPosition(actionOverlay, actionOverlayRefEl);
+  const actionOverlayReady = actionOverlayPosition?.ready ?? false;
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col bg-[var(--surface-editor)] p-2">
@@ -834,8 +962,13 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       {actionOverlay && (
         <div
           ref={actionOverlayRefEl}
-          className="fixed z-[10050] w-[min(560px,calc(100vw-24px))] rounded-md border border-default bg-surface-modal py-1 text-xs text-default shadow-lg"
-          style={{ left: actionOverlay.x + 10, top: actionOverlay.y + 10 }}
+          className="fixed z-[10050] w-[min(560px,calc(100vw-24px))] overflow-y-auto rounded-md border border-default bg-surface-modal py-1 text-xs text-default shadow-lg"
+          style={{
+            left: actionOverlayPosition?.left ?? actionOverlay.x + 10,
+            top: actionOverlayPosition?.top ?? actionOverlay.y + 10,
+            maxHeight: actionOverlayPosition?.maxHeight,
+            visibility: actionOverlayReady ? 'visible' : 'hidden',
+          }}
           onMouseDown={(event) => event.stopPropagation()}
           onMouseEnter={() => {
             overlayHoverRef.current = true;
