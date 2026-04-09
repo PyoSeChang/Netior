@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
+import { createObject, deleteObjectByRef } from './objects';
 import type {
   RelationType,
   RelationTypeCreate,
@@ -37,6 +38,8 @@ export function createRelationType(data: RelationTypeCreate): RelationType {
     now,
     now,
   );
+
+  createObject('relation_type', 'project', data.project_id, id);
 
   const row = db.prepare('SELECT * FROM relation_types WHERE id = ?').get(id) as RelationTypeRow;
   return toRelationType(row);
@@ -82,5 +85,9 @@ export function updateRelationType(id: string, data: RelationTypeUpdate): Relati
 export function deleteRelationType(id: string): boolean {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM relation_types WHERE id = ?').run(id);
-  return result.changes > 0;
+  if (result.changes > 0) {
+    deleteObjectByRef('relation_type', id);
+    return true;
+  }
+  return false;
 }

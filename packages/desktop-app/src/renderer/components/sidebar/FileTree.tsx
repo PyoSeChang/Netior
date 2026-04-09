@@ -35,6 +35,7 @@ interface VisibleTreeItem {
 
 interface DragPayload {
   paths: string[];
+  items?: Array<{ path: string; type: 'file' | 'directory' }>;
 }
 
 interface UndoDeleteAction {
@@ -900,10 +901,20 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
 
   const handleDragStart = useCallback((event: React.DragEvent, node: FileTreeNode) => {
     const dragPaths = selectedPaths.has(node.path) ? getActiveSelection() : [node.path];
-    const payload: DragPayload = { paths: dragPaths };
+    const nodesByPath = new Map(visibleItems.map((item) => [normalizePath(item.node.path), item.node]));
+    const payload: DragPayload = {
+      paths: dragPaths,
+      items: dragPaths.map((path) => {
+        const treeNode = nodesByPath.get(normalizePath(path));
+        return {
+          path,
+          type: treeNode?.type ?? 'file',
+        };
+      }),
+    };
     event.dataTransfer.setData('application/netior-node', JSON.stringify(payload));
     event.dataTransfer.effectAllowed = 'copyMove';
-  }, [getActiveSelection, selectedPaths]);
+  }, [getActiveSelection, selectedPaths, visibleItems]);
 
   const handleDragOver = useCallback((event: React.DragEvent, node: FileTreeNode) => {
     event.preventDefault();

@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
+import { createObject, deleteObjectByRef } from './objects';
 import type {
   Archetype,
   ArchetypeCreate,
@@ -73,6 +74,8 @@ export function createArchetype(data: ArchetypeCreate): Archetype {
     now,
   );
 
+  createObject('archetype', 'project', data.project_id, id);
+
   return db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as Archetype;
 }
 
@@ -114,7 +117,11 @@ export function updateArchetype(id: string, data: ArchetypeUpdate): Archetype | 
 export function deleteArchetype(id: string): boolean {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM archetypes WHERE id = ?').run(id);
-  return result.changes > 0;
+  if (result.changes > 0) {
+    deleteObjectByRef('archetype', id);
+    return true;
+  }
+  return false;
 }
 
 // ============================================

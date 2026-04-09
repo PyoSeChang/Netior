@@ -15,6 +15,10 @@ import { migrate009 } from '../migrations/009-file-entity';
 import { migrate010 } from '../migrations/010-canvas-to-network';
 import { migrate011 } from '../migrations/011-network-structure-and-layouts';
 import { migrate012 } from '../migrations/012-objects-and-entity-nodes';
+import { migrate013 } from '../migrations/013-contexts';
+import { migrate014 } from '../migrations/014-archetype-ref-field';
+import { migrate015 } from '../migrations/015-type-groups';
+import { migrate016 } from '../migrations/016-backfill-object-records';
 
 let testDb: Database.Database | null = null;
 
@@ -35,6 +39,10 @@ export function setupTestDb(): Database.Database {
   migrate010(testDb);
   migrate011(testDb);
   migrate012(testDb);
+  migrate013(testDb);
+  migrate014(testDb);
+  migrate015(testDb);
+  migrate016(testDb);
   testDb.pragma('foreign_keys = ON');
   return testDb;
 }

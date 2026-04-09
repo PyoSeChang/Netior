@@ -835,6 +835,21 @@ describe('Repositories', () => {
       expect(rt.description).toBeNull();
       expect(rt.color).toBeNull();
     });
+
+    it('should create object record when creating relation type', () => {
+      const rt = createRelationType({ project_id: projectId, name: 'Object relation' });
+      const obj = getObjectByRef('relation_type', rt.id);
+      expect(obj).toBeDefined();
+      expect(obj!.object_type).toBe('relation_type');
+      expect(obj!.project_id).toBe(projectId);
+    });
+
+    it('should delete object record when deleting relation type', () => {
+      const rt = createRelationType({ project_id: projectId, name: 'Object relation' });
+      expect(getObjectByRef('relation_type', rt.id)).toBeDefined();
+      expect(deleteRelationType(rt.id)).toBe(true);
+      expect(getObjectByRef('relation_type', rt.id)).toBeUndefined();
+    });
   });
 
   describe('NetworkNode with objects', () => {
@@ -1199,6 +1214,17 @@ describe('Repositories', () => {
       });
       expect(field.field_type).toBe('archetype_ref');
       expect(field.ref_archetype_id).toBe(b.id);
+    });
+
+    it('should create and delete object record for archetype', () => {
+      const a = createArchetype({ project_id: projectId, name: 'Placeable Type' });
+      const obj = getObjectByRef('archetype', a.id);
+      expect(obj).toBeDefined();
+      expect(obj!.object_type).toBe('archetype');
+      expect(obj!.project_id).toBe(projectId);
+
+      expect(deleteArchetype(a.id)).toBe(true);
+      expect(getObjectByRef('archetype', a.id)).toBeUndefined();
     });
 
     it('should reject self-referencing archetype_ref', () => {

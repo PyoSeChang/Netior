@@ -76,7 +76,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
   const loadFields = useArchetypeStore((s) => s.loadFields);
   const networks = useNetworkStore((s) => s.networks);
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
-  const { addNode, openNetwork, loadNetworks, updateNode } = useNetworkStore();
+  const { addNode, openNetwork, loadNetworks, updateNode, setNodePosition } = useNetworkStore();
   const [nodeOccurrences, setNodeOccurrences] = useState<ConceptNodeOccurrence[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState('');
   const [nodeMetadataDraft, setNodeMetadataDraft] = useState('');
@@ -137,10 +137,13 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           if (draft?.networkId) {
             const conceptObj = await objectService.getByRef('concept', newConcept.id);
             if (conceptObj) {
-              await addNode({
+              const node = await addNode({
                 network_id: draft.networkId,
                 object_id: conceptObj.id,
               });
+              const positionX = typeof draft.positionX === 'number' ? draft.positionX : 0;
+              const positionY = typeof draft.positionY === 'number' ? draft.positionY : 0;
+              await setNodePosition(node.id, JSON.stringify({ x: positionX, y: positionY }));
             }
             await openNetwork(draft.networkId);
             const networkStore = useNetworkStore.getState();

@@ -258,6 +258,48 @@ interface ContextMenuState {
   networkId?: string;
 }
 
+interface FileDropItem {
+  path: string;
+  type: 'file' | 'dir';
+}
+
+function parseFileDropItems(raw: string): FileDropItem[] {
+  try {
+    const payload = JSON.parse(raw) as {
+      type?: 'file' | 'dir' | 'directory';
+      path?: string;
+      paths?: string[];
+      items?: Array<{ path: string; type?: 'file' | 'dir' | 'directory' }>;
+    };
+
+    if (Array.isArray(payload.items) && payload.items.length > 0) {
+      return payload.items
+        .filter((item): item is { path: string; type?: 'file' | 'dir' | 'directory' } => typeof item.path === 'string' && item.path.length > 0)
+        .map((item) => ({
+          path: item.path,
+          type: item.type === 'directory' || item.type === 'dir' ? 'dir' : 'file',
+        }));
+    }
+
+    if (typeof payload.path === 'string' && payload.path.length > 0) {
+      return [{
+        path: payload.path,
+        type: payload.type === 'directory' || payload.type === 'dir' ? 'dir' : 'file',
+      }];
+    }
+
+    if (Array.isArray(payload.paths)) {
+      return payload.paths
+        .filter((path): path is string => typeof path === 'string' && path.length > 0)
+        .map((path) => ({ path, type: 'file' }));
+    }
+  } catch (err) {
+    console.error('[NetworkWorkspace] Invalid file drop payload:', err);
+  }
+
+  return [];
+}
+
 function toRenderEdges(edges: EdgeWithRelationType[], visualMap: Map<string, { color?: string; lineStyle?: string; directed?: boolean }>): RenderEdge[] {
   return edges.map((e) => {
     const vis = visualMap.get(e.id);
@@ -298,6 +340,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   const [edgeLinkingState, setEdgeLinkingState] = useState<{ sourceNodeId: string } | null>(null);
   const [fileNodeModalOpen, setFileNodeModalOpen] = useState(false);
+  const [fileInsertPosition, setFileInsertPosition] = useState<{ x: number; y: number } | null>(null);
   const [objectPickerOpen, setObjectPickerOpen] = useState(false);
   const [objectInsertPosition, setObjectInsertPosition] = useState<{ x: number; y: number } | null>(null);
 
@@ -773,6 +816,35 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     useNetworkObjectSelectionStore.getState().clearSelection();
   }, []);
 
+  const addFileNodeAtPosition = useCallback(async (
+    path: string,
+    type: 'file' | 'dir',
+    position: { x: number; y: number },
+  ) => {
+    if (!currentNetwork) return;
+
+    let fileEntity = await fileService.getByPath(projectId, path);
+    if (!fileEntity) {
+      fileEntity = await fileService.create({
+        project_id: projectId,
+        path,
+        type: type === 'file' ? 'file' : 'directory',
+      });
+    }
+
+    const fileObj = await objectService.getByRef('file', fileEntity.id);
+    if (!fileObj) {
+      console.error('[NetworkWorkspace] File object record was not found:', { fileId: fileEntity.id, path });
+      return;
+    }
+
+    const node = await addNode({
+      network_id: currentNetwork.id,
+      object_id: fileObj.id,
+    });
+    await setNodePosition(node.id, JSON.stringify(position));
+  }, [addNode, currentNetwork, projectId, setNodePosition]);
+
   const handleSelectionBox = useCallback((nodeIds: string[]) => {
     setSelectedIds(new Set(nodeIds));
     syncSelectionFromNodeIds(nodeIds);
@@ -899,27 +971,18 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         const raw = e.dataTransfer.getData('application/netior-node');
         if (!raw || !currentNetwork) return;
         e.preventDefault();
-        const data = JSON.parse(raw) as { type: 'file' | 'dir'; path: string };
+        const dropItems = parseFileDropItems(raw);
+        if (dropItems.length === 0) return;
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
         const worldX = (e.clientX - rect.left - panX) / zoom;
         const worldY = (e.clientY - rect.top - panY) / zoom;
-        // Create or find existing FileEntity, then add node with object_id
-        let fileEntity = await fileService.getByPath(projectId, data.path);
-        if (!fileEntity) {
-          fileEntity = await fileService.create({
-            project_id: projectId,
-            path: data.path,
-            type: data.type === 'file' ? 'file' : 'directory',
+        for (const [index, item] of dropItems.entries()) {
+          await addFileNodeAtPosition(item.path, item.type, {
+            x: worldX + index * 32,
+            y: worldY + index * 32,
           });
         }
-        const fileObj = await objectService.getByRef('file', fileEntity.id);
-        if (!fileObj) return;
-        const node = await addNode({
-          network_id: currentNetwork.id,
-          object_id: fileObj.id,
-        });
-        await setNodePosition(node.id, JSON.stringify({ x: worldX, y: worldY }));
       }}
     >
       <NetworkControls
@@ -1205,6 +1268,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
             setObjectPickerOpen(true);
           }}
           onAddFileNode={() => {
+            setFileInsertPosition({ x: networkContextMenu.worldX, y: networkContextMenu.worldY });
             setFileNodeModalOpen(true);
             setNetworkContextMenu(null);
           }}
@@ -1214,25 +1278,14 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
       <FileNodeAddModal
         open={fileNodeModalOpen}
-        onClose={() => setFileNodeModalOpen(false)}
-        onSelect={async (path, type) => {
-          if (!currentNetwork) return;
-          let fileEntity = await fileService.getByPath(projectId, path);
-          if (!fileEntity) {
-            fileEntity = await fileService.create({
-              project_id: projectId,
-              path,
-              type: type === 'file' ? 'file' : 'directory',
-            });
-          }
-          const fileObj = await objectService.getByRef('file', fileEntity.id);
-          if (!fileObj) return;
-          const node = await addNode({
-            network_id: currentNetwork.id,
-            object_id: fileObj.id,
-          });
-          await setNodePosition(node.id, JSON.stringify({ x: networkContextMenu?.worldX ?? 0, y: networkContextMenu?.worldY ?? 0 }));
+        onClose={() => {
           setFileNodeModalOpen(false);
+          setFileInsertPosition(null);
+        }}
+        onSelect={async (path, type) => {
+          await addFileNodeAtPosition(path, type, fileInsertPosition ?? { x: 0, y: 0 });
+          setFileNodeModalOpen(false);
+          setFileInsertPosition(null);
         }}
       />
 
