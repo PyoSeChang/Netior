@@ -27,11 +27,11 @@ packages:
     impact: local
     contracts: []
   desktop-app:
-    version: "0.8.0"
-    type: minor
-    summary: "에디터 버그 수정, 목차 상태 저장, 단축키 추가, 뷰모드 스위치 리팩토링"
-    impact: local
-    contracts: []
+    version: "0.8.1"
+    type: patch
+    summary: "Network/Object UI 전환, Archetype 필드 합성, 관계형 속성 편집 흐름 보강"
+    impact: cross-package
+    contracts: [ipc, schema]
   narre-eval:
     version: "1.0.0"
     type: patch
