@@ -6,7 +6,6 @@ import { Sidebar } from '../sidebar/Sidebar';
 import { NetworkWorkspace } from './NetworkWorkspace';
 import { FloatWindowLayer } from '../editor/modes/FloatWindowLayer';
 import { FullModeEditor } from '../editor/modes/FullModeEditor';
-import { EditorDockBar } from '../editor/EditorDockBar';
 import { EditorViewModeSwitch } from '../editor/EditorViewModeSwitch';
 import { EditorContent } from '../editor/EditorContent';
 import { EditorTabStrip } from '../editor/EditorTabStrip';
@@ -411,7 +410,6 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
             </>
           )}
         </div>
-        <EditorDockBar />
       </div>
 
       <FloatWindowLayer />

@@ -14,6 +14,7 @@ import { WindowControls } from './components/ui/WindowControls';
 import { MissingFilesDialog } from './components/home/MissingFilesDialog';
 import { useGlobalShortcuts } from './shortcuts/useGlobalShortcuts';
 import { useNetiorSync } from './hooks/useNetiorSync';
+import { MinimizedEditorTabs } from './components/editor/MinimizedEditorTabs';
 
 function NetiorTitleMark(): JSX.Element {
   return (
@@ -164,11 +165,11 @@ function TitleBar(): JSX.Element {
 
   return (
     <div
-      className="relative z-20 flex h-9 shrink-0 items-center border-b border-subtle pl-4"
+      className="relative z-20 grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-subtle pl-4"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
       {/* Left: app name + project */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex min-w-0 items-center gap-2">
         <div className="flex items-center gap-2 text-secondary">
           <NetiorTitleMark />
           <span className="text-sm font-medium text-secondary">Netior</span>
@@ -195,12 +196,15 @@ function TitleBar(): JSX.Element {
       </div>
 
       {/* Center: breadcrumb */}
-      <div className="flex-1 flex justify-center">
+      <div className="flex min-w-0 justify-center px-3">
         {currentProject && <TitleBarBreadcrumb />}
       </div>
 
-      {/* Right: window controls */}
-      <WindowControls />
+      {/* Right: minimized tabs + window controls */}
+      <div className="flex min-w-0 justify-end">
+        <MinimizedEditorTabs />
+        <WindowControls />
+      </div>
     </div>
   );
 }

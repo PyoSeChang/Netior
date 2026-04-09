@@ -91,6 +91,17 @@ const DEFAULT_FLOAT_RECT = { x: 120, y: 80, width: 600, height: 450 };
 
 let floatSaveTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
+interface MinimizedRestoreHint {
+  mode: 'side' | 'full';
+  layoutBeforeMinimize: SplitNode;
+  layoutAfterMinimizeSignature: string;
+  leafPath: number[];
+  activeTabId: string | null;
+  siblingTabIds: string[];
+}
+
+const minimizedRestoreHints = new Map<string, MinimizedRestoreHint>();
+
 function debouncedSavePrefs(targetId: string, data: Record<string, unknown>) {
   if (floatSaveTimers[targetId]) {
     clearTimeout(floatSaveTimers[targetId]);
@@ -131,6 +142,26 @@ export function containsTab(node: SplitNode, tabId: string): boolean {
 function findLeafWithTab(node: SplitNode, tabId: string): SplitLeaf | null {
   if (node.type === 'leaf') return node.tabIds.includes(tabId) ? node : null;
   return findLeafWithTab(node.children[0], tabId) || findLeafWithTab(node.children[1], tabId);
+}
+
+function findLeafPathWithTab(node: SplitNode, tabId: string, path: number[] = []): number[] | null {
+  if (node.type === 'leaf') return node.tabIds.includes(tabId) ? path : null;
+  return findLeafPathWithTab(node.children[0], tabId, [...path, 0])
+    ?? findLeafPathWithTab(node.children[1], tabId, [...path, 1]);
+}
+
+function getNodeAtPath(node: SplitNode, path: number[]): SplitNode | null {
+  let current: SplitNode = node;
+  for (const index of path) {
+    if (current.type !== 'branch') return null;
+    current = current.children[index];
+  }
+  return current;
+}
+
+function getLeafAtPath(node: SplitNode, path: number[]): SplitLeaf | null {
+  const current = getNodeAtPath(node, path);
+  return current?.type === 'leaf' ? current : null;
 }
 
 function getFirstLeaf(node: SplitNode): SplitLeaf {
@@ -284,6 +315,53 @@ function getLayoutForMode(state: EditorStore, mode: EditorViewMode): SplitNode |
 
 function setLayoutForMode(mode: EditorViewMode, layout: SplitNode | null): Partial<EditorStore> {
   return mode === 'side' ? { sideLayout: layout } : { fullLayout: layout };
+}
+
+function getLayoutSignature(node: SplitNode | null): string {
+  if (!node) return 'empty';
+  if (node.type === 'leaf') return `leaf:${node.tabIds.join(',')}`;
+  return `branch:${node.direction}(${getLayoutSignature(node.children[0])})(${getLayoutSignature(node.children[1])})`;
+}
+
+function captureMinimizedRestoreHint(
+  layoutBeforeMinimize: SplitNode,
+  layoutAfterMinimize: SplitNode | null,
+  tabId: string,
+  mode: 'side' | 'full',
+): void {
+  const leafPath = findLeafPathWithTab(layoutBeforeMinimize, tabId);
+  const leaf = leafPath ? getLeafAtPath(layoutBeforeMinimize, leafPath) : findLeafWithTab(layoutBeforeMinimize, tabId);
+  if (!leaf) return;
+
+  minimizedRestoreHints.set(tabId, {
+    mode,
+    layoutBeforeMinimize,
+    layoutAfterMinimizeSignature: getLayoutSignature(layoutAfterMinimize),
+    leafPath: leafPath ?? [],
+    activeTabId: leaf.activeTabId === tabId ? null : leaf.activeTabId,
+    siblingTabIds: leaf.tabIds.filter((id) => id !== tabId),
+  });
+}
+
+function getMinimizedRestoreTarget(layout: SplitNode, tabId: string, focusedTabId: string | null): string {
+  const hint = minimizedRestoreHints.get(tabId);
+
+  if (hint) {
+    const candidates = [
+      hint.activeTabId,
+      ...hint.siblingTabIds,
+    ].filter((id): id is string => id != null);
+
+    for (const candidate of candidates) {
+      if (containsTab(layout, candidate)) return candidate;
+    }
+
+    const hintedLeaf = getLeafAtPath(layout, hint.leafPath);
+    if (hintedLeaf) return hintedLeaf.activeTabId;
+  }
+
+  const focusedLeaf = focusedTabId ? findLeafWithTab(layout, focusedTabId) : null;
+  return focusedLeaf?.activeTabId ?? getFirstLeaf(layout).activeTabId;
 }
 
 /** Remove tabId from the layout of oldMode (if present) and report the next pane-local active tab */
@@ -481,6 +559,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const hostId = tab.hostId;
 
     if (hostId === MAIN_HOST_ID) {
+      minimizedRestoreHints.delete(tabId);
+
       // Remove from main host layout trees
       const layoutUpdate: Partial<EditorStore> = {};
       let paneFallbackTabId: string | null = null;
@@ -665,33 +745,51 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const newMinimized = !tab.isMinimized;
 
     if (mode === 'side' || mode === 'full') {
-      if (!newMinimized) {
+      if (newMinimized) {
         const layout = getLayoutForMode(get(), mode);
-        let layoutUpdate: Partial<EditorStore> = {};
-        const tabsInMode = get().tabs.filter((t) => t.viewMode === mode && t.isMinimized && t.hostId === MAIN_HOST_ID);
-        let currentLayout = layout;
-        for (const t of tabsInMode) {
-          if (currentLayout && !containsTab(currentLayout, t.id)) {
-            const firstLeaf = getFirstLeaf(currentLayout);
-            currentLayout = addTabToLeaf(currentLayout, firstLeaf.activeTabId, t.id);
-          } else if (!currentLayout) {
-            currentLayout = { type: 'leaf', tabIds: [t.id], activeTabId: t.id };
-          }
+        const result = layout && containsTab(layout, tabId)
+          ? removeTabFromTree(layout, tabId)
+          : { tree: layout, fallbackTabId: null };
+        if (layout && containsTab(layout, tabId)) {
+          captureMinimizedRestoreHint(layout, result.tree, tabId, mode);
         }
-        if (currentLayout !== layout) {
-          layoutUpdate = setLayoutForMode(mode, currentLayout);
-        }
+
+        const layoutUpdate = result.tree !== layout ? setLayoutForMode(mode, result.tree) : {};
+        const fallbackTabId = result.fallbackTabId;
+
         set((s) => ({
           ...layoutUpdate,
+          activeTabId: s.activeTabId === tabId ? (fallbackTabId ?? null) : s.activeTabId,
           tabs: s.tabs.map((t) =>
-            t.viewMode === mode && t.hostId === MAIN_HOST_ID ? { ...t, isMinimized: false } : t,
+            t.id === tabId ? { ...t, isMinimized: true } : t,
           ),
         }));
       } else {
+        const layout = getLayoutForMode(get(), mode);
+        let restoredLayout = layout;
+        const hint = minimizedRestoreHints.get(tabId);
+
+        if (
+          hint?.mode === mode
+          && getLayoutSignature(restoredLayout) === hint.layoutAfterMinimizeSignature
+        ) {
+          restoredLayout = setActiveInLeaf(hint.layoutBeforeMinimize, tabId);
+        } else if (restoredLayout && !containsTab(restoredLayout, tabId)) {
+          const targetLeafTabId = getMinimizedRestoreTarget(restoredLayout, tabId, get().activeTabId);
+          restoredLayout = addTabToLeaf(restoredLayout, targetLeafTabId, tabId);
+        } else if (!restoredLayout) {
+          restoredLayout = { type: 'leaf', tabIds: [tabId], activeTabId: tabId };
+        }
+
+        const layoutUpdate = restoredLayout !== layout ? setLayoutForMode(mode, restoredLayout) : {};
+        minimizedRestoreHints.delete(tabId);
+
         set((s) => ({
+          ...layoutUpdate,
           tabs: s.tabs.map((t) =>
-            t.viewMode === mode && t.hostId === MAIN_HOST_ID ? { ...t, isMinimized: true } : t,
+            t.id === tabId ? { ...t, isMinimized: false } : t,
           ),
+          activeTabId: tabId,
         }));
       }
     } else {
@@ -709,16 +807,21 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     const mode = tab.viewMode;
     let layoutUpdate: Partial<EditorStore> = {};
+    let fallbackTabId: string | null = null;
 
     if (mode === 'side' || mode === 'full') {
       const layout = getLayoutForMode(get(), mode);
       if (layout && containsTab(layout, tabId)) {
-        layoutUpdate = setLayoutForMode(mode, removeTabFromTree(layout, tabId).tree);
+        const result = removeTabFromTree(layout, tabId);
+        captureMinimizedRestoreHint(layout, result.tree, tabId, mode);
+        layoutUpdate = setLayoutForMode(mode, result.tree);
+        fallbackTabId = result.fallbackTabId;
       }
     }
 
     set((s) => ({
       ...layoutUpdate,
+      activeTabId: s.activeTabId === tabId ? fallbackTabId : s.activeTabId,
       tabs: s.tabs.map((t) =>
         t.id === tabId ? { ...t, isMinimized: true } : t,
       ),
@@ -1129,6 +1232,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   clear: () => {
     Object.values(floatSaveTimers).forEach(clearTimeout);
     floatSaveTimers = {};
+    minimizedRestoreHints.clear();
     set({ tabs: [], activeTabId: null, sideLayout: null, fullLayout: null, hosts: {}, focusedHostId: MAIN_HOST_ID });
   },
 }));

@@ -392,3 +392,65 @@ describe('cyclePane', () => {
     expect(useEditorStore.getState().activeTabId).toBe('f');
   });
 });
+
+describe('minimize / restore tabs', () => {
+  beforeEach(() => {
+    useEditorStore.getState().clear();
+  });
+
+  it('minimizes one tab without minimizing the whole side layout', () => {
+    useEditorStore.setState({
+      tabs: makeTabs('a', 'b', 'c'),
+      activeTabId: 'a',
+      sideLayout: makeBranch(makeLeaf(['a'], 'a'), makeLeaf(['b', 'c'], 'b')),
+    });
+
+    useEditorStore.getState().toggleMinimize('b');
+    const state = useEditorStore.getState();
+
+    expect(state.tabs.find((tab) => tab.id === 'b')?.isMinimized).toBe(true);
+    expect(state.tabs.find((tab) => tab.id === 'a')?.isMinimized).toBe(false);
+    expect(state.tabs.find((tab) => tab.id === 'c')?.isMinimized).toBe(false);
+    expect(containsTab(state.sideLayout!, 'b')).toBe(false);
+    expect(containsTab(state.sideLayout!, 'c')).toBe(true);
+  });
+
+  it('restores a minimized tab next to its original pane sibling', () => {
+    useEditorStore.setState({
+      tabs: makeTabs('a', 'b', 'c'),
+      activeTabId: 'a',
+      sideLayout: makeBranch(makeLeaf(['a'], 'a'), makeLeaf(['b', 'c'], 'b')),
+    });
+
+    useEditorStore.getState().toggleMinimize('b');
+    useEditorStore.getState().setActiveTab('a');
+    useEditorStore.getState().toggleMinimize('b');
+
+    const state = useEditorStore.getState();
+    const rightLeaf = state.sideLayout!.type === 'branch' ? state.sideLayout!.children[1] : null;
+
+    expect(state.tabs.find((tab) => tab.id === 'b')?.isMinimized).toBe(false);
+    expect(rightLeaf?.type).toBe('leaf');
+    expect(rightLeaf?.type === 'leaf' ? rightLeaf.tabIds : []).toEqual(['b', 'c']);
+    expect(state.activeTabId).toBe('b');
+  });
+
+  it('restores the split pane when the layout did not change after minimize', () => {
+    useEditorStore.setState({
+      tabs: makeTabs('a', 'b'),
+      activeTabId: 'b',
+      sideLayout: makeBranch(makeLeaf(['a'], 'a'), makeLeaf(['b'], 'b')),
+    });
+
+    useEditorStore.getState().toggleMinimize('b');
+    useEditorStore.getState().toggleMinimize('b');
+
+    const state = useEditorStore.getState();
+
+    expect(state.sideLayout?.type).toBe('branch');
+    const rightLeaf = state.sideLayout?.type === 'branch' ? state.sideLayout.children[1] : null;
+    expect(rightLeaf?.type).toBe('leaf');
+    expect(rightLeaf?.type === 'leaf' ? rightLeaf.tabIds : []).toEqual(['b']);
+    expect(state.activeTabId).toBe('b');
+  });
+});

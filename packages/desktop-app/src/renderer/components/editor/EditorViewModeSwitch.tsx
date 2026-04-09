@@ -24,7 +24,7 @@ export function EditorViewModeSwitch({
   onModeChange,
   onMinimize,
 }: EditorViewModeSwitchProps): JSX.Element {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const preferredDockMode = useEditorStore((s) => {
     const mainTabs = s.tabs.filter((tab) => tab.hostId === MAIN_HOST_ID);
     const hasFull = mainTabs.some((tab) => tab.viewMode === 'full' && !tab.isMinimized);
@@ -40,14 +40,11 @@ export function EditorViewModeSwitch({
           ? { mode: 'full', icon: Maximize, titleKey: 'editor.modeFull' }
           : { mode: 'side', icon: PanelRight, titleKey: 'editor.modeSide' };
 
-  const tabButtons: ModeButtonConfig[] = [
+  const tabModeButtons: ModeButtonConfig[] = [
     { mode: 'float', icon: Maximize2, titleKey: 'editor.modeFloat', isActive: currentMode === 'float' },
     { mode: 'detached', icon: ExternalLink, titleKey: 'editor.modeDetached', isActive: currentMode === 'detached' },
   ];
-  const paneButtons: ModeButtonConfig[] = [
-    { ...layoutToggle, isActive: currentMode === 'side' || currentMode === 'full' },
-  ];
-  const minimizeTooltip = locale === 'ko' ? '이 편집영역 최소화' : 'Minimize This Pane';
+  const layoutButton: ModeButtonConfig = { ...layoutToggle, isActive: currentMode === 'side' || currentMode === 'full' };
 
   const renderButton = ({ mode, icon: Icon, titleKey, isActive }: ModeButtonConfig, key: string) => (
     <Tooltip key={key} content={t(titleKey)} position="bottom">
@@ -65,24 +62,19 @@ export function EditorViewModeSwitch({
   );
 
   return (
-    <div className="flex items-center gap-1">
-      <div className="flex items-center gap-0.5">
-        {tabButtons.map((button) => renderButton(button, `tab:${button.mode}`))}
-      </div>
-      <div className="mx-0.5 h-4 border-l border-subtle" />
-      <div className="flex items-center gap-0.5">
-        {paneButtons.map((button) => renderButton(button, `pane:${button.mode}`))}
-        {onMinimize && (
-          <Tooltip content={minimizeTooltip} position="bottom">
-            <button
-              className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
-              onClick={onMinimize}
-            >
-              <Minus size={14} />
-            </button>
-          </Tooltip>
-        )}
-      </div>
+    <div className="flex items-center gap-0.5">
+      {tabModeButtons.map((button) => renderButton(button, `tab:${button.mode}`))}
+      {onMinimize && (
+        <Tooltip content={t('common.minimizeTab')} position="bottom">
+          <button
+            className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
+            onClick={onMinimize}
+          >
+            <Minus size={14} />
+          </button>
+        </Tooltip>
+      )}
+      {renderButton(layoutButton, `layout:${layoutButton.mode}`)}
     </div>
   );
 }
