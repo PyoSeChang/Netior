@@ -12,7 +12,20 @@ function getWindowsBuildNumber(): number | null {
   return Number.isFinite(buildNumber) ? buildNumber : null;
 }
 
+function getWorktreeLabel(): string | null {
+  const normalized = process.cwd().replace(/\\/g, '/');
+  const marker = '/.claude/worktrees/';
+  const markerIndex = normalized.indexOf(marker);
+  if (markerIndex === -1) return null;
+
+  const label = normalized.slice(markerIndex + marker.length).split('/').filter(Boolean).join('/');
+  return label || null;
+}
+
 const electronAPI = {
+  app: {
+    worktreeLabel: getWorktreeLabel(),
+  },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
     maximize: () => ipcRenderer.send('window:maximize'),

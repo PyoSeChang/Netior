@@ -160,6 +160,7 @@ function ProjectSwitcher(): JSX.Element {
 
 function TitleBar(): JSX.Element {
   const { currentProject } = useProjectStore();
+  const worktreeLabel = import.meta.env.DEV ? window.electron.app.worktreeLabel : null;
 
   return (
     <div
@@ -174,6 +175,14 @@ function TitleBar(): JSX.Element {
           {import.meta.env.DEV && (
             <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
               DEV
+            </span>
+          )}
+          {worktreeLabel && (
+            <span
+              className="max-w-[180px] truncate rounded border border-default bg-surface-card px-1.5 py-0.5 text-[10px] font-medium leading-none text-secondary"
+              title={`worktree: ${worktreeLabel}`}
+            >
+              {worktreeLabel}
             </span>
           )}
         </div>
