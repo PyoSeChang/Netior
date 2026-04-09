@@ -142,6 +142,7 @@ export function ArchetypeRefPicker({
             top: dropdownPos.top,
             left: dropdownPos.left,
             width: dropdownPos.width,
+            maxHeight: dropdownPos.maxHeight,
             visibility: dropdownPos.ready ? 'visible' : 'hidden',
             zIndex: 10001,
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',

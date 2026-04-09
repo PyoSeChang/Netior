@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import type { EditorTab, Network, NetworkNode, NetworkNodeUpdate, NodeType } from '@netior/shared/types';
-import { Eye, Bot } from 'lucide-react';
 import { conceptPropertyService, networkService, objectService } from '../../services';
 import { useConceptStore } from '../../stores/concept-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
@@ -22,8 +21,6 @@ import {
   NetworkObjectEditorSection,
   NetworkObjectMetadataList,
 } from './NetworkObjectEditorShell';
-
-type ConceptViewMode = 'human' | 'agent';
 
 interface ConceptEditorProps {
   tab: EditorTab;
@@ -87,8 +84,6 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
   const [isSavingNode, setIsSavingNode] = useState(false);
 
   const concept = isDraft ? undefined : concepts.find((c) => c.id === tab.targetId);
-  const [viewMode, setViewMode] = useState<ConceptViewMode>('human');
-
   useEffect(() => {
     if (!isDraft && !concept && currentProject) {
       loadByProject(currentProject.id);
@@ -315,53 +310,17 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     session.setState((prev) => ({ ...prev, ...patch }));
   };
 
-  const headerTitle = session.state.title || tab.title || t('concept.defaultTitle');
-  const headerSubtitle = isDraft ? t('concept.create') : t('editorShell.networkObject' as never);
-
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {isDraft ? (
-        <div className="flex shrink-0 items-center justify-between border-b border-subtle bg-surface-panel px-3 py-1.5">
-          <span className="text-xs text-muted">{t('concept.create') ?? 'New Concept'}</span>
-        </div>
-      ) : (
-        <div className="flex shrink-0 items-center border-b border-subtle bg-surface-panel px-2">
-          <button
-            className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors ${
-              viewMode === 'human' ? 'text-accent border-b-2 border-accent' : 'text-muted hover:text-default'
-            }`}
-            onClick={() => setViewMode('human')}
-          >
-            <Eye size={12} />
-            Human
-          </button>
-          <button
-            className={`flex items-center gap-1 px-3 py-1.5 text-xs transition-colors ${
-              viewMode === 'agent' ? 'text-accent border-b-2 border-accent' : 'text-muted hover:text-default'
-            }`}
-            onClick={() => setViewMode('agent')}
-          >
-            <Bot size={12} />
-            Agent
-          </button>
-        </div>
-      )}
-
-      {!isDraft && viewMode === 'agent' && (
-        <div className="flex-1 overflow-hidden">
-          <ConceptAgentView conceptId={tab.targetId} agentContent={concept?.agent_content ?? null} />
-        </div>
-      )}
-
-      {(isDraft || viewMode === 'human') && (
-        <ScrollArea className="flex-1 min-h-0">
-          <NetworkObjectEditorShell
-            badge={t('objectPanel.concept' as never)}
-            title={headerTitle}
-            subtitle={headerSubtitle}
-            description={session.state.archetypeId ? archetypes.find((a) => a.id === session.state.archetypeId)?.name ?? null : null}
-          >
-            <NetworkObjectEditorSection title={t('editorShell.overview' as never)}>
+      <ScrollArea className="flex-1 min-h-0">
+        <NetworkObjectEditorShell
+          badge={t('objectPanel.concept' as never)}
+          title={session.state.title || tab.title || t('concept.defaultTitle')}
+          subtitle={isDraft ? t('concept.create') : t('editorShell.networkObject' as never)}
+          description={session.state.archetypeId ? archetypes.find((a) => a.id === session.state.archetypeId)?.name ?? null : null}
+          showHeader={false}
+        >
+          <NetworkObjectEditorSection title={t('editorShell.overview' as never)}>
               <Input
                 value={session.state.title}
                 onChange={(e) => {
@@ -497,7 +456,15 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                 content={session.state.content ?? ''}
                 onChange={(content) => update({ content: content || null })}
               />
-            </NetworkObjectEditorSection>
+          </NetworkObjectEditorSection>
+
+            {!isDraft && (
+              <NetworkObjectEditorSection title="Agent" defaultOpen={false}>
+                <div className="h-[min(60vh,560px)] min-h-[320px] overflow-hidden rounded-lg border border-subtle bg-surface-base">
+                  <ConceptAgentView conceptId={tab.targetId} agentContent={concept?.agent_content ?? null} />
+                </div>
+              </NetworkObjectEditorSection>
+            )}
 
             {!isDraft && concept && (
               <NetworkObjectEditorSection title={t('editorShell.metadata' as never)} defaultOpen={false}>
@@ -510,8 +477,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
               </NetworkObjectEditorSection>
             )}
           </NetworkObjectEditorShell>
-        </ScrollArea>
-      )}
+      </ScrollArea>
     </div>
   );
 }

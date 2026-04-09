@@ -200,6 +200,7 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange, all
             top: dropdownPos.top,
             left: dropdownPos.left,
             width: dropdownPos.width,
+            maxHeight: dropdownPos.maxHeight,
             visibility: dropdownPos.ready ? 'visible' : 'hidden',
             zIndex: 10001,
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
@@ -236,7 +237,7 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange, all
             })}
           </div>
 
-          <div className="flex max-h-[320px] flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex items-center gap-1.5 border-b border-subtle px-2.5 py-2">
               <Search size={12} className="shrink-0 text-muted" />
               <input
@@ -252,7 +253,7 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange, all
               />
             </div>
 
-            <div className="overflow-y-auto py-1">
+            <div className="min-h-0 flex-1 overflow-y-auto py-1">
               {displayTypes.length > 0 ? (
                 displayTypes.map((typeOption) => (
                   <button

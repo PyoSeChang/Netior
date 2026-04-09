@@ -4,6 +4,8 @@ interface AnchorPosition {
   top: number;
   left: number;
   width: number;
+  maxHeight: number;
+  placement: 'top' | 'bottom';
   ready: boolean;
 }
 
@@ -11,6 +13,7 @@ interface AnchorPositionOptions {
   estimatedHeight?: number;
   minWidth?: number;
   gap?: number;
+  viewportPadding?: number;
 }
 
 export function useAnchoredDropdown<T extends HTMLElement>(
@@ -19,67 +22,101 @@ export function useAnchoredDropdown<T extends HTMLElement>(
   options: AnchorPositionOptions,
   dropdownRef?: React.RefObject<HTMLElement>,
 ): AnchorPosition {
-  const { minWidth = 0, gap = 4 } = options;
+  const {
+    estimatedHeight = 240,
+    minWidth = 0,
+    gap = 4,
+    viewportPadding = 8,
+  } = options;
   const [position, setPosition] = useState<AnchorPosition>({
     top: 0,
     left: 0,
     width: minWidth,
+    maxHeight: estimatedHeight,
+    placement: 'bottom',
     ready: false,
   });
 
-  const updatePosition = useCallback(() => {
+  const updatePosition = useCallback((ready = true) => {
     const anchor = anchorRef.current;
     if (!anchor) return;
 
-    const rect = anchor.getBoundingClientRect();
+    const anchorRect = anchor.getBoundingClientRect();
+    const dropdownRect = dropdownRef?.current?.getBoundingClientRect();
+    const dropdownHeight = dropdownRect && dropdownRect.height > 0
+      ? dropdownRect.height
+      : estimatedHeight;
+    const width = Math.max(anchorRect.width, minWidth);
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - anchorRect.bottom - gap - viewportPadding;
+    const spaceAbove = anchorRect.top - gap - viewportPadding;
+    const placement: AnchorPosition['placement'] = spaceBelow >= Math.min(dropdownHeight, estimatedHeight) || spaceBelow >= spaceAbove
+      ? 'bottom'
+      : 'top';
+    const availableHeight = Math.max(80, placement === 'bottom' ? spaceBelow : spaceAbove);
+    const renderedHeight = Math.min(dropdownHeight, availableHeight);
+
+    const unclampedTop = placement === 'bottom'
+      ? anchorRect.bottom + gap
+      : anchorRect.top - gap - renderedHeight;
+    const unclampedLeft = anchorRect.left;
+
     const nextPosition = {
-      top: rect.bottom + gap,
-      left: rect.left,
-      width: Math.max(rect.width, minWidth),
-      ready: true,
+      top: Math.min(
+        Math.max(unclampedTop, viewportPadding),
+        Math.max(viewportPadding, viewportHeight - viewportPadding - renderedHeight),
+      ),
+      left: Math.min(
+        Math.max(unclampedLeft, viewportPadding),
+        Math.max(viewportPadding, viewportWidth - viewportPadding - width),
+      ),
+      width,
+      maxHeight: availableHeight,
+      placement,
+      ready,
     };
 
     setPosition((current) => (
       current.top === nextPosition.top
         && current.left === nextPosition.left
         && current.width === nextPosition.width
+        && current.maxHeight === nextPosition.maxHeight
+        && current.placement === nextPosition.placement
         && current.ready === nextPosition.ready
         ? current
         : nextPosition
     ));
-  }, [anchorRef, gap, minWidth]);
+  }, [anchorRef, dropdownRef, estimatedHeight, gap, minWidth, viewportPadding]);
 
   useLayoutEffect(() => {
+    setPosition((current) => (
+      current.ready || open
+        ? { ...current, ready: false }
+        : current
+    ));
     if (!open) return;
-    updatePosition();
-    const frameId = window.requestAnimationFrame(updatePosition);
+
+    updatePosition(false);
+    const frameId = window.requestAnimationFrame(() => updatePosition(true));
     return () => window.cancelAnimationFrame(frameId);
   }, [open, updatePosition]);
 
   useEffect(() => {
-    if (open) return;
-    setPosition((current) => (
-      current.ready
-        ? { ...current, ready: false }
-        : current
-    ));
-  }, [open]);
-
-  useEffect(() => {
     if (!open) return;
 
-    updatePosition();
-
+    const commitPosition = () => updatePosition(true);
     const dropdown = dropdownRef?.current;
-    const resizeObserver = dropdown ? new ResizeObserver(updatePosition) : null;
+    const resizeObserver = dropdown ? new ResizeObserver(commitPosition) : null;
     if (dropdown) resizeObserver?.observe(dropdown);
 
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', commitPosition);
+    window.addEventListener('scroll', commitPosition, true);
     return () => {
       resizeObserver?.disconnect();
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', commitPosition);
+      window.removeEventListener('scroll', commitPosition, true);
     };
   }, [dropdownRef, open, updatePosition]);
 

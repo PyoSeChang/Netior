@@ -101,11 +101,12 @@ export const Select: React.FC<SelectProps> = ({
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed bg-surface-panel border border-default rounded-lg overflow-y-auto max-h-[200px] py-1 animate-in fade-in zoom-in-95 duration-150"
+            className="fixed bg-surface-panel border border-default rounded-lg overflow-y-auto max-h-[200px] py-1"
             style={{
               top: dropdownPos.top,
               left: dropdownPos.left,
               width: dropdownPos.width,
+              maxHeight: dropdownPos.maxHeight,
               visibility: dropdownPos.ready ? 'visible' : 'hidden',
               zIndex: 10001,
               boxShadow: '0 8px 24px rgba(0,0,0,0.4)',

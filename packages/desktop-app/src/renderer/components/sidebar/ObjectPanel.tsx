@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { TypeGroup, TypeGroupKind } from '@netior/shared/types';
 import type { TranslationKey } from '@netior/shared/i18n';
 import {
-  Check,
   ChevronDown,
   ChevronRight,
   CircleDot,
@@ -20,6 +20,7 @@ import {
   Waypoints,
 } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
+import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 import { useProjectStore } from '../../stores/project-store';
 import { useConceptStore } from '../../stores/concept-store';
 import { useNetworkStore } from '../../stores/network-store';
@@ -30,6 +31,7 @@ import { useEditorStore } from '../../stores/editor-store';
 import { useNetworkObjectSelectionStore } from '../../stores/network-object-selection-store';
 import { useTypeGroupStore } from '../../stores/type-group-store';
 import { ContextMenu, type ContextMenuEntry } from '../ui/ContextMenu';
+import { Checkbox } from '../ui/Checkbox';
 import { Input } from '../ui/Input';
 import { getIconComponent } from '../ui/lucide-utils';
 import { TypeGroupModal } from './TypeGroupModal';
@@ -230,11 +232,19 @@ function ObjectTypeFilterSelect({
 }): JSX.Element {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownPos = useAnchoredDropdown(open, rootRef, {
+    estimatedHeight: 190,
+    minWidth: 192,
+  }, dropdownRef);
 
   useEffect(() => {
     if (!open) return undefined;
     const handleClickOutside = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const handleWindowBlur = () => setOpen(false);
     document.addEventListener('mousedown', handleClickOutside);
@@ -250,9 +260,16 @@ function ObjectTypeFilterSelect({
     : selectedTypes.length === 1
       ? labelFor(selectedTypes[0])
       : `${selectedTypes.length}`;
+  const toggleType = (type: PanelObjectType) => {
+    const selected = selectedTypes.includes(type);
+    const next = selected
+      ? selectedTypes.filter((selectedType) => selectedType !== type)
+      : [...selectedTypes, type];
+    onChange(next.length === 0 ? FILTERS.map((item) => item.key) : next);
+  };
 
   return (
-    <div className="relative shrink-0" ref={rootRef}>
+    <div className="shrink-0" ref={rootRef}>
       <button
         type="button"
         className="flex h-7 w-16 items-center justify-between rounded border border-input bg-input px-2 text-xs text-default transition-colors hover:border-strong"
@@ -261,36 +278,47 @@ function ObjectTypeFilterSelect({
         <span className="truncate">{summary}</span>
         <ChevronDown size={12} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
+      {open && createPortal(
         <div
-          className="absolute left-0 top-[calc(100%+4px)] z-50 w-48 rounded-md border border-default bg-surface-modal p-1 shadow-lg"
+          ref={dropdownRef}
+          className="fixed rounded-md border border-default bg-surface-modal p-1 shadow-lg"
+          style={{
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            maxHeight: dropdownPos.maxHeight,
+            visibility: dropdownPos.ready ? 'visible' : 'hidden',
+            zIndex: 10001,
+          }}
           onMouseDown={(event) => event.stopPropagation()}
         >
           {FILTERS.map((filter) => {
             const Icon = filter.icon;
             const selected = selectedTypes.includes(filter.key);
             return (
-              <button
+              <div
                 key={filter.key}
-                type="button"
-                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors ${
-                  selected ? 'bg-accent-muted text-accent' : 'text-default hover:bg-surface-hover'
-                }`}
-                onClick={() => {
-                  const next = selected
-                    ? selectedTypes.filter((type) => type !== filter.key)
-                    : [...selectedTypes, filter.key];
-                  onChange(next.length === 0 ? FILTERS.map((item) => item.key) : next);
+                role="menuitemcheckbox"
+                aria-checked={selected}
+                tabIndex={0}
+                className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-default transition-colors hover:bg-surface-hover"
+                onClick={() => toggleType(filter.key)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  toggleType(filter.key);
                 }}
               >
-                <Icon size={14} className="shrink-0" />
+                <div onClick={(event) => event.stopPropagation()}>
+                  <Checkbox checked={selected} onChange={() => toggleType(filter.key)} />
+                </div>
+                <Icon size={14} className="shrink-0 text-secondary" />
                 <span className="min-w-0 flex-1 truncate">{labelFor(filter.key)}</span>
-                {selected && <Check size={14} className="shrink-0" />}
-              </button>
+              </div>
             );
           })}
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }
@@ -534,6 +562,9 @@ export function ObjectPanel(): JSX.Element {
   const primaryType = selectedTypes.length === 1 ? selectedTypes[0] : null;
   const canCreateObject = primaryType !== null && !(primaryType === 'context' && !currentNetwork);
   const canCreateGroup = primaryType === 'archetype' || primaryType === 'relation_type';
+  const canCreateObjectType = (objectType: PanelObjectType): boolean => (
+    objectType !== 'context' || currentNetwork !== null
+  );
 
   useEffect(() => {
     if (visibleRows.length === 0) {
@@ -624,9 +655,9 @@ export function ObjectPanel(): JSX.Element {
     }
   };
 
-  const handleCreateObject = async () => {
-    if (!currentProject || !primaryType) return;
-    switch (primaryType) {
+  const handleCreateObject = async (objectType: PanelObjectType | null = primaryType) => {
+    if (!currentProject || !objectType || !canCreateObjectType(objectType)) return;
+    switch (objectType) {
       case 'concept': {
         const draftId = `draft-${Date.now()}`;
         await useEditorStore.getState().openTab({
@@ -1136,28 +1167,14 @@ export function ObjectPanel(): JSX.Element {
       }}
       tabIndex={0}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-xs font-medium text-secondary">{tk('sidebar.networkObjects')}</span>
-          <ObjectTypeFilterSelect
-            selectedTypes={selectedTypes}
-            onChange={setSelectedTypes}
-            labelFor={labelForType}
-            allLabel={tk('objectPanel.allTypes')}
-          />
-        </div>
-        <div className="flex items-center gap-1">
-          {canCreateObject && (
-            <button
-              type="button"
-              className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
-              onClick={() => { void handleCreateObject(); }}
-              title={t('common.create')}
-            >
-              <Plus size={14} />
-            </button>
-          )}
-        </div>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="truncate text-xs font-medium text-secondary">{tk('sidebar.networkObjects')}</span>
+        <ObjectTypeFilterSelect
+          selectedTypes={selectedTypes}
+          onChange={setSelectedTypes}
+          labelFor={labelForType}
+          allLabel={tk('objectPanel.allTypes')}
+        />
       </div>
 
       <input
@@ -1190,20 +1207,32 @@ export function ObjectPanel(): JSX.Element {
               onDragLeave={(event) => handleDragLeave(event, sectionDropKey)}
               onDrop={(event) => { void handleSectionDrop(event, section.objectType); }}
             >
-              <div className="flex items-center justify-between gap-2 px-2 py-1">
+              <div className="flex items-center gap-1 px-2 py-1">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-secondary">
                   {section.label}
                 </div>
-                {sectionCanCreateGroup && (
-                  <button
-                    type="button"
-                    className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
-                    onClick={() => handleCreateGroup(section.objectType === 'archetype' ? 'archetype' : 'relation_type')}
-                    title={tk('typeGroup.create')}
-                  >
-                    <FolderPlus size={12} />
-                  </button>
-                )}
+                <div className="flex items-center gap-1">
+                  {canCreateObjectType(section.objectType) && (
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
+                      onClick={() => { void handleCreateObject(section.objectType); }}
+                      title={t('common.create')}
+                    >
+                      <Plus size={12} />
+                    </button>
+                  )}
+                  {sectionCanCreateGroup && (
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
+                      onClick={() => handleCreateGroup(section.objectType === 'archetype' ? 'archetype' : 'relation_type')}
+                      title={tk('typeGroup.create')}
+                    >
+                      <FolderPlus size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
               {inlineGroupCreate && inlineGroupCreate.kind === section.objectType && inlineGroupCreate.parentGroupId === null && (
                 <InlineGroupInput
