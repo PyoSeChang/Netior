@@ -23,6 +23,7 @@ import { useNetworkObjectSelectionStore } from '../../stores/network-object-sele
 import type { Archetype } from '@netior/shared/types';
 import { useI18n } from '../../hooks/useI18n';
 import type { RenderNode, RenderEdge, RenderPoint } from './types';
+import type { NodeResizeDirection } from '../canvas/node-components/types';
 import { getLayout } from './layout-plugins/registry';
 import type { LayoutRenderNode } from './layout-plugins/types';
 import { isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
@@ -40,8 +41,31 @@ interface ParsedNodePosition {
   [key: string]: unknown;
 }
 
+interface NodeResizeState {
+  nodeId: string;
+  direction: NodeResizeDirection;
+  startClientX: number;
+  startClientY: number;
+  startX: number;
+  startY: number;
+  startWidth: number;
+  startHeight: number;
+  minWidth: number;
+  minHeight: number;
+}
+
+interface NodeResizePreview {
+  nodeId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 const HIERARCHY_HEADER_OFFSET = 76;
 const HIERARCHY_ROW_GAP = 92;
+const GROUP_COLLAPSED_SIZE = { width: 240, height: 72 };
+const HIERARCHY_COLLAPSED_SIZE = { width: 260, height: 84 };
 
 function pickInitialNetworkId(
   projectId: string,
@@ -94,6 +118,10 @@ function buildContainsParentMap(edges: EdgeWithRelationType[]): Map<string, stri
 
 function getPositionSlotIndex(position?: ParsedNodePosition): number | null {
   return typeof position?.slotIndex === 'number' ? position.slotIndex : null;
+}
+
+function isCollapsedPosition(position?: ParsedNodePosition): boolean {
+  return position?.collapsed === true;
 }
 
 function getDefaultNodeDimensions(node: NetworkNodeWithObject): { width: number; height: number } {
@@ -391,6 +419,7 @@ function toRenderNodes(
     const isGroup = rawNodeType === 'group' || rawNodeType === 'box';
     const isHierarchy = rawNodeType === 'hierarchy';
     const isContainer = isGroup || isHierarchy;
+    const isCollapsed = isContainer && isCollapsedPosition(pos);
     if (objectType === 'concept' && n.concept) {
       const arch = n.concept.archetype_id ? archMap.get(n.concept.archetype_id) : undefined;
       return {
@@ -402,8 +431,12 @@ function toRenderNodes(
         shape: isPortal ? 'dashed' : isHierarchy ? 'hierarchy' : isGroup ? 'group' : arch?.node_shape ?? undefined,
         semanticType: arch?.name || 'concept',
         semanticTypeLabel: isPortal ? 'Concept Portal' : isHierarchy ? 'Concept Hierarchy' : isGroup ? 'Concept Group' : arch?.name || 'Concept',
-        width: pos?.width ?? (isPortal ? 180 : isHierarchy ? 380 : isGroup ? 360 : 160),
-        height: pos?.height ?? (isPortal ? 68 : isHierarchy ? 240 : isGroup ? 220 : 60),
+        width: isCollapsed
+          ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.width : GROUP_COLLAPSED_SIZE.width)
+          : pos?.width ?? (isPortal ? 180 : isHierarchy ? 380 : isGroup ? 360 : 160),
+        height: isCollapsed
+          ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
+          : pos?.height ?? (isPortal ? 68 : isHierarchy ? 240 : isGroup ? 220 : 60),
         conceptId: n.object?.ref_id ?? undefined,
         canvasCount: 0,
         nodeType: 'concept' as const,
@@ -413,6 +446,7 @@ function toRenderNodes(
         isGroup,
         isHierarchy,
         isContainer,
+        isCollapsed,
       };
     }
     if (objectType === 'file' && n.file) {
@@ -434,8 +468,12 @@ function toRenderNodes(
               ? (isFile ? 'File Group' : 'Directory Group')
               : isFile ? 'File' : 'Directory',
         shape: isHierarchy ? 'hierarchy' : isGroup ? 'group' : undefined,
-        width: pos?.width ?? (isHierarchy ? 300 : isGroup ? 280 : 140),
-        height: pos?.height ?? (isHierarchy ? 220 : isGroup ? 180 : 50),
+        width: isCollapsed
+          ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.width : GROUP_COLLAPSED_SIZE.width)
+          : pos?.width ?? (isHierarchy ? 300 : isGroup ? 280 : 140),
+        height: isCollapsed
+          ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
+          : pos?.height ?? (isHierarchy ? 220 : isGroup ? 180 : 50),
         canvasCount: 0,
         nodeType: isFile ? 'file' as const : 'dir' as const,
         objectType,
@@ -444,6 +482,7 @@ function toRenderNodes(
         isGroup,
         isHierarchy,
         isContainer,
+        isCollapsed,
         fileId: n.object?.ref_id ?? undefined,
         filePath: filePath ?? undefined,
       };
@@ -460,8 +499,12 @@ function toRenderNodes(
         shape: isPortal ? 'dashed' as string | undefined : isHierarchy ? 'hierarchy' as string | undefined : isGroup ? 'group' as string | undefined : 'rectangle' as string | undefined,
         semanticType: 'network',
         semanticTypeLabel: isPortal ? 'Network Portal' : isHierarchy ? 'Network Hierarchy' : isGroup ? 'Network Group' : 'Network',
-        width: pos?.width ?? (isPortal ? 180 : isHierarchy ? 340 : isGroup ? 320 : 160),
-        height: pos?.height ?? (isPortal ? 68 : isHierarchy ? 220 : isGroup ? 200 : 60),
+        width: isCollapsed
+          ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.width : GROUP_COLLAPSED_SIZE.width)
+          : pos?.width ?? (isPortal ? 180 : isHierarchy ? 340 : isGroup ? 320 : 160),
+        height: isCollapsed
+          ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
+          : pos?.height ?? (isPortal ? 68 : isHierarchy ? 220 : isGroup ? 200 : 60),
         canvasCount: 0,
         nodeType: 'network' as const,
         objectType,
@@ -470,6 +513,7 @@ function toRenderNodes(
         isGroup,
         isHierarchy,
         isContainer,
+        isCollapsed,
         networkId: refId ?? undefined,
       };
     }
@@ -494,8 +538,12 @@ function toRenderNodes(
         ? `${genericObject.semanticTypeLabel} Hierarchy`
         : isGroup ? `${genericObject.semanticTypeLabel} Group` : genericObject.semanticTypeLabel,
       shape: isPortal ? 'dashed' as string | undefined : isHierarchy ? 'hierarchy' as string | undefined : isGroup ? 'group' as string | undefined : undefined,
-      width: pos?.width ?? (isHierarchy ? 340 : isGroup ? 320 : objectType === 'project' ? 180 : 140),
-      height: pos?.height ?? (isHierarchy ? 220 : isGroup ? 200 : objectType === 'project' ? 64 : 50),
+      width: isCollapsed
+        ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.width : GROUP_COLLAPSED_SIZE.width)
+        : pos?.width ?? (isHierarchy ? 340 : isGroup ? 320 : objectType === 'project' ? 180 : 140),
+      height: isCollapsed
+        ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
+        : pos?.height ?? (isHierarchy ? 220 : isGroup ? 200 : objectType === 'project' ? 64 : 50),
       canvasCount: 0,
       nodeType: 'object' as const,
       objectType,
@@ -504,6 +552,7 @@ function toRenderNodes(
       isGroup,
       isHierarchy,
       isContainer,
+      isCollapsed,
     };
   });
 }
@@ -628,6 +677,62 @@ function wouldCreateContainmentCycle(
   return false;
 }
 
+function isDescendantOf(nodeId: string, ancestorId: string, containsParentByChild: Map<string, string>): boolean {
+  let current = containsParentByChild.get(nodeId);
+  while (current) {
+    if (current === ancestorId) return true;
+    current = containsParentByChild.get(current);
+  }
+  return false;
+}
+
+function getContainerMinimumSize(node: RenderNode): { width: number; height: number } {
+  if (node.isHierarchy) {
+    return { width: 260, height: 180 };
+  }
+  return { width: 220, height: 140 };
+}
+
+function computeResizePreview(
+  state: NodeResizeState,
+  clientX: number,
+  clientY: number,
+  zoom: number,
+): NodeResizePreview {
+  const dx = (clientX - state.startClientX) / zoom;
+  const dy = (clientY - state.startClientY) / zoom;
+
+  let nextWidth = state.startWidth;
+  let nextHeight = state.startHeight;
+  let nextX = state.startX;
+  let nextY = state.startY;
+
+  if (state.direction.includes('e')) {
+    nextWidth = Math.max(state.minWidth, state.startWidth + dx);
+    nextX = state.startX + (nextWidth - state.startWidth) / 2;
+  }
+  if (state.direction.includes('w')) {
+    nextWidth = Math.max(state.minWidth, state.startWidth - dx);
+    nextX = state.startX + (state.startWidth - nextWidth) / 2;
+  }
+  if (state.direction.includes('s')) {
+    nextHeight = Math.max(state.minHeight, state.startHeight + dy);
+    nextY = state.startY + (nextHeight - state.startHeight) / 2;
+  }
+  if (state.direction.includes('n')) {
+    nextHeight = Math.max(state.minHeight, state.startHeight - dy);
+    nextY = state.startY + (state.startHeight - nextHeight) / 2;
+  }
+
+  return {
+    nodeId: state.nodeId,
+    x: Math.round(nextX),
+    y: Math.round(nextY),
+    width: Math.round(nextWidth),
+    height: Math.round(nextHeight),
+  };
+}
+
 function hasHierarchyAncestor(
   nodeId: string,
   containsParentByChild: Map<string, string>,
@@ -636,6 +741,19 @@ function hasHierarchyAncestor(
   let current: string | undefined = nodeId;
   while (current) {
     if (hierarchyContainerIds.has(current)) return true;
+    current = containsParentByChild.get(current);
+  }
+  return false;
+}
+
+function hasCollapsedAncestor(
+  nodeId: string,
+  containsParentByChild: Map<string, string>,
+  collapsedContainerIds: Set<string>,
+): boolean {
+  let current = containsParentByChild.get(nodeId);
+  while (current) {
+    if (collapsedContainerIds.has(current)) return true;
     current = containsParentByChild.get(current);
   }
   return false;
@@ -665,6 +783,8 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const [networkContextMenu, setNetworkContextMenu] = useState<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null);
   const [edgeLinkingState, setEdgeLinkingState] = useState<{ sourceNodeId: string } | null>(null);
+  const [nodeResizeState, setNodeResizeState] = useState<NodeResizeState | null>(null);
+  const [nodeResizePreview, setNodeResizePreview] = useState<NodeResizePreview | null>(null);
   const [fileNodeModalOpen, setFileNodeModalOpen] = useState(false);
   const [fileInsertPosition, setFileInsertPosition] = useState<{ x: number; y: number } | null>(null);
   const [objectPickerOpen, setObjectPickerOpen] = useState(false);
@@ -848,14 +968,27 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     activeContextObjectIds,
   ]);
 
-  const hierarchyContainerIds = useMemo(
-    () => new Set(renderNodes.filter((node) => node.isHierarchy).map((node) => node.id)),
+  const collapsedContainerIds = useMemo(
+    () => new Set(renderNodes.filter((node) => node.isCollapsed).map((node) => node.id)),
     [renderNodes],
+  );
+
+  const visibleRenderNodes = useMemo(
+    () => renderNodes.filter((node) => !hasCollapsedAncestor(node.id, containsParentByChild, collapsedContainerIds)),
+    [renderNodes, containsParentByChild, collapsedContainerIds],
+  );
+
+  const hierarchyContainerIds = useMemo(
+    () => new Set(visibleRenderNodes.filter((node) => node.isHierarchy).map((node) => node.id)),
+    [visibleRenderNodes],
   );
 
   const renderEdges = useMemo(() => {
     const baseEdges = toRenderEdges(edges, visualMap);
-    return baseEdges.map((edge) => {
+    const visibleNodeIds = new Set(visibleRenderNodes.map((node) => node.id));
+    return baseEdges
+      .filter((edge) => visibleNodeIds.has(edge.sourceId) && visibleNodeIds.has(edge.targetId))
+      .map((edge) => {
       const explicitRoute = visualMap.get(edge.id)?.route;
       const shouldUseHierarchyRoute =
         edge.route === 'straight' &&
@@ -871,7 +1004,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         dimmed: isContextFiltering ? !activeContextEdgeIds.has(edge.id) : edge.dimmed,
       };
     });
-  }, [edges, visualMap, isContextFiltering, activeContextEdgeIds, containsParentByChild, hierarchyContainerIds]);
+  }, [edges, visualMap, isContextFiltering, activeContextEdgeIds, containsParentByChild, hierarchyContainerIds, visibleRenderNodes]);
 
   // --- Layout plugin ---
   const layoutType = currentLayout?.layout_type ?? 'freeform';
@@ -912,7 +1045,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const fieldMappingsConfig = (layoutConfig.field_mappings ?? {}) as Record<string, Record<string, string>>;
 
   const layoutRenderNodes = useMemo<LayoutRenderNode[]>(() =>
-    renderNodes.map((n) => {
+    visibleRenderNodes.map((n) => {
       const archetypeId = n.nodeType === 'concept'
         ? nodes.find((cn) => cn.id === n.id)?.concept?.archetype_id ?? undefined
         : undefined;
@@ -947,7 +1080,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
       return { ...n, metadata, archetypeId };
     }),
-  [renderNodes, nodes, fieldMappingsConfig, nodeProperties]);
+  [visibleRenderNodes, nodes, fieldMappingsConfig, nodeProperties]);
 
 
   // Compute layout positions (freeform returns same positions, timeline computes from metadata)
@@ -976,6 +1109,43 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     [layoutPlugin, positionedNodes],
   );
   const cardRenderNodes = useMemo<RenderNode[]>(() => cardNodes, [cardNodes]);
+  const previewRenderNodes = useMemo(() => {
+    if (!nodeResizePreview) return visibleRenderNodes;
+
+    const baseNode = visibleRenderNodes.find((node) => node.id === nodeResizePreview.nodeId);
+    if (!baseNode) return visibleRenderNodes;
+
+    const deltaX = nodeResizePreview.x - baseNode.x;
+    const deltaY = baseNode.isHierarchy
+      ? (nodeResizePreview.y - nodeResizePreview.height / 2) - (baseNode.y - (baseNode.height ?? 220) / 2)
+      : nodeResizePreview.y - baseNode.y;
+
+    return visibleRenderNodes.map((node) => {
+      if (node.id === nodeResizePreview.nodeId) {
+        return {
+          ...node,
+          x: nodeResizePreview.x,
+          y: nodeResizePreview.y,
+          width: nodeResizePreview.width,
+          height: nodeResizePreview.height,
+        };
+      }
+
+      if (isDescendantOf(node.id, nodeResizePreview.nodeId, containsParentByChild)) {
+        return {
+          ...node,
+          x: node.x + deltaX,
+          y: node.y + deltaY,
+        };
+      }
+
+      return node;
+    });
+  }, [containsParentByChild, nodeResizePreview, visibleRenderNodes]);
+
+  const previewCardRenderNodes = useMemo<RenderNode[]>(() => (
+    cardRenderNodes.map((node) => previewRenderNodes.find((candidate) => candidate.id === node.id) ?? node)
+  ), [cardRenderNodes, previewRenderNodes]);
 
   const openNodeObject = useCallback((node: NetworkNodeWithObject) => {
     if (node.object?.object_type === 'network') {
@@ -1086,7 +1256,15 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
   const isTimeline = layoutPlugin.key !== 'freeform';
 
-  const serializePositionJson = useCallback((nodeId: string, x: number, y: number, slotIndex?: number | null) => {
+  const serializePositionJson = useCallback((
+    nodeId: string,
+    x: number,
+    y: number,
+    slotIndex?: number | null,
+    width?: number,
+    height?: number,
+    collapsed?: boolean | null,
+  ) => {
     const existing = rawPosMap.get(nodeId);
     const nextPosition: ParsedNodePosition = {
       ...(existing ?? {}),
@@ -1100,12 +1278,31 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       nextPosition.slotIndex = slotIndex;
     }
 
+    if (typeof width === 'number') {
+      nextPosition.width = width;
+    }
+    if (typeof height === 'number') {
+      nextPosition.height = height;
+    }
+    if (collapsed === null) {
+      delete nextPosition.collapsed;
+    } else if (typeof collapsed === 'boolean') {
+      nextPosition.collapsed = collapsed;
+    }
+    if (typeof nextPosition.width !== 'number') {
+      delete nextPosition.width;
+    }
+    if (typeof nextPosition.height !== 'number') {
+      delete nextPosition.height;
+    }
+
     return JSON.stringify(nextPosition);
   }, [rawPosMap]);
 
   const findDropTargetContainer = useCallback((nodeId: string, x: number, y: number): RenderNode | null => {
     const candidates = cardRenderNodes
       .filter((node) => node.isContainer && node.id !== nodeId)
+      .filter((node) => !node.isCollapsed)
       .filter((node) => !wouldCreateContainmentCycle(nodeId, node.id, containsParentByChild))
       .filter((node) => isPointInsideNodeBounds(node, x, y))
       .sort((left, right) => {
@@ -1268,6 +1465,85 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     setPanY(newPanY);
   }, [zoom, panX, panY, navigateBack, isTimeline]);
 
+  const handleNodeResizeStart = useCallback((
+    nodeId: string,
+    direction: NodeResizeDirection,
+    startClientX: number,
+    startClientY: number,
+  ) => {
+    if (canvasMode !== 'edit' || layoutPlugin.key !== 'freeform') return;
+
+    const node = previewCardRenderNodes.find((candidate) => candidate.id === nodeId);
+    if (!node?.isContainer) return;
+
+    const minSize = getContainerMinimumSize(node);
+    setNodeResizeState({
+      nodeId,
+      direction,
+      startClientX,
+      startClientY,
+      startX: node.x,
+      startY: node.y,
+      startWidth: node.width ?? minSize.width,
+      startHeight: node.height ?? minSize.height,
+      minWidth: minSize.width,
+      minHeight: minSize.height,
+    });
+    setNodeResizePreview({
+      nodeId,
+      x: node.x,
+      y: node.y,
+      width: node.width ?? minSize.width,
+      height: node.height ?? minSize.height,
+    });
+  }, [canvasMode, layoutPlugin.key, previewCardRenderNodes]);
+
+  useEffect(() => {
+    if (!nodeResizeState) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      setNodeResizePreview(computeResizePreview(nodeResizeState, event.clientX, event.clientY, zoom));
+    };
+
+    const handleMouseUp = (event: MouseEvent) => {
+      const nextPreview = computeResizePreview(nodeResizeState, event.clientX, event.clientY, zoom);
+      setNodeResizeState(null);
+      setNodeResizePreview(null);
+      void setNodePosition(
+        nodeResizeState.nodeId,
+        serializePositionJson(
+          nodeResizeState.nodeId,
+          nextPreview.x,
+          nextPreview.y,
+          undefined,
+          nextPreview.width,
+          nextPreview.height,
+        ),
+      );
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [nodeResizeState, serializePositionJson, setNodePosition, zoom]);
+
+  const handleNodeToggleCollapse = useCallback((nodeId: string) => {
+    const nodePosition = rawPosMap.get(nodeId);
+    const nextCollapsed = !isCollapsedPosition(nodePosition);
+    const nextX = nodePosition?.x ?? 0;
+    const nextY = nodePosition?.y ?? 0;
+    const nextWidth = typeof nodePosition?.width === 'number' ? nodePosition.width : undefined;
+    const nextHeight = typeof nodePosition?.height === 'number' ? nodePosition.height : undefined;
+
+    void setNodePosition(
+      nodeId,
+      serializePositionJson(nodeId, nextX, nextY, undefined, nextWidth, nextHeight, nextCollapsed),
+    );
+  }, [rawPosMap, serializePositionJson, setNodePosition]);
+
   const handleNodeDragEnd = useCallback(async (nodeId: string, x: number, y: number) => {
     if (layoutPlugin.onNodeDrop) {
       const node = positionedNodes.find((n) => n.id === nodeId);
@@ -1410,7 +1686,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
   const { dragState, nodeDragOffset, handleCanvasMouseDown, handleNodeDragStart } = useInteraction({
     containerRef: containerRef as React.RefObject<HTMLDivElement>,
-    nodes: cardRenderNodes,
+    nodes: previewCardRenderNodes,
     zoom,
     panX,
     panY,
@@ -1590,7 +1866,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
       <EdgeLayer
         edges={renderEdges}
-        nodes={renderNodes}
+        nodes={previewRenderNodes}
         zoom={zoom}
         panX={panX}
         panY={panY}
@@ -1674,7 +1950,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       )}
 
       <NodeLayer
-        nodes={cardRenderNodes}
+        nodes={previewCardRenderNodes}
         selectedIds={selectedIds}
         highlightedIds={edgeLinkingState ? new Set(renderNodes.filter((n) => n.id !== edgeLinkingState.sourceNodeId).map((n) => n.id)) : undefined}
         mode={canvasMode}
@@ -1683,6 +1959,8 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         panY={panY}
         timelineMode={isTimeline}
         nodeDragOffset={nodeDragOffset}
+        onNodeResizeStart={handleNodeResizeStart}
+        onNodeToggleCollapse={handleNodeToggleCollapse}
         onNodeClick={(id) => {
           if (edgeLinkingState) {
             if (id !== edgeLinkingState.sourceNodeId && currentNetwork) {

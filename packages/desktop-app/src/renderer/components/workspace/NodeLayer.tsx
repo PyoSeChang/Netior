@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { RenderNode } from './types';
 import type { CanvasMode } from '../../stores/ui-store';
 import { NodeCardDefault } from '../canvas/node-components/NodeCardDefault';
+import type { NodeResizeDirection } from '../canvas/node-components/types';
 
 interface NodeLayerProps {
   nodes: RenderNode[];
@@ -17,6 +18,8 @@ interface NodeLayerProps {
   onNodeClick: (id: string, event: React.MouseEvent) => void;
   onNodeDoubleClick: (id: string) => void;
   onNodeDragStart: (nodeId: string, startX: number, startY: number) => void;
+  onNodeResizeStart?: (nodeId: string, direction: NodeResizeDirection, startX: number, startY: number) => void;
+  onNodeToggleCollapse?: (nodeId: string) => void;
   onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onNodeMouseEnter?: (id: string, screenX: number, screenY: number) => void;
   onNodeMouseLeave?: (id: string) => void;
@@ -35,6 +38,8 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   onNodeClick,
   onNodeDoubleClick,
   onNodeDragStart,
+  onNodeResizeStart,
+  onNodeToggleCollapse,
   onContextMenu,
   onNodeMouseEnter,
   onNodeMouseLeave,
@@ -94,6 +99,10 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
               shape={(node.shape as import('../canvas/node-components/types').NodeShape) || 'rectangle'}
               width={node.width}
               height={node.height}
+              resizable={!!onNodeResizeStart && !timelineMode && !!node.isContainer}
+              onResizeStart={onNodeResizeStart}
+              collapsed={node.isCollapsed}
+              onToggleCollapse={onNodeToggleCollapse}
               onClick={onNodeClick}
               onDoubleClick={onNodeDoubleClick}
               onDragStart={onNodeDragStart}

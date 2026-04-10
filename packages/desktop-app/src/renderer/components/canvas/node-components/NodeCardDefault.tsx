@@ -9,6 +9,7 @@
 import React, { useCallback, useMemo } from 'react';
 import type { NodeComponentProps } from './types';
 import type { NodeShape } from './types';
+import type { NodeResizeDirection } from './types';
 import { getShapeLayout } from './layouts';
 
 // --- Gear clip-path (6-tooth cog) ---
@@ -59,6 +60,10 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
   metadata,
   spanInfo,
   onSpanResizeStart,
+  resizable = false,
+  onResizeStart,
+  collapsed = false,
+  onToggleCollapse,
   onClick,
   onDoubleClick,
   onDragStart,
@@ -66,6 +71,21 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
   onMouseEnter,
   onMouseLeave,
 }) => {
+  const resizeHandles: Array<{
+    direction: NodeResizeDirection;
+    cursor: string;
+    style: React.CSSProperties;
+  }> = [
+    { direction: 'n', cursor: 'ns-resize', style: { top: -5, left: '50%', transform: 'translateX(-50%)' } },
+    { direction: 's', cursor: 'ns-resize', style: { bottom: -5, left: '50%', transform: 'translateX(-50%)' } },
+    { direction: 'e', cursor: 'ew-resize', style: { right: -5, top: '50%', transform: 'translateY(-50%)' } },
+    { direction: 'w', cursor: 'ew-resize', style: { left: -5, top: '50%', transform: 'translateY(-50%)' } },
+    { direction: 'ne', cursor: 'nesw-resize', style: { right: -5, top: -5 } },
+    { direction: 'nw', cursor: 'nwse-resize', style: { left: -5, top: -5 } },
+    { direction: 'se', cursor: 'nwse-resize', style: { right: -5, bottom: -5 } },
+    { direction: 'sw', cursor: 'nesw-resize', style: { left: -5, bottom: -5 } },
+  ];
+
   // --- Event handlers ---
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -179,6 +199,25 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
         />
       </div>
 
+      {isContainerShape && onToggleCollapse && (
+        <button
+          type="button"
+          aria-label={collapsed ? 'Expand container' : 'Collapse container'}
+          className="absolute right-2 top-2 z-[2] flex h-5 w-5 items-center justify-center rounded border border-subtle bg-surface-base text-[10px] text-secondary hover:border-default hover:text-default"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onToggleCollapse(id);
+          }}
+        >
+          {collapsed ? '+' : '-'}
+        </button>
+      )}
+
       {/* Span resize handles (edit mode only) */}
       {mode === 'edit' && spanInfo && onSpanResizeStart && (
         <>
@@ -238,6 +277,34 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
               opacity: 0.5,
             }} />
           </div>
+        </>
+      )}
+
+      {mode === 'edit' && selected && resizable && onResizeStart && (
+        <>
+          {resizeHandles.map((handle) => (
+            <button
+              key={handle.direction}
+              type="button"
+              aria-label={`Resize ${handle.direction}`}
+              style={{
+                position: 'absolute',
+                width: 10,
+                height: 10,
+                borderRadius: 3,
+                border: '1px solid var(--accent)',
+                background: 'var(--surface-base)',
+                cursor: handle.cursor,
+                zIndex: 3,
+                ...handle.style,
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onResizeStart(id, handle.direction, e.clientX, e.clientY);
+              }}
+            />
+          ))}
         </>
       )}
 

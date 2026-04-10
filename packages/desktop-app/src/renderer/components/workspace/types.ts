@@ -28,6 +28,7 @@ export interface RenderNode {
   isGroup?: boolean;
   isHierarchy?: boolean;
   isContainer?: boolean;
+  isCollapsed?: boolean;
   fileId?: string;
   filePath?: string;
   networkId?: string;

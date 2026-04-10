@@ -6,6 +6,7 @@
 
 export type NodeShape = 'circle' | 'gear' | 'stadium' | 'portrait' | 'dashed' | 'wide' | 'rectangle' | 'square' | 'group' | 'hierarchy';
 import type { CanvasMode } from '../../../stores/ui-store';
+export type NodeResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
 /** Props for shape-specific internal layout components */
 export interface ShapeLayoutProps {
@@ -53,6 +54,10 @@ export interface NodeComponentProps {
   // Span resize (timeline mode)
   spanInfo?: { startValue: number; endValue: number };
   onSpanResizeStart?: (nodeId: string, edge: 'start' | 'end', startX: number, startValue: number) => void;
+  resizable?: boolean;
+  onResizeStart?: (nodeId: string, direction: NodeResizeDirection, startX: number, startY: number) => void;
+  collapsed?: boolean;
+  onToggleCollapse?: (nodeId: string) => void;
 
   // Callbacks
   onClick: (id: string, event: React.MouseEvent) => void;
