@@ -22,6 +22,7 @@ interface NodeContextMenuProps {
   onOpenNetwork?: (networkId: string) => void;
   onCreateNetwork?: (conceptId: string) => void;
   onAttachNetwork?: (nodeId: string) => void;
+  onDeleteNode?: (nodeId: string) => void;
   onClose: () => void;
 }
 
@@ -41,10 +42,11 @@ export function NodeContextMenu({
   onOpenNetwork,
   onCreateNetwork,
   onAttachNetwork,
+  onDeleteNode,
   onClose,
 }: NodeContextMenuProps): JSX.Element {
   const { t } = useI18n();
-  const { removeNode, currentNetwork } = useNetworkStore();
+  const { currentNetwork } = useNetworkStore();
 
   const openObjectEditor = useCallback(() => {
     if (!objectType || !objectTargetId) return;
@@ -125,9 +127,9 @@ export function NodeContextMenu({
   }, [onAddConnection, nodeId, onClose]);
 
   const handleDelete = useCallback(async () => {
-    await removeNode(nodeId);
+    onDeleteNode?.(nodeId);
     onClose();
-  }, [removeNode, nodeId, onClose]);
+  }, [nodeId, onClose, onDeleteNode]);
 
   return (
     <div

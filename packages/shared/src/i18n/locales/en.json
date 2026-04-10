@@ -81,7 +81,15 @@
     "addArchetype": "Add Archetype...",
     "scales": "Scales",
     "scaleFactor": "Factor",
-    "scaleSubdivisions": "Sub"
+    "scaleSubdivisions": "Sub",
+    "deleteSubtreeTitle": "Delete Node",
+    "deleteSubtreeMessage": "Delete {count} nodes including the selected subtree.",
+    "hierarchyLinkChildToParent": "Hierarchy link: start from the child, then click the parent.",
+    "hierarchyDropToParent": "Drop on the highlighted node to make it the parent.",
+    "hierarchyDropRootChild": "Drop on empty hierarchy space to attach as a root child.",
+    "hierarchyDropKeepParent": "Drop to keep the current parent and only move position.",
+    "showEdgeDebugOverlay": "Show Edge Debug Overlay",
+    "hideEdgeDebugOverlay": "Hide Edge Debug Overlay"
   },
   "layout": {
     "timeline": {
@@ -200,7 +208,9 @@
     "visualOverride": "Visual Override",
     "resetToDefault": "Reset to type default",
     "inheritFromType": "Inherit from type",
-    "notFound": "Edge not found"
+    "notFound": "Edge not found",
+    "hierarchyDirectionTitle": "Hierarchy Direction",
+    "hierarchyDirectionBody": "Create hierarchy links by starting from the child and clicking the parent. Stored edge direction: {source} -> {target}."
   },
   "relationType": {
     "title": "Relation Types",

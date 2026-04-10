@@ -61,6 +61,7 @@ export interface RenderEdge {
   systemContract?: string | null;
   route?: 'straight' | 'orthogonal' | 'hidden';
   routePoints?: RenderPoint[];
+  routeStrategy?: 'default' | 'hierarchy-branch';
   sourceAnchor?: RenderEdgeAnchor;
   targetAnchor?: RenderEdgeAnchor;
   orthogonalAxis?: 'horizontal' | 'vertical';

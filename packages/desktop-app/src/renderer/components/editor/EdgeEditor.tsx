@@ -74,6 +74,8 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
 
   const sourceLabel = sourceNode?.concept?.title ?? sourceNode?.file?.path?.replace(/\\/g, '/').split('/').pop() ?? '?';
   const targetLabel = targetNode?.concept?.title ?? targetNode?.file?.path?.replace(/\\/g, '/').split('/').pop() ?? '?';
+  const isHierarchyContract =
+    session.state.system_contract === 'core:root_child' || session.state.system_contract === 'core:tree_parent';
 
   const relationTypeOptions = useMemo(() => [
     { value: '', label: t('edge.noRelationType') },
@@ -118,6 +120,15 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
     <ScrollArea>
       <div className="flex h-full items-start justify-center">
         <div className="flex flex-col gap-6 p-6 w-full max-w-[600px]">
+          {isHierarchyContract && (
+            <div className="sticky top-3 z-[1] mx-auto w-full max-w-[520px] rounded-md border border-default bg-surface-modal px-4 py-3 text-xs text-default shadow-sm">
+              <div className="font-medium">{t('edge.hierarchyDirectionTitle')}</div>
+              <div className="mt-1 text-secondary">
+                {t('edge.hierarchyDirectionBody', { source: sourceLabel, target: targetLabel })}
+              </div>
+            </div>
+          )}
+
           {/* Source */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-secondary">{t('edge.source')}</label>

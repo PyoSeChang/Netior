@@ -15,6 +15,7 @@ interface NodeLayerProps {
   /** Timeline mode: zoom only affects X position, nodes render at fixed size */
   timelineMode?: boolean;
   nodeDragOffset: { id: string; dx: number; dy: number } | null;
+  dragFollowerIds?: Set<string>;
   onNodeClick: (id: string, event: React.MouseEvent) => void;
   onNodeDoubleClick: (id: string) => void;
   onNodeDragStart: (nodeId: string, startX: number, startY: number) => void;
@@ -36,6 +37,7 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   panY,
   timelineMode,
   nodeDragOffset,
+  dragFollowerIds,
   onNodeClick,
   onNodeDoubleClick,
   onNodeDragStart,
@@ -55,7 +57,7 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
     let x = node.x;
     let y = node.y;
 
-    if (nodeDragOffset && nodeDragOffset.id === node.id) {
+    if (nodeDragOffset && (nodeDragOffset.id === node.id || dragFollowerIds?.has(node.id))) {
       if (timelineMode) {
         // In timeline, dx is screen pixels, convert to canvas X delta
         x += nodeDragOffset.dx / zoom;
@@ -77,8 +79,8 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   // Timeline: no container transform, positions are screen coords
   // Freeform: container transform with scale(zoom)
   const containerStyle = timelineMode
-    ? { position: 'absolute' as const, left: 0, top: 0 }
-    : { position: 'absolute' as const, left: 0, top: 0, transformOrigin: '0 0', transform: `translate(${panX}px, ${panY}px) scale(${zoom})` };
+    ? { position: 'absolute' as const, left: 0, top: 0, zIndex: 2 }
+    : { position: 'absolute' as const, left: 0, top: 0, zIndex: 2, transformOrigin: '0 0', transform: `translate(${panX}px, ${panY}px) scale(${zoom})` };
 
   return (
     <div style={containerStyle}>

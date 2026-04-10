@@ -15,6 +15,8 @@ export interface ShapeLayoutProps {
   semanticTypeLabel: string;
   systemType?: string;
   collapsed?: boolean;
+  canToggleCollapse?: boolean;
+  onToggleCollapse?: () => void;
   updatedAt?: string;
   content?: Record<string, unknown>;
   metadata?: Record<string, unknown>;

@@ -16,6 +16,254 @@ export interface NetworkNodeWithObject extends NetworkNode {
 
 export type EdgeWithRelationType = Edge & { relation_type?: RelationType };
 
+interface ParsedNodePosition {
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  slotIndex?: number;
+  collapsed?: boolean;
+  [key: string]: unknown;
+}
+
+const HIERARCHY_PARENT_CONTRACTS = new Set(['core:root_child', 'core:tree_parent']);
+
+function buildPositionMap(positions: NodePosition[]): Map<string, ParsedNodePosition> {
+  const map = new Map<string, ParsedNodePosition>();
+  for (const position of positions) {
+    try {
+      const parsed = JSON.parse(position.positionJson) as Record<string, unknown>;
+      map.set(position.nodeId, {
+        ...parsed,
+        x: typeof parsed.x === 'number' ? parsed.x : 0,
+        y: typeof parsed.y === 'number' ? parsed.y : 0,
+        width: typeof parsed.width === 'number' ? parsed.width : undefined,
+        height: typeof parsed.height === 'number' ? parsed.height : undefined,
+        slotIndex: typeof parsed.slotIndex === 'number' ? parsed.slotIndex : undefined,
+        collapsed: parsed.collapsed === true,
+      });
+    } catch {
+      // ignore invalid persisted position payload
+    }
+  }
+  return map;
+}
+
+function buildContainsParentMap(edges: EdgeWithRelationType[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const edge of edges) {
+    if (edge.system_contract !== 'core:contains') continue;
+    if (edge.source_node_id === edge.target_node_id) continue;
+    map.set(edge.target_node_id, edge.source_node_id);
+  }
+  return map;
+}
+
+function getHierarchyContainerIds(nodes: NetworkNodeWithObject[]): Set<string> {
+  return new Set(
+    nodes
+      .filter((node) => (node.node_type as string) === 'hierarchy')
+      .map((node) => node.id),
+  );
+}
+
+function getHierarchyContainerIdForNode(
+  nodeId: string,
+  containsParentByChild: Map<string, string>,
+  hierarchyContainerIds: Set<string>,
+): string | null {
+  let current: string | undefined = nodeId;
+  while (current) {
+    if (hierarchyContainerIds.has(current)) return current;
+    current = containsParentByChild.get(current);
+  }
+  return null;
+}
+
+function buildHierarchyParentMap(
+  nodes: NetworkNodeWithObject[],
+  edges: EdgeWithRelationType[],
+  containsParentByChild: Map<string, string>,
+): Map<string, string> {
+  const hierarchyContainerIds = getHierarchyContainerIds(nodes);
+  const map = new Map<string, string>();
+
+  for (const edge of edges) {
+    const contract = edge.system_contract ?? '';
+    if (!HIERARCHY_PARENT_CONTRACTS.has(contract)) continue;
+
+    const targetHierarchyId = getHierarchyContainerIdForNode(edge.target_node_id, containsParentByChild, hierarchyContainerIds);
+    if (!targetHierarchyId) continue;
+
+    if (contract === 'core:root_child') {
+      if (edge.source_node_id !== targetHierarchyId) continue;
+      map.set(edge.target_node_id, edge.source_node_id);
+      continue;
+    }
+
+    const sourceHierarchyId = getHierarchyContainerIdForNode(edge.source_node_id, containsParentByChild, hierarchyContainerIds);
+    if (!sourceHierarchyId || sourceHierarchyId !== targetHierarchyId) continue;
+    map.set(edge.target_node_id, edge.source_node_id);
+  }
+
+  return map;
+}
+
+function resolveWorldPosition(
+  nodeId: string,
+  nodeById: Map<string, NetworkNodeWithObject>,
+  rawPosMap: Map<string, ParsedNodePosition>,
+  containsParentByChild: Map<string, string>,
+  cache: Map<string, ParsedNodePosition>,
+  visiting: Set<string>,
+): ParsedNodePosition {
+  const cached = cache.get(nodeId);
+  if (cached) return cached;
+
+  const base = rawPosMap.get(nodeId) ?? { x: 0, y: 0 };
+  if (visiting.has(nodeId)) return base;
+
+  const parentId = containsParentByChild.get(nodeId);
+  if (!parentId) {
+    cache.set(nodeId, base);
+    return base;
+  }
+
+  visiting.add(nodeId);
+  const parent = resolveWorldPosition(
+    parentId,
+    nodeById,
+    rawPosMap,
+    containsParentByChild,
+    cache,
+    visiting,
+  );
+  visiting.delete(nodeId);
+
+  const parentNodeType = nodeById.get(parentId)?.node_type as string | undefined;
+  if (parentNodeType === 'hierarchy') {
+    const resolved = {
+      ...base,
+      x: parent.x + base.x,
+      y: parent.y + base.y,
+    };
+    cache.set(nodeId, resolved);
+    return resolved;
+  }
+
+  const resolved = {
+    ...base,
+    x: parent.x + base.x,
+    y: parent.y + base.y,
+  };
+  cache.set(nodeId, resolved);
+  return resolved;
+}
+
+function buildWorldPositionMap(
+  nodes: NetworkNodeWithObject[],
+  edges: EdgeWithRelationType[],
+  rawPosMap: Map<string, ParsedNodePosition>,
+  containsParentByChild: Map<string, string>,
+): Map<string, ParsedNodePosition> {
+  const cache = new Map<string, ParsedNodePosition>();
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const ids = new Set<string>([...nodes.map((node) => node.id), ...rawPosMap.keys()]);
+
+  for (const nodeId of ids) {
+    resolveWorldPosition(
+      nodeId,
+      nodeById,
+      rawPosMap,
+      containsParentByChild,
+      cache,
+      new Set<string>(),
+    );
+  }
+
+  return cache;
+}
+
+function serializePositionJson(position: ParsedNodePosition): string {
+  return JSON.stringify(position);
+}
+
+async function healHierarchyOrphans(networkId: string): Promise<void> {
+  const full = await networkService.getFull(networkId);
+  if (!full) return;
+
+  const nodes = full.nodes as NetworkNodeWithObject[];
+  const edges = full.edges as EdgeWithRelationType[];
+  const containsParentByChild = buildContainsParentMap(edges);
+  const hierarchyContainerIds = getHierarchyContainerIds(nodes);
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+
+  for (const node of nodes) {
+    const directContainerId = containsParentByChild.get(node.id);
+    if (!directContainerId) continue;
+    if (!hierarchyContainerIds.has(directContainerId)) continue;
+
+    const structuralEdges = edges.filter(
+      (edge) => HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '') && edge.target_node_id === node.id,
+    );
+
+    const validTreeParents = structuralEdges.filter((edge) =>
+      edge.system_contract === 'core:tree_parent'
+      && edge.source_node_id !== node.id
+      && nodeById.has(edge.source_node_id)
+      && getHierarchyContainerIdForNode(edge.source_node_id, containsParentByChild, hierarchyContainerIds) === directContainerId,
+    );
+    const validRootChildren = structuralEdges.filter((edge) =>
+      edge.system_contract === 'core:root_child' && edge.source_node_id === directContainerId,
+    );
+
+    const preferredEdge = validTreeParents[0] ?? validRootChildren[0] ?? null;
+
+    for (const edge of structuralEdges) {
+      if (preferredEdge && edge.id === preferredEdge.id) continue;
+      await networkService.edge.delete(edge.id);
+    }
+
+    if (!preferredEdge) {
+      await networkService.edge.create({
+        network_id: networkId,
+        source_node_id: directContainerId,
+        target_node_id: node.id,
+        relation_type_id: null,
+        system_contract: 'core:root_child',
+      });
+    }
+  }
+}
+
+function buildRelativePosition(
+  existing: ParsedNodePosition | undefined,
+  worldPosition: ParsedNodePosition,
+  nextContainerId: string | null,
+  nodeById: Map<string, NetworkNodeWithObject>,
+  worldPosMap: Map<string, ParsedNodePosition>,
+): ParsedNodePosition {
+  const next: ParsedNodePosition = {
+    ...(existing ?? {}),
+    x: worldPosition.x,
+    y: worldPosition.y,
+  };
+
+  delete next.slotIndex;
+
+  if (!nextContainerId) {
+    return next;
+  }
+
+  const parentWorld = worldPosMap.get(nextContainerId) ?? { x: 0, y: 0 };
+  const parentNodeType = nodeById.get(nextContainerId)?.node_type as string | undefined;
+
+  next.x = worldPosition.x - parentWorld.x;
+  next.y = worldPosition.y - parentWorld.y;
+
+  return next;
+}
+
 interface NetworkStore {
   networks: Network[];
   currentNetwork: Network | null;
@@ -181,7 +429,133 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   },
 
   removeNode: async (id) => {
+    const {
+      currentNetwork,
+      currentLayout,
+      nodes,
+      edges,
+      nodePositions,
+      openNetwork,
+    } = get();
+    const node = nodes.find((candidate) => candidate.id === id);
+    const networkId = currentNetwork?.id ?? node?.network_id ?? null;
+
+    if (!node) {
+      await networkService.node.remove(id);
+      set((s) => ({
+        nodes: s.nodes.filter((n) => n.id !== id),
+        edges: s.edges.filter((e) => e.source_node_id !== id && e.target_node_id !== id),
+        nodePositions: s.nodePositions.filter((p) => p.nodeId !== id),
+      }));
+      return;
+    }
+
+    const rawPosMap = buildPositionMap(nodePositions);
+    const containsParentByChild = buildContainsParentMap(edges);
+    const worldPosMap = buildWorldPositionMap(nodes, edges, rawPosMap, containsParentByChild);
+    const nodeById = new Map(nodes.map((candidate) => [candidate.id, candidate]));
+    const hierarchyContainerIds = getHierarchyContainerIds(nodes);
+    const hierarchyParentByChild = buildHierarchyParentMap(nodes, edges, containsParentByChild);
+
+    const outerContainerId = containsParentByChild.get(id) ?? null;
+    const directContainedEdges = edges.filter(
+      (edge) => edge.system_contract === 'core:contains' && edge.source_node_id === id,
+    );
+    const directTreeChildEdges = edges.filter(
+      (edge) => HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '') && edge.source_node_id === id,
+    );
+    const directTreeChildTargetIds = new Set(directTreeChildEdges.map((edge) => edge.target_node_id));
+    const deletedNodeHierarchyId = getHierarchyContainerIdForNode(id, containsParentByChild, hierarchyContainerIds);
+    const deletedNodeStructuralParent = hierarchyParentByChild.get(id) ?? null;
+    const affectedHierarchyNodeIds = new Set(
+      nodes
+        .filter((candidate) => getHierarchyContainerIdForNode(candidate.id, containsParentByChild, hierarchyContainerIds) === id)
+        .map((candidate) => candidate.id),
+    );
+
     await networkService.node.remove(id);
+
+    for (const directChildEdge of directContainedEdges) {
+      const childId = directChildEdge.target_node_id;
+      const childWorld = worldPosMap.get(childId) ?? rawPosMap.get(childId) ?? { x: 0, y: 0 };
+      const nextPosition = buildRelativePosition(
+        rawPosMap.get(childId),
+        childWorld,
+        outerContainerId,
+        nodeById,
+        worldPosMap,
+      );
+
+      if (currentLayout) {
+        await layoutService.node.setPosition(currentLayout.id, childId, serializePositionJson(nextPosition));
+      }
+
+      if (outerContainerId) {
+        await networkService.edge.create({
+          network_id: networkId ?? node.network_id,
+          source_node_id: outerContainerId,
+          target_node_id: childId,
+          relation_type_id: null,
+          system_contract: 'core:contains',
+        });
+
+        const targetNodeType = nodeById.get(outerContainerId)?.node_type as string | undefined;
+        if (targetNodeType === 'hierarchy') {
+          const willReceiveStructuralFallback = directTreeChildTargetIds.has(childId);
+          const stillHasHierarchyParent = (node.node_type as string) === 'hierarchy'
+            ? false
+            : willReceiveStructuralFallback
+              ? true
+            : edges.some(
+              (edge) =>
+                HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '')
+                && edge.target_node_id === childId
+                && edge.source_node_id !== id,
+            );
+          if (!stillHasHierarchyParent) {
+            await networkService.edge.create({
+              network_id: networkId ?? node.network_id,
+              source_node_id: outerContainerId,
+              target_node_id: childId,
+              relation_type_id: null,
+              system_contract: 'core:root_child',
+            });
+          }
+        }
+      }
+    }
+
+    if ((node.node_type as string) === 'hierarchy') {
+      for (const edge of edges) {
+        if (!HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '')) continue;
+        if (!affectedHierarchyNodeIds.has(edge.target_node_id)) continue;
+        await networkService.edge.delete(edge.id);
+      }
+    } else if (deletedNodeHierarchyId) {
+      const fallbackHierarchyId = deletedNodeHierarchyId;
+      const fallbackParentId =
+        deletedNodeStructuralParent && deletedNodeStructuralParent !== fallbackHierarchyId
+          ? deletedNodeStructuralParent
+          : null;
+      const structuralTargets = new Set(directTreeChildEdges.map((edge) => edge.target_node_id));
+
+      for (const childId of structuralTargets) {
+        await networkService.edge.create({
+          network_id: networkId ?? node.network_id,
+          source_node_id: fallbackParentId ?? fallbackHierarchyId,
+          target_node_id: childId,
+          relation_type_id: null,
+          system_contract: fallbackParentId ? 'core:tree_parent' : 'core:root_child',
+        });
+      }
+    }
+
+    if (networkId) {
+      await healHierarchyOrphans(networkId);
+      await openNetwork(networkId);
+      return;
+    }
+
     set((s) => ({
       nodes: s.nodes.filter((n) => n.id !== id),
       edges: s.edges.filter((e) => e.source_node_id !== id && e.target_node_id !== id),
@@ -210,7 +584,52 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   },
 
   removeEdge: async (id) => {
+    const { currentNetwork, nodes, edges, openNetwork } = get();
+    const edge = edges.find((candidate) => candidate.id === id);
+
+    if (!edge) {
+      await networkService.edge.delete(id);
+      set((s) => ({
+        edges: s.edges.filter((e) => e.id !== id),
+        edgeVisuals: s.edgeVisuals.filter((v) => v.edgeId !== id),
+      }));
+      return;
+    }
+
     await networkService.edge.delete(id);
+
+    if (HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '')) {
+      const remainingEdges = edges.filter((candidate) => candidate.id !== id);
+      const containsParentByChild = buildContainsParentMap(remainingEdges);
+      const hierarchyContainerId = getHierarchyContainerIdForNode(
+        edge.target_node_id,
+        containsParentByChild,
+        getHierarchyContainerIds(nodes),
+      );
+      const stillHasHierarchyParent = remainingEdges.some(
+        (candidate) =>
+          HIERARCHY_PARENT_CONTRACTS.has(candidate.system_contract ?? '')
+          && candidate.target_node_id === edge.target_node_id,
+      );
+
+      if (hierarchyContainerId && !stillHasHierarchyParent) {
+        await networkService.edge.create({
+          network_id: edge.network_id,
+          source_node_id: hierarchyContainerId,
+          target_node_id: edge.target_node_id,
+          relation_type_id: null,
+          system_contract: 'core:root_child',
+        });
+      }
+    }
+
+    const networkId = currentNetwork?.id ?? edge.network_id;
+    if (networkId) {
+      await healHierarchyOrphans(networkId);
+      await openNetwork(networkId);
+      return;
+    }
+
     set((s) => ({
       edges: s.edges.filter((e) => e.id !== id),
       edgeVisuals: s.edgeVisuals.filter((v) => v.edgeId !== id),

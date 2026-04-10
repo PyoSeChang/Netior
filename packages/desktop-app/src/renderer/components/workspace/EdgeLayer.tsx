@@ -8,7 +8,11 @@ interface EdgeLayerProps {
   zoom: number;
   panX: number;
   panY: number;
+  zIndex?: number;
+  renderHitArea?: boolean;
+  renderVisibleStroke?: boolean;
   nodeDragOffset: { id: string; dx: number; dy: number } | null;
+  dragFollowerIds?: Set<string>;
   onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onDoubleClick?: (edgeId: string) => void;
 }
@@ -25,17 +29,21 @@ export const EdgeLayer: React.FC<EdgeLayerProps> = ({
   zoom,
   panX,
   panY,
+  zIndex = 1,
+  renderHitArea = true,
+  renderVisibleStroke = true,
   nodeDragOffset,
+  dragFollowerIds,
   onContextMenu,
   onDoubleClick,
 }) => {
-  const HIERARCHY_ROOT_TOP_OFFSET = 18;
-  const HIERARCHY_ROOT_BOTTOM_OFFSET = 74;
+  const HIERARCHY_ROOT_TOP_OFFSET = 8;
+  const HIERARCHY_ROOT_BOTTOM_OFFSET = 64;
 
   // Build node position map (with drag offset)
   const nodePositionMap = new Map<string, RenderNode>();
   for (const node of nodes) {
-    if (nodeDragOffset && nodeDragOffset.id === node.id) {
+    if (nodeDragOffset && (nodeDragOffset.id === node.id || dragFollowerIds?.has(node.id))) {
       nodePositionMap.set(node.id, {
         ...node,
         x: node.x + nodeDragOffset.dx / zoom,
@@ -89,6 +97,66 @@ export const EdgeLayer: React.FC<EdgeLayerProps> = ({
     ];
   };
 
+  const buildHierarchyBranchWaypoints = (
+    source: RenderPoint,
+    target: RenderPoint,
+    sourceId: string,
+    targetId: string,
+  ): RenderPoint[] => {
+    const verticalGap = target.y - source.y;
+    if (verticalGap <= 16) {
+      return buildOrthogonalWaypoints(source, target, 'vertical');
+    }
+
+    const branchOffset = Math.max(12, Math.min(28, verticalGap * 0.35));
+    const minBranchY = source.y + 12;
+    const maxBranchY = target.y - 12;
+    let branchY = Math.min(source.y + branchOffset, maxBranchY);
+
+    if (branchY <= source.y || branchY >= target.y) {
+      return buildOrthogonalWaypoints(source, target, 'vertical');
+    }
+
+    const horizontalMinX = Math.min(source.x, target.x);
+    const horizontalMaxX = Math.max(source.x, target.x);
+    const padding = 10;
+
+    const intersectsHorizontalSegment = (node: RenderNode, y: number): boolean => {
+      if (node.id === sourceId || node.id === targetId) return false;
+      const width = (node.width ?? 160) + padding * 2;
+      const height = (node.height ?? 60) + padding * 2;
+      const left = node.x - width / 2;
+      const right = node.x + width / 2;
+      const top = node.y - height / 2;
+      const bottom = node.y + height / 2;
+
+      if (horizontalMaxX < left || horizontalMinX > right) return false;
+      return y >= top && y <= bottom;
+    };
+
+    for (let i = 0; i < 4; i += 1) {
+      const blockers = Array.from(nodePositionMap.values()).filter((node) => intersectsHorizontalSegment(node, branchY));
+      if (blockers.length === 0) break;
+
+      const lowestBottom = Math.max(...blockers.map((node) => node.y + (node.height ?? 60) / 2 + padding));
+      const nextBranchY = Math.max(minBranchY, lowestBottom);
+      if (nextBranchY >= maxBranchY) {
+        branchY = maxBranchY;
+        break;
+      }
+      branchY = nextBranchY;
+    }
+
+    if (branchY <= source.y || branchY >= target.y) {
+      return buildOrthogonalWaypoints(source, target, 'vertical');
+    }
+
+    return [
+      { x: source.x, y: branchY },
+      { x: target.x, y: branchY },
+    ];
+  };
+
   return (
     <svg
       style={{
@@ -97,6 +165,7 @@ export const EdgeLayer: React.FC<EdgeLayerProps> = ({
         top: 0,
         width: '100%',
         height: '100%',
+        zIndex,
         pointerEvents: 'none',
       }}
     >
@@ -114,7 +183,9 @@ export const EdgeLayer: React.FC<EdgeLayerProps> = ({
           const sourcePoint = resolveAnchorPoint(source, edge.sourceAnchor);
           const targetPoint = resolveAnchorPoint(target, edge.targetAnchor);
           const routePoints = edge.routePoints
-            ?? (edge.route === 'orthogonal'
+            ?? (edge.routeStrategy === 'hierarchy-branch'
+              ? buildHierarchyBranchWaypoints(sourcePoint, targetPoint, source.id, target.id)
+              : edge.route === 'orthogonal'
               ? buildOrthogonalWaypoints(sourcePoint, targetPoint, edge.orthogonalAxis)
               : undefined);
           const trimEndpoints = edge.sourceAnchor == null && edge.targetAnchor == null && !edge.routePoints;
@@ -134,6 +205,8 @@ export const EdgeLayer: React.FC<EdgeLayerProps> = ({
                 route={edge.route === 'orthogonal' ? 'orthogonal' : 'straight'}
                 routePoints={routePoints}
                 trimEndpoints={trimEndpoints}
+                renderHitArea={renderHitArea}
+                renderVisibleStroke={renderVisibleStroke}
                 onContextMenu={onContextMenu}
                 onDoubleClick={onDoubleClick}
               />

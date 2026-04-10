@@ -81,7 +81,15 @@
     "addArchetype": "Archetype 추가...",
     "scales": "스케일",
     "scaleFactor": "Factor",
-    "scaleSubdivisions": "세분"
+    "scaleSubdivisions": "세분",
+    "deleteSubtreeTitle": "노드 삭제",
+    "deleteSubtreeMessage": "선택한 노드를 포함해 총 {count}개 노드를 삭제합니다.",
+    "hierarchyLinkChildToParent": "Hierarchy 연결은 child에서 시작한 뒤 parent를 클릭합니다.",
+    "hierarchyDropToParent": "강조된 노드 위에 놓으면 그 노드의 child가 됩니다.",
+    "hierarchyDropRootChild": "Hierarchy 빈 공간에 놓으면 root child로 붙습니다.",
+    "hierarchyDropKeepParent": "현재 parent를 유지한 채 위치만 이동합니다.",
+    "showEdgeDebugOverlay": "엣지 디버그 오버레이 표시",
+    "hideEdgeDebugOverlay": "엣지 디버그 오버레이 숨기기"
   },
   "layout": {
     "timeline": {
@@ -200,7 +208,9 @@
     "visualOverride": "시각 설정 (개별)",
     "resetToDefault": "유형 기본값으로 초기화",
     "inheritFromType": "유형에서 상속",
-    "notFound": "연결을 찾을 수 없습니다"
+    "notFound": "연결을 찾을 수 없습니다",
+    "hierarchyDirectionTitle": "Hierarchy 연결 방향",
+    "hierarchyDirectionBody": "Hierarchy 연결은 child에서 시작한 뒤 parent를 클릭합니다. 저장된 edge 방향: {source} -> {target}."
   },
   "relationType": {
     "title": "관계 유형",

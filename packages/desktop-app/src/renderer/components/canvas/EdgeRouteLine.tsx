@@ -14,6 +14,8 @@ export interface EdgeRouteLineProps {
   route?: 'straight' | 'orthogonal';
   routePoints?: RenderPoint[];
   trimEndpoints?: boolean;
+  renderHitArea?: boolean;
+  renderVisibleStroke?: boolean;
   onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onDoubleClick?: (edgeId: string) => void;
 }
@@ -106,6 +108,8 @@ export const EdgeRouteLine: React.FC<EdgeRouteLineProps> = ({
   route = 'straight',
   routePoints,
   trimEndpoints = true,
+  renderHitArea = true,
+  renderVisibleStroke = true,
   onContextMenu,
   onDoubleClick,
 }) => {
@@ -113,9 +117,18 @@ export const EdgeRouteLine: React.FC<EdgeRouteLineProps> = ({
 
   const handleMouseEnter = useCallback(() => setHovered(true), []);
   const handleMouseLeave = useCallback(() => setHovered(false), []);
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+  }, []);
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+  }, []);
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      e.preventDefault();
       onDoubleClick?.(id);
     },
     [id, onDoubleClick],
@@ -154,13 +167,8 @@ export const EdgeRouteLine: React.FC<EdgeRouteLineProps> = ({
   const dashArray = lineStyle === 'dashed' ? '8,4' : lineStyle === 'dotted' ? '2,2' : undefined;
 
   return (
-    <g
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onContextMenu={handleContextMenu}
-      onDoubleClick={handleDoubleClick}
-    >
-      {isPolyline ? (
+    <g onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      {renderHitArea && (isPolyline ? (
         <polyline
           points={pointString}
           fill="none"
@@ -168,6 +176,11 @@ export const EdgeRouteLine: React.FC<EdgeRouteLineProps> = ({
           strokeWidth={12}
           strokeLinejoin="round"
           strokeLinecap="round"
+          pointerEvents="stroke"
+          onMouseDown={handleMouseDown}
+          onClick={handleClick}
+          onContextMenu={handleContextMenu}
+          onDoubleClick={handleDoubleClick}
         />
       ) : (
         <line
@@ -177,9 +190,14 @@ export const EdgeRouteLine: React.FC<EdgeRouteLineProps> = ({
           y2={end.y}
           stroke="transparent"
           strokeWidth={12}
+          pointerEvents="stroke"
+          onMouseDown={handleMouseDown}
+          onClick={handleClick}
+          onContextMenu={handleContextMenu}
+          onDoubleClick={handleDoubleClick}
         />
-      )}
-      {isPolyline ? (
+      ))}
+      {renderVisibleStroke && (isPolyline ? (
         <polyline
           points={pointString}
           fill="none"
@@ -188,6 +206,7 @@ export const EdgeRouteLine: React.FC<EdgeRouteLineProps> = ({
           strokeDasharray={dashArray}
           strokeLinejoin="round"
           strokeLinecap="round"
+          pointerEvents="none"
         />
       ) : (
         <line
@@ -198,16 +217,18 @@ export const EdgeRouteLine: React.FC<EdgeRouteLineProps> = ({
           stroke={lineStroke}
           strokeWidth={lineWidth}
           strokeDasharray={dashArray}
+          pointerEvents="none"
         />
-      )}
-      {directed && (
+      ))}
+      {renderVisibleStroke && directed && (
         <polygon
           points={`0,${-ARROW_SIZE / 2} ${ARROW_SIZE},0 0,${ARROW_SIZE / 2}`}
           transform={`translate(${end.x}, ${end.y}) rotate(${(angle * 180) / Math.PI})`}
           fill={arrowFill}
+          pointerEvents="none"
         />
       )}
-      {hovered && label && (
+      {renderVisibleStroke && hovered && label && (
         <text
           x={midpoint.x}
           y={midpoint.y - 8}

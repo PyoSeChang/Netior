@@ -139,28 +139,30 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
     if (isGear) {
       // gear uses clip-path, no border
     } else {
-      if (shape === 'hierarchy') {
-        parts.push('border border-dashed border-strong');
+      if (isContainerShape && collapsed) {
+        parts.push('border border-transparent');
+      } else if (shape === 'hierarchy') {
+        parts.push('border-2 border-strong');
       } else {
-        parts.push(shape === 'group' ? 'border border-default' : 'border border-subtle');
+        parts.push(shape === 'group' ? 'border-2 border-strong' : 'border border-subtle');
       }
-      if (isContainerShape) {
+      if (isContainerShape && !collapsed) {
         parts.push('hover:border-strong');
-      } else {
+      } else if (!isContainerShape) {
         parts.push('hover:border-default hover:shadow-md');
       }
       parts.push(outlineClass);
     }
 
-    if (selected) {
+    if (selected && !(isContainerShape && collapsed)) {
       parts.push(isContainerShape ? 'border-accent shadow-[0_0_0_1px_var(--accent)]' : 'border-accent shadow-[0_0_0_2px_var(--accent-muted)]');
     }
-    if (highlighted) {
+    if (highlighted && !(isContainerShape && collapsed)) {
       parts.push('border-status-warning shadow-[0_0_0_2px_color-mix(in_srgb,var(--status-warning)_30%,transparent)]');
     }
 
     return parts.filter(Boolean).join(' ');
-  }, [shape, isContainerShape, isGear, outlineClass, selected, highlighted]);
+  }, [shape, isContainerShape, isGear, outlineClass, selected, highlighted, collapsed]);
 
   const cardStyle: React.CSSProperties = {
     width,
@@ -199,6 +201,8 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
             semanticTypeLabel={semanticTypeLabel}
             systemType={systemType}
             collapsed={collapsed}
+            canToggleCollapse={!!(isContainerShape && onToggleCollapse)}
+            onToggleCollapse={onToggleCollapse ? () => onToggleCollapse(id) : undefined}
             updatedAt={updatedAt}
             content={content}
             metadata={metadata}
@@ -232,25 +236,6 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
           </div>
         )}
       </div>
-
-      {isContainerShape && onToggleCollapse && (
-        <button
-          type="button"
-          aria-label={collapsed ? 'Expand container' : 'Collapse container'}
-          className="absolute right-2 top-2 z-[2] flex h-5 w-5 items-center justify-center rounded border border-subtle bg-surface-base text-[10px] text-secondary hover:border-default hover:text-default"
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            onToggleCollapse(id);
-          }}
-        >
-          {collapsed ? '+' : '-'}
-        </button>
-      )}
 
       {/* Span resize handles (edit mode only) */}
       {mode === 'edit' && spanInfo && onSpanResizeStart && (
