@@ -20,6 +20,7 @@ interface NodeLayerProps {
   onNodeDragStart: (nodeId: string, startX: number, startY: number) => void;
   onNodeResizeStart?: (nodeId: string, direction: NodeResizeDirection, startX: number, startY: number) => void;
   onNodeToggleCollapse?: (nodeId: string) => void;
+  onNodePortalChipClick?: (nodeId: string, chipId: string, networkId: string) => void;
   onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onNodeMouseEnter?: (id: string, screenX: number, screenY: number) => void;
   onNodeMouseLeave?: (id: string) => void;
@@ -40,6 +41,7 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   onNodeDragStart,
   onNodeResizeStart,
   onNodeToggleCollapse,
+  onNodePortalChipClick,
   onContextMenu,
   onNodeMouseEnter,
   onNodeMouseLeave,
@@ -103,6 +105,8 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
               onResizeStart={onNodeResizeStart}
               collapsed={node.isCollapsed}
               onToggleCollapse={onNodeToggleCollapse}
+              portalChips={node.portalChips}
+              onPortalChipClick={onNodePortalChipClick}
               onClick={onNodeClick}
               onDoubleClick={onNodeDoubleClick}
               onDragStart={onNodeDragStart}

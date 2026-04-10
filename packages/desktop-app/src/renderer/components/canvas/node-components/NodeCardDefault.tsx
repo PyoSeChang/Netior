@@ -58,6 +58,8 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
   shape = 'rectangle',
   content,
   metadata,
+  portalChips,
+  onPortalChipClick,
   spanInfo,
   onSpanResizeStart,
   resizable = false,
@@ -71,6 +73,8 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
   onMouseEnter,
   onMouseLeave,
 }) => {
+  const hasPortalChips = !!portalChips && portalChips.length > 0;
+  const portalChipStripHeight = hasPortalChips ? 32 : 0;
   const resizeHandles: Array<{
     direction: NodeResizeDirection;
     cursor: string;
@@ -188,15 +192,44 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
     >
       {/* Card body */}
       <div className={cardClassName} style={cardStyle}>
-        <Layout
-          label={label}
-          icon={icon}
-          semanticTypeLabel={semanticTypeLabel}
-          systemType={systemType}
-          updatedAt={updatedAt}
-          content={content}
-          metadata={metadata}
-        />
+        <div style={{ height: hasPortalChips ? Math.max(height - portalChipStripHeight, 0) : height }}>
+          <Layout
+            label={label}
+            icon={icon}
+            semanticTypeLabel={semanticTypeLabel}
+            systemType={systemType}
+            updatedAt={updatedAt}
+            content={content}
+            metadata={metadata}
+          />
+        </div>
+        {hasPortalChips && (
+          <div className="flex h-8 items-center gap-1 overflow-x-auto border-t border-subtle px-2 py-1">
+            {portalChips.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                className={`shrink-0 rounded border px-2 py-0.5 text-[11px] ${
+                  mode === 'browse'
+                    ? 'border-default bg-accent-muted text-accent hover:border-accent'
+                    : 'border-subtle bg-surface-hover text-secondary'
+                }`}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (mode !== 'browse') return;
+                  onPortalChipClick?.(id, chip.id, chip.networkId);
+                }}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {isContainerShape && onToggleCollapse && (

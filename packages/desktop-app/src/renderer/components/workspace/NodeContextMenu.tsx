@@ -21,6 +21,7 @@ interface NodeContextMenuProps {
   onAddConnection?: (nodeId: string) => void;
   onOpenNetwork?: (networkId: string) => void;
   onCreateNetwork?: (conceptId: string) => void;
+  onAttachNetwork?: (nodeId: string) => void;
   onClose: () => void;
 }
 
@@ -39,6 +40,7 @@ export function NodeContextMenu({
   onAddConnection,
   onOpenNetwork,
   onCreateNetwork,
+  onAttachNetwork,
   onClose,
 }: NodeContextMenuProps): JSX.Element {
   const { t } = useI18n();
@@ -112,6 +114,11 @@ export function NodeContextMenu({
     onClose();
   }, [onCreateNetwork, conceptId, onClose]);
 
+  const handleAttachNetwork = useCallback(() => {
+    onAttachNetwork?.(nodeId);
+    onClose();
+  }, [nodeId, onAttachNetwork, onClose]);
+
   const handleAddConnection = useCallback(() => {
     onAddConnection?.(nodeId);
     onClose();
@@ -157,6 +164,16 @@ export function NodeContextMenu({
         >
           <Plus size={14} />
           {t('network.createNetwork')}
+        </button>
+      )}
+
+      {conceptId && (
+        <button
+          className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
+          onClick={handleAttachNetwork}
+        >
+          <Link size={14} />
+          {t('network.connectNetwork') ?? 'Connect Network'}
         </button>
       )}
 

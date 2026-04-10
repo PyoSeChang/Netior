@@ -41,6 +41,13 @@ interface ParsedNodePosition {
   [key: string]: unknown;
 }
 
+interface EntryPortalChipSpec {
+  id: string;
+  networkId: string;
+  targetNodeId: string;
+  label: string;
+}
+
 interface NodeResizeState {
   nodeId: string;
   direction: NodeResizeDirection;
@@ -169,6 +176,10 @@ function getNodeDimensions(
     width: typeof position?.width === 'number' ? position.width : defaults.width,
     height: typeof position?.height === 'number' ? position.height : defaults.height,
   };
+}
+
+function getPortalChipStripHeight(chipCount: number): number {
+  return chipCount > 0 ? 32 : 0;
 }
 
 function buildHierarchyChildMap(
@@ -409,6 +420,7 @@ function toRenderNodes(
   archetypeNames: Map<string, string>,
   relationTypeNames: Map<string, string>,
   contextNames: Map<string, string>,
+  portalChipsBySource: Map<string, EntryPortalChipSpec[]>,
 ): RenderNode[] {
   const archMap = new Map(archetypes.map((a) => [a.id, a]));
   return nodes.map((n) => {
@@ -420,6 +432,8 @@ function toRenderNodes(
     const isHierarchy = rawNodeType === 'hierarchy';
     const isContainer = isGroup || isHierarchy;
     const isCollapsed = isContainer && isCollapsedPosition(pos);
+    const portalChips = portalChipsBySource.get(n.id) ?? [];
+    const portalChipStripHeight = getPortalChipStripHeight(portalChips.length);
     if (objectType === 'concept' && n.concept) {
       const arch = n.concept.archetype_id ? archMap.get(n.concept.archetype_id) : undefined;
       return {
@@ -436,7 +450,7 @@ function toRenderNodes(
           : pos?.width ?? (isPortal ? 180 : isHierarchy ? 380 : isGroup ? 360 : 160),
         height: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
-          : pos?.height ?? (isPortal ? 68 : isHierarchy ? 240 : isGroup ? 220 : 60),
+          : (pos?.height ?? (isPortal ? 68 : isHierarchy ? 240 : isGroup ? 220 : 60)) + portalChipStripHeight,
         conceptId: n.object?.ref_id ?? undefined,
         canvasCount: 0,
         nodeType: 'concept' as const,
@@ -447,6 +461,7 @@ function toRenderNodes(
         isHierarchy,
         isContainer,
         isCollapsed,
+        portalChips,
       };
     }
     if (objectType === 'file' && n.file) {
@@ -483,6 +498,7 @@ function toRenderNodes(
         isHierarchy,
         isContainer,
         isCollapsed,
+        portalChips,
         fileId: n.object?.ref_id ?? undefined,
         filePath: filePath ?? undefined,
       };
@@ -514,6 +530,7 @@ function toRenderNodes(
         isHierarchy,
         isContainer,
         isCollapsed,
+        portalChips,
         networkId: refId ?? undefined,
       };
     }
@@ -553,6 +570,7 @@ function toRenderNodes(
       isHierarchy,
       isContainer,
       isCollapsed,
+      portalChips,
     };
   });
 }
@@ -789,6 +807,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const [fileInsertPosition, setFileInsertPosition] = useState<{ x: number; y: number } | null>(null);
   const [objectPickerOpen, setObjectPickerOpen] = useState(false);
   const [objectInsertPosition, setObjectInsertPosition] = useState<{ x: number; y: number } | null>(null);
+  const [portalAttachSourceNodeId, setPortalAttachSourceNodeId] = useState<string | null>(null);
 
   // Load networks and open the project root-like network on first entry
   useEffect(() => {
@@ -906,6 +925,40 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const archetypeNames = useMemo(() => new Map(archetypes.map((archetype) => [archetype.id, archetype.name])), [archetypes]);
   const relationTypeNames = useMemo(() => new Map(relationTypes.map((relationType) => [relationType.id, relationType.name])), [relationTypes]);
   const contextNames = useMemo(() => new Map(contexts.map((context) => [context.id, context.name])), [contexts]);
+  const entryPortalData = useMemo(() => {
+    const nodeById = new Map(nodes.map((node) => [node.id, node]));
+    const portalChipsBySource = new Map<string, EntryPortalChipSpec[]>();
+    const entryPortalTargetNodeIds = new Set<string>();
+
+    for (const edge of edges) {
+      if (edge.system_contract !== 'core:entry_portal') continue;
+
+      const sourceNode = nodeById.get(edge.source_node_id);
+      const targetNode = nodeById.get(edge.target_node_id);
+      const targetNetworkId =
+        targetNode?.object?.object_type === 'network'
+          ? targetNode.object.ref_id
+          : undefined;
+
+      if (!sourceNode || !targetNode || !targetNetworkId) continue;
+
+      const chips = portalChipsBySource.get(sourceNode.id) ?? [];
+      chips.push({
+        id: edge.id,
+        networkId: targetNetworkId,
+        targetNodeId: targetNode.id,
+        label: networkNames.get(targetNetworkId) ?? 'Network',
+      });
+      portalChipsBySource.set(sourceNode.id, chips);
+      entryPortalTargetNodeIds.add(targetNode.id);
+    }
+
+    for (const chips of portalChipsBySource.values()) {
+      chips.sort((left, right) => left.label.localeCompare(right.label));
+    }
+
+    return { portalChipsBySource, entryPortalTargetNodeIds };
+  }, [edges, networkNames, nodes]);
   const rawPosMap = useMemo(() => buildPositionMap(nodePositions), [nodePositions]);
   const containsParentByChild = useMemo(() => buildContainsParentMap(edges), [edges]);
   const worldPosMap = useMemo(
@@ -947,6 +1000,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       archetypeNames,
       relationTypeNames,
       contextNames,
+      entryPortalData.portalChipsBySource,
     );
 
     if (!isContextFiltering) return baseNodes;
@@ -964,6 +1018,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     archetypeNames,
     relationTypeNames,
     contextNames,
+    entryPortalData,
     isContextFiltering,
     activeContextObjectIds,
   ]);
@@ -974,8 +1029,10 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   );
 
   const visibleRenderNodes = useMemo(
-    () => renderNodes.filter((node) => !hasCollapsedAncestor(node.id, containsParentByChild, collapsedContainerIds)),
-    [renderNodes, containsParentByChild, collapsedContainerIds],
+    () => renderNodes.filter((node) =>
+      !entryPortalData.entryPortalTargetNodeIds.has(node.id)
+      && !hasCollapsedAncestor(node.id, containsParentByChild, collapsedContainerIds)),
+    [renderNodes, entryPortalData, containsParentByChild, collapsedContainerIds],
   );
 
   const hierarchyContainerIds = useMemo(
@@ -1146,6 +1203,65 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const previewCardRenderNodes = useMemo<RenderNode[]>(() => (
     cardRenderNodes.map((node) => previewRenderNodes.find((candidate) => candidate.id === node.id) ?? node)
   ), [cardRenderNodes, previewRenderNodes]);
+
+  const findEntryPortalHostAtPosition = useCallback((x: number, y: number): RenderNode | null => {
+    const candidates = previewCardRenderNodes
+      .filter((node) => node.objectType === 'concept')
+      .filter((node) => !node.isCollapsed)
+      .filter((node) => isPointInsideNodeBounds(node, x, y))
+      .sort((left, right) => {
+        const leftArea = (left.width ?? 160) * (left.height ?? 60);
+        const rightArea = (right.width ?? 160) * (right.height ?? 60);
+        return leftArea - rightArea;
+      });
+
+    return candidates[0] ?? null;
+  }, [previewCardRenderNodes]);
+
+  const createEntryPortalAttachment = useCallback(async (sourceNodeId: string, networkRefId: string) => {
+    if (!currentNetwork) return;
+
+    const targetNodeForNetwork = nodes.find((node) => (
+      entryPortalData.entryPortalTargetNodeIds.has(node.id)
+      && node.object?.object_type === 'network'
+      && node.object.ref_id === networkRefId
+      && edges.some((edge) => edge.system_contract === 'core:entry_portal' && edge.source_node_id === sourceNodeId && edge.target_node_id === node.id)
+    ));
+    if (targetNodeForNetwork) return;
+
+    const networkObject = await objectService.getByRef('network', networkRefId);
+    if (!networkObject) return;
+
+    const sourceRawPosition = rawPosMap.get(sourceNodeId) ?? { x: 0, y: 0 };
+    const targetNode = await addNode({
+      network_id: currentNetwork.id,
+      object_id: networkObject.id,
+      node_type: 'portal',
+    });
+
+    await setNodePosition(
+      targetNode.id,
+      JSON.stringify({
+        ...sourceRawPosition,
+        x: typeof sourceRawPosition.x === 'number' ? sourceRawPosition.x : 0,
+        y: typeof sourceRawPosition.y === 'number' ? sourceRawPosition.y : 0,
+      }),
+    );
+
+    await networkService.edge.create({
+      network_id: currentNetwork.id,
+      source_node_id: sourceNodeId,
+      target_node_id: targetNode.id,
+      system_contract: 'core:entry_portal',
+    });
+    await openNetwork(currentNetwork.id);
+  }, [addNode, currentNetwork, edges, entryPortalData.entryPortalTargetNodeIds, nodes, openNetwork, rawPosMap, setNodePosition]);
+
+  const closeObjectPicker = useCallback(() => {
+    setObjectPickerOpen(false);
+    setObjectInsertPosition(null);
+    setPortalAttachSourceNodeId(null);
+  }, []);
 
   const openNodeObject = useCallback((node: NetworkNodeWithObject) => {
     if (node.object?.object_type === 'network') {
@@ -1961,6 +2077,9 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         nodeDragOffset={nodeDragOffset}
         onNodeResizeStart={handleNodeResizeStart}
         onNodeToggleCollapse={handleNodeToggleCollapse}
+        onNodePortalChipClick={(_nodeId, _chipId, networkId) => {
+          navigateToChild(networkId);
+        }}
         onNodeClick={(id) => {
           if (edgeLinkingState) {
             if (id !== edgeLinkingState.sourceNodeId && currentNetwork) {
@@ -2052,6 +2171,9 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
               name,
               parent_network_id: currentNetwork.id,
             });
+            if (node) {
+              await createEntryPortalAttachment(node.id, network.id);
+            }
             // Reload networks list
             await openNetwork(currentNetwork.id);
             if (currentNetwork.project_id) {
@@ -2063,6 +2185,11 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
               targetId: network.id,
               title: network.name,
             });
+          }}
+          onAttachNetwork={(nodeId) => {
+            setPortalAttachSourceNodeId(nodeId);
+            setObjectInsertPosition(null);
+            setObjectPickerOpen(true);
           }}
           onClose={() => setContextMenu(null)}
         />
@@ -2106,6 +2233,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
             });
           }}
           onAddObject={() => {
+            setPortalAttachSourceNodeId(null);
             setObjectInsertPosition({ x: networkContextMenu.worldX, y: networkContextMenu.worldY });
             setObjectPickerOpen(true);
           }}
@@ -2133,14 +2261,32 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
       <ObjectPickerModal
         open={objectPickerOpen}
-        onClose={() => {
-          setObjectPickerOpen(false);
-          setObjectInsertPosition(null);
-        }}
+        onClose={closeObjectPicker}
+        initialTab={portalAttachSourceNodeId ? 'network' : 'concept'}
+        allowedTabs={portalAttachSourceNodeId ? ['network'] : undefined}
         onSelect={async (objectType, refId) => {
-          if (!currentNetwork || !objectInsertPosition) return;
+          if (!currentNetwork) return;
+
+          if (portalAttachSourceNodeId) {
+            if (objectType === 'network') {
+              await createEntryPortalAttachment(portalAttachSourceNodeId, refId);
+            }
+            closeObjectPicker();
+            return;
+          }
+
+          if (!objectInsertPosition) return;
           const objectRecord = await objectService.getByRef(objectType, refId);
           if (!objectRecord) return;
+
+          const entryPortalHost = objectType === 'network'
+            ? findEntryPortalHostAtPosition(objectInsertPosition.x, objectInsertPosition.y)
+            : null;
+          if (entryPortalHost) {
+            await createEntryPortalAttachment(entryPortalHost.id, refId);
+            closeObjectPicker();
+            return;
+          }
 
           const node = await addNode({
             network_id: currentNetwork.id,
@@ -2148,8 +2294,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
             node_type: objectType === 'network' || objectType === 'project' ? 'portal' : 'basic',
           });
           await placeNodeAtPosition(node.id, objectInsertPosition);
-          setObjectPickerOpen(false);
-          setObjectInsertPosition(null);
+          closeObjectPicker();
         }}
       />
 

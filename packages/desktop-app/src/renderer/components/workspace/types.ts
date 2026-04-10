@@ -6,6 +6,11 @@ export interface Viewport {
 }
 
 export type CanvasNodeType = 'concept' | 'file' | 'dir' | 'network' | 'object';
+export interface PortalChip {
+  id: string;
+  label: string;
+  networkId: string;
+}
 
 /** Node data for rendering */
 export interface RenderNode {
@@ -29,6 +34,7 @@ export interface RenderNode {
   isHierarchy?: boolean;
   isContainer?: boolean;
   isCollapsed?: boolean;
+  portalChips?: PortalChip[];
   fileId?: string;
   filePath?: string;
   networkId?: string;

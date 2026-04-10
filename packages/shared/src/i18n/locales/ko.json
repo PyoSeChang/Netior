@@ -69,6 +69,7 @@
     "addFileNode": "파일 노드 추가",
     "addDirNode": "디렉터리 노드 추가",
     "createNetwork": "네트워크 추가",
+    "connectNetwork": "기존 네트워크 연결",
     "notFound": "네트워크를 찾을 수 없습니다",
     "parentConcept": "상위 개념",
     "parentNetwork": "상위 네트워크",

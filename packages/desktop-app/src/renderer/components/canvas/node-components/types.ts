@@ -50,6 +50,8 @@ export interface NodeComponentProps {
   // Extended data (Level 2/3: Custom components)
   content?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  portalChips?: Array<{ id: string; label: string; networkId: string }>;
+  onPortalChipClick?: (nodeId: string, chipId: string, networkId: string) => void;
 
   // Span resize (timeline mode)
   spanInfo?: { startValue: number; endValue: number };

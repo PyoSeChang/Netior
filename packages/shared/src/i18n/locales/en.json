@@ -69,6 +69,7 @@
     "addFileNode": "Add File Node",
     "addDirNode": "Add Directory Node",
     "createNetwork": "Create Network",
+    "connectNetwork": "Connect Network",
     "notFound": "Network not found",
     "parentConcept": "Parent Concept",
     "parentNetwork": "Parent Network",
