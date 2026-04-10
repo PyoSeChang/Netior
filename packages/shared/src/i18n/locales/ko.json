@@ -22,6 +22,7 @@
     "minimizeTab": "이 탭 최소화"
   },
   "project": {
+    "title": "프로젝트",
     "create": "프로젝트 생성",
     "name": "프로젝트 이름",
     "selectFolder": "폴더 선택",
@@ -667,6 +668,7 @@
     "all": "전체",
     "concept": "개념",
     "allTypes": "전체 유형",
+    "noSearchResults": "검색 결과 없음",
     "dropToRoot": "여기에 드롭하면 루트로 이동",
     "folderHelp": "폴더는 상단 폴더 버튼으로 만들고, 항목은 드래그하거나 우클릭으로 폴더로 이동합니다",
     "moveToFolder": "폴더로 이동",

@@ -1,11 +1,12 @@
-import React, { useEffect, useCallback } from 'react';
-import { RefreshCw } from 'lucide-react';
+import React, { useEffect, useCallback, useState } from 'react';
+import { Plus, RefreshCw } from 'lucide-react';
 import type { Project } from '@netior/shared/types';
 import { useNetworkStore } from '../../stores/network-store';
 import { useFileStore } from '../../stores/file-store';
 import { useModuleStore } from '../../stores/module-store';
 import { useUIStore } from '../../stores/ui-store';
 import { useProjectStore } from '../../stores/project-store';
+import { useEditorStore } from '../../stores/editor-store';
 import { NetworkList } from './NetworkList';
 import { FileTree } from './FileTree';
 import { ModuleSelector } from './ModuleSelector';
@@ -20,6 +21,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { fsService } from '../../services';
 import { useI18n } from '../../hooks/useI18n';
 import { openFileTab } from '../../lib/open-file-tab';
+import { ProjectCreateDialog } from '../home/ProjectCreateDialog';
 
 interface SidebarProps {
   project: Project | null;
@@ -29,7 +31,23 @@ function AppWorkspaceSidebar(): JSX.Element {
   const { t } = useI18n();
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
   const projects = useProjectStore((s) => s.projects);
-  const openProject = useProjectStore((s) => s.openProject);
+  const createProject = useProjectStore((s) => s.createProject);
+  const currentProject = useProjectStore((s) => s.currentProject);
+  const createModule = useModuleStore((s) => s.createModule);
+  const addDirectory = useModuleStore((s) => s.addDirectory);
+  const openEditorTab = useEditorStore((s) => s.openTab);
+  const [showCreateProject, setShowCreateProject] = useState(false);
+
+  const handleCreateProject = async (name: string, rootDir: string) => {
+    const project = await createProject(name, rootDir);
+    const module = await createModule({ project_id: project.id, name });
+    await addDirectory({ module_id: module.id, dir_path: rootDir });
+    await openEditorTab({ type: 'project', targetId: project.id, title: project.name });
+  };
+
+  const handleOpenProjectEditor = async (project: Project) => {
+    await openEditorTab({ type: 'project', targetId: project.id, title: project.name });
+  };
 
   return (
     <div className="flex min-h-full flex-col gap-4 py-2">
@@ -56,15 +74,29 @@ function AppWorkspaceSidebar(): JSX.Element {
       </div>
 
       <div className="px-2">
-        <div className="mb-2 text-xs font-medium text-secondary">{t('project.title' as never) ?? 'Projects'}</div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="text-xs font-medium text-secondary">{t('project.title' as never) ?? 'Projects'}</div>
+          <button
+            type="button"
+            className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
+            onClick={() => setShowCreateProject(true)}
+            title={t('project.create')}
+          >
+            <Plus size={12} />
+          </button>
+        </div>
         {projects.length > 0 ? (
           <div className="flex flex-col gap-1">
             {projects.map((project) => (
               <button
                 key={project.id}
-                className="flex w-full items-center rounded px-2 py-1 text-left text-xs text-default transition-colors hover:bg-surface-hover"
+                className={`flex w-full items-center rounded px-2 py-1 text-left text-xs transition-colors ${
+                  currentProject?.id === project.id
+                    ? 'bg-interactive-selected text-accent'
+                    : 'text-default hover:bg-surface-hover'
+                }`}
                 onClick={() => {
-                  void openProject(project);
+                  void handleOpenProjectEditor(project);
                 }}
               >
                 <span className="truncate">{project.name}</span>
@@ -77,6 +109,12 @@ function AppWorkspaceSidebar(): JSX.Element {
           </div>
         )}
       </div>
+
+      <ProjectCreateDialog
+        open={showCreateProject}
+        onClose={() => setShowCreateProject(false)}
+        onCreate={handleCreateProject}
+      />
     </div>
   );
 }

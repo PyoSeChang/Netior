@@ -69,6 +69,7 @@ type PanelRow = {
 type PanelSection = {
   objectType: PanelObjectType;
   label: string;
+  totalRows: number;
   rows: PanelRow[];
 };
 
@@ -549,12 +550,13 @@ export function ObjectPanel(): JSX.Element {
     return selectedTypes.map((type) => ({
       objectType: type,
       label: labelForType(type),
+      totalRows: rowsByType[type].length,
       rows: rowsByType[type].filter((row) => {
         if (!normalizedSearch) return true;
         return row.item.title.toLowerCase().includes(normalizedSearch)
           || row.item.subtitle.toLowerCase().includes(normalizedSearch);
       }),
-    })).filter((section) => section.rows.length > 0);
+    }));
   }, [selectedTypes, search, conceptRows, networkRows, archetypeRows, relationTypeRows, contextRows]);
 
   const visibleRows = useMemo(() => sections.flatMap((section) => section.rows), [sections]);
@@ -565,6 +567,7 @@ export function ObjectPanel(): JSX.Element {
   const canCreateObjectType = (objectType: PanelObjectType): boolean => (
     objectType !== 'context' || currentNetwork !== null
   );
+  const hasSearch = search.trim().length > 0;
 
   useEffect(() => {
     if (visibleRows.length === 0) {
@@ -1351,6 +1354,13 @@ export function ObjectPanel(): JSX.Element {
                     </React.Fragment>
                   );
                 })}
+                {section.rows.length === 0 && (
+                  <div className="mx-2 rounded border border-dashed border-subtle px-2.5 py-2 text-[11px] text-muted">
+                    {hasSearch && section.totalRows > 0
+                      ? tk('objectPanel.noSearchResults')
+                      : t('common.none' as TranslationKey)}
+                  </div>
+                )}
               </div>
               {sectionCanCreateGroup && draggingObjectType === section.objectType && (
                 <div
@@ -1371,12 +1381,6 @@ export function ObjectPanel(): JSX.Element {
             </div>
           );
         })}
-
-        {sections.length === 0 && (
-          <div className="px-3 py-6 text-center text-xs text-muted">
-            {tk('objectPanel.empty')}
-          </div>
-        )}
       </div>
 
       {contextMenu && (

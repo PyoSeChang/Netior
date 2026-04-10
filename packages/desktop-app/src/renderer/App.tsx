@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronDown, ArrowLeft, Plus } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useProjectStore } from './stores/project-store';
-import { useModuleStore } from './stores/module-store';
 import { useNetworkStore } from './stores/network-store';
 import { useUIStore } from './stores/ui-store';
 import { hasCachedState } from './stores/project-state-cache';
 import { useI18n } from './hooks/useI18n';
-import { ProjectCreateDialog } from './components/home/ProjectCreateDialog';
 import { WorkspaceShell } from './components/workspace/WorkspaceShell';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { ShortcutOverlay } from './components/shortcuts/ShortcutOverlay';
@@ -163,7 +161,7 @@ function ProjectSwitcher(): JSX.Element {
   );
 }
 
-function TitleBar({ onCreateProject }: { onCreateProject: () => void }): JSX.Element {
+function TitleBar(): JSX.Element {
   const worktreeLabel = import.meta.env.DEV ? window.electron.app.worktreeLabel : null;
 
   return (
@@ -192,14 +190,6 @@ function TitleBar({ onCreateProject }: { onCreateProject: () => void }): JSX.Ele
         </div>
         <span className="text-xs text-muted">/</span>
         <ProjectSwitcher />
-        <button
-          className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
-          onClick={onCreateProject}
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-          title="Create Project"
-        >
-          <Plus size={14} />
-        </button>
       </div>
 
       {/* Center: breadcrumb */}
@@ -223,8 +213,6 @@ export default function App(): JSX.Element {
   const {
     currentProject,
     loadProjects,
-    createProject,
-    openProject,
     missingPathProject,
     resolveMissingPath,
     dismissMissingPath,
@@ -236,39 +224,17 @@ export default function App(): JSX.Element {
     setShowSettings,
     setShowShortcutOverlay,
   } = useUIStore();
-  const [showCreateProject, setShowCreateProject] = useState(false);
 
   useEffect(() => {
     loadProjects().catch(() => {});
   }, [loadProjects]);
 
-  const handleCreateProject = async (name: string, rootDir: string) => {
-    const project = await createProject(name, rootDir);
-    if (!currentProject) {
-      const { loadAppWorkspace, openNetwork } = useNetworkStore.getState();
-      const appRoot = await loadAppWorkspace();
-      if (appRoot) {
-        await openNetwork(appRoot.id);
-      }
-    }
-    const { createModule, setActiveModule, addDirectory } = useModuleStore.getState();
-    const mod = await createModule({ project_id: project.id, name });
-    await addDirectory({ module_id: mod.id, dir_path: rootDir });
-    await setActiveModule(mod.id);
-    await openProject(project);
-  };
-
   return (
     <div className="flex h-full flex-col bg-surface-base text-default">
-      <TitleBar onCreateProject={() => setShowCreateProject(true)} />
+      <TitleBar />
       <div className="flex-1 overflow-hidden">
         <WorkspaceShell project={currentProject} />
       </div>
-      <ProjectCreateDialog
-        open={showCreateProject}
-        onClose={() => setShowCreateProject(false)}
-        onCreate={handleCreateProject}
-      />
       <ConfirmDialog
         open={!!missingPathProject}
         onClose={dismissMissingPath}

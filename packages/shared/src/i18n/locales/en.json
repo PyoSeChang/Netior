@@ -22,6 +22,7 @@
     "minimizeTab": "Minimize This Tab"
   },
   "project": {
+    "title": "Project",
     "create": "Create Project",
     "name": "Project Name",
     "selectFolder": "Select Folder",
@@ -667,6 +668,7 @@
     "all": "All",
     "concept": "Concept",
     "allTypes": "All Types",
+    "noSearchResults": "No search results",
     "dropToRoot": "Drop here to move to root",
     "folderHelp": "Create folders with the top folder button, then move items by drag and drop or context menu",
     "moveToFolder": "Move to Folder",
