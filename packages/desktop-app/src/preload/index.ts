@@ -50,6 +50,7 @@ const electronAPI = {
       ipcRenderer.invoke('project:create', data),
     list: () => ipcRenderer.invoke('project:list'),
     delete: (id: string) => ipcRenderer.invoke('project:delete', id),
+    update: (id: string, data: Record<string, unknown>) => ipcRenderer.invoke('project:update', id, data),
     updateRootDir: (id: string, rootDir: string) => ipcRenderer.invoke('project:updateRootDir', id, rootDir),
   },
   concept: {
@@ -67,6 +68,8 @@ const electronAPI = {
       ipcRenderer.invoke('network:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('network:delete', id),
     getFull: (networkId: string) => ipcRenderer.invoke('network:getFull', networkId),
+    getAppRoot: () => ipcRenderer.invoke('network:getAppRoot'),
+    getProjectRoot: (projectId: string) => ipcRenderer.invoke('network:getProjectRoot', projectId),
     getAncestors: (networkId: string) => ipcRenderer.invoke('network:getAncestors', networkId),
     getTree: (projectId: string) => ipcRenderer.invoke('network:getTree', projectId),
   },

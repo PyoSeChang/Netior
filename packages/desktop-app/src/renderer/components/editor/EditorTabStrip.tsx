@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useSyncExternalStore } from 'react';
-import { X, Terminal, Shapes, Link, Layout, Sparkles, Box, FileText } from 'lucide-react';
+import { X, Terminal, Shapes, Link, Layout, Sparkles, Box, FileText, FolderOpen } from 'lucide-react';
 import type { EditorTab } from '@netior/shared/types';
 import { setTabDragData, isTabDrag, getTabDragDataAsync, clearTabDragData } from '../../hooks/useTabDrag';
 import { getFileOpenDragData, isFileOpenDrag } from '../../hooks/useFileOpenDrag';
@@ -62,6 +62,8 @@ function TabIcon({ tab }: { tab: EditorTab }): JSX.Element {
       return <Link size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'network':
       return <Layout size={ICON_SIZE} style={{ flexShrink: 0 }} />;
+    case 'project':
+      return <FolderOpen size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'narre':
       return <Sparkles size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'fileMetadata':

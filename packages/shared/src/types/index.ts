@@ -15,6 +15,11 @@ export interface ProjectCreate {
   root_dir: string;
 }
 
+export interface ProjectUpdate {
+  name?: string;
+  root_dir?: string;
+}
+
 // ============================================
 // Concept
 // ============================================
@@ -528,7 +533,7 @@ export interface NetworkBreadcrumbItem {
 // ============================================
 
 export type EditorViewMode = 'float' | 'full' | 'side' | 'detached';
-export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'network' | 'narre' | 'fileMetadata' | 'context';
+export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'network' | 'project' | 'narre' | 'fileMetadata' | 'context';
 
 /** Identifies a window that hosts editor tabs (main window or detached window) */
 export interface EditorHostState {

@@ -69,7 +69,7 @@ interface FileSnapshot {
   rootDirs: string[];
 }
 
-interface ProjectSnapshot {
+interface WorkspaceSnapshot {
   network: NetworkSnapshot;
   editor: EditorSnapshot;
   module: ModuleSnapshot;
@@ -80,9 +80,10 @@ interface ProjectSnapshot {
   file: FileSnapshot;
 }
 
-const cache = new Map<string, ProjectSnapshot>();
+const APP_WORKSPACE_CACHE_KEY = '__app__';
+const cache = new Map<string, WorkspaceSnapshot>();
 
-function capture(): ProjectSnapshot {
+function capture(): WorkspaceSnapshot {
   const network = useNetworkStore.getState();
   const editor = useEditorStore.getState();
   const module = useModuleStore.getState();
@@ -137,7 +138,7 @@ function capture(): ProjectSnapshot {
   };
 }
 
-function restore(snapshot: ProjectSnapshot): void {
+function restore(snapshot: WorkspaceSnapshot): void {
   useNetworkStore.setState(snapshot.network);
   useEditorStore.setState(snapshot.editor);
   useModuleStore.setState(snapshot.module);
@@ -159,22 +160,50 @@ export function clearAllProjectStores(): void {
   useFileStore.getState().clear();
 }
 
-export function saveProjectState(projectId: string): void {
-  cache.set(projectId, capture());
+export function saveWorkspaceState(workspaceKey: string): void {
+  cache.set(workspaceKey, capture());
 }
 
 /** Restore snapshot if available. Returns true if restored. */
-export function restoreProjectState(projectId: string): boolean {
-  const snapshot = cache.get(projectId);
+export function restoreWorkspaceState(workspaceKey: string): boolean {
+  const snapshot = cache.get(workspaceKey);
   if (!snapshot) return false;
   restore(snapshot);
   return true;
 }
 
-export function deleteProjectState(projectId: string): void {
-  cache.delete(projectId);
+export function deleteWorkspaceState(workspaceKey: string): void {
+  cache.delete(workspaceKey);
 }
 
-export function hasCachedState(projectId: string): boolean {
-  return cache.has(projectId);
+export function hasCachedState(workspaceKey: string): boolean {
+  return cache.has(workspaceKey);
+}
+
+export function saveProjectState(projectId: string): void {
+  saveWorkspaceState(projectId);
+}
+
+export function restoreProjectState(projectId: string): boolean {
+  return restoreWorkspaceState(projectId);
+}
+
+export function deleteProjectState(projectId: string): void {
+  deleteWorkspaceState(projectId);
+}
+
+export function saveAppState(): void {
+  saveWorkspaceState(APP_WORKSPACE_CACHE_KEY);
+}
+
+export function restoreAppState(): boolean {
+  return restoreWorkspaceState(APP_WORKSPACE_CACHE_KEY);
+}
+
+export function deleteAppState(): void {
+  deleteWorkspaceState(APP_WORKSPACE_CACHE_KEY);
+}
+
+export function hasCachedAppState(): boolean {
+  return hasCachedState(APP_WORKSPACE_CACHE_KEY);
 }

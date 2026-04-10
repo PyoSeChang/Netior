@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronDown, ArrowLeft } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowLeft, Plus } from 'lucide-react';
 import { useProjectStore } from './stores/project-store';
+import { useModuleStore } from './stores/module-store';
 import { useNetworkStore } from './stores/network-store';
 import { useUIStore } from './stores/ui-store';
 import { hasCachedState } from './stores/project-state-cache';
 import { useI18n } from './hooks/useI18n';
-import { ProjectHome } from './components/home/ProjectHome';
+import { ProjectCreateDialog } from './components/home/ProjectCreateDialog';
 import { WorkspaceShell } from './components/workspace/WorkspaceShell';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { ShortcutOverlay } from './components/shortcuts/ShortcutOverlay';
 import { ToastContainer } from './components/ui/Toast';
 import { WindowControls } from './components/ui/WindowControls';
 import { MissingFilesDialog } from './components/home/MissingFilesDialog';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { useGlobalShortcuts } from './shortcuts/useGlobalShortcuts';
 import { useNetiorSync } from './hooks/useNetiorSync';
 import { MinimizedEditorTabs } from './components/editor/MinimizedEditorTabs';
@@ -94,6 +96,7 @@ function TitleBarBreadcrumb(): JSX.Element | null {
 function ProjectSwitcher(): JSX.Element {
   const { t } = useI18n();
   const { projects, currentProject, openProject, closeProject, loadProjects } = useProjectStore();
+  const currentNetwork = useNetworkStore((state) => state.currentNetwork);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -112,6 +115,7 @@ function ProjectSwitcher(): JSX.Element {
 
   // Projects with cached state (quick-switch spans)
   const cachedProjects = projects.filter((p) => p.id !== currentProject?.id && hasCachedState(p.id));
+  const currentLabel = currentProject?.name ?? (currentNetwork?.scope === 'app' ? 'App Root' : t('project.noProject'));
 
   return (
     <div className="flex items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
@@ -120,7 +124,7 @@ function ProjectSwitcher(): JSX.Element {
           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-sm text-default hover:bg-surface-hover transition-colors"
           onClick={() => setOpen(!open)}
         >
-          {currentProject?.name ?? t('project.noProject')}
+          {currentLabel}
           <ChevronDown size={12} className="text-muted" />
         </button>
         {open && (
@@ -159,8 +163,7 @@ function ProjectSwitcher(): JSX.Element {
   );
 }
 
-function TitleBar(): JSX.Element {
-  const { currentProject } = useProjectStore();
+function TitleBar({ onCreateProject }: { onCreateProject: () => void }): JSX.Element {
   const worktreeLabel = import.meta.env.DEV ? window.electron.app.worktreeLabel : null;
 
   return (
@@ -187,17 +190,21 @@ function TitleBar(): JSX.Element {
             </span>
           )}
         </div>
-        {currentProject && (
-          <>
-            <span className="text-xs text-muted">/</span>
-            <ProjectSwitcher />
-          </>
-        )}
+        <span className="text-xs text-muted">/</span>
+        <ProjectSwitcher />
+        <button
+          className="flex h-6 w-6 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
+          onClick={onCreateProject}
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          title="Create Project"
+        >
+          <Plus size={14} />
+        </button>
       </div>
 
       {/* Center: breadcrumb */}
       <div className="flex min-w-0 justify-center px-3">
-        {currentProject && <TitleBarBreadcrumb />}
+        <TitleBarBreadcrumb />
       </div>
 
       {/* Right: minimized tabs + window controls */}
@@ -211,8 +218,17 @@ function TitleBar(): JSX.Element {
 
 export default function App(): JSX.Element {
   useGlobalShortcuts();
+  const { t } = useI18n();
 
-  const { currentProject } = useProjectStore();
+  const {
+    currentProject,
+    loadProjects,
+    createProject,
+    openProject,
+    missingPathProject,
+    resolveMissingPath,
+    dismissMissingPath,
+  } = useProjectStore();
   useNetiorSync(currentProject?.id ?? null);
   const {
     showSettings,
@@ -220,17 +236,48 @@ export default function App(): JSX.Element {
     setShowSettings,
     setShowShortcutOverlay,
   } = useUIStore();
+  const [showCreateProject, setShowCreateProject] = useState(false);
+
+  useEffect(() => {
+    loadProjects().catch(() => {});
+  }, [loadProjects]);
+
+  const handleCreateProject = async (name: string, rootDir: string) => {
+    const project = await createProject(name, rootDir);
+    if (!currentProject) {
+      const { loadAppWorkspace, openNetwork } = useNetworkStore.getState();
+      const appRoot = await loadAppWorkspace();
+      if (appRoot) {
+        await openNetwork(appRoot.id);
+      }
+    }
+    const { createModule, setActiveModule, addDirectory } = useModuleStore.getState();
+    const mod = await createModule({ project_id: project.id, name });
+    await addDirectory({ module_id: mod.id, dir_path: rootDir });
+    await setActiveModule(mod.id);
+    await openProject(project);
+  };
 
   return (
     <div className="flex h-full flex-col bg-surface-base text-default">
-      <TitleBar />
+      <TitleBar onCreateProject={() => setShowCreateProject(true)} />
       <div className="flex-1 overflow-hidden">
-        {currentProject ? (
-          <WorkspaceShell project={currentProject} />
-        ) : (
-          <ProjectHome />
-        )}
+        <WorkspaceShell project={currentProject} />
       </div>
+      <ProjectCreateDialog
+        open={showCreateProject}
+        onClose={() => setShowCreateProject(false)}
+        onCreate={handleCreateProject}
+      />
+      <ConfirmDialog
+        open={!!missingPathProject}
+        onClose={dismissMissingPath}
+        onConfirm={resolveMissingPath}
+        variant="primary"
+        title={t('project.missingPathTitle')}
+        message={t('project.missingPathMessage', { path: missingPathProject?.root_dir ?? '' })}
+        confirmLabel={t('project.selectNewPath')}
+      />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
       <ShortcutOverlay open={showShortcutOverlay} onClose={() => setShowShortcutOverlay(false)} />
       <ToastContainer />

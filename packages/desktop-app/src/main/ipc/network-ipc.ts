@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import type { IpcResult } from '@netior/shared/types';
 import {
   createNetwork, listNetworks, updateNetwork, deleteNetwork, getNetworkFull,
-  getNetworkAncestors, getNetworkTree,
+  getNetworkAncestors, getNetworkTree, getAppRootNetwork, getProjectRootNetwork,
   addNetworkNode, updateNetworkNode, removeNetworkNode,
   createEdge, getEdge, updateEdge, deleteEdge,
 } from '@netior/core';
@@ -51,6 +51,22 @@ export function registerNetworkIpc(): void {
   ipcMain.handle('network:getFull', async (_e, networkId: string): Promise<IpcResult<unknown>> => {
     try {
       return { success: true, data: getNetworkFull(networkId) };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('network:getAppRoot', async (): Promise<IpcResult<unknown>> => {
+    try {
+      return { success: true, data: getAppRootNetwork() };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle('network:getProjectRoot', async (_e, projectId: string): Promise<IpcResult<unknown>> => {
+    try {
+      return { success: true, data: getProjectRootNetwork(projectId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }

@@ -5,6 +5,7 @@ import { useArchetypeStore } from '../../stores/archetype-store';
 import { useContextStore } from '../../stores/context-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useConceptStore } from '../../stores/concept-store';
+import { useProjectStore } from '../../stores/project-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useNetworkObjectSelectionStore } from '../../stores/network-object-selection-store';
 import { useTypeGroupStore } from '../../stores/type-group-store';
@@ -36,15 +37,20 @@ interface NetworkState {
   layout_config: Record<string, unknown>;
 }
 
-export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {  const { t } = useI18n();
+export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
+  const { t } = useI18n();
   const networkId = tab.targetId;
   const [bulkContextTargetId, setBulkContextTargetId] = useState('');
-  const [bulkNetworkTargetId, setBulkNetworkTargetId] = useState<string | null>(null);  const { networks, currentLayout, updateNetwork, deleteNetwork, loadNetworks, loadNetworkTree, openNetwork } = useNetworkStore();
+  const [bulkNetworkTargetId, setBulkNetworkTargetId] = useState<string | null>(null);
+  const { networks, currentLayout, updateNetwork, deleteNetwork, loadNetworks, loadNetworkTree, openNetwork } = useNetworkStore();
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
   const networkTree = useNetworkStore((s) => s.networkTree);
   const nodes = useNetworkStore((s) => s.nodes);
   const edges = useNetworkStore((s) => s.edges);
   const openEditorTab = useEditorStore((s) => s.openTab);
+  const projects = useProjectStore((s) => s.projects);
+  const currentProject = useProjectStore((s) => s.currentProject);
+  const openProject = useProjectStore((s) => s.openProject);
 
   const archetypes = useArchetypeStore((s) => s.archetypes);
   const fields = useArchetypeStore((s) => s.fields);
@@ -162,71 +168,91 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {  const
     updateLayoutConfig({ field_mappings: currentMappings });
   };
 
-  const browserSections = useMemo(() => [
-    {
-      key: 'network' as const,
-      label: t('sidebar.networks'),
-      items: [...networks]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((item) => ({
-          id: item.id,
-          objectType: 'network' as const,
-          title: item.name,
-          subtitle: item.scope === 'project' ? 'Project Network' : 'Network',
-          isActive: item.id === currentNetwork?.id,
-        })),
-    },
-    {
-      key: 'concept' as const,
-      label: t('objectPanel.concept' as never),
-      items: [...concepts]
-        .sort((a, b) => a.title.localeCompare(b.title))
-        .map((item) => ({
-          id: item.id,
-          objectType: 'concept' as const,
-          title: item.title,
-          subtitle: item.archetype_id
-            ? (archetypes.find((archetype) => archetype.id === item.archetype_id)?.name ?? 'Concept')
-            : 'Concept',
-        })),
-    },
-    {
-      key: 'archetype' as const,
-      label: t('archetype.title'),
-      items: [...archetypes]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((item) => ({
-          id: item.id,
-          objectType: 'archetype' as const,
-          title: item.name,
-          subtitle: item.description ?? t('archetype.title'),
-        })),
-    },
-    {
-      key: 'relation_type' as const,
-      label: t('relationType.title'),
-      items: [...relationTypes]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((item) => ({
-          id: item.id,
-          objectType: 'relation_type' as const,
-          title: item.name,
-          subtitle: item.description ?? t('relationType.title'),
-        })),
-    },
-    {
-      key: 'context' as const,
-      label: t('context.title'),
-      items: [...contexts]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((item) => ({
-          id: item.id,
-          objectType: 'context' as const,
-          title: item.name,
-          subtitle: item.description ?? t('context.title'),
-        })),
-    },
-  ], [t, networks, currentNetwork?.id, concepts, archetypes, relationTypes, contexts]);
+  const browserSections = useMemo(() => {
+    const sections = [
+      {
+        key: 'network' as const,
+        label: t('sidebar.networks'),
+        items: [...networks]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((item) => ({
+            id: item.id,
+            objectType: 'network' as const,
+            title: item.name,
+            subtitle: item.scope === 'project' ? 'Project Network' : 'Network',
+            isActive: item.id === currentNetwork?.id,
+          })),
+      },
+      {
+        key: 'concept' as const,
+        label: t('objectPanel.concept' as never),
+        items: [...concepts]
+          .sort((a, b) => a.title.localeCompare(b.title))
+          .map((item) => ({
+            id: item.id,
+            objectType: 'concept' as const,
+            title: item.title,
+            subtitle: item.archetype_id
+              ? (archetypes.find((archetype) => archetype.id === item.archetype_id)?.name ?? 'Concept')
+              : 'Concept',
+          })),
+      },
+      {
+        key: 'archetype' as const,
+        label: t('archetype.title'),
+        items: [...archetypes]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((item) => ({
+            id: item.id,
+            objectType: 'archetype' as const,
+            title: item.name,
+            subtitle: item.description ?? t('archetype.title'),
+          })),
+      },
+      {
+        key: 'relation_type' as const,
+        label: t('relationType.title'),
+        items: [...relationTypes]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((item) => ({
+            id: item.id,
+            objectType: 'relation_type' as const,
+            title: item.name,
+            subtitle: item.description ?? t('relationType.title'),
+          })),
+      },
+      {
+        key: 'context' as const,
+        label: t('context.title'),
+        items: [...contexts]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((item) => ({
+            id: item.id,
+            objectType: 'context' as const,
+            title: item.name,
+            subtitle: item.description ?? t('context.title'),
+          })),
+      },
+    ];
+
+    if (network?.scope === 'app' || selection?.objectType === 'project') {
+      sections.splice(1, 0, {
+        key: 'project' as const,
+        label: t('project.title' as never) ?? 'Projects',
+        items: [...projects]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((item) => ({
+            id: item.id,
+            objectType: 'project' as const,
+            title: item.name,
+            subtitle: item.root_dir,
+            isActive: item.id === currentProject?.id,
+          })),
+      });
+    }
+
+    return sections;
+  }, [t, networks, currentNetwork?.id, concepts, archetypes, relationTypes, contexts, network?.scope, selection?.objectType, projects, currentProject?.id]);
 
   const selectedItem = useMemo<NetworkBrowserItem | null>(() => {
     const effectiveSelection = selection ?? { objectType: 'network' as const, id: networkId };
@@ -241,6 +267,9 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {  const
     switch (item.objectType) {
       case 'network':
         await openEditorTab({ type: 'network', targetId: item.id, title: item.title });
+        break;
+      case 'project':
+        await openEditorTab({ type: 'project', targetId: item.id, title: item.title });
         break;
       case 'concept':
         await openEditorTab({ type: 'concept', targetId: item.id, title: item.title });
@@ -348,7 +377,9 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {  const
   const canBulkChangeArchetype = selectedObjectType === 'concept';
   const canBulkAssignContext = selectedItems.length > 0 && contexts.length > 0;
   const canBulkMoveNetwork = selectedObjectType === 'network' && topLevelSelectedNetworkIds.length > 0;
-  const canBulkDelete = selectedItems.length > 0 && !selectedItems.some((item) => item.objectType === 'network' && item.id === networkId);
+  const canBulkDelete = selectedItems.length > 0
+    && !selectedItems.some((item) => item.objectType === 'project')
+    && !selectedItems.some((item) => item.objectType === 'network' && item.id === networkId);
 
   const handleBulkDelete = useCallback(async () => {
     for (const item of selectedItems) {
@@ -367,6 +398,8 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {  const
           break;
         case 'network':
           await deleteNetwork(item.id);
+          break;
+        case 'project':
           break;
       }
     }
@@ -858,6 +891,64 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {  const
               items={[
                 { label: t('concept.archetype'), value: archetypeName },
                 { label: t('editorShell.objectId' as never), value: <code className="font-mono text-xs">{concept?.id ?? selectedItem.id}</code> },
+              ]}
+            />
+          </NetworkObjectEditorSection>
+        </NetworkObjectEditorShell>
+      );
+    }
+
+    if (selectedItem.objectType === 'project') {
+      const project = projects.find((item) => item.id === selectedItem.id);
+
+      const handleOpenProjectWorkspace = async () => {
+        if (!project) return;
+        await openProject(project);
+      };
+
+      return (
+        <NetworkObjectEditorShell
+          badge={t('project.title' as never) ?? 'Project'}
+          title={selectedItem.title}
+          subtitle={currentProject?.id === selectedItem.id ? 'Current Project' : 'Project'}
+          description={project?.root_dir ?? selectedItem.subtitle}
+          actions={(
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  void handleOpenProjectWorkspace();
+                }}
+              >
+                {t('common.open')}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  void openSelectedDetail();
+                }}
+              >
+                {t('editor.openInEditor')}
+              </Button>
+            </div>
+          )}
+        >
+          <NetworkObjectEditorSection title={t('editorShell.overview' as never)}>
+            <NetworkObjectMetadataList
+              items={[
+                { label: t('project.folder'), value: project?.root_dir ?? '-' },
+                { label: t('editorShell.objectId' as never), value: <code className="font-mono text-xs">{project?.id ?? selectedItem.id}</code> },
+              ]}
+            />
+          </NetworkObjectEditorSection>
+
+          <NetworkObjectEditorSection title={t('editorShell.metadata' as never)} defaultOpen={false}>
+            <NetworkObjectMetadataList
+              items={[
+                { label: 'Updated', value: project?.updated_at ?? '-' },
+                { label: 'Active', value: currentProject?.id === selectedItem.id ? 'true' : 'false' },
               ]}
             />
           </NetworkObjectEditorSection>

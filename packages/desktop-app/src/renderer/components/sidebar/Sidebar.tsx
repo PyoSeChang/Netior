@@ -5,6 +5,7 @@ import { useNetworkStore } from '../../stores/network-store';
 import { useFileStore } from '../../stores/file-store';
 import { useModuleStore } from '../../stores/module-store';
 import { useUIStore } from '../../stores/ui-store';
+import { useProjectStore } from '../../stores/project-store';
 import { NetworkList } from './NetworkList';
 import { FileTree } from './FileTree';
 import { ModuleSelector } from './ModuleSelector';
@@ -21,7 +22,63 @@ import { useI18n } from '../../hooks/useI18n';
 import { openFileTab } from '../../lib/open-file-tab';
 
 interface SidebarProps {
-  project: Project;
+  project: Project | null;
+}
+
+function AppWorkspaceSidebar(): JSX.Element {
+  const { t } = useI18n();
+  const currentNetwork = useNetworkStore((s) => s.currentNetwork);
+  const projects = useProjectStore((s) => s.projects);
+  const openProject = useProjectStore((s) => s.openProject);
+
+  return (
+    <div className="flex min-h-full flex-col gap-4 py-2">
+      <div className="px-2">
+        <div className="mb-2 text-xs font-medium text-secondary">{t('sidebar.networks' as never)}</div>
+        <button
+          className={`flex w-full items-center rounded px-2 py-1 text-left text-xs transition-colors ${
+            currentNetwork?.scope === 'app'
+              ? 'bg-interactive-selected text-accent'
+              : 'text-default hover:bg-surface-hover'
+          }`}
+          onClick={() => {
+            if (currentNetwork?.scope === 'app') return;
+            const loadAppWorkspace = useNetworkStore.getState().loadAppWorkspace;
+            loadAppWorkspace().then((appRoot) => {
+              if (appRoot) {
+                void useNetworkStore.getState().openNetwork(appRoot.id);
+              }
+            });
+          }}
+        >
+          App Root
+        </button>
+      </div>
+
+      <div className="px-2">
+        <div className="mb-2 text-xs font-medium text-secondary">{t('project.title' as never) ?? 'Projects'}</div>
+        {projects.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {projects.map((project) => (
+              <button
+                key={project.id}
+                className="flex w-full items-center rounded px-2 py-1 text-left text-xs text-default transition-colors hover:bg-surface-hover"
+                onClick={() => {
+                  void openProject(project);
+                }}
+              >
+                <span className="truncate">{project.name}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded border border-subtle bg-surface-card px-2 py-3 text-xs text-muted">
+            {t('project.noProjectsYet')}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function Sidebar({ project }: SidebarProps): JSX.Element {
@@ -36,6 +93,7 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
   const { loadByProject: loadTypeGroups } = useTypeGroupStore();
 
   useEffect(() => {
+    if (!project) return;
     loadNetworks(project.id);
     loadNetworkTree(project.id);
     loadModules(project.id);
@@ -43,24 +101,26 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
     loadArchetypes(project.id);
     loadRelationTypes(project.id);
     loadTypeGroups(project.id);
-  }, [project.id, loadNetworks, loadNetworkTree, loadModules, loadConcepts, loadArchetypes, loadRelationTypes, loadTypeGroups]);
+  }, [project?.id, loadNetworks, loadNetworkTree, loadModules, loadConcepts, loadArchetypes, loadRelationTypes, loadTypeGroups]);
 
   useEffect(() => {
+    if (!project) return undefined;
     if (directories.length > 0) {
       const dirs = directories.map((d) => d.dir_path);
       loadFileTree(dirs);
       fsService.watchDirs(dirs);
     }
     return () => { fsService.unwatchDirs(); };
-  }, [directories, loadFileTree]);
+  }, [directories, loadFileTree, project]);
 
   // Auto-refresh on filesystem changes
   useEffect(() => {
+    if (!project) return undefined;
     const unsubscribe = fsService.onDirChanged(() => {
       refreshFileTree();
     });
     return unsubscribe;
-  }, [refreshFileTree]);
+  }, [refreshFileTree, project]);
 
   const handleRefresh = useCallback(() => {
     refreshFileTree();
@@ -76,9 +136,12 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
       style={{ width: sidebarWidth }}
     >
       <ScrollArea className="flex-1">
-        <div className="flex min-h-full flex-col py-2">
-          {sidebarView === 'networks' && <NetworkList projectId={project.id} />}
-          {sidebarView === 'files' && (
+        {!project ? (
+          <AppWorkspaceSidebar />
+        ) : (
+          <div className="flex min-h-full flex-col py-2">
+            {sidebarView === 'networks' && <NetworkList projectId={project.id} />}
+            {sidebarView === 'files' && (
             <>
               <div className="flex items-center">
                 <div className="flex-1">
@@ -110,9 +173,10 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
                 <FileTree nodes={fileTree} onFileClick={handleFileClick} />
               )}
             </>
-          )}
-          {sidebarView === 'objects' && <ObjectPanel />}
-        </div>
+            )}
+            {sidebarView === 'objects' && <ObjectPanel />}
+          </div>
+        )}
       </ScrollArea>
     </div>
   );

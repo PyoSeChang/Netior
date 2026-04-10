@@ -32,6 +32,7 @@ interface NetworkStore {
   networkTree: NetworkTreeNode[];
 
   // Network CRUD
+  loadAppWorkspace: () => Promise<Network | null>;
   loadNetworks: (projectId: string) => Promise<void>;
   loadNetworkTree: (projectId: string) => Promise<void>;
   createNetwork: (data: NetworkCreate) => Promise<Network>;
@@ -77,6 +78,15 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   breadcrumbs: [],
   networkHistory: [],
   networkTree: [],
+
+  loadAppWorkspace: async () => {
+    const appRoot = await networkService.getAppRoot();
+    set({
+      networks: appRoot ? [appRoot] : [],
+      networkTree: appRoot ? [{ network: appRoot, children: [] }] : [],
+    });
+    return appRoot ?? null;
+  },
 
   loadNetworks: async (projectId) => {
     const networks = await networkService.list(projectId);

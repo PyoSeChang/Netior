@@ -21,7 +21,7 @@ import { openFileBesideTab, openFileInPane, openFileTab } from '../../lib/open-f
 import type { DropResult } from '../editor/DropZoneOverlay';
 
 interface WorkspaceShellProps {
-  project: Project;
+  project: Project | null;
 }
 
 async function openDroppedFilesInSideLeaf(
@@ -362,7 +362,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
                 onDragOver={handleCanvasDragOver}
                 onDrop={handleCanvasDrop}
               >
-                <NetworkWorkspace projectId={project.id} />
+                <NetworkWorkspace projectId={project?.id ?? null} />
               </div>
 
               {/* Side editor */}

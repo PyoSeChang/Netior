@@ -8,6 +8,7 @@ import { useNetworkStore } from '../../stores/network-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useContextStore } from '../../stores/context-store';
+import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
 
 interface ObjectPickerModalProps {
@@ -16,9 +17,9 @@ interface ObjectPickerModalProps {
   onSelect: (objectType: NetworkObjectType, refId: string) => void;
 }
 
-type PickerTab = 'concept' | 'network' | 'archetype' | 'relation_type' | 'context';
+type PickerTab = 'concept' | 'network' | 'project' | 'archetype' | 'relation_type' | 'context';
 
-const TABS: PickerTab[] = ['concept', 'network', 'archetype', 'relation_type', 'context'];
+const TABS: PickerTab[] = ['concept', 'network', 'project', 'archetype', 'relation_type', 'context'];
 
 export function ObjectPickerModal({ open, onClose, onSelect }: ObjectPickerModalProps): JSX.Element {
   const { t } = useI18n();
@@ -28,13 +29,15 @@ export function ObjectPickerModal({ open, onClose, onSelect }: ObjectPickerModal
   const concepts = useConceptStore((s) => s.concepts);
   const networks = useNetworkStore((s) => s.networks);
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
+  const projects = useProjectStore((s) => s.projects);
   const archetypes = useArchetypeStore((s) => s.archetypes);
   const relationTypes = useRelationTypeStore((s) => s.relationTypes);
   const contexts = useContextStore((s) => s.contexts);
 
   const tabLabels: Record<PickerTab, string> = {
     concept: t('concept.title'),
-    network: t('sidebar.networks'),
+    network: t('sidebar.networks' as never),
+    project: t('project.title' as never) ?? 'Projects',
     archetype: t('archetype.title'),
     relation_type: t('relationType.title'),
     context: t('context.title'),
@@ -58,7 +61,11 @@ export function ObjectPickerModal({ open, onClose, onSelect }: ObjectPickerModal
         return networks
           .filter((network) => network.id !== currentNetwork?.id)
           .filter((network) => !query || matches(network.name))
-          .map((network) => ({ id: network.id, title: network.name, subtitle: t('sidebar.networks') }));
+          .map((network) => ({ id: network.id, title: network.name, subtitle: t('sidebar.networks' as never) }));
+      case 'project':
+        return projects
+          .filter((project) => !query || matches(project.name))
+          .map((project) => ({ id: project.id, title: project.name, subtitle: t('project.title' as never) ?? 'Project' }));
       case 'archetype':
         return archetypes
           .filter((archetype) => !query || matches(archetype.name))
@@ -74,7 +81,7 @@ export function ObjectPickerModal({ open, onClose, onSelect }: ObjectPickerModal
       default:
         return [];
     }
-  }, [activeTab, archetypes, concepts, contexts, currentNetwork?.id, networks, relationTypes, search, t]);
+  }, [activeTab, archetypes, concepts, contexts, currentNetwork?.id, networks, projects, relationTypes, search, t]);
 
   const handleSelect = (refId: string) => {
     onSelect(activeTab, refId);

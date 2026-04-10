@@ -2,7 +2,14 @@ import { create } from 'zustand';
 import type { Project, FileEntity } from '@netior/shared/types';
 import { projectService, moduleService, fileService } from '../services';
 import { unwrapIpc } from '../services/ipc';
-import { saveProjectState, restoreProjectState, clearAllProjectStores, deleteProjectState } from './project-state-cache';
+import {
+  saveAppState,
+  saveProjectState,
+  restoreAppState,
+  restoreProjectState,
+  clearAllProjectStores,
+  deleteProjectState,
+} from './project-state-cache';
 
 export interface MissingFileEntry {
   fileEntity: FileEntity;
@@ -21,6 +28,7 @@ interface ProjectStore {
   loadProjects: () => Promise<void>;
   restoreLastProject: () => Promise<void>;
   createProject: (name: string, rootDir: string) => Promise<Project>;
+  updateProject: (id: string, data: Partial<Pick<Project, 'name' | 'root_dir'>>) => Promise<Project>;
   openProject: (project: Project) => Promise<void>;
   resolveMissingPath: () => Promise<void>;
   dismissMissingPath: () => void;
@@ -85,6 +93,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     return project;
   },
 
+  updateProject: async (id, data) => {
+    const updated = await projectService.update(id, data);
+    set((s) => ({
+      projects: s.projects.map((project) => (project.id === id ? updated : project)),
+      currentProject: s.currentProject?.id === id ? updated : s.currentProject,
+      missingPathProject: s.missingPathProject?.id === id ? updated : s.missingPathProject,
+    }));
+    return updated;
+  },
+
   openProject: async (project) => {
     // Check if root_dir exists; if not, show missing path dialog
     let resolvedProject = project;
@@ -101,6 +119,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { currentProject } = get();
     if (currentProject && currentProject.id !== resolvedProject.id) {
       saveProjectState(currentProject.id);
+    } else if (!currentProject) {
+      saveAppState();
     }
 
     const restored = restoreProjectState(resolvedProject.id);
@@ -192,7 +212,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (currentProject) {
       saveProjectState(currentProject.id);
     }
-    clearAllProjectStores();
+    const restoredApp = restoreAppState();
+    if (!restoredApp) {
+      clearAllProjectStores();
+    }
     set({ currentProject: null });
     window.electron.config.set('lastProjectId', '').catch(() => {});
   },
@@ -206,7 +229,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
     const wasCurrent = get().currentProject?.id === id;
     if (wasCurrent) {
-      clearAllProjectStores();
+      const restoredApp = restoreAppState();
+      if (!restoredApp) {
+        clearAllProjectStores();
+      }
     }
     set((s) => ({
       projects: s.projects.filter((p) => p.id !== id),

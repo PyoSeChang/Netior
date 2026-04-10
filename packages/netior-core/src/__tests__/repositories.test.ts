@@ -56,6 +56,27 @@ describe('Repositories', () => {
       expect(list[0].id).toBe(p.id);
     });
 
+    it('should auto-create app root and project root networks when creating project', () => {
+      const project = createProject({ name: 'Rooted', root_dir: '/tmp/rooted' });
+      const appRoot = getAppRootNetwork();
+      const projectRoot = getProjectRootNetwork(project.id);
+      const appRootFull = getNetworkFull(appRoot!.id);
+      const projectPortalNode = appRootFull?.nodes.find(
+        (node) => node.object?.object_type === 'project' && node.object.ref_id === project.id,
+      );
+      const projectPortalPosition = appRootFull?.nodePositions.find((position) => position.nodeId === projectPortalNode?.id);
+
+      expect(appRoot).toBeDefined();
+      expect(projectRoot).toBeDefined();
+      expect(projectRoot!.project_id).toBe(project.id);
+      expect(projectRoot!.parent_network_id).toBe(appRoot!.id);
+      expect(projectRoot!.name).toBe('Project Root');
+      expect(projectPortalNode).toBeDefined();
+      expect(projectPortalNode!.node_type).toBe('portal');
+      expect(projectPortalPosition).toBeDefined();
+      expect(JSON.parse(projectPortalPosition!.positionJson)).toMatchObject({ x: expect.any(Number), y: expect.any(Number) });
+    });
+
     it('should delete project', () => {
       const p = createProject({ name: 'Del', root_dir: '/tmp/del' });
       expect(deleteProject(p.id)).toBe(true);
@@ -210,7 +231,7 @@ describe('Repositories', () => {
     it('should create and list networks', () => {
       createNetwork({ project_id: projectId, name: 'Network 1' });
       createNetwork({ project_id: projectId, name: 'Network 2' });
-      expect(listNetworks(projectId)).toHaveLength(2);
+      expect(listNetworks(projectId)).toHaveLength(3);
     });
 
     it('should create network with scope and parent', () => {
@@ -359,7 +380,7 @@ describe('Repositories', () => {
       createNetwork({ project_id: projectId, name: 'Child', parent_network_id: root.id });
       const all = listNetworks(projectId);
       const rootOnly = listNetworks(projectId, true);
-      expect(all).toHaveLength(2);
+      expect(all).toHaveLength(3);
       expect(rootOnly).toHaveLength(1);
       expect(rootOnly[0].name).toBe('Root');
     });
@@ -528,13 +549,11 @@ describe('Repositories', () => {
     });
 
     it('should get project root network', () => {
-      const appRoot = ensureAppRootNetwork();
       const project = createProject({ name: 'P', root_dir: '/tmp/pr' });
-      createNetwork({ project_id: project.id, name: 'Project Root', scope: 'project', parent_network_id: appRoot.id });
-
       const projectRoot = getProjectRootNetwork(project.id);
       expect(projectRoot).toBeDefined();
-      expect(projectRoot!.parent_network_id).toBe(appRoot.id);
+      expect(projectRoot!.parent_network_id).toBe(getAppRootNetwork()!.id);
+      expect(projectRoot!.name).toBe('Project Root');
     });
   });
 
@@ -694,17 +713,20 @@ describe('Repositories', () => {
     });
 
     it('should build network tree from parent_network_id', () => {
-      const root = createNetwork({ project_id: projectId, name: 'Root' });
+      const projectRoot = getProjectRootNetwork(projectId)!;
+      const root = createNetwork({ project_id: projectId, name: 'Root', parent_network_id: projectRoot.id });
       const child1 = createNetwork({ project_id: projectId, name: 'Child1', parent_network_id: root.id });
       const child2 = createNetwork({ project_id: projectId, name: 'Child2', parent_network_id: root.id });
       createNetwork({ project_id: projectId, name: 'Grandchild', parent_network_id: child1.id });
 
       const tree = getNetworkTree(projectId);
       expect(tree).toHaveLength(1);
-      expect(tree[0].network.name).toBe('Root');
-      expect(tree[0].children).toHaveLength(2);
-      expect(tree[0].children[0].children).toHaveLength(1);
-      expect(tree[0].children[0].children[0].network.name).toBe('Grandchild');
+      expect(tree[0].network.name).toBe('Project Root');
+      expect(tree[0].children).toHaveLength(1);
+      expect(tree[0].children[0].network.name).toBe('Root');
+      expect(tree[0].children[0].children).toHaveLength(2);
+      expect(tree[0].children[0].children[0].children).toHaveLength(1);
+      expect(tree[0].children[0].children[0].children[0].network.name).toBe('Grandchild');
     });
 
     it('should get network ancestors via parent_network_id chain', () => {

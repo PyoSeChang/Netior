@@ -29,7 +29,7 @@ import { isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils
 import { useNetworkShortcuts } from './useNetworkShortcuts';
 
 interface NetworkWorkspaceProps {
-  projectId: string;
+  projectId: string | null;
 }
 
 function pickInitialNetworkId(
@@ -276,7 +276,7 @@ function toRenderEdges(edges: EdgeWithRelationType[], visualMap: Map<string, { c
 export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Element {
   const {
     currentNetwork, currentLayout, nodes, edges, nodePositions, edgeVisuals,
-    loadNetworks, openNetwork,
+    loadAppWorkspace, loadNetworks, openNetwork,
     addNode, removeNode, setNodePosition,
     addEdge, removeEdge, saveViewport,
     navigateToChild, navigateBack,
@@ -286,6 +286,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const { t } = useI18n();
   const networkObjectSelection = useNetworkObjectSelectionStore((s) => s.selection);
   const selectedNetworkObjects = useNetworkObjectSelectionStore((s) => s.selectedItems);
+  const openProject = useProjectStore((s) => s.openProject);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -301,20 +302,47 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const [objectPickerOpen, setObjectPickerOpen] = useState(false);
   const [objectInsertPosition, setObjectInsertPosition] = useState<{ x: number; y: number } | null>(null);
 
-  // Load networks and open the project root-like network on first entry
+  // Load networks and open the correct root on first entry.
   useEffect(() => {
-    loadNetworks(projectId).then(() => {
+    let cancelled = false;
+
+    const initialize = async () => {
+      if (!projectId) {
+        const appRoot = await loadAppWorkspace();
+        if (!appRoot || cancelled) return;
+
+        const store = useNetworkStore.getState();
+        const needsInitialOpen =
+          !store.currentNetwork
+          || store.currentNetwork.scope !== 'app'
+          || store.currentNetwork.parent_network_id !== null;
+        if (needsInitialOpen) {
+          await store.openNetwork(appRoot.id);
+        }
+        return;
+      }
+
+      await loadNetworks(projectId);
+      if (cancelled) return;
+
       const store = useNetworkStore.getState();
       const needsInitialOpen =
         !store.currentNetwork || store.currentNetwork.project_id !== projectId;
       if (!needsInitialOpen) return;
 
-      const initialNetworkId = pickInitialNetworkId(projectId, store.networks);
+      const projectRoot = await networkService.getProjectRoot(projectId);
+      const initialNetworkId = projectRoot?.id ?? pickInitialNetworkId(projectId, store.networks);
       if (initialNetworkId) {
-        store.openNetwork(initialNetworkId);
+        await store.openNetwork(initialNetworkId);
       }
-    });
-  }, [projectId, loadNetworks]);
+    };
+
+    void initialize();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadAppWorkspace, loadNetworks, projectId]);
 
   useEffect(() => {
     if (selectedNetworkObjects.length === 0 && !networkObjectSelection) {
@@ -593,6 +621,14 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       return;
     }
 
+    if (node.object?.object_type === 'project') {
+      const project = projects.find((item) => item.id === node.object?.ref_id);
+      if (project) {
+        void openProject(project);
+      }
+      return;
+    }
+
     if (node.object?.object_type === 'concept' && node.concept) {
       useEditorStore.getState().openTab({
         type: 'concept',
@@ -638,7 +674,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         title: contextNames.get(node.object.ref_id) ?? t('context.title'),
       });
     }
-  }, [archetypeNames, contextNames, navigateToChild, relationTypeNames, t]);
+  }, [archetypeNames, contextNames, navigateToChild, openProject, projects, relationTypeNames, t]);
 
   const syncNodeSelection = useCallback((node?: NetworkNodeWithObject) => {
     if (!node?.object?.ref_id) {
@@ -646,7 +682,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       return;
     }
     const objectType = node.object.object_type;
-    if (!['network', 'concept', 'archetype', 'relation_type', 'context'].includes(objectType)) {
+    if (!['network', 'project', 'concept', 'archetype', 'relation_type', 'context'].includes(objectType)) {
       useNetworkObjectSelectionStore.getState().clearSelection();
       return;
     }
@@ -654,28 +690,30 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       node.concept?.title ??
       node.file?.path?.replace(/\\/g, '/').split('/').pop() ??
       networkNames.get(node.object.ref_id) ??
+      projectNames.get(node.object.ref_id) ??
       archetypeNames.get(node.object.ref_id) ??
       relationTypeNames.get(node.object.ref_id) ??
       contextNames.get(node.object.ref_id);
     useNetworkObjectSelectionStore.getState().setSelection({
-      objectType: objectType as 'network' | 'concept' | 'archetype' | 'relation_type' | 'context',
+      objectType: objectType as 'network' | 'project' | 'concept' | 'archetype' | 'relation_type' | 'context',
       id: node.object.ref_id,
       title,
     });
-  }, [archetypeNames, contextNames, networkNames, relationTypeNames]);
+  }, [archetypeNames, contextNames, networkNames, projectNames, relationTypeNames]);
 
   const syncSelectionFromNodeIds = useCallback((nodeIds: string[]) => {
     const selectedObjects = nodeIds
       .map((id) => nodes.find((node) => node.id === id))
       .filter((node): node is NetworkNodeWithObject =>
-        !!node?.object?.ref_id && ['network', 'concept', 'archetype', 'relation_type', 'context'].includes(node.object.object_type))
+        !!node?.object?.ref_id && ['network', 'project', 'concept', 'archetype', 'relation_type', 'context'].includes(node.object.object_type))
       .map((node) => ({
-        objectType: node.object!.object_type as 'network' | 'concept' | 'archetype' | 'relation_type' | 'context',
+        objectType: node.object!.object_type as 'network' | 'project' | 'concept' | 'archetype' | 'relation_type' | 'context',
         id: node.object!.ref_id,
         title:
           node.concept?.title ??
           node.file?.path?.replace(/\\/g, '/').split('/').pop() ??
           networkNames.get(node.object!.ref_id) ??
+          projectNames.get(node.object!.ref_id) ??
           archetypeNames.get(node.object!.ref_id) ??
           relationTypeNames.get(node.object!.ref_id) ??
           contextNames.get(node.object!.ref_id),
@@ -686,7 +724,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       selection: selectedObjects[0] ?? null,
       selectedItems: selectedObjects,
     });
-  }, [archetypeNames, contextNames, networkNames, nodes, relationTypeNames]);
+  }, [archetypeNames, contextNames, networkNames, nodes, projectNames, relationTypeNames]);
 
   if (layoutPlugin.key !== 'freeform' && cardNodes.length > 0) {
     console.log('[NW] cardNodes:', cardNodes.map(n => ({ id: n.id.slice(0,8), label: n.label, x: n.x, y: n.y, role: (n as any).metadata?.role, tv: (n as any).metadata?.time_value })));
@@ -897,7 +935,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       }}
       onDrop={async (e) => {
         const raw = e.dataTransfer.getData('application/netior-node');
-        if (!raw || !currentNetwork) return;
+        if (!raw || !currentNetwork || !projectId) return;
         e.preventDefault();
         const data = JSON.parse(raw) as { type: 'file' | 'dir'; path: string };
         const rect = containerRef.current?.getBoundingClientRect();
@@ -1027,6 +1065,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
                   objectTitle: node.concept?.title
                     ?? node.file?.path?.replace(/\\/g, '/').split('/').pop()
                     ?? networkNames.get(node.object?.ref_id ?? '')
+                    ?? projectNames.get(node.object?.ref_id ?? '')
                     ?? undefined,
                   conceptId: isConcept ? node.object?.ref_id : undefined,
                   fileId: isFile ? node.object?.ref_id : undefined,
@@ -1110,6 +1149,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
                 objectTitle: node.concept?.title
                   ?? node.file?.path?.replace(/\\/g, '/').split('/').pop()
                   ?? networkNames.get(node.object?.ref_id ?? '')
+                  ?? projectNames.get(node.object?.ref_id ?? '')
                   ?? undefined,
                 conceptId: isConcept ? node.object?.ref_id : undefined,
                 fileId: isFile ? node.object?.ref_id : undefined,
@@ -1182,7 +1222,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         <NetworkContextMenu
           x={networkContextMenu.x}
           y={networkContextMenu.y}
-          onCreateConcept={() => {
+          onCreateConcept={projectId ? () => {
             if (!currentNetwork) return;
             const draftId = `draft-${Date.now()}`;
             const worldX = networkContextMenu.worldX;
@@ -1199,15 +1239,15 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
                 allowedArchetypeIds: isTimeline ? Object.keys(fieldMappingsConfig) : undefined,
               },
             });
-          }}
+          } : undefined}
           onAddObject={() => {
             setObjectInsertPosition({ x: networkContextMenu.worldX, y: networkContextMenu.worldY });
             setObjectPickerOpen(true);
           }}
-          onAddFileNode={() => {
+          onAddFileNode={projectId ? () => {
             setFileNodeModalOpen(true);
             setNetworkContextMenu(null);
-          }}
+          } : undefined}
           onClose={() => setNetworkContextMenu(null)}
         />
       )}
@@ -1216,7 +1256,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         open={fileNodeModalOpen}
         onClose={() => setFileNodeModalOpen(false)}
         onSelect={async (path, type) => {
-          if (!currentNetwork) return;
+          if (!currentNetwork || !projectId) return;
           let fileEntity = await fileService.getByPath(projectId, path);
           if (!fileEntity) {
             fileEntity = await fileService.create({

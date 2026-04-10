@@ -2,6 +2,12 @@ import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
 import { createLayout, getLayoutByNetwork, getNodePositions, getEdgeVisuals } from './layout';
 import { createObject, deleteObjectByRef } from './objects';
+import {
+  ensureAppRootNetworkForDb,
+  ensureProjectRootNetworkForDb,
+  getAppRootNetworkForDb,
+  getProjectRootNetworkForDb,
+} from './network-roots';
 import type {
   Network, NetworkCreate, NetworkUpdate,
   NetworkNode, NetworkNodeCreate, NetworkNodeUpdate,
@@ -60,6 +66,7 @@ export function getNetworkTree(projectId: string): NetworkTreeNode[] {
   const allNetworks = db.prepare(
     'SELECT * FROM networks WHERE project_id = ? ORDER BY created_at',
   ).all(projectId) as Network[];
+  const networkIds = new Set(allNetworks.map((network) => network.id));
 
   // Group by parent_network_id
   const childrenOf = new Map<string, NetworkTreeNode[]>();
@@ -68,7 +75,7 @@ export function getNetworkTree(projectId: string): NetworkTreeNode[] {
   for (const network of allNetworks) {
     const node: NetworkTreeNode = { network, children: [] };
 
-    if (!network.parent_network_id) {
+    if (!network.parent_network_id || !networkIds.has(network.parent_network_id)) {
       roots.push(node);
     } else {
       const siblings = childrenOf.get(network.parent_network_id) ?? [];
@@ -143,39 +150,19 @@ export function deleteNetwork(id: string): boolean {
 // ── App / Project Root ──
 
 export function getAppRootNetwork(): Network | undefined {
-  const db = getDatabase();
-  return db.prepare(
-    `SELECT * FROM networks WHERE scope = 'app' AND parent_network_id IS NULL`,
-  ).get() as Network | undefined;
+  return getAppRootNetworkForDb(getDatabase());
 }
 
 export function ensureAppRootNetwork(): Network {
-  const existing = getAppRootNetwork();
-  if (existing) return existing;
-
-  const db = getDatabase();
-  const id = randomUUID();
-  const now = new Date().toISOString();
-
-  db.prepare(
-    `INSERT INTO networks (id, project_id, name, scope, parent_network_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(id, null, 'App Root', 'app', null, now, now);
-
-  createLayout({ networkId: id });
-  createObject('network', 'app', null, id);
-
-  return db.prepare('SELECT * FROM networks WHERE id = ?').get(id) as Network;
+  return ensureAppRootNetworkForDb(getDatabase());
 }
 
 export function getProjectRootNetwork(projectId: string): Network | undefined {
-  const db = getDatabase();
-  const appRoot = getAppRootNetwork();
-  if (!appRoot) return undefined;
+  return getProjectRootNetworkForDb(getDatabase(), projectId);
+}
 
-  return db.prepare(
-    `SELECT * FROM networks WHERE scope = 'project' AND project_id = ? AND parent_network_id = ?`,
-  ).get(projectId, appRoot.id) as Network | undefined;
+export function ensureProjectRootNetwork(projectId: string): Network {
+  return ensureProjectRootNetworkForDb(getDatabase(), projectId);
 }
 
 // ── Network Full Data ──

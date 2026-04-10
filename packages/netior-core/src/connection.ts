@@ -16,6 +16,11 @@ import { migrate012 } from './migrations/012-objects-and-entity-nodes';
 import { migrate013 } from './migrations/013-contexts';
 import { migrate014 } from './migrations/014-archetype-ref-field';
 import { migrate015 } from './migrations/015-type-groups';
+import {
+  ensureAppRootNetworkForDb,
+  ensureProjectNodeInAppRootForDb,
+  ensureProjectRootNetworkForDb,
+} from './repositories/network-roots';
 
 let db: Database.Database | null = null;
 
@@ -130,6 +135,14 @@ export function initDatabase(dbPath: string, options?: InitDatabaseOptions): voi
       }
       db.pragma('foreign_keys = ON');
     }
+  }
+
+  ensureAppRootNetworkForDb(db);
+
+  const projectRows = db.prepare('SELECT id FROM projects').all() as { id: string }[];
+  for (const project of projectRows) {
+    ensureProjectRootNetworkForDb(db, project.id);
+    ensureProjectNodeInAppRootForDb(db, project.id);
   }
 }
 

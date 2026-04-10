@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, CircleDot, Layers3, Shapes, Share2, Waypoints } from 'lucide-react';
+import { ChevronDown, ChevronRight, CircleDot, FolderOpen, Layers3, Shapes, Share2, Waypoints } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { Badge } from '../ui/Badge';
 
-export type NetworkBrowserObjectType = 'network' | 'concept' | 'archetype' | 'relation_type' | 'context';
+export type NetworkBrowserObjectType = 'network' | 'project' | 'concept' | 'archetype' | 'relation_type' | 'context';
 
 export interface NetworkBrowserItem {
   id: string;
@@ -30,6 +30,7 @@ interface NetworkObjectBrowserProps {
 
 const ICONS: Record<NetworkBrowserObjectType, React.ElementType> = {
   network: Waypoints,
+  project: FolderOpen,
   concept: CircleDot,
   archetype: Shapes,
   relation_type: Share2,

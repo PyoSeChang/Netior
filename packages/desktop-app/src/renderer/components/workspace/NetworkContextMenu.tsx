@@ -7,7 +7,7 @@ import { useI18n } from '../../hooks/useI18n';
 interface NetworkContextMenuProps {
   x: number;
   y: number;
-  onCreateConcept: () => void;
+  onCreateConcept?: () => void;
   onAddObject?: () => void;
   onAddFileNode?: () => void;
   onClose: () => void;
@@ -52,16 +52,18 @@ export function NetworkContextMenu({
       style={{ left: x, top: y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <button
-        className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
-        onClick={() => {
-          onCreateConcept();
-          onClose();
-        }}
-      >
-        <Plus size={14} />
-        {t('network.createConcept')}
-      </button>
+      {onCreateConcept && (
+        <button
+          className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
+          onClick={() => {
+            onCreateConcept();
+            onClose();
+          }}
+        >
+          <Plus size={14} />
+          {t('network.createConcept')}
+        </button>
+      )}
 
       {onAddObject && (
         <button

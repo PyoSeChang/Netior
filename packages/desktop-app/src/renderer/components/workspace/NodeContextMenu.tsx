@@ -2,6 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import { ExternalLink, FileText, Link, Plus, Trash2 } from 'lucide-react';
 import { useNetworkStore } from '../../stores/network-store';
 import { useEditorStore } from '../../stores/editor-store';
+import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
 import type { NetworkObjectType } from '@netior/shared/types';
 import type { CanvasMode } from '../../stores/ui-store';
@@ -43,6 +44,8 @@ export function NodeContextMenu({
 }: NodeContextMenuProps): JSX.Element {
   const { t } = useI18n();
   const { removeNode, currentNetwork } = useNetworkStore();
+  const openProject = useProjectStore((state) => state.openProject);
+  const deleteProject = useProjectStore((state) => state.deleteProject);
 
   const openObjectEditor = useCallback(() => {
     if (!objectType || !objectTargetId) return;
@@ -51,7 +54,13 @@ export function NodeContextMenu({
       useEditorStore.getState().openTab({
         type: 'network',
         targetId: objectTargetId,
-        title: objectTitle ?? t('network.name'),
+        title: objectTitle ?? t('network.name' as never),
+      });
+    } else if (objectType === 'project') {
+      useEditorStore.getState().openTab({
+        type: 'project',
+        targetId: objectTargetId,
+        title: objectTitle ?? t('project.name'),
       });
     } else if (objectType === 'concept') {
       useEditorStore.getState().openTab({
@@ -77,7 +86,7 @@ export function NodeContextMenu({
       useEditorStore.getState().openTab({
         type: 'context',
         targetId: objectTargetId,
-        title: objectTitle ?? t('context.title'),
+        title: objectTitle ?? t('context.title' as never),
       });
     } else if (objectType === 'file' && filePath) {
       useEditorStore.getState().openTab({
@@ -87,12 +96,12 @@ export function NodeContextMenu({
       });
     }
     onClose();
-  }, [filePath, objectTargetId, objectTitle, objectType, onClose, t]);
+  }, [currentNetwork?.id, filePath, nodeId, objectTargetId, objectTitle, objectType, onClose, t]);
 
   const canOpenEditor =
     !!objectType &&
     !!objectTargetId &&
-    ['network', 'concept', 'archetype', 'relation_type', 'context', 'file'].includes(objectType);
+    ['network', 'project', 'concept', 'archetype', 'relation_type', 'context', 'file'].includes(objectType);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -107,6 +116,15 @@ export function NodeContextMenu({
     onClose();
   }, [onOpenNetwork, networkId, onClose]);
 
+  const handleOpenProject = useCallback(() => {
+    if (objectType !== 'project' || !objectTargetId) return;
+    const project = useProjectStore.getState().projects.find((item) => item.id === objectTargetId);
+    if (project) {
+      void openProject(project);
+    }
+    onClose();
+  }, [objectTargetId, objectType, onClose, openProject]);
+
   const handleCreateNetwork = useCallback(() => {
     if (conceptId) onCreateNetwork?.(conceptId);
     onClose();
@@ -118,9 +136,24 @@ export function NodeContextMenu({
   }, [onAddConnection, nodeId, onClose]);
 
   const handleDelete = useCallback(async () => {
+    const isAppRootProjectNode =
+      objectType === 'project'
+      && !!objectTargetId
+      && currentNetwork?.scope === 'app'
+      && currentNetwork.parent_network_id === null;
+
+    if (isAppRootProjectNode) {
+      await deleteProject(objectTargetId);
+      if (currentNetwork) {
+        await useNetworkStore.getState().openNetwork(currentNetwork.id);
+      }
+      onClose();
+      return;
+    }
+
     await removeNode(nodeId);
     onClose();
-  }, [removeNode, nodeId, onClose]);
+  }, [currentNetwork?.parent_network_id, currentNetwork?.scope, deleteProject, nodeId, objectTargetId, objectType, onClose, removeNode]);
 
   return (
     <div
@@ -136,6 +169,16 @@ export function NodeContextMenu({
         >
           <ExternalLink size={14} />
           {t('network.openSubNetwork')}
+        </button>
+      )}
+
+      {objectType === 'project' && objectTargetId && (
+        <button
+          className="flex w-full items-center gap-2 px-3 py-1 text-xs text-default hover:bg-surface-hover cursor-pointer"
+          onClick={handleOpenProject}
+        >
+          <ExternalLink size={14} />
+          {t('common.open')}
         </button>
       )}
 

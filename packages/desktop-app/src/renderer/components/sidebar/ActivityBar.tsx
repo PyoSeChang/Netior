@@ -11,10 +11,13 @@ export function ActivityBar(): JSX.Element {
   const { t } = useI18n();
   const tk = (key: string) => t(key as import('@netior/shared/i18n').TranslationKey);
   const { sidebarView, setSidebarView, sidebarOpen, toggleSidebar } = useUIStore();
-  const items = [
-    { key: 'networks' as const, icon: Waypoints, label: t('sidebar.networks') },
+  const currentProject = useProjectStore((state) => state.currentProject);
+  const items = currentProject ? [
+    { key: 'networks' as const, icon: Waypoints, label: tk('sidebar.networks') },
     { key: 'objects' as const, icon: Boxes, label: tk('sidebar.objects') },
     { key: 'files' as const, icon: FolderTree, label: t('sidebar.files') },
+  ] as const : [
+    { key: 'networks' as const, icon: Waypoints, label: tk('sidebar.networks') },
   ] as const;
 
   const handleClick = (key: 'networks' | 'objects' | 'files') => {
@@ -54,33 +57,34 @@ export function ActivityBar(): JSX.Element {
       </div>
 
       {/* Bottom: narre + terminal + settings */}
-      <Tooltip content={t('narre.title')} position="right">
-        <button
-          className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
-          onClick={() => {
-            const projectId = useProjectStore.getState().currentProject?.id;
-            if (projectId) {
-              useEditorStore.getState().openTab({
-                type: 'narre',
-                targetId: projectId,
-                title: 'Narre',
-              });
-            }
-          }}
-        >
-          <Sparkles size={18} />
-        </button>
-      </Tooltip>
-      <Tooltip content="Terminal" position="right">
-        <button
-          className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
-          onClick={() => {
-            openTerminalTab();
-          }}
-        >
-          <Terminal size={18} />
-        </button>
-      </Tooltip>
+      {currentProject && (
+        <>
+          <Tooltip content={t('narre.title')} position="right">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
+              onClick={() => {
+                useEditorStore.getState().openTab({
+                  type: 'narre',
+                  targetId: currentProject.id,
+                  title: 'Narre',
+                });
+              }}
+            >
+              <Sparkles size={18} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Terminal" position="right">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
+              onClick={() => {
+                openTerminalTab();
+              }}
+            >
+              <Terminal size={18} />
+            </button>
+          </Tooltip>
+        </>
+      )}
       <Tooltip content="Settings" position="right">
         <button
           className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
