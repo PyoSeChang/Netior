@@ -47,9 +47,7 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
   label,
   updatedAt,
   icon,
-  semanticType,
   semanticTypeLabel,
-  systemType,
   selected,
   highlighted,
   mode = 'browse',
@@ -60,8 +58,6 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
   metadata,
   portalChips,
   onPortalChipClick,
-  spanInfo,
-  onSpanResizeStart,
   resizable = false,
   onResizeStart,
   collapsed = false,
@@ -199,7 +195,6 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
             label={label}
             icon={icon}
             semanticTypeLabel={semanticTypeLabel}
-            systemType={systemType}
             collapsed={collapsed}
             canToggleCollapse={!!(isContainerShape && onToggleCollapse)}
             onToggleCollapse={onToggleCollapse ? () => onToggleCollapse(id) : undefined}
@@ -236,68 +231,6 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
           </div>
         )}
       </div>
-
-      {/* Span resize handles (edit mode only) */}
-      {mode === 'edit' && spanInfo && onSpanResizeStart && (
-        <>
-          <div
-            style={{
-              position: 'absolute',
-              left: -3,
-              top: 0,
-              width: 6,
-              height: '100%',
-              cursor: 'ew-resize',
-              zIndex: 1,
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              onSpanResizeStart(id, 'start', e.clientX, spanInfo.startValue);
-            }}
-          >
-            <div style={{
-              position: 'absolute',
-              left: 1,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: 4,
-              height: 24,
-              borderRadius: 2,
-              backgroundColor: 'var(--accent)',
-              opacity: 0.5,
-            }} />
-          </div>
-          <div
-            style={{
-              position: 'absolute',
-              right: -3,
-              top: 0,
-              width: 6,
-              height: '100%',
-              cursor: 'ew-resize',
-              zIndex: 1,
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              onSpanResizeStart(id, 'end', e.clientX, spanInfo.endValue);
-            }}
-          >
-            <div style={{
-              position: 'absolute',
-              right: 1,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: 4,
-              height: 24,
-              borderRadius: 2,
-              backgroundColor: 'var(--accent)',
-              opacity: 0.5,
-            }} />
-          </div>
-        </>
-      )}
 
       {mode === 'edit' && selected && resizable && onResizeStart && (
         <>

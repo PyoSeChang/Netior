@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { RenderNode } from './types';
-import type { CanvasMode } from '../../stores/ui-store';
+import type { WorkspaceMode } from '../../stores/ui-store';
 import type { InteractionConstraints } from './layout-plugins/types';
 
 interface UseInteractionParams {
@@ -9,13 +9,13 @@ interface UseInteractionParams {
   zoom: number;
   panX: number;
   panY: number;
-  mode: CanvasMode;
+  mode: WorkspaceMode;
   constraints: InteractionConstraints;
   onPanChange: (panX: number, panY: number) => void;
   onNodeDragEnd: (nodeId: string, x: number, y: number) => Promise<void>;
   onSpanResizeEnd?: (nodeId: string, edge: 'start' | 'end', newValue: number) => Promise<void>;
   onSelectionBox: (nodeIds: string[]) => void;
-  onCanvasClick: () => void;
+  onWorkspaceClick: () => void;
   onWheel: (e: WheelEvent) => void;
 }
 
@@ -49,7 +49,7 @@ type DragState =
  * useInteraction
  *
  * Handles mouse gestures:
- * - Pan (left-click + drag on canvas)
+ * - Pan (left-click + drag on workspace)
  * - Node drag (left-click + drag on node, edit mode only)
  * - Span resize (left-click + drag on span handle, edit mode only)
  * - Selection box (Shift + left-click + drag)
@@ -67,7 +67,7 @@ export function useInteraction({
   onNodeDragEnd,
   onSpanResizeEnd,
   onSelectionBox,
-  onCanvasClick,
+  onWorkspaceClick,
   onWheel,
 }: UseInteractionParams) {
   const [dragState, setDragState] = useState<DragState>({ type: 'none' });
@@ -78,8 +78,8 @@ export function useInteraction({
     null,
   );
 
-  // --- Canvas mouse down: pan or selection ---
-  const handleCanvasMouseDown = useCallback(
+  // --- Workspace mouse down: pan or selection ---
+  const handleWorkspaceMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (e.button !== 0) return;
 
@@ -206,8 +206,8 @@ export function useInteraction({
 
         if (Math.abs(dx) > 2 && onSpanResizeEnd) {
           const PIXELS_PER_UNIT = 200;
-          const canvasDx = dx / zoom;
-          const valueDelta = canvasDx / PIXELS_PER_UNIT;
+          const workspaceDx = dx / zoom;
+          const valueDelta = workspaceDx / PIXELS_PER_UNIT;
           const newValue = Math.round(dragState.startValue + valueDelta);
 
           onSpanResizeEnd(dragState.nodeId, dragState.edge, newValue).then(() =>
@@ -239,7 +239,7 @@ export function useInteraction({
         const dy = e.clientY - dragState.startY;
 
         if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
-          onCanvasClick();
+          onWorkspaceClick();
         }
       }
 
@@ -263,7 +263,7 @@ export function useInteraction({
     onPanChange,
     onNodeDragEnd,
     onSelectionBox,
-    onCanvasClick,
+    onWorkspaceClick,
   ]);
 
   // --- Wheel zoom ---
@@ -279,7 +279,7 @@ export function useInteraction({
     dragState,
     nodeDragOffset,
     spanResizeOffset,
-    handleCanvasMouseDown,
+    handleWorkspaceMouseDown,
     handleNodeDragStart,
     handleSpanResizeStart,
   };

@@ -177,12 +177,12 @@ describe('ConceptStore', () => {
 });
 
 describe('UIStore', () => {
-  it('should toggle canvas mode', () => {
-    useUIStore.getState().setCanvasMode('browse');
-    expect(useUIStore.getState().canvasMode).toBe('browse');
+  it('should toggle workspace mode', () => {
+    useUIStore.getState().setWorkspaceMode('browse');
+    expect(useUIStore.getState().workspaceMode).toBe('browse');
 
-    useUIStore.getState().setCanvasMode('edit');
-    expect(useUIStore.getState().canvasMode).toBe('edit');
+    useUIStore.getState().setWorkspaceMode('edit');
+    expect(useUIStore.getState().workspaceMode).toBe('edit');
   });
 
   it('should toggle sidebar', () => {

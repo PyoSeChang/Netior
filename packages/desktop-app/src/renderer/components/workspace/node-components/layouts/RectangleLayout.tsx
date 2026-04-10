@@ -1,13 +1,12 @@
-import React from 'react';
+﻿import React from 'react';
 import { resolveIcon } from '../../../../utils/icon-resolver';
 import type { ShapeLayoutProps } from '../types';
 
-/** Config / event / default nodes — icon + label (config hides semantic type) */
+/** Default node card: icon + label + semantic type. */
 export const RectangleLayout: React.FC<ShapeLayoutProps> = ({
   icon,
   label,
   semanticTypeLabel,
-  systemType,
   updatedAt,
 }) => (
   <div className="w-full h-full flex flex-row items-center gap-2 py-2 px-3">
@@ -16,12 +15,10 @@ export const RectangleLayout: React.FC<ShapeLayoutProps> = ({
       <span className="text-sm font-medium text-default whitespace-nowrap overflow-hidden text-ellipsis">
         {label}
       </span>
-      {systemType !== 'config' && (
-        <span className="text-xs text-secondary whitespace-nowrap overflow-hidden text-ellipsis">
-          {semanticTypeLabel}
-          {updatedAt && <span className="opacity-60"> · {updatedAt}</span>}
-        </span>
-      )}
+      <span className="text-xs text-secondary whitespace-nowrap overflow-hidden text-ellipsis">
+        {semanticTypeLabel}
+        {updatedAt && <span className="opacity-60"> - {updatedAt}</span>}
+      </span>
     </div>
   </div>
 );

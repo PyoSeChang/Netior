@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import type { RenderNode } from './types';
 import { isEditableTarget, isPrimaryModifier, logShortcut } from '../../shortcuts/shortcut-utils';
-import { useUIStore, type CanvasMode } from '../../stores/ui-store';
+import { useUIStore, type WorkspaceMode } from '../../stores/ui-store';
 
 interface UseNetworkShortcutsOptions {
   selectedIds: Set<string>;
   renderNodes: RenderNode[];
   edgeLinkingActive: boolean;
-  canvasMode: CanvasMode;
+  workspaceMode: WorkspaceMode;
   onClearSelection: () => void;
   onDeleteSelection: () => void;
   onCancelLinking: () => void;
@@ -19,7 +19,7 @@ export function useNetworkShortcuts({
   selectedIds,
   renderNodes,
   edgeLinkingActive,
-  canvasMode,
+  workspaceMode,
   onClearSelection,
   onDeleteSelection,
   onCancelLinking,
@@ -56,7 +56,7 @@ export function useNetworkShortcuts({
         if (key === 'e') {
           event.preventDefault();
           logShortcut('shortcut.network.toggleMode');
-          useUIStore.getState().setCanvasMode(canvasMode === 'browse' ? 'edit' : 'browse');
+          useUIStore.getState().setWorkspaceMode(workspaceMode === 'browse' ? 'edit' : 'browse');
           return;
         }
         if (key === 'f' && renderNodes.length > 0) {
@@ -78,7 +78,7 @@ export function useNetworkShortcuts({
     selectedIds,
     renderNodes,
     edgeLinkingActive,
-    canvasMode,
+    workspaceMode,
     onClearSelection,
     onDeleteSelection,
     onCancelLinking,

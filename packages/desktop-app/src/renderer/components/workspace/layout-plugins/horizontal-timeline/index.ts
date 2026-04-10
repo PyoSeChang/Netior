@@ -1,12 +1,12 @@
 import React from 'react';
 import { CalendarDays } from 'lucide-react';
-import type { CanvasLayoutPlugin, LayoutRenderNode, NodeDropContext, NodeDropResult } from '../types';
+import type { WorkspaceLayoutPlugin, LayoutRenderNode, NodeDropContext, NodeDropResult } from '../types';
 import { TimelineBackground } from './TimelineBackground';
 import { TimelineOverlay } from './TimelineOverlay';
 import { computeTimelineLayout } from './timeline-layout';
 import { PIXELS_PER_DAY, todayEpochDays, epochDaysToDate } from './scale-utils';
 
-export const horizontalTimelinePlugin: CanvasLayoutPlugin = {
+export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
   key: 'horizontal-timeline',
   displayName: 'Gantt Chart',
 
@@ -85,7 +85,7 @@ export const horizontalTimelinePlugin: CanvasLayoutPlugin = {
     // Reverse: actualDy = (newY - node.y) * zoom, then actualY = node.y + actualDy
     const correctedY = node.y + (newY - node.y) * zoom;
 
-    // Reverse-calculate: canvas X → epoch days → ISO date
+    // Reverse-calculate: workspace X -> epoch days -> ISO date
     const epochDay = Math.round(originDay + newX / PIXELS_PER_DAY);
     const date = epochDaysToDate(epochDay);
     const isoDate = date.toISOString().split('T')[0]; // YYYY-MM-DD

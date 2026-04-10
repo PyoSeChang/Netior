@@ -24,12 +24,12 @@ export const TimelineBackground: React.FC<LayoutLayerProps> = ({
   const safeWidth = width || 2000;
 
   const majorCells = useMemo(
-    () => generateHeaderCells({ granularity: major, zoom, panX, canvasWidth: safeWidth, originDay }),
+    () => generateHeaderCells({ granularity: major, zoom, panX, viewportWidth: safeWidth, originDay }),
     [major, zoom, panX, safeWidth, originDay],
   );
 
   const minorCells = useMemo(
-    () => generateHeaderCells({ granularity: minor, zoom, panX, canvasWidth: safeWidth, originDay }),
+    () => generateHeaderCells({ granularity: minor, zoom, panX, viewportWidth: safeWidth, originDay }),
     [minor, zoom, panX, safeWidth, originDay],
   );
 

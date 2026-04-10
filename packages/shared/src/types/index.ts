@@ -210,13 +210,18 @@ export interface NetworkNodeUpdate {
 // Edge
 // ============================================
 
+export type SystemContract =
+  | 'core:contains'
+  | 'core:entry_portal'
+  | 'core:hierarchy_parent';
+
 export interface Edge {
   id: string;
   network_id: string;
   source_node_id: string;
   target_node_id: string;
   relation_type_id: string | null;
-  system_contract: string | null;
+  system_contract: SystemContract | null;
   description: string | null;
   created_at: string;
 }
@@ -226,13 +231,13 @@ export interface EdgeCreate {
   source_node_id: string;
   target_node_id: string;
   relation_type_id?: string;
-  system_contract?: string;
+  system_contract?: SystemContract;
   description?: string;
 }
 
 export interface EdgeUpdate {
   relation_type_id?: string | null;
-  system_contract?: string | null;
+  system_contract?: SystemContract | null;
   description?: string | null;
 }
 

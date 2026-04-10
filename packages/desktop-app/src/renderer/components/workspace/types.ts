@@ -1,11 +1,4 @@
-/** Viewport state */
-export interface Viewport {
-  zoom: number;
-  panX: number;
-  panY: number;
-}
-
-export type CanvasNodeType = 'concept' | 'file' | 'dir' | 'network' | 'object';
+export type WorkspaceNodeType = 'concept' | 'file' | 'dir' | 'network' | 'object';
 export interface PortalChip {
   id: string;
   label: string;
@@ -25,8 +18,7 @@ export interface RenderNode {
   width?: number;
   height?: number;
   conceptId?: string;
-  canvasCount: number;
-  nodeType: CanvasNodeType;
+  nodeType: WorkspaceNodeType;
   objectType?: string;
   objectTargetId?: string;
   isPortal?: boolean;
@@ -67,20 +59,4 @@ export interface RenderEdge {
   orthogonalAxis?: 'horizontal' | 'vertical';
   hidden?: boolean;
   dimmed?: boolean;
-}
-
-/** Layout input node */
-export interface LayoutNode {
-  id: string;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-}
-
-/** Layout input edge */
-export interface LayoutEdge {
-  source: string;
-  target: string;
-  directed: boolean;
 }

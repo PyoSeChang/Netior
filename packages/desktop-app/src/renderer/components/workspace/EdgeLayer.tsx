@@ -1,5 +1,5 @@
 import React from 'react';
-import { EdgeRouteLine } from '../canvas/EdgeRouteLine';
+import { EdgeRouteLine } from './EdgeRouteLine';
 import type { RenderNode, RenderEdge, RenderEdgeAnchor, RenderPoint } from './types';
 
 interface EdgeLayerProps {
@@ -13,7 +13,7 @@ interface EdgeLayerProps {
   renderVisibleStroke?: boolean;
   nodeDragOffset: { id: string; dx: number; dy: number } | null;
   dragFollowerIds?: Set<string>;
-  onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
+  onContextMenu?: (type: 'workspace' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onDoubleClick?: (edgeId: string) => void;
 }
 

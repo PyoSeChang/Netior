@@ -5,7 +5,7 @@ import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
 import type { NetworkObjectType } from '@netior/shared/types';
-import type { CanvasMode } from '../../stores/ui-store';
+import type { WorkspaceMode } from '../../stores/ui-store';
 
 interface NodeContextMenuProps {
   x: number;
@@ -18,7 +18,7 @@ interface NodeContextMenuProps {
   fileId?: string;
   filePath?: string;
   networkId?: string;
-  mode: CanvasMode;
+  mode: WorkspaceMode;
   onAddConnection?: (nodeId: string) => void;
   onOpenNetwork?: (networkId: string) => void;
   onCreateNetwork?: (conceptId: string) => void;

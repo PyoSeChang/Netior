@@ -86,12 +86,12 @@ export interface LayoutLayerProps {
   onSpanResizeStart?: (nodeId: string, edge: 'start' | 'end', startX: number, startValue: number) => void;
   onNodeClick?: (id: string, event: React.MouseEvent) => void;
   onNodeDoubleClick?: (id: string) => void;
-  onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
+  onContextMenu?: (type: 'workspace' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
 }
 
 // ── Plugin Interface ──
 
-export interface CanvasLayoutPlugin {
+export interface WorkspaceLayoutPlugin {
   key: string;
   displayName: string;
 

@@ -80,15 +80,15 @@ export function generateHeaderCells(params: {
   granularity: TimeGranularity;
   zoom: number;
   panX: number;
-  canvasWidth: number;
+  viewportWidth: number;
   originDay: number;
 }): HeaderCell[] {
-  const { granularity, zoom, panX, canvasWidth, originDay } = params;
+  const { granularity, zoom, panX, viewportWidth, originDay } = params;
   const pxPerDay = PIXELS_PER_DAY * zoom;
 
   // Visible epoch-day range
   const leftDay = originDay + (-panX) / pxPerDay;
-  const rightDay = originDay + (canvasWidth - panX) / pxPerDay;
+  const rightDay = originDay + (viewportWidth - panX) / pxPerDay;
 
   const cells: HeaderCell[] = [];
   const maxCells = 200;

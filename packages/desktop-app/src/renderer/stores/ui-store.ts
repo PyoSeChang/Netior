@@ -1,18 +1,17 @@
 import { create } from 'zustand';
 
-export type CanvasMode = 'browse' | 'edit';
-export type RenderingMode = 'canvas';
+export type WorkspaceMode = 'browse' | 'edit';
 export type SidebarView = 'networks' | 'objects' | 'files';
 
 interface UIStore {
-  canvasMode: CanvasMode;
+  workspaceMode: WorkspaceMode;
   sidebarView: SidebarView;
   sidebarOpen: boolean;
   sidebarWidth: number;
   showSettings: boolean;
   showShortcutOverlay: boolean;
 
-  setCanvasMode: (mode: CanvasMode) => void;
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
   setSidebarView: (view: SidebarView) => void;
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
@@ -25,14 +24,14 @@ const SIDEBAR_MAX = 400;
 const SIDEBAR_DEFAULT = 224; // w-56
 
 export const useUIStore = create<UIStore>((set) => ({
-  canvasMode: 'browse',
+  workspaceMode: 'browse',
   sidebarView: 'networks',
   sidebarOpen: true,
   sidebarWidth: SIDEBAR_DEFAULT,
   showSettings: false,
   showShortcutOverlay: false,
 
-  setCanvasMode: (mode) => set({ canvasMode: mode }),
+  setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
   setSidebarView: (view) => set({ sidebarView: view }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarWidth: (width) => set({ sidebarWidth: Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, width)) }),

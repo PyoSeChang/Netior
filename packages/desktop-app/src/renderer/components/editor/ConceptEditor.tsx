@@ -16,6 +16,7 @@ import { ConceptPropertiesPanel, FieldInput } from './ConceptPropertiesPanel';
 import { ConceptBodyEditor } from './ConceptBodyEditor';
 import { ConceptAgentView } from './ConceptAgentView';
 import { useI18n } from '../../hooks/useI18n';
+import { HIERARCHY_PARENT_CONTRACT } from '../../lib/hierarchy-contract';
 import {
   NetworkObjectEditorShell,
   NetworkObjectEditorSection,
@@ -157,7 +158,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                     network_id: draft.networkId,
                     source_node_id: draft.parentGroupNodeId,
                     target_node_id: node.id,
-                    system_contract: 'core:root_child',
+                    system_contract: HIERARCHY_PARENT_CONTRACT,
                   });
                 }
               }

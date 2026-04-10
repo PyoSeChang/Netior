@@ -1,19 +1,19 @@
-import type { CanvasLayoutPlugin } from './types';
+import type { WorkspaceLayoutPlugin } from './types';
 import { freeformPlugin } from './freeform';
 import { horizontalTimelinePlugin } from './horizontal-timeline';
 
-const registry = new Map<string, CanvasLayoutPlugin>();
+const registry = new Map<string, WorkspaceLayoutPlugin>();
 
-export function registerLayout(plugin: CanvasLayoutPlugin): void {
+export function registerLayout(plugin: WorkspaceLayoutPlugin): void {
   registry.set(plugin.key, plugin);
 }
 
-export function getLayout(key?: string | null): CanvasLayoutPlugin {
+export function getLayout(key?: string | null): WorkspaceLayoutPlugin {
   if (key && registry.has(key)) return registry.get(key)!;
   return registry.get('freeform')!;
 }
 
-export function listLayouts(): CanvasLayoutPlugin[] {
+export function listLayouts(): WorkspaceLayoutPlugin[] {
   return Array.from(registry.values());
 }
 

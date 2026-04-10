@@ -1,11 +1,7 @@
-/**
- * Node Component Types
- *
- * Unified interface for all node rendering components (Level 1/2/3)
- */
+import type { WorkspaceMode } from '../../../stores/ui-store';
 
+/** Shared types for workspace node card rendering. */
 export type NodeShape = 'circle' | 'gear' | 'stadium' | 'portrait' | 'dashed' | 'wide' | 'rectangle' | 'square' | 'group' | 'hierarchy';
-import type { CanvasMode } from '../../../stores/ui-store';
 export type NodeResizeDirection = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
 /** Props for shape-specific internal layout components */
@@ -13,7 +9,6 @@ export interface ShapeLayoutProps {
   label: string;
   icon: string;
   semanticTypeLabel: string;
-  systemType?: string;
   collapsed?: boolean;
   canToggleCollapse?: boolean;
   onToggleCollapse?: () => void;
@@ -29,9 +24,7 @@ export type ShapeLayout = React.ComponentType<ShapeLayoutProps>;
 export interface NodeComponentProps {
   // Identity
   id: string;
-  semanticType: string;
   semanticTypeLabel: string;
-  systemType?: string;
 
   // Position & Size
   x: number;
@@ -45,7 +38,7 @@ export interface NodeComponentProps {
   icon: string;
   selected: boolean;
   highlighted?: boolean;
-  mode?: CanvasMode;
+  mode?: WorkspaceMode;
 
   // Appearance (Level 1: Shape)
   shape?: NodeShape;
@@ -56,9 +49,6 @@ export interface NodeComponentProps {
   portalChips?: Array<{ id: string; label: string; networkId: string }>;
   onPortalChipClick?: (nodeId: string, chipId: string, networkId: string) => void;
 
-  // Span resize (timeline mode)
-  spanInfo?: { startValue: number; endValue: number };
-  onSpanResizeStart?: (nodeId: string, edge: 'start' | 'end', startX: number, startValue: number) => void;
   resizable?: boolean;
   onResizeStart?: (nodeId: string, direction: NodeResizeDirection, startX: number, startY: number) => void;
   collapsed?: boolean;
@@ -68,10 +58,7 @@ export interface NodeComponentProps {
   onClick: (id: string, event: React.MouseEvent) => void;
   onDoubleClick: (id: string) => void;
   onDragStart: (id: string, startX: number, startY: number) => void;
-  onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
+  onContextMenu?: (type: 'workspace' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onMouseEnter?: (e: React.MouseEvent) => void;
   onMouseLeave?: () => void;
 }
-
-/** Node component type */
-export type NodeComponent = React.ComponentType<NodeComponentProps>;

@@ -28,7 +28,7 @@ export function computeTimelineLayout(input: LayoutComputeInput): LayoutComputeR
     const isPeriod = role === 'period';
 
     // X position: epoch days relative to origin, scaled by PIXELS_PER_DAY
-    // Note: zoom is applied by the canvas transform, so we store canvas coords here
+    // Note: zoom is applied by the workspace transform, so we store world coords here
     if (isPeriod && endTimeValue != null) {
       const startX = (timeValue - originDay) * PIXELS_PER_DAY;
       const endX = (endTimeValue - originDay) * PIXELS_PER_DAY;

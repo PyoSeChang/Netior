@@ -12,6 +12,7 @@ import { ColorPicker } from '../ui/ColorPicker';
 import { Toggle } from '../ui/Toggle';
 import { Button } from '../ui/Button';
 import { ScrollArea } from '../ui/ScrollArea';
+import { isHierarchyParentContract } from '../../lib/hierarchy-contract';
 
 interface EdgeEditorProps {
   tab: EditorTab;
@@ -71,11 +72,11 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
 
   const sourceNode = edge ? nodes.find((n) => n.id === edge.source_node_id) : undefined;
   const targetNode = edge ? nodes.find((n) => n.id === edge.target_node_id) : undefined;
+  const sessionState = session.state;
 
   const sourceLabel = sourceNode?.concept?.title ?? sourceNode?.file?.path?.replace(/\\/g, '/').split('/').pop() ?? '?';
   const targetLabel = targetNode?.concept?.title ?? targetNode?.file?.path?.replace(/\\/g, '/').split('/').pop() ?? '?';
-  const isHierarchyContract =
-    session.state.system_contract === 'core:root_child' || session.state.system_contract === 'core:tree_parent';
+  const isHierarchyContract = isHierarchyParentContract(sessionState?.system_contract);
 
   const relationTypeOptions = useMemo(() => [
     { value: '', label: t('edge.noRelationType') },
@@ -102,7 +103,7 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
     );
   }
 
-  if (session.isLoading) return <></>;
+  if (session.isLoading || !sessionState) return <></>;
 
   const update = (patch: Partial<EdgeState>) => {
     session.setState((prev) => ({ ...prev, ...patch }));

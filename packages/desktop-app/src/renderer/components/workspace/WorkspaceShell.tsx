@@ -91,7 +91,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
   const hasSideEditor = !isFullMode && sideLayout !== null
     && tabs.some((t) => t.viewMode === 'side' && !t.isMinimized);
 
-  // Derive the side active tab for canvas-editor split ratio
+  // Derive the side active tab for workspace-editor split ratio
   const sideActiveTabId = sideLayout ? getActiveTabFromLayout(sideLayout, activeTabId) : null;
   const sideActiveTab = sideActiveTabId ? tabs.find((t) => t.id === sideActiveTabId) : null;
 
@@ -126,7 +126,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
     return () => document.removeEventListener('dragend', resetDragState);
   }, []);
 
-  // Side editor split drag (canvas ↔ side panel)
+  // Side editor split drag (workspace <-> side panel)
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const editorDraggingRef = useRef(false);
 
@@ -138,7 +138,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
 
       const container = editorContainerRef.current;
       if (!container) return;
-      const canvasPane = container.querySelector('[data-pane="canvas"]') as HTMLElement | null;
+      const workspacePane = container.querySelector('[data-pane="workspace"]') as HTMLElement | null;
       const editorPane = container.querySelector('[data-pane="editor"]') as HTMLElement | null;
 
       const handleMove = (ev: MouseEvent) => {
@@ -146,7 +146,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
         const rect = container.getBoundingClientRect();
         const ratio = Math.max(0.2, Math.min(0.8, (ev.clientX - rect.left) / rect.width));
         // Direct DOM update — no React re-render during drag
-        if (canvasPane) canvasPane.style.width = `${ratio * 100}%`;
+        if (workspacePane) workspacePane.style.width = `${ratio * 100}%`;
         if (editorPane) editorPane.style.width = `${(1 - ratio) * 100}%`;
         (container as any).__pendingRatio = ratio;
       };
@@ -286,8 +286,8 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
     setShowFloatDropHint(false);
   }, []);
 
-  // Canvas area: drop → float mode
-  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+  // Workspace area: drop -> float mode
+  const handleWorkspaceDragOver = useCallback((e: React.DragEvent) => {
     if (!isTabDrag(e)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -297,7 +297,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
     }
   }, [hasSideEditor]);
 
-  const handleCanvasDrop = useCallback(async (e: React.DragEvent) => {
+  const handleWorkspaceDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setShowSideDropHint(false);
     setShowFloatDropHint(false);
@@ -354,13 +354,13 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
             <FullModeEditor />
           ) : (
             <>
-              {/* Canvas area */}
+              {/* Workspace area */}
               <div
-                data-pane="canvas"
+                data-pane="workspace"
                 className="relative flex min-h-0 min-w-0 flex-col overflow-hidden"
                 style={{ width: hasSideEditor ? `${splitRatio * 100}%` : '100%' }}
-                onDragOver={handleCanvasDragOver}
-                onDrop={handleCanvasDrop}
+                onDragOver={handleWorkspaceDragOver}
+                onDrop={handleWorkspaceDrop}
               >
                 <NetworkWorkspace projectId={project?.id ?? null} />
               </div>
@@ -392,7 +392,7 @@ export function WorkspaceShell({ project }: WorkspaceShellProps): JSX.Element {
                   <div
                     className="pointer-events-auto rounded-lg border-2 border-dashed border-accent bg-interactive-muted px-6 py-3 text-sm font-medium text-accent"
                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; }}
-                    onDrop={handleCanvasDrop}
+                    onDrop={handleWorkspaceDrop}
                   >
                     Float
                   </div>

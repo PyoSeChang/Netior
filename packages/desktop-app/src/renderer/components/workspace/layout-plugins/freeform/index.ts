@@ -1,7 +1,7 @@
-import type { CanvasLayoutPlugin, LayoutRenderNode } from '../types';
+import type { WorkspaceLayoutPlugin, LayoutRenderNode } from '../types';
 import { FreeformBackground } from './FreeformBackground';
 
-export const freeformPlugin: CanvasLayoutPlugin = {
+export const freeformPlugin: WorkspaceLayoutPlugin = {
   key: 'freeform',
   displayName: 'Freeform',
 

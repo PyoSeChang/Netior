@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import type { RenderPoint } from '../workspace/types';
+import type { RenderPoint } from './types';
 
 export interface EdgeRouteLineProps {
   id: string;
@@ -16,7 +16,7 @@ export interface EdgeRouteLineProps {
   trimEndpoints?: boolean;
   renderHitArea?: boolean;
   renderVisibleStroke?: boolean;
-  onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
+  onContextMenu?: (type: 'workspace' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onDoubleClick?: (edgeId: string) => void;
 }
 

@@ -18,6 +18,7 @@ import { migrate014 } from './migrations/014-archetype-ref-field';
 import { migrate015 } from './migrations/015-type-groups';
 import { migrate016 } from './migrations/016-backfill-object-records';
 import { migrate017 } from './migrations/017-edge-system-contract-and-group-node-type';
+import { migrate018 } from './migrations/018-unify-hierarchy-parent-contract';
 import {
   ensureAppRootNetworkForDb,
   ensureProjectNodeInAppRootForDb,
@@ -49,6 +50,7 @@ const migrations: Migration[] = [
   { version: 15, migrate: migrate015 },
   { version: 16, migrate: migrate016 },
   { version: 17, migrate: migrate017 },
+  { version: 18, migrate: migrate018 },
 ];
 
 export function hasColumn(db: Database.Database, table: string, column: string): boolean {

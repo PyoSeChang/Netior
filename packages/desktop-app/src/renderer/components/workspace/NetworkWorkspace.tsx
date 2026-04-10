@@ -26,11 +26,12 @@ import { useNetworkObjectSelectionStore } from '../../stores/network-object-sele
 import type { Archetype } from '@netior/shared/types';
 import { useI18n } from '../../hooks/useI18n';
 import type { RenderNode, RenderEdge, RenderPoint, RenderEdgeAnchor } from './types';
-import type { NodeResizeDirection } from '../canvas/node-components/types';
+import type { NodeResizeDirection } from './node-components/types';
 import { getLayout } from './layout-plugins/registry';
 import type { LayoutRenderNode } from './layout-plugins/types';
 import { isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
 import { useNetworkShortcuts } from './useNetworkShortcuts';
+import { HIERARCHY_PARENT_CONTRACT, isHierarchyParentContract } from '../../lib/hierarchy-contract';
 
 interface NetworkWorkspaceProps {
   projectId: string | null;
@@ -77,7 +78,6 @@ const HIERARCHY_MAGNETIC_THRESHOLD = 28;
 const HIERARCHY_X_MAGNETIC_THRESHOLD = 28;
 const GROUP_COLLAPSED_SIZE = { width: 240, height: 72 };
 const HIERARCHY_COLLAPSED_SIZE = { width: 260, height: 84 };
-const HIERARCHY_PARENT_CONTRACTS = new Set(['core:root_child', 'core:tree_parent']);
 
 function pickInitialNetworkId(
   projectId: string,
@@ -139,6 +139,15 @@ function getHierarchyContainerIdForNode(
     current = containsParentByChild.get(current);
   }
   return null;
+}
+
+function getHierarchySourceContainerId(
+  sourceNodeId: string,
+  containsParentByChild: Map<string, string>,
+  hierarchyContainerIds: Set<string>,
+): string | null {
+  if (hierarchyContainerIds.has(sourceNodeId)) return sourceNodeId;
+  return getHierarchyContainerIdForNode(sourceNodeId, containsParentByChild, hierarchyContainerIds);
 }
 
 function getPositionSlotIndex(position?: ParsedNodePosition): number | null {
@@ -214,18 +223,12 @@ function buildHierarchyParentMap(
 
   for (const edge of edges) {
     const contract = edge.system_contract ?? '';
-    if (!HIERARCHY_PARENT_CONTRACTS.has(contract)) continue;
+    if (!isHierarchyParentContract(contract)) continue;
 
     const targetHierarchyId = getHierarchyContainerIdForNode(edge.target_node_id, containsParentByChild, hierarchyContainerIds);
     if (!targetHierarchyId) continue;
 
-    if (contract === 'core:root_child') {
-      if (edge.source_node_id !== targetHierarchyId) continue;
-      map.set(edge.target_node_id, edge.source_node_id);
-      continue;
-    }
-
-    const sourceHierarchyId = getHierarchyContainerIdForNode(edge.source_node_id, containsParentByChild, hierarchyContainerIds);
+    const sourceHierarchyId = getHierarchySourceContainerId(edge.source_node_id, containsParentByChild, hierarchyContainerIds);
     if (!sourceHierarchyId || sourceHierarchyId !== targetHierarchyId) continue;
     map.set(edge.target_node_id, edge.source_node_id);
   }
@@ -541,7 +544,6 @@ function toRenderNodes(
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
           : (pos?.height ?? (isPortal ? 68 : isHierarchy ? 240 : isGroup ? 220 : 60)) + portalChipStripHeight,
         conceptId: n.object?.ref_id ?? undefined,
-        canvasCount: 0,
         nodeType: 'concept' as const,
         objectType,
         objectTargetId: n.object?.ref_id ?? undefined,
@@ -578,7 +580,6 @@ function toRenderNodes(
         height: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
           : pos?.height ?? (isHierarchy ? 220 : isGroup ? 180 : 50),
-        canvasCount: 0,
         nodeType: isFile ? 'file' as const : 'dir' as const,
         objectType,
         objectTargetId: n.object?.ref_id ?? undefined,
@@ -610,7 +611,6 @@ function toRenderNodes(
         height: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
           : pos?.height ?? (isPortal ? 68 : isHierarchy ? 220 : isGroup ? 200 : 60),
-        canvasCount: 0,
         nodeType: 'network' as const,
         objectType,
         objectTargetId: refId ?? undefined,
@@ -650,7 +650,6 @@ function toRenderNodes(
       height: isCollapsed
         ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
         : pos?.height ?? (isHierarchy ? 220 : isGroup ? 200 : objectType === 'project' ? 64 : 50),
-      canvasCount: 0,
       nodeType: 'object' as const,
       objectType,
       objectTargetId: n.object?.ref_id ?? undefined,
@@ -956,7 +955,7 @@ function resolveOrthogonalEdgeHints(
   const targetHierarchyId = getClosestHierarchyAncestorId(edge.targetId, containsParentByChild, hierarchyContainerIds);
   const sharesHierarchy = !!sourceHierarchyId && sourceHierarchyId === targetHierarchyId;
 
-  if (sharesHierarchy && HIERARCHY_PARENT_CONTRACTS.has(edge.systemContract ?? '')) {
+  if (sharesHierarchy && isHierarchyParentContract(edge.systemContract ?? '')) {
     const downward = targetNode.y >= sourceNode.y;
     const sourceAnchor: RenderEdgeAnchor = edge.sourceId === sourceHierarchyId
       ? (downward ? 'root-bottom' : 'root-top')
@@ -999,7 +998,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     navigateToChild, navigateBack,
   } = useNetworkStore();
   const { createConcept } = useConceptStore();
-  const { canvasMode } = useUIStore();
+  const workspaceMode = useUIStore((state) => state.workspaceMode);
   const { t } = useI18n();
   const networkObjectSelection = useNetworkObjectSelectionStore((s) => s.selection);
   const selectedNetworkObjects = useNetworkObjectSelectionStore((s) => s.selectedItems);
@@ -1091,7 +1090,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   // Cancel edge linking when mode changes
   useEffect(() => {
     setEdgeLinkingState(null);
-  }, [canvasMode]);
+  }, [workspaceMode]);
 
   // Restore viewport from layout (freeform only ??timeline always resets to today)
   useEffect(() => {
@@ -1133,7 +1132,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     prevLayoutRef.current = newLayout;
   }, [currentLayout?.layout_type, currentNetwork?.id, containerSize]);
 
-  // Container resize observer ??shift viewport center when canvas resizes
+  // Container resize observer: shift viewport center when the workspace resizes
   const prevSizeRef = useRef<{ width: number; height: number } | null>(null);
   useEffect(() => {
     const el = containerRef.current;
@@ -1388,7 +1387,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           edge.route === 'straight' &&
           !explicitRoute &&
           sharesHierarchy &&
-          HIERARCHY_PARENT_CONTRACTS.has(edge.systemContract ?? '');
+          isHierarchyParentContract(edge.systemContract ?? '');
         const route = shouldUseHierarchyRoute ? 'orthogonal' : edge.route;
         const orthogonalHints = route === 'orthogonal' && !edge.routePoints
           ? resolveOrthogonalEdgeHints(edge, visibleNodeMap, containsParentByChild, hierarchyContainerIds)
@@ -1558,27 +1557,25 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     return candidates[0] ?? null;
   }, [previewCardRenderNodes]);
 
-  const syncHierarchyRootChildEdge = useCallback(async (nodeId: string, nextParentGroupId: string | null) => {
+  const syncHierarchyParentEdge = useCallback(async (nodeId: string, nextParentGroupId: string | null) => {
     if (!currentNetwork) return;
 
     const nextParentNode = nextParentGroupId ? nodeById.get(nextParentGroupId) : undefined;
     const nextHierarchyParentId = nextParentNode?.node_type === 'hierarchy' ? nextParentGroupId : null;
     const existingHierarchyParentEdges = edges.filter(
-      (edge) => HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '') && edge.target_node_id === nodeId,
+      (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === nodeId,
     );
-    const hasExplicitTreeParentInNextHierarchy = !!nextHierarchyParentId && existingHierarchyParentEdges.some((edge) => (
-      edge.system_contract === 'core:tree_parent'
-      && getHierarchyContainerIdForNode(edge.source_node_id, containsParentByChild, allHierarchyContainerIds) === nextHierarchyParentId
+    const hasExplicitParentInNextHierarchy = !!nextHierarchyParentId && existingHierarchyParentEdges.some((edge) => (
+      edge.source_node_id !== nextHierarchyParentId
+      && getHierarchySourceContainerId(edge.source_node_id, containsParentByChild, allHierarchyContainerIds) === nextHierarchyParentId
     ));
 
     for (const edge of existingHierarchyParentEdges) {
-      const sourceHierarchyId = edge.system_contract === 'core:root_child'
-        ? edge.source_node_id
-        : getHierarchyContainerIdForNode(edge.source_node_id, containsParentByChild, allHierarchyContainerIds);
+      const sourceHierarchyId = getHierarchySourceContainerId(edge.source_node_id, containsParentByChild, allHierarchyContainerIds);
       const belongsToNextHierarchy = !!nextHierarchyParentId && sourceHierarchyId === nextHierarchyParentId;
       if (
         !belongsToNextHierarchy
-        || (hasExplicitTreeParentInNextHierarchy && edge.system_contract === 'core:root_child')
+        || (hasExplicitParentInNextHierarchy && edge.source_node_id === nextHierarchyParentId)
       ) {
         await networkService.edge.delete(edge.id);
       }
@@ -1586,16 +1583,16 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
     if (
       nextHierarchyParentId &&
-      !hasExplicitTreeParentInNextHierarchy &&
+      !hasExplicitParentInNextHierarchy &&
       !existingHierarchyParentEdges.some((edge) => (
-        edge.system_contract === 'core:root_child' && edge.source_node_id === nextHierarchyParentId
+        edge.source_node_id === nextHierarchyParentId
       ))
     ) {
       await networkService.edge.create({
         network_id: currentNetwork.id,
         source_node_id: nextHierarchyParentId,
         target_node_id: nodeId,
-        system_contract: 'core:root_child',
+        system_contract: HIERARCHY_PARENT_CONTRACT,
       });
     }
   }, [allHierarchyContainerIds, containsParentByChild, currentNetwork, edges, nodeById]);
@@ -1615,7 +1612,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
     let systemContract: string | undefined;
     if (shouldCreateHierarchyParent) {
-      systemContract = parentNodeId === childHierarchyId ? 'core:root_child' : 'core:tree_parent';
+      systemContract = HIERARCHY_PARENT_CONTRACT;
 
       let current: string | undefined = parentNodeId;
       while (current) {
@@ -1626,7 +1623,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       }
 
       const existingHierarchyParents = edges.filter(
-        (edge) => HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '') && edge.target_node_id === childNodeId,
+        (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === childNodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -1698,7 +1695,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         await networkService.edge.delete(edge.id);
       }
 
-      await syncHierarchyRootChildEdge(targetNodeId, null);
+      await syncHierarchyParentEdge(targetNodeId, null);
       await networkService.edge.create({
         network_id: currentNetwork.id,
         source_node_id: sourceNodeId,
@@ -1736,7 +1733,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     });
     await openNetwork(currentNetwork.id);
     return true;
-  }, [addNode, currentNetwork, edges, entryPortalData.entryPortalTargetNodeIds, nodes, openNetwork, rawPosMap, setNodePosition, syncHierarchyRootChildEdge]);
+  }, [addNode, currentNetwork, edges, entryPortalData.entryPortalTargetNodeIds, nodes, openNetwork, rawPosMap, setNodePosition, syncHierarchyParentEdge]);
 
   const closeObjectPicker = useCallback(() => {
     setObjectPickerOpen(false);
@@ -2103,7 +2100,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     });
     if (targetContainer.isHierarchy) {
       const existingHierarchyParents = edges.filter(
-        (edge) => HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '') && edge.target_node_id === nodeId,
+        (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === nodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -2113,10 +2110,10 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         network_id: currentNetwork.id,
         source_node_id: hierarchyParentTarget?.id ?? targetContainer.id,
         target_node_id: nodeId,
-        system_contract: hierarchyParentTarget ? 'core:tree_parent' : 'core:root_child',
+        system_contract: HIERARCHY_PARENT_CONTRACT,
       });
     } else {
-      await syncHierarchyRootChildEdge(nodeId, targetContainer.id);
+      await syncHierarchyParentEdge(nodeId, targetContainer.id);
     }
     await layoutService.node.setPosition(
       currentLayout.id,
@@ -2135,7 +2132,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     openNetwork,
     serializePositionJson,
     setNodePosition,
-    syncHierarchyRootChildEdge,
+    syncHierarchyParentEdge,
   ]);
 
   const handleWheel = useCallback((e: WheelEvent) => {
@@ -2187,7 +2184,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     startClientX: number,
     startClientY: number,
   ) => {
-    if (canvasMode !== 'edit' || layoutPlugin.key !== 'freeform') return;
+    if (workspaceMode !== 'edit' || layoutPlugin.key !== 'freeform') return;
 
     const node = previewCardRenderNodes.find((candidate) => candidate.id === nodeId);
     if (!node?.isContainer) return;
@@ -2212,7 +2209,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       width: node.width ?? minSize.width,
       height: node.height ?? minSize.height,
     });
-  }, [canvasMode, layoutPlugin.key, previewCardRenderNodes]);
+  }, [workspaceMode, layoutPlugin.key, previewCardRenderNodes]);
 
   useEffect(() => {
     if (!nodeResizeState) return;
@@ -2424,7 +2421,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       }
 
       const existingHierarchyParents = edges.filter(
-        (edge) => HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '') && edge.target_node_id === nodeId,
+        (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === nodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -2435,12 +2432,12 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           network_id: currentNetwork.id,
           source_node_id: effectiveHierarchyParentId ?? nextParentGroup.id,
           target_node_id: nodeId,
-          system_contract: effectiveHierarchyParentId ? 'core:tree_parent' : 'core:root_child',
+          system_contract: HIERARCHY_PARENT_CONTRACT,
         });
       } else if (currentHierarchyContainerId && !nextHierarchyContainerId) {
         const movedHierarchyEdges = edges.filter(
           (edge) =>
-            HIERARCHY_PARENT_CONTRACTS.has(edge.system_contract ?? '')
+            isHierarchyParentContract(edge.system_contract)
             && movedSubtreeIds.has(edge.target_node_id),
         );
         for (const edge of movedHierarchyEdges) {
@@ -2528,18 +2525,18 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     syncSelectionFromNodeIds(nodeIds);
   }, [syncSelectionFromNodeIds]);
 
-  const { dragState, nodeDragOffset, handleCanvasMouseDown, handleNodeDragStart } = useInteraction({
+  const { dragState, nodeDragOffset, handleWorkspaceMouseDown, handleNodeDragStart } = useInteraction({
     containerRef: containerRef as React.RefObject<HTMLDivElement>,
     nodes: previewCardRenderNodes,
     zoom,
     panX,
     panY,
-    mode: canvasMode,
+    mode: workspaceMode,
     constraints: layoutPlugin.interactionConstraints,
     onPanChange: handlePanChange,
     onNodeDragEnd: handleNodeDragEndWithContainment,
     onSelectionBox: handleSelectionBox,
-    onCanvasClick: handleNetworkClick,
+    onWorkspaceClick: handleNetworkClick,
     onWheel: handleWheel,
   });
 
@@ -2703,8 +2700,8 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
   const networkHistory = useNetworkStore((s) => s.networkHistory);
   const toggleMode = useCallback(() => {
-    useUIStore.getState().setCanvasMode(canvasMode === 'browse' ? 'edit' : 'browse');
-  }, [canvasMode]);
+    useUIStore.getState().setWorkspaceMode(workspaceMode === 'browse' ? 'edit' : 'browse');
+  }, [workspaceMode]);
 
   const controlExtraItems = useMemo(() => {
     const pluginItems = layoutPlugin.controlItems?.map((item) => ({
@@ -2727,7 +2724,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     selectedIds,
     renderNodes,
     edgeLinkingActive: !!edgeLinkingState,
-    canvasMode,
+    workspaceMode,
     onClearSelection: () => {
       setSelectedIds(new Set());
       useNetworkObjectSelectionStore.getState().clearSelection();
@@ -2761,7 +2758,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         setNetworkContextMenu(null);
         setContextMenu(null);
         setEdgeContextMenu(null);
-        handleCanvasMouseDown(e);
+        handleWorkspaceMouseDown(e);
       }}
       onContextMenu={handleContextMenu}
       onDragOver={(e) => {
@@ -2789,7 +2786,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       }}
     >
       <NetworkControls
-        mode={canvasMode}
+        mode={workspaceMode}
         zoom={zoom}
         canGoBack={networkHistory.length > 0}
         canGoForward={false}
@@ -2842,7 +2839,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         nodeDragOffset={magneticNodeDragOffset}
         dragFollowerIds={dragFollowerIds}
         onContextMenu={(type, x, y, targetId) => {
-          if (type === 'edge' && targetId && canvasMode === 'edit') {
+          if (type === 'edge' && targetId && workspaceMode === 'edit') {
             setEdgeContextMenu({ x, y, edgeId: targetId });
           }
         }}
@@ -2926,7 +2923,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         nodes={previewCardRenderNodes}
         selectedIds={selectedIds}
         highlightedIds={highlightedNodeIds}
-        mode={canvasMode}
+        mode={workspaceMode}
         zoom={zoom}
         panX={panX}
         panY={panY}
@@ -3014,7 +3011,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           fileId={contextMenu.fileId}
           filePath={contextMenu.filePath}
           networkId={contextMenu.networkId}
-          mode={canvasMode}
+          mode={workspaceMode}
           onAddConnection={(nodeId) => {
             setEdgeLinkingState({ sourceNodeId: nodeId });
             setContextMenu(null);
@@ -3174,7 +3171,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         nodeDragOffset={magneticNodeDragOffset}
         dragFollowerIds={dragFollowerIds}
         onContextMenu={(type, x, y, targetId) => {
-          if (type === 'edge' && targetId && canvasMode === 'edit') {
+          if (type === 'edge' && targetId && workspaceMode === 'edit') {
             setEdgeContextMenu({ x, y, edgeId: targetId });
           }
         }}

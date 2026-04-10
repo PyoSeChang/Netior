@@ -1,14 +1,14 @@
 import React, { useMemo } from 'react';
 import type { RenderNode } from './types';
-import type { CanvasMode } from '../../stores/ui-store';
-import { NodeCardDefault } from '../canvas/node-components/NodeCardDefault';
-import type { NodeResizeDirection } from '../canvas/node-components/types';
+import type { WorkspaceMode } from '../../stores/ui-store';
+import { NodeCardDefault } from './node-components/NodeCardDefault';
+import type { NodeResizeDirection, NodeShape } from './node-components/types';
 
 interface NodeLayerProps {
   nodes: RenderNode[];
   selectedIds: Set<string>;
   highlightedIds?: Set<string>;
-  mode: CanvasMode;
+  mode: WorkspaceMode;
   zoom: number;
   panX: number;
   panY: number;
@@ -22,7 +22,7 @@ interface NodeLayerProps {
   onNodeResizeStart?: (nodeId: string, direction: NodeResizeDirection, startX: number, startY: number) => void;
   onNodeToggleCollapse?: (nodeId: string) => void;
   onNodePortalChipClick?: (nodeId: string, chipId: string, networkId: string) => void;
-  onContextMenu?: (type: 'canvas' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
+  onContextMenu?: (type: 'workspace' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onNodeMouseEnter?: (id: string, screenX: number, screenY: number) => void;
   onNodeMouseLeave?: (id: string) => void;
 }
@@ -59,7 +59,7 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
 
     if (nodeDragOffset && (nodeDragOffset.id === node.id || dragFollowerIds?.has(node.id))) {
       if (timelineMode) {
-        // In timeline, dx is screen pixels, convert to canvas X delta
+        // In timeline, dx is screen pixels, convert to workspace X delta
         x += nodeDragOffset.dx / zoom;
         y += nodeDragOffset.dy;
       } else {
@@ -95,12 +95,11 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
               y={t.y}
               label={node.label}
               icon={node.icon}
-              semanticType={node.semanticType}
               semanticTypeLabel={node.semanticTypeLabel}
               selected={selectedIds.has(node.id)}
               highlighted={highlightedIds?.has(node.id)}
               mode={mode}
-              shape={(node.shape as import('../canvas/node-components/types').NodeShape) || 'rectangle'}
+              shape={(node.shape as NodeShape) || 'rectangle'}
               width={node.width}
               height={node.height}
               metadata={node.metadata}
