@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import type { EditorViewMode, EditorTab, EditorTabType, SplitNode, SplitDirection, SplitLeaf, SplitBranch } from '@netior/shared/types';
+import type {
+  EditorViewMode,
+  EditorTab,
+  EditorTabType,
+  SplitNode,
+  SplitDirection,
+  SplitLeaf,
+  SplitBranch,
+  TerminalLaunchConfig,
+} from '@netior/shared/types';
 import { editorPrefsService } from '../services';
 import { hasUnsavedChanges, getSession } from '../lib/editor-session-registry';
 import { clearDraftCache } from '../hooks/useEditorSession';
@@ -24,6 +33,7 @@ interface OpenTabParams {
   networkId?: string;
   nodeId?: string;
   terminalCwd?: string;
+  terminalLaunchConfig?: Pick<TerminalLaunchConfig, 'shell' | 'args' | 'agent'>;
   sideSplitRatio?: number;
   /** Host to open the tab in (defaults to MAIN_HOST_ID) */
   hostId?: string;
@@ -393,7 +403,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   focusedHostId: MAIN_HOST_ID,
   pendingCloseTabId: null,
 
-  openTab: async ({ type, targetId, title, viewMode, draftData, networkId, nodeId, terminalCwd, sideSplitRatio, hostId }) => {
+  openTab: async ({ type, targetId, title, viewMode, draftData, networkId, nodeId, terminalCwd, terminalLaunchConfig, sideSplitRatio, hostId }) => {
     const { tabs } = get();
     const tabId = makeTabId(type, targetId);
     const resolvedHostId = hostId ?? MAIN_HOST_ID;
@@ -497,6 +507,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       networkId,
       nodeId,
       terminalCwd,
+      terminalLaunchConfig,
     };
 
     if (resolvedHostId !== MAIN_HOST_ID) {

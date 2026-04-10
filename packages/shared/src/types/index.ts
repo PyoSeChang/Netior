@@ -587,6 +587,8 @@ export interface EditorTab {
   nodeId?: string;
   /** Working directory override for terminal tabs */
   terminalCwd?: string;
+  /** Launch override for terminal tabs (for example agent-specific terminals) */
+  terminalLaunchConfig?: Pick<TerminalLaunchConfig, 'shell' | 'args' | 'agent'>;
   /** Draft data for unsaved new entities (concept creation flow) */
   draftData?: {
     networkId?: string;
@@ -751,11 +753,20 @@ export interface NetiorChangeEvent {
 
 export type TerminalSessionState = 'created' | 'starting' | 'running' | 'exited';
 
+export type AgentProvider = 'claude' | 'codex' | 'narre';
+
+export interface TerminalAgentLaunchConfig {
+  provider: Exclude<AgentProvider, 'narre'>;
+  remoteUrl?: string;
+}
+
 export interface TerminalLaunchConfig {
   cwd: string;
   shell?: string;
   args?: string[];
   title?: string;
+  env?: Record<string, string>;
+  agent?: TerminalAgentLaunchConfig;
 }
 
 export interface TerminalSessionInfo {
@@ -769,6 +780,47 @@ export interface TerminalSessionInfo {
   exitCode: number | null;
   cols: number;
   rows: number;
+}
+
+// ============================================
+// Agent Runtime Types
+// ============================================
+
+export type AgentStatus = 'idle' | 'working' | 'blocked' | 'error' | 'offline';
+export type AgentAttentionReason = 'approval' | 'user_input' | 'unknown';
+export type AgentUxState = 'working' | 'needs_attention' | 'idle' | 'error' | 'offline';
+
+export interface AgentSurfaceRef {
+  kind: 'terminal' | 'editor';
+  id: string;
+}
+
+export interface AgentSessionEvent {
+  provider: AgentProvider;
+  sessionId: string;
+  surface: AgentSurfaceRef;
+  externalSessionId?: string | null;
+  type: 'start' | 'stop';
+}
+
+export interface AgentStatusEvent {
+  provider: AgentProvider;
+  sessionId: string;
+  status: AgentStatus;
+  reason?: AgentAttentionReason | null;
+}
+
+export interface AgentNameEvent {
+  provider: AgentProvider;
+  sessionId: string;
+  name: string;
+}
+
+export interface AgentTurnEvent {
+  provider: AgentProvider;
+  sessionId: string;
+  turnId?: string | null;
+  type: 'start' | 'complete';
 }
 
 // ============================================

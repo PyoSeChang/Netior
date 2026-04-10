@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { release } from 'node:os';
-import type { TerminalLaunchConfig, TerminalSessionInfo, TerminalSessionState } from '@netior/shared/types';
+import type {
+  AgentNameEvent,
+  AgentSessionEvent,
+  AgentStatusEvent,
+  AgentTurnEvent,
+  TerminalLaunchConfig,
+  TerminalSessionInfo,
+  TerminalSessionState,
+} from '@netior/shared/types';
 
 function getWindowsBuildNumber(): number | null {
   if (process.platform !== 'win32') return null;
@@ -44,6 +52,21 @@ const electronAPI = {
   },
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url) as Promise<boolean>,
+  },
+  notifications: {
+    notifyAgent: (payload: {
+      tabId: string;
+      title: string;
+      message: string;
+      playSound: boolean;
+    }) => ipcRenderer.invoke('agent:notifyNative', payload) as Promise<boolean>,
+    playSound: (kind: 'completion' | 'attention' | 'error') =>
+      ipcRenderer.invoke('agent:playInAppSound', kind) as Promise<boolean>,
+    onFocusTab: (callback: (payload: { tabId: string }) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: { tabId: string }) => callback(payload);
+      ipcRenderer.on('agent:focusTab', handler);
+      return () => { ipcRenderer.removeListener('agent:focusTab', handler); };
+    },
   },
   project: {
     create: (data: { name: string; root_dir: string }) =>
@@ -284,6 +307,28 @@ const electronAPI = {
         callback(payload);
       ipcRenderer.on('claude:nameChanged', handler);
       return () => { ipcRenderer.removeListener('claude:nameChanged', handler); };
+    },
+  },
+  agent: {
+    onSessionEvent: (callback: (event: AgentSessionEvent) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: AgentSessionEvent) => callback(payload);
+      ipcRenderer.on('agent:sessionEvent', handler);
+      return () => { ipcRenderer.removeListener('agent:sessionEvent', handler); };
+    },
+    onStatusEvent: (callback: (event: AgentStatusEvent) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: AgentStatusEvent) => callback(payload);
+      ipcRenderer.on('agent:statusEvent', handler);
+      return () => { ipcRenderer.removeListener('agent:statusEvent', handler); };
+    },
+    onNameChanged: (callback: (event: AgentNameEvent) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: AgentNameEvent) => callback(payload);
+      ipcRenderer.on('agent:nameChanged', handler);
+      return () => { ipcRenderer.removeListener('agent:nameChanged', handler); };
+    },
+    onTurnEvent: (callback: (event: AgentTurnEvent) => void) => {
+      const handler = (_event: IpcRendererEvent, payload: AgentTurnEvent) => callback(payload);
+      ipcRenderer.on('agent:turnEvent', handler);
+      return () => { ipcRenderer.removeListener('agent:turnEvent', handler); };
     },
   },
   narre: {

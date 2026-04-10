@@ -155,6 +155,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
     darkTheme,
     locale,
     detachedAgentToastMode,
+    nativeAgentNotificationsEnabled,
+    agentNotificationSoundEnabled,
     fieldComplexityLevel,
     setAppearanceMode,
     setThemePrimaryMode,
@@ -162,6 +164,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
     setThemePrimaryCustomColor,
     setLocale,
     setDetachedAgentToastMode,
+    setNativeAgentNotificationsEnabled,
+    setAgentNotificationSoundEnabled,
     setFieldComplexityLevel,
   } = useSettingsStore();
 
@@ -187,7 +191,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
       key: 'notifications',
       icon: Bell,
       label: t('settings.categoryNotifications'),
-      anchors: [t('settings.detachedAgentToasts')],
+      anchors: [
+        t('settings.nativeAgentNotifications'),
+        t('settings.agentNotificationSounds'),
+        t('settings.detachedAgentToasts'),
+      ],
     },
     {
       key: 'modeling',
@@ -242,7 +250,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
   ].some(matchesSearch);
   const showDetachedAgentToasts = [
     t('settings.categoryNotifications'),
+    t('settings.nativeAgentNotifications'),
+    t('settings.nativeAgentNotificationsDesc'),
+    t('settings.agentNotificationSounds'),
+    t('settings.agentNotificationSoundsDesc'),
     t('settings.detachedAgentToasts'),
+    t('settings.notificationsEnabled'),
+    t('settings.notificationsDisabled'),
   ].some(matchesSearch);
   const showModeling = [
     t('settings.categoryModeling' as never),
@@ -389,6 +403,52 @@ export function SettingsModal({ open, onClose }: SettingsModalProps): JSX.Elemen
 
             {(activeCategory === 'notifications' || searchQuery) && showDetachedAgentToasts && (
               <div data-section="notifications">
+                <section data-section="native-agent-notifications" className="mb-8">
+                  <h3 className="text-base font-semibold text-default">{t('settings.nativeAgentNotifications')}</h3>
+                  <p className="mb-4 text-sm text-secondary">{t('settings.nativeAgentNotificationsDesc')}</p>
+                  <div className="flex gap-3">
+                    {([
+                      { enabled: true, label: t('settings.notificationsEnabled') },
+                      { enabled: false, label: t('settings.notificationsDisabled') },
+                    ]).map(({ enabled, label }) => (
+                      <button
+                        key={label}
+                        className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
+                          nativeAgentNotificationsEnabled === enabled
+                            ? 'border-accent bg-accent text-on-accent'
+                            : 'border-subtle text-secondary hover:border-default hover:text-default'
+                        }`}
+                        onClick={() => setNativeAgentNotificationsEnabled(enabled)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section data-section="agent-notification-sounds" className="mb-8">
+                  <h3 className="text-base font-semibold text-default">{t('settings.agentNotificationSounds')}</h3>
+                  <p className="mb-4 text-sm text-secondary">{t('settings.agentNotificationSoundsDesc')}</p>
+                  <div className="flex gap-3">
+                    {([
+                      { enabled: true, label: t('settings.notificationsEnabled') },
+                      { enabled: false, label: t('settings.notificationsDisabled') },
+                    ]).map(({ enabled, label }) => (
+                      <button
+                        key={label}
+                        className={`rounded-lg border px-5 py-2 text-sm font-medium transition-colors ${
+                          agentNotificationSoundEnabled === enabled
+                            ? 'border-accent bg-accent text-on-accent'
+                            : 'border-subtle text-secondary hover:border-default hover:text-default'
+                        }`}
+                        onClick={() => setAgentNotificationSoundEnabled(enabled)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
                 <section data-section="detached-agent-toasts" className="mb-8">
                   <h3 className="text-base font-semibold text-default">{t('settings.detachedAgentToasts')}</h3>
                   <p className="mb-4 text-sm text-secondary">

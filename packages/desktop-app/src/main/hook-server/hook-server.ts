@@ -2,8 +2,8 @@ import http from 'http';
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, watch } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { app, BrowserWindow } from 'electron';
-import { IPC_CHANNELS } from '@netior/shared/constants';
+import { app } from 'electron';
+import type { AgentTurnEvent, ClaudeNameEvent, ClaudeSessionEvent, ClaudeStatusEvent } from '@netior/shared/types';
 
 interface SessionStartPayload {
   netior_pty_id: string;
@@ -22,6 +22,13 @@ interface StopPayload {
   netior_pty_id: string;
 }
 
+interface HookServerListeners {
+  onSessionEvent?: (event: ClaudeSessionEvent) => void;
+  onStatusEvent?: (event: ClaudeStatusEvent) => void;
+  onNameChanged?: (event: ClaudeNameEvent) => void;
+  onTurnEvent?: (event: AgentTurnEvent) => void;
+}
+
 /** Maps PTY session ID → Claude session file watcher */
 const sessionWatchers = new Map<string, { close(): void }>();
 
@@ -30,11 +37,11 @@ const ptyToClaudeSession = new Map<string, string>();
 
 class HookServer {
   private server: http.Server | null = null;
-  private mainWindow: BrowserWindow | null = null;
   private port: number | null = null;
+  private listeners: HookServerListeners = {};
 
-  init(mainWindow: BrowserWindow): void {
-    this.mainWindow = mainWindow;
+  setListeners(listeners: HookServerListeners): void {
+    this.listeners = listeners;
   }
 
   async start(): Promise<void> {
@@ -115,6 +122,7 @@ class HookServer {
       this.server.close();
       this.server = null;
     }
+    this.listeners = {};
   }
 
   private handleSessionStart(payload: SessionStartPayload): void {
@@ -125,7 +133,7 @@ class HookServer {
       ptyToClaudeSession.set(netior_pty_id, session_id);
     }
 
-    this.send(IPC_CHANNELS.CLAUDE_SESSION_EVENT, {
+    this.listeners.onSessionEvent?.({
       ptySessionId: netior_pty_id,
       claudeSessionId: session_id,
       type: 'start',
@@ -149,7 +157,7 @@ class HookServer {
     }
     ptyToClaudeSession.delete(netior_pty_id);
 
-    this.send(IPC_CHANNELS.CLAUDE_SESSION_EVENT, {
+    this.listeners.onSessionEvent?.({
       ptySessionId: netior_pty_id,
       claudeSessionId: null,
       type: 'stop',
@@ -158,17 +166,27 @@ class HookServer {
 
   private handlePromptSubmit(payload: PromptPayload): void {
     const { netior_pty_id } = payload;
-    this.send(IPC_CHANNELS.CLAUDE_STATUS_EVENT, {
+    this.listeners.onStatusEvent?.({
       ptySessionId: netior_pty_id,
       status: 'working',
+    });
+    this.listeners.onTurnEvent?.({
+      provider: 'claude',
+      sessionId: netior_pty_id,
+      type: 'start',
     });
   }
 
   private handleStop(payload: StopPayload): void {
     const { netior_pty_id } = payload;
-    this.send(IPC_CHANNELS.CLAUDE_STATUS_EVENT, {
+    this.listeners.onStatusEvent?.({
       ptySessionId: netior_pty_id,
       status: 'idle',
+    });
+    this.listeners.onTurnEvent?.({
+      provider: 'claude',
+      sessionId: netior_pty_id,
+      type: 'complete',
     });
   }
 
@@ -190,7 +208,7 @@ class HookServer {
             const name = data.name || null;
             if (name && name !== lastKnownName) {
               lastKnownName = name;
-              this.send(IPC_CHANNELS.CLAUDE_NAME_CHANGED, {
+              this.listeners.onNameChanged?.({
                 ptySessionId,
                 sessionName: name,
               });
@@ -219,11 +237,6 @@ class HookServer {
     }
   }
 
-  private send(channel: string, payload: unknown): void {
-    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send(channel, payload);
-    }
-  }
 }
 
 export const hookServer = new HookServer();

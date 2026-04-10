@@ -1,15 +1,20 @@
 import React from 'react';
 import {
-  getAllClaudeTerminalStates,
-  subscribeClaudeTracker,
-  type ClaudeTerminalState,
-} from './claude-terminal-tracker';
-import { showCustomToast } from '../components/ui/Toast';
+  getAllAgentTerminalStates,
+  subscribeAgentSessionStore,
+  type AgentSessionState,
+} from './agent-session-store';
+import completionSoundUrl from '../assets/agent-sounds/completion-pixabay-universfield-new-notification-07-210334.mp3';
+import attentionSoundUrl from '../assets/agent-sounds/attention-pixabay-dragon-studio-new-notification-3-398649.mp3';
+import { dismissToastByKey, showCustomToast } from '../components/ui/Toast';
+import { ClaudeIcon, CodexIcon } from '../components/ui/AgentProviderIcons';
 import { useEditorStore } from '../stores/editor-store';
 import { useSettingsStore } from '../stores/settings-store';
 
-type AgentProvider = 'claude' | 'codex';
-type AgentStatus = 'idle' | 'working';
+type AgentProvider = AgentSessionState['provider'];
+type AgentTurnState = AgentSessionState['turnState'];
+type AgentUxState = AgentSessionState['uxState'];
+type AgentAttentionReason = AgentSessionState['attentionReason'];
 
 type WindowContext =
   | { kind: 'main' }
@@ -18,7 +23,9 @@ type WindowContext =
 interface AgentTerminalSnapshot {
   provider: AgentProvider;
   terminalSessionId: string;
-  status: AgentStatus;
+  uxState: AgentUxState;
+  attentionReason: AgentAttentionReason;
+  turnState: AgentTurnState;
   terminalName: string | null;
 }
 
@@ -41,6 +48,28 @@ interface UnacknowledgedEntry {
 
 const unacknowledgedQueue: UnacknowledgedEntry[] = [];
 const windowContext = getWindowContext();
+const SOUND_THROTTLE_MS = 1200;
+const soundCooldownByKind = new Map<'completion' | 'attention' | 'error', number>();
+const agentSoundElements = new Map<'completion' | 'attention' | 'error', HTMLAudioElement>();
+let windowFocused = typeof document === 'undefined' ? true : document.hasFocus();
+let windowFocusListenerInitialized = false;
+let nativeFocusListenerInitialized = false;
+let soundUnlockListenerInitialized = false;
+let agentAudioContext: AudioContext | null = null;
+const AGENT_SOUND_ASSETS: Record<'completion' | 'attention' | 'error', string> = {
+  completion: completionSoundUrl,
+  attention: attentionSoundUrl,
+  error: attentionSoundUrl,
+};
+
+function getAgentToastKey(tabId: string, kind: 'attention' | 'completion'): string {
+  return `agent-toast:${kind}:${tabId}`;
+}
+
+function dismissAgentToasts(tabId: string): void {
+  dismissToastByKey(getAgentToastKey(tabId, 'attention'));
+  dismissToastByKey(getAgentToastKey(tabId, 'completion'));
+}
 
 function getWindowContext(): WindowContext {
   const hash = window.location.hash;
@@ -53,6 +82,7 @@ function getWindowContext(): WindowContext {
 export function acknowledgeAgent(tabId: string): void {
   const idx = unacknowledgedQueue.findIndex((entry) => entry.tabId === tabId);
   if (idx >= 0) unacknowledgedQueue.splice(idx, 1);
+  dismissAgentToasts(tabId);
 }
 
 export function getUnacknowledgedCount(): number {
@@ -106,27 +136,21 @@ function initActiveTabListener(): void {
   });
 }
 
-const previousStatuses = new Map<string, AgentStatus>();
+const previousSnapshots = new Map<string, { uxState: AgentUxState; turnState: AgentTurnState }>();
 const agentNotifierGlobal = window as Window & { __netiorAgentNotifier?: AgentNotifierGlobal };
 agentNotifierGlobal.__netiorAgentNotifier ??= {};
 
-function ClaudeIcon({ size = 18 }: { size?: number }): JSX.Element {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" className="text-[#E27B35]">
-      <path d="m3.127 10.604 3.135-1.76.053-.153-.053-.085H6.11l-.525-.032-1.791-.048-1.554-.065-1.505-.08-.38-.081L0 7.832l.036-.234.32-.214.455.04 1.009.069 1.513.105 1.097.064 1.626.17h.259l.036-.105-.089-.065-.068-.064-1.566-1.062-1.695-1.121-.887-.646-.48-.327-.243-.306-.104-.67.435-.48.585.04.15.04.593.456 1.267.981 1.654 1.218.242.202.097-.068.012-.049-.109-.181-.9-1.626-.96-1.655-.428-.686-.113-.411a2 2 0 0 1-.068-.484l.496-.674L4.446 0l.662.089.279.242.411.94.666 1.48 1.033 2.014.302.597.162.553.06.17h.105v-.097l.085-1.134.157-1.392.154-1.792.052-.504.25-.605.497-.327.387.186.319.456-.045.294-.19 1.23-.37 1.93-.243 1.29h.142l.161-.16.654-.868 1.097-1.372.484-.545.565-.601.363-.287h.686l.505.751-.226.775-.707.895-.585.759-.839 1.13-.524.904.048.072.125-.012 1.897-.403 1.024-.186 1.223-.21.553.258.06.263-.218.536-1.307.323-1.533.307-2.284.54-.028.02.032.04 1.029.098.44.024h1.077l2.005.15.525.346.315.424-.053.323-.807.411-3.631-.863-.872-.218h-.12v.073l.726.71 1.331 1.202 1.667 1.55.084.383-.214.302-.226-.032-1.464-1.101-.565-.497-1.28-1.077h-.084v.113l.295.432 1.557 2.34.08.718-.112.234-.404.141-.444-.08-.911-1.28-.94-1.44-.759-1.291-.093.053-.448 4.821-.21.246-.484.186-.403-.307-.214-.496.214-.98.258-1.28.21-1.016.19-1.263.112-.42-.008-.028-.092.012-.953 1.307-1.448 1.957-1.146 1.227-.274.109-.477-.247.045-.44.266-.39 1.586-2.018.956-1.25.617-.723-.004-.105h-.036l-4.212 2.736-.75.096-.324-.302.04-.496.154-.162 1.267-.871z" />
-    </svg>
-  );
-}
-
 const SOURCES: AgentTerminalSource[] = [
   {
-    subscribe: subscribeClaudeTracker,
+    subscribe: subscribeAgentSessionStore,
     getSnapshots: () =>
-      getAllClaudeTerminalStates().map((state: ClaudeTerminalState) => ({
-        provider: 'claude',
-        terminalSessionId: state.ptySessionId,
-        status: state.status,
-        terminalName: state.sessionName,
+      getAllAgentTerminalStates().map((state: AgentSessionState) => ({
+        provider: state.provider,
+        terminalSessionId: state.surface.id,
+        uxState: state.uxState,
+        attentionReason: state.attentionReason,
+        turnState: state.turnState,
+        terminalName: state.name,
       })),
   },
 ];
@@ -141,6 +165,8 @@ function getProviderLabel(provider: AgentProvider): string {
       return 'Claude';
     case 'codex':
       return 'Codex';
+    case 'narre':
+      return 'Narre';
   }
 }
 
@@ -167,11 +193,171 @@ function shouldShowDetachedToast(tabHostId: string, tabId: string): boolean {
 }
 
 function shouldShowToast(tabHostId: string, tabId: string): boolean {
+  const needsVisibleToast = !windowFocused || !isTabActiveInHost(tabId);
+  if (!needsVisibleToast) return false;
   if (windowContext.kind === 'main') return true;
   return shouldShowDetachedToast(tabHostId, tabId);
 }
 
-function maybeNotify(snapshot: AgentTerminalSnapshot): void {
+function getAgentSoundElement(kind: 'completion' | 'attention' | 'error'): HTMLAudioElement {
+  let element = agentSoundElements.get(kind);
+  if (!element) {
+    element = new Audio(AGENT_SOUND_ASSETS[kind]);
+    element.preload = 'auto';
+    agentSoundElements.set(kind, element);
+  }
+
+  element.volume = kind === 'attention' ? 0.95 : kind === 'error' ? 1 : 0.88;
+  return element;
+}
+
+function getAudioContextCtor():
+  | typeof AudioContext
+  | undefined {
+  return window.AudioContext ?? (window as typeof window & {
+    webkitAudioContext?: typeof AudioContext;
+  }).webkitAudioContext;
+}
+
+async function getAgentAudioContext(): Promise<AudioContext | null> {
+  const AudioContextCtor = getAudioContextCtor();
+  if (!AudioContextCtor) {
+    console.warn('[AgentSound] AudioContext unavailable');
+    return null;
+  }
+
+  if (!agentAudioContext) {
+    agentAudioContext = new AudioContextCtor();
+    console.log('[AgentSound] created AudioContext', { state: agentAudioContext.state });
+  }
+
+  if (agentAudioContext.state === 'suspended') {
+    try {
+      await agentAudioContext.resume();
+      console.log('[AgentSound] resumed AudioContext', { state: agentAudioContext.state });
+    } catch {
+      console.warn('[AgentSound] failed to resume AudioContext', { state: agentAudioContext.state });
+      return agentAudioContext;
+    }
+  }
+
+  return agentAudioContext;
+}
+
+function initSoundUnlockListener(): void {
+  if (soundUnlockListenerInitialized) return;
+  soundUnlockListenerInitialized = true;
+
+  const unlock = () => {
+    console.log('[AgentSound] unlock event');
+    getAgentSoundElement('completion').load();
+    getAgentSoundElement('attention').load();
+    void getAgentAudioContext();
+  };
+
+  window.addEventListener('pointerdown', unlock, { passive: true });
+  window.addEventListener('keydown', unlock);
+}
+
+async function playAgentSound(kind: 'completion' | 'attention' | 'error'): Promise<void> {
+  if (!useSettingsStore.getState().agentNotificationSoundEnabled) {
+    console.log('[AgentSound] skipped, disabled in settings', { kind });
+    return;
+  }
+
+  const now = Date.now();
+  const lastPlayed = soundCooldownByKind.get(kind) ?? 0;
+  if (now - lastPlayed < SOUND_THROTTLE_MS) {
+    console.log('[AgentSound] skipped, throttled', { kind, elapsedMs: now - lastPlayed });
+    return;
+  }
+  soundCooldownByKind.set(kind, now);
+  console.log('[AgentSound] requested', { kind });
+
+  try {
+    const sound = getAgentSoundElement(kind);
+    sound.currentTime = 0;
+    await sound.play();
+    console.log('[AgentSound] played via audio asset', { kind, src: sound.currentSrc || sound.src, volume: sound.volume });
+    return;
+  } catch {
+    console.warn('[AgentSound] audio asset playback failed, trying AudioContext fallback', { kind });
+  }
+
+  const audioContext = await getAgentAudioContext();
+  console.log('[AgentSound] AudioContext state', { kind, state: audioContext?.state ?? 'none' });
+  if (!audioContext || audioContext.state !== 'running') {
+    try {
+      console.warn('[AgentSound] falling back to main-process beep', { kind });
+      await window.electron.notifications.playSound(kind);
+    } catch {
+      console.warn('[AgentSound] main-process beep failed', { kind });
+    }
+    return;
+  }
+
+  try {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const duration = kind === 'attention' ? 0.34 : kind === 'error' ? 0.38 : 0.24;
+    const peakGain = kind === 'attention' ? 0.095 : kind === 'error' ? 0.11 : 0.08;
+    const startFrequency = kind === 'attention' ? 760 : kind === 'error' ? 430 : 620;
+    const endFrequency = kind === 'attention' ? 880 : kind === 'error' ? 320 : 780;
+
+    oscillator.type = kind === 'completion' ? 'sine' : 'triangle';
+    oscillator.frequency.setValueAtTime(startFrequency, audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(endFrequency, audioContext.currentTime + (duration * 0.65));
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(peakGain, audioContext.currentTime + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + duration);
+    console.log('[AgentSound] played via AudioContext', { kind, startFrequency, endFrequency, peakGain, duration });
+  } catch {
+    try {
+      console.warn('[AgentSound] AudioContext playback failed, falling back to main-process beep', { kind });
+      await window.electron.notifications.playSound(kind);
+    } catch {
+      console.warn('[AgentSound] main-process beep failed after AudioContext error', { kind });
+    }
+  }
+}
+
+async function maybeShowNativeNotification(tabId: string, title: string, message: string): Promise<boolean> {
+  if (!useSettingsStore.getState().nativeAgentNotificationsEnabled) {
+    console.log('[AgentNotify] native notification skipped, disabled in settings', { tabId });
+    return false;
+  }
+
+  try {
+    const shown = await window.electron.notifications.notifyAgent({
+      tabId,
+      title,
+      message,
+      playSound: useSettingsStore.getState().agentNotificationSoundEnabled,
+    });
+    console.log('[AgentNotify] native notification result', { tabId, shown, title });
+    return shown;
+  } catch {
+    console.warn('[AgentNotify] native notification failed', { tabId, title });
+    return false;
+  }
+}
+
+function getUnreadCount(isActive: boolean): number {
+  return isActive ? unacknowledgedQueue.length : Math.max(unacknowledgedQueue.length - 1, 0);
+}
+
+function maybeQueueUnacknowledged(tabId: string, snapshot: AgentTerminalSnapshot, title: string, isActive: boolean): void {
+  if (!isActive && !unacknowledgedQueue.find((entry) => entry.tabId === tabId)) {
+    unacknowledgedQueue.push({ tabId, provider: snapshot.provider, title, timestamp: Date.now() });
+  }
+}
+
+async function maybeNotifyCompletion(snapshot: AgentTerminalSnapshot): Promise<void> {
   const tabId = getTerminalTabId(snapshot.terminalSessionId);
   const store = useEditorStore.getState();
   const tab = store.tabs.find((entry) => entry.id === tabId);
@@ -179,29 +365,112 @@ function maybeNotify(snapshot: AgentTerminalSnapshot): void {
   const isActive = isTabActiveInHost(tabId);
 
   if (!tab) return;
-  if (!shouldShowToast(tab.hostId, tabId)) return;
 
-  if (!isActive && !unacknowledgedQueue.find((entry) => entry.tabId === tabId)) {
-    unacknowledgedQueue.push({ tabId, provider: snapshot.provider, title, timestamp: Date.now() });
-  }
-
-  const otherUnread = isActive ? unacknowledgedQueue.length : Math.max(unacknowledgedQueue.length - 1, 0);
+  maybeQueueUnacknowledged(tabId, snapshot, title, isActive);
+  const otherUnread = getUnreadCount(isActive);
   const message = otherUnread > 0
     ? `${getProviderLabel(snapshot.provider)} finished responding. (${otherUnread} more unread)`
     : `${getProviderLabel(snapshot.provider)} finished responding.`;
+  dismissAgentToasts(tabId);
+
+  const nativeShown = await maybeShowNativeNotification(tabId, title, message);
+  if (nativeShown) return;
+  if (!shouldShowToast(tab.hostId, tabId)) return;
 
   showCustomToast({
+    toastKey: getAgentToastKey(tabId, 'completion'),
     type: 'info',
     title,
     message,
     duration: 5000,
-    icon: snapshot.provider === 'claude' ? <ClaudeIcon /> : undefined,
+    icon: snapshot.provider === 'claude'
+      ? <ClaudeIcon />
+      : snapshot.provider === 'codex'
+        ? <CodexIcon />
+        : undefined,
     actionLabel: 'Go to Agent (Ctrl+.)',
     onAction: () => {
       store.setHostActiveTab(tab.hostId, tab.id);
       store.setFocusedHost(tab.hostId);
     },
   });
+  void playAgentSound('completion');
+}
+
+function initWindowFocusListener(): void {
+  if (windowFocusListenerInitialized) return;
+  windowFocusListenerInitialized = true;
+
+  const syncFocus = () => {
+    windowFocused = document.hasFocus() && document.visibilityState !== 'hidden';
+  };
+
+  syncFocus();
+  window.addEventListener('focus', syncFocus);
+  window.addEventListener('blur', syncFocus);
+  document.addEventListener('visibilitychange', syncFocus);
+}
+
+function initNativeFocusListener(): void {
+  if (nativeFocusListenerInitialized) return;
+  nativeFocusListenerInitialized = true;
+
+  window.electron.notifications.onFocusTab(({ tabId }) => {
+    const store = useEditorStore.getState();
+    const tab = store.tabs.find((candidate) => candidate.id === tabId);
+    if (!tab) return;
+    store.setHostActiveTab(tab.hostId, tab.id);
+    store.setFocusedHost(tab.hostId);
+    acknowledgeAgent(tab.id);
+  });
+}
+
+function getAttentionMessage(snapshot: AgentTerminalSnapshot, otherUnread: number): string {
+  const baseMessage = snapshot.attentionReason === 'approval'
+    ? `${getProviderLabel(snapshot.provider)} is waiting for approval.`
+    : snapshot.attentionReason === 'user_input'
+      ? `${getProviderLabel(snapshot.provider)} is waiting for your input.`
+      : `${getProviderLabel(snapshot.provider)} needs your attention.`;
+
+  return otherUnread > 0 ? `${baseMessage} (${otherUnread} more unread)` : baseMessage;
+}
+
+async function maybeNotifyAttention(snapshot: AgentTerminalSnapshot): Promise<void> {
+  const tabId = getTerminalTabId(snapshot.terminalSessionId);
+  const store = useEditorStore.getState();
+  const tab = store.tabs.find((entry) => entry.id === tabId);
+  const title = snapshot.terminalName || tab?.title || `${getProviderLabel(snapshot.provider)} Terminal`;
+  const isActive = isTabActiveInHost(tabId);
+
+  if (!tab) return;
+
+  maybeQueueUnacknowledged(tabId, snapshot, title, isActive);
+  const otherUnread = getUnreadCount(isActive);
+  dismissAgentToasts(tabId);
+  const message = getAttentionMessage(snapshot, otherUnread);
+
+  const nativeShown = await maybeShowNativeNotification(tabId, title, message);
+  if (nativeShown) return;
+  if (!shouldShowToast(tab.hostId, tabId)) return;
+
+  showCustomToast({
+    toastKey: getAgentToastKey(tabId, 'attention'),
+    type: 'warning',
+    title,
+    message,
+    duration: 7000,
+    icon: snapshot.provider === 'claude'
+      ? <ClaudeIcon />
+      : snapshot.provider === 'codex'
+        ? <CodexIcon />
+        : undefined,
+    actionLabel: 'Go to Agent (Ctrl+.)',
+    onAction: () => {
+      store.setHostActiveTab(tab.hostId, tab.id);
+      store.setFocusedHost(tab.hostId);
+    },
+  });
+  void playAgentSound('attention');
 }
 
 function processSnapshots(snapshots: AgentTerminalSnapshot[]): void {
@@ -210,17 +479,33 @@ function processSnapshots(snapshots: AgentTerminalSnapshot[]): void {
   for (const snapshot of snapshots) {
     const key = `${snapshot.provider}:${snapshot.terminalSessionId}`;
     activeKeys.add(key);
+    const tabId = getTerminalTabId(snapshot.terminalSessionId);
 
-    const prev = previousStatuses.get(key);
-    if (prev === 'working' && snapshot.status === 'idle') {
-      maybeNotify(snapshot);
+    const prev = previousSnapshots.get(key);
+    const completedTurn = prev?.turnState === 'working' && snapshot.turnState === 'idle';
+    const completedByIdleTransition = prev?.uxState === 'working' && snapshot.uxState === 'idle';
+    const attentionCleared = prev?.uxState === 'needs_attention' && snapshot.uxState !== 'needs_attention';
+
+    if (snapshot.uxState === 'needs_attention') {
+      void maybeNotifyAttention(snapshot);
     }
 
-    previousStatuses.set(key, snapshot.status);
+    if (attentionCleared) {
+      dismissToastByKey(getAgentToastKey(tabId, 'attention'));
+    }
+
+    if (completedTurn || completedByIdleTransition) {
+      void maybeNotifyCompletion(snapshot);
+    }
+
+    previousSnapshots.set(key, {
+      uxState: snapshot.uxState,
+      turnState: snapshot.turnState,
+    });
   }
 
-  for (const key of Array.from(previousStatuses.keys())) {
-    if (!activeKeys.has(key)) previousStatuses.delete(key);
+  for (const key of Array.from(previousSnapshots.keys())) {
+    if (!activeKeys.has(key)) previousSnapshots.delete(key);
   }
 }
 
@@ -234,6 +519,9 @@ export function initTerminalAgentNotifier(): void {
   agentNotifierGlobal.__netiorAgentNotifier = { initialized: true, unsubscribers };
 
   initActiveTabListener();
+  initWindowFocusListener();
+  initNativeFocusListener();
+  initSoundUnlockListener();
 
   for (const source of SOURCES) {
     processSnapshots(source.getSnapshots());

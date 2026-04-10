@@ -1,10 +1,10 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import ReactDOM, { type Root as ReactRoot } from 'react-dom/client';
 import App from './App';
 import { DetachedEditorShell } from './components/editor/DetachedEditorShell';
 import { ThemeLab } from './components/dev/ThemeLab';
 import { initTerminalTracker } from './lib/terminal-tracker';
-import { initClaudeTerminalTracker } from './lib/claude-terminal-tracker';
+import { initAgentSessionStore } from './lib/agent-session-store';
 import { initTerminalAgentNotifier } from './lib/terminal-agent-notifier';
 import { initMainBridge } from './lib/editor-state-bridge';
 import { initializeSettingsStore } from './stores/settings-store';
@@ -16,7 +16,7 @@ const isThemeLab = import.meta.env.DEV && hash.startsWith('#/theme-lab');
 
 if (!isThemeLab) {
   initTerminalTracker();
-  initClaudeTerminalTracker();
+  initAgentSessionStore();
   initTerminalAgentNotifier();
   initializeSettingsStore();
 }
@@ -41,7 +41,16 @@ function Root(): JSX.Element {
   return <App />;
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+type RootContainer = HTMLElement & { __netiorReactRoot?: ReactRoot };
+
+const container = document.getElementById('root') as RootContainer | null;
+if (!container) {
+  throw new Error('Root container not found.');
+}
+
+const root = container.__netiorReactRoot ?? (container.__netiorReactRoot = ReactDOM.createRoot(container));
+
+root.render(
   <React.StrictMode>
     <Root />
   </React.StrictMode>,

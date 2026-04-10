@@ -14,7 +14,9 @@ import { SimpleTerminalBackend } from '@codingame/monaco-vscode-terminal-service
 import type { TerminalLaunchConfig } from '@netior/shared/types';
 import { unwrapIpc } from '../../services/ipc';
 
-const SESSION_ENV_KEY = 'MOC_TERMINAL_SESSION_ID';
+export const SESSION_ENV_KEY = 'MOC_TERMINAL_SESSION_ID';
+export const AGENT_PROVIDER_ENV_KEY = 'NETIOR_TERMINAL_AGENT_PROVIDER';
+export const AGENT_REMOTE_URL_ENV_KEY = 'NETIOR_TERMINAL_AGENT_REMOTE_URL';
 
 function getSessionId(shellLaunchConfig: IShellLaunchConfig, fallbackId: number): string {
   const envValue = shellLaunchConfig.env?.[SESSION_ENV_KEY];
@@ -25,6 +27,9 @@ function getSessionId(shellLaunchConfig: IShellLaunchConfig, fallbackId: number)
 }
 
 function toLaunchConfig(shellLaunchConfig: IShellLaunchConfig, cwd: string): TerminalLaunchConfig {
+  const provider = shellLaunchConfig.env?.[AGENT_PROVIDER_ENV_KEY];
+  const remoteUrl = shellLaunchConfig.env?.[AGENT_REMOTE_URL_ENV_KEY];
+
   return {
     cwd,
     shell: shellLaunchConfig.executable,
@@ -34,6 +39,12 @@ function toLaunchConfig(shellLaunchConfig: IShellLaunchConfig, cwd: string): Ter
         ? [shellLaunchConfig.args]
         : undefined,
     title: shellLaunchConfig.name,
+    agent: typeof provider === 'string' && provider.length > 0
+      ? {
+          provider: provider as 'claude' | 'codex',
+          remoteUrl: typeof remoteUrl === 'string' && remoteUrl.length > 0 ? remoteUrl : undefined,
+        }
+      : undefined,
   };
 }
 
@@ -257,5 +268,3 @@ export function getTerminalBackend(): NetiorTerminalBackend {
   backendSingleton ??= new NetiorTerminalBackend();
   return backendSingleton;
 }
-
-export { SESSION_ENV_KEY };

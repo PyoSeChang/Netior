@@ -6,6 +6,7 @@ export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
 export interface ToastItem {
   id: string;
+  toastKey?: string;
   type: ToastType;
   message: string;
   title?: string;
@@ -100,6 +101,7 @@ function ToastEntry({
 // ─── Global imperative API ────────────────────────────────────────
 
 let addToastFn: ((toast: Omit<ToastItem, 'id'>) => void) | null = null;
+let dismissToastByKeyFn: ((toastKey: string) => void) | null = null;
 
 export function showToast(type: ToastType, message: string, duration?: number) {
   if (!addToastFn) {
@@ -117,6 +119,10 @@ export function showCustomToast(toast: Omit<ToastItem, 'id'>) {
   addToastFn(toast);
 }
 
+export function dismissToastByKey(toastKey: string) {
+  dismissToastByKeyFn?.(toastKey);
+}
+
 // ─── Container (mount once in App) ────────────────────────────────
 
 export const ToastContainer: React.FC = () => {
@@ -124,17 +130,33 @@ export const ToastContainer: React.FC = () => {
 
   const addToast = useCallback((toast: Omit<ToastItem, 'id'>) => {
     const id = Math.random().toString(36).slice(2, 9);
-    setToasts((prev) => [...prev, { ...toast, id }]);
+    setToasts((prev) => {
+      const nextToast = { ...toast, id };
+      if (!toast.toastKey) {
+        return [...prev, nextToast];
+      }
+
+      const filtered = prev.filter((item) => item.toastKey !== toast.toastKey);
+      return [...filtered, nextToast];
+    });
   }, []);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const dismissToastByKey = useCallback((toastKey: string) => {
+    setToasts((prev) => prev.filter((t) => t.toastKey !== toastKey));
+  }, []);
+
   useEffect(() => {
     addToastFn = addToast;
-    return () => { addToastFn = null; };
-  }, [addToast]);
+    dismissToastByKeyFn = dismissToastByKey;
+    return () => {
+      addToastFn = null;
+      dismissToastByKeyFn = null;
+    };
+  }, [addToast, dismissToastByKey]);
 
   if (toasts.length === 0) return null;
 

@@ -51,6 +51,8 @@ interface SettingsSyncState {
   darkTheme: ThemeSlotConfig;
   locale: Locale;
   detachedAgentToastMode: DetachedAgentToastMode;
+  nativeAgentNotificationsEnabled: boolean;
+  agentNotificationSoundEnabled: boolean;
   fieldComplexityLevel: FieldComplexityLevel;
 }
 
@@ -532,6 +534,8 @@ export interface SettingsStore {
   darkTheme: ThemeSlotConfig;
   locale: Locale;
   detachedAgentToastMode: DetachedAgentToastMode;
+  nativeAgentNotificationsEnabled: boolean;
+  agentNotificationSoundEnabled: boolean;
   fieldComplexityLevel: FieldComplexityLevel;
 
   setAppearanceMode: (mode: AppearanceMode) => void;
@@ -542,6 +546,8 @@ export interface SettingsStore {
   setThemePrimaryCustomColor: (mode: ResolvedThemeMode, color: string) => void;
   setLocale: (locale: Locale) => void;
   setDetachedAgentToastMode: (mode: DetachedAgentToastMode) => void;
+  setNativeAgentNotificationsEnabled: (enabled: boolean) => void;
+  setAgentNotificationSoundEnabled: (enabled: boolean) => void;
   setFieldComplexityLevel: (level: FieldComplexityLevel) => void;
 }
 
@@ -557,7 +563,13 @@ function applyCurrentThemeSnapshot(
 
 function getSettingsSyncState(state: Pick<
   SettingsStore,
-  'appearanceMode' | 'lightTheme' | 'darkTheme' | 'locale' | 'detachedAgentToastMode'
+  | 'appearanceMode'
+  | 'lightTheme'
+  | 'darkTheme'
+  | 'locale'
+  | 'detachedAgentToastMode'
+  | 'nativeAgentNotificationsEnabled'
+  | 'agentNotificationSoundEnabled'
 > & { fieldComplexityLevel?: FieldComplexityLevel }): SettingsSyncState {
   return {
     appearanceMode: state.appearanceMode,
@@ -565,6 +577,8 @@ function getSettingsSyncState(state: Pick<
     darkTheme: normalizeThemeSlot(state.darkTheme),
     locale: state.locale,
     detachedAgentToastMode: state.detachedAgentToastMode,
+    nativeAgentNotificationsEnabled: state.nativeAgentNotificationsEnabled,
+    agentNotificationSoundEnabled: state.agentNotificationSoundEnabled,
     fieldComplexityLevel: state.fieldComplexityLevel ?? 'standard',
   };
 }
@@ -594,6 +608,8 @@ export const useSettingsStore = create<SettingsStore>()(
       darkTheme: getDefaultThemeSlot('dark'),
       locale: 'ko',
       detachedAgentToastMode: 'inactive-only',
+      nativeAgentNotificationsEnabled: true,
+      agentNotificationSoundEnabled: true,
       fieldComplexityLevel: 'standard',
 
       setAppearanceMode: (appearanceMode) => {
@@ -691,6 +707,8 @@ export const useSettingsStore = create<SettingsStore>()(
 
       setLocale: (locale) => set({ locale }),
       setDetachedAgentToastMode: (detachedAgentToastMode) => set({ detachedAgentToastMode }),
+      setNativeAgentNotificationsEnabled: (nativeAgentNotificationsEnabled) => set({ nativeAgentNotificationsEnabled }),
+      setAgentNotificationSoundEnabled: (agentNotificationSoundEnabled) => set({ agentNotificationSoundEnabled }),
       setFieldComplexityLevel: (fieldComplexityLevel) => set({ fieldComplexityLevel }),
     }),
     {
@@ -702,6 +720,8 @@ export const useSettingsStore = create<SettingsStore>()(
         darkTheme: state.darkTheme,
         locale: state.locale,
         detachedAgentToastMode: state.detachedAgentToastMode,
+        nativeAgentNotificationsEnabled: state.nativeAgentNotificationsEnabled,
+        agentNotificationSoundEnabled: state.agentNotificationSoundEnabled,
         fieldComplexityLevel: state.fieldComplexityLevel,
       }),
       onRehydrateStorage: () => (state) => {
@@ -767,6 +787,8 @@ export function initializeSettingsStore(): void {
         nextState.darkTheme === prevState.darkTheme &&
         nextState.locale === prevState.locale &&
         nextState.detachedAgentToastMode === prevState.detachedAgentToastMode &&
+        nextState.nativeAgentNotificationsEnabled === prevState.nativeAgentNotificationsEnabled &&
+        nextState.agentNotificationSoundEnabled === prevState.agentNotificationSoundEnabled &&
         nextState.fieldComplexityLevel === prevState.fieldComplexityLevel
       ) {
         return;

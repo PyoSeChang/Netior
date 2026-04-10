@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, Menu, Notification, nativeImage } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { mkdirSync, existsSync } from 'fs';
@@ -6,11 +6,10 @@ import { initDatabase, closeDatabase, getSetting, setSetting } from '@netior/cor
 import { registerAllIpc } from './ipc';
 import { ptyManager } from './pty/pty-manager';
 import { startNarreServer, stopNarreServer } from './process/narre-server-manager';
-import { hookServer } from './hook-server/hook-server';
-import { setupHookScript, setupClaudeSettings } from './hook-server/hook-setup';
+import { agentRuntimeManager } from './agent-runtime/agent-runtime-manager';
 
-// Force userData to %APPDATA%/moc
-app.name = 'netior';
+// Force userData to %APPDATA%/netior
+app.name = 'Netior';
 app.setPath('userData', join(app.getPath('appData'), 'netior'));
 
 function getNativeBinding(): string | undefined {
@@ -21,6 +20,24 @@ function getNativeBinding(): string | undefined {
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
+  return undefined;
+}
+
+function getNotificationIcon() {
+  const candidates = [
+    join(app.getAppPath(), 'build/icons/netior-app-icon.png'),
+    join(app.getAppPath(), '../build/icons/netior-app-icon.png'),
+    join(process.cwd(), 'build/icons/netior-app-icon.png'),
+    join(process.cwd(), 'packages/desktop-app/build/icons/netior-app-icon.png'),
+    join(__dirname, '../../build/icons/netior-app-icon.png'),
+  ];
+
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    const icon = nativeImage.createFromPath(candidate);
+    if (!icon.isEmpty()) return icon;
+  }
+
   return undefined;
 }
 
@@ -191,6 +208,56 @@ app.whenReady().then(async () => {
     await shell.openExternal(url);
     return true;
   });
+  ipcMain.handle('agent:notifyNative', (event, payload: {
+    tabId: string;
+    title: string;
+    message: string;
+    playSound: boolean;
+  }) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed() || !win.isMinimized() || !Notification.isSupported()) {
+      console.log('[AgentNotify] native notification skipped', {
+        hasWindow: Boolean(win),
+        destroyed: win?.isDestroyed() ?? null,
+        minimized: win?.isMinimized() ?? null,
+        supported: Notification.isSupported(),
+        title: payload.title,
+      });
+      return false;
+    }
+
+    const notification = new Notification({
+      title: payload.title ? `Netior | ${payload.title}` : 'Netior',
+      body: payload.message,
+      icon: getNotificationIcon(),
+      silent: !payload.playSound,
+    });
+
+    notification.on('click', () => {
+      if (win.isDestroyed()) {
+        return;
+      }
+
+      if (win.isMinimized()) {
+        win.restore();
+      }
+      win.show();
+      win.focus();
+      win.webContents.send('agent:focusTab', { tabId: payload.tabId });
+    });
+
+    notification.show();
+    console.log('[AgentNotify] native notification shown', {
+      title: payload.title,
+      playSound: payload.playSound,
+    });
+    return true;
+  });
+  ipcMain.handle('agent:playInAppSound', (_event, kind: 'completion' | 'attention' | 'error') => {
+    console.log('[AgentSound] main-process beep', { kind });
+    shell.beep();
+    return true;
+  });
 
   // Detached editor window IPC (host-based)
   ipcMain.handle('editor:detach', (_event, hostId: string, title: string) => {
@@ -328,17 +395,8 @@ app.whenReady().then(async () => {
 
   createWindow();
 
-  // Start Claude Code hook server for terminal integration
-  hookServer.init(mainWindow!);
-  hookServer.start().then(() => {
-    const port = hookServer.getPort();
-    if (port) {
-      hookServer.writePortFile();
-      setupHookScript(port);
-      setupClaudeSettings();
-    }
-  }).catch((err) => {
-    console.error('[HookServer] Failed to start:', err);
+  agentRuntimeManager.start().catch((err) => {
+    console.error('[AgentRuntime] Failed to start:', err);
   });
 
   app.on('activate', () => {
@@ -348,7 +406,7 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   ptyManager.killAll();
-  hookServer.stop();
+  agentRuntimeManager.stop();
   stopNarreServer();
   closeDatabase();
   if (process.platform !== 'darwin') app.quit();

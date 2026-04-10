@@ -6,7 +6,13 @@ import getTerminalServiceOverride, { type ITerminalService as TerminalServiceTyp
 import getThemeServiceOverride from '@codingame/monaco-vscode-theme-service-override';
 import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
 import type { ICreateTerminalOptions } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
-import { getTerminalBackend, SESSION_ENV_KEY } from './terminal-backend';
+import type { TerminalLaunchConfig } from '@netior/shared/types';
+import {
+  AGENT_PROVIDER_ENV_KEY,
+  AGENT_REMOTE_URL_ENV_KEY,
+  getTerminalBackend,
+  SESSION_ENV_KEY,
+} from './terminal-backend';
 
 interface TerminalDomRoots {
   workbench: HTMLDivElement;
@@ -61,7 +67,7 @@ function buildTerminalUserConfiguration(): string {
   const scrollbarActive = withAlpha(accentHover, isDark ? '88' : '77');
 
   return JSON.stringify({
-    'terminal.integrated.defaultLocation': 'editor',
+    'terminal.integrated.defaultLocation': 'view',
     'terminal.integrated.fontFamily': "'Cascadia Code', 'Consolas', 'Courier New', monospace",
     'terminal.integrated.fontSize': currentFontSize,
     'terminal.integrated.lineHeight': 1.25,
@@ -192,18 +198,32 @@ function getDefaultArgs(): string[] | undefined {
   return window.electron.terminal.getWindowsBuildNumber() != null ? ['-NoLogo'] : undefined;
 }
 
-function makeCreateOptions(sessionId: string, cwd: string, title: string): ICreateTerminalOptions {
+function makeCreateOptions(
+  sessionId: string,
+  cwd: string,
+  title: string,
+  launchConfig?: Pick<TerminalLaunchConfig, 'shell' | 'args' | 'agent'>,
+): ICreateTerminalOptions {
+  const env: Record<string, string> = {
+    [SESSION_ENV_KEY]: sessionId,
+  };
+
+  if (launchConfig?.agent?.provider) {
+    env[AGENT_PROVIDER_ENV_KEY] = launchConfig.agent.provider;
+  }
+  if (launchConfig?.agent?.remoteUrl) {
+    env[AGENT_REMOTE_URL_ENV_KEY] = launchConfig.agent.remoteUrl;
+  }
+
   return {
     cwd,
-    location: TerminalLocation.Editor,
+    location: TerminalLocation.Panel,
     config: {
       cwd,
       name: title,
-      executable: getDefaultExecutable(),
-      args: getDefaultArgs(),
-      env: {
-        [SESSION_ENV_KEY]: sessionId,
-      },
+      executable: launchConfig?.shell ?? getDefaultExecutable(),
+      args: launchConfig?.args ?? getDefaultArgs(),
+      env,
       type: 'Local',
     },
   };
@@ -218,13 +238,14 @@ export async function getOrCreateTerminalInstance(
   sessionId: string,
   cwd: string,
   title: string,
+  launchConfig?: Pick<TerminalLaunchConfig, 'shell' | 'args' | 'agent'>,
 ): Promise<ITerminalInstance> {
   const existing = terminalInstances.get(sessionId);
   if (existing) return existing;
 
   const pending = (async () => {
     const terminalService = await getTerminalService();
-    const instance = await terminalService.createTerminal(makeCreateOptions(sessionId, cwd, title));
+    const instance = await terminalService.createTerminal(makeCreateOptions(sessionId, cwd, title, launchConfig));
 
     instance.onDisposed(() => {
       terminalInstances.delete(sessionId);

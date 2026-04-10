@@ -219,6 +219,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   const updateTitle = useEditorStore((s) => s.updateTitle);
   const { t } = useI18n();
   const [searchVisible, setSearchVisible] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
   const [actionOverlay, setActionOverlay] = useState<TerminalActionOverlayState | null>(null);
   const [linkUnderlineSegments, setLinkUnderlineSegments] = useState<TerminalLinkUnderlineSegment[]>([]);
   const actionOverlayRef = useRef<TerminalActionOverlayState | null>(null);
@@ -447,6 +448,8 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
     };
 
     const attach = async (): Promise<void> => {
+      setAttachError(null);
+
       if (!cwd) {
         const sessionResult = await window.electron.terminal.getSession(sessionId);
         if (disposed) return;
@@ -463,10 +466,22 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
 
       if (!cwd) {
         console.error(`[TerminalEditor] missing cwd sessionId=${sessionId}, tabId=${tab.id}`);
+        setAttachError('Terminal launch context is missing.');
         return;
       }
 
-      const instance = await getOrCreateTerminalInstance(sessionId, cwd, tab.title);
+      let instance: ITerminalInstance;
+      try {
+        instance = await getOrCreateTerminalInstance(sessionId, cwd, tab.title, tab.terminalLaunchConfig);
+      } catch (error) {
+        if (!disposed) {
+          const message = error instanceof Error ? error.message : 'Failed to start terminal.';
+          console.error(`[TerminalEditor] attach failed sessionId=${sessionId}: ${message}`);
+          setAttachError(message);
+        }
+        return;
+      }
+
       instanceRef.current = instance;
       if (disposed) {
         instance.detachFromElement();
@@ -944,6 +959,11 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col bg-[var(--surface-editor)] p-2">
       <div ref={containerRef} className="terminal-editor flex-1 min-h-0 overflow-hidden bg-[var(--surface-editor)]" />
+      {attachError && (
+        <div className="pointer-events-none absolute inset-2 flex items-center justify-center rounded-md border border-default bg-surface-panel/95 px-4 text-sm text-status-error">
+          {attachError}
+        </div>
+      )}
       {searchVisible && (
         <TerminalSearchBar instanceRef={instanceRef} onClose={handleSearchClose} />
       )}

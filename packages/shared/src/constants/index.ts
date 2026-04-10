@@ -167,6 +167,12 @@ export const IPC_CHANNELS = {
   CLAUDE_STATUS_EVENT: 'claude:statusEvent',
   CLAUDE_NAME_CHANGED: 'claude:nameChanged',
 
+  // Agent Runtime
+  AGENT_SESSION_EVENT: 'agent:sessionEvent',
+  AGENT_STATUS_EVENT: 'agent:statusEvent',
+  AGENT_NAME_CHANGED: 'agent:nameChanged',
+  AGENT_TURN_EVENT: 'agent:turnEvent',
+
   // Narre
   NARRE_SEND_MESSAGE: 'narre:sendMessage',
   NARRE_LIST_SESSIONS: 'narre:listSessions',

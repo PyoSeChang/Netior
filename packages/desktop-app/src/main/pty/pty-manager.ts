@@ -9,6 +9,7 @@ import type {
   TerminalSessionInfo,
   TerminalSessionState,
 } from '@netior/shared/types';
+import { agentRuntimeManager } from '../agent-runtime/agent-runtime-manager';
 
 
 function resolveShell(config?: TerminalLaunchConfig): { command: string; args: string[]; title: string } {
@@ -39,6 +40,7 @@ function resolveShell(config?: TerminalLaunchConfig): { command: string; args: s
 
 interface TerminalSessionRecord {
   info: TerminalSessionInfo;
+  launchEnv: Record<string, string>;
   process: IPty | null;
   outputBuffer: string;
 }
@@ -48,14 +50,15 @@ const MAX_REPLAY_CHARS = 200_000;
 class TerminalBackendService {
   private sessions = new Map<string, TerminalSessionRecord>();
 
-  createInstance(sessionId: string, launchConfig: TerminalLaunchConfig): TerminalSessionInfo {
+  async createInstance(sessionId: string, launchConfig: TerminalLaunchConfig): Promise<TerminalSessionInfo> {
     const existing = this.sessions.get(sessionId);
     if (existing) return existing.info;
 
-    const shell = resolveShell(launchConfig);
+    const resolvedLaunchConfig = await agentRuntimeManager.prepareTerminalLaunch(sessionId, launchConfig);
+    const shell = resolveShell(resolvedLaunchConfig);
     const info: TerminalSessionInfo = {
       sessionId,
-      cwd: launchConfig.cwd,
+      cwd: resolvedLaunchConfig.cwd,
       title: shell.title,
       shellPath: shell.command,
       shellArgs: shell.args,
@@ -66,7 +69,12 @@ class TerminalBackendService {
       rows: 30,
     };
 
-    this.sessions.set(sessionId, { info, process: null, outputBuffer: '' });
+    this.sessions.set(sessionId, {
+      info,
+      launchEnv: resolvedLaunchConfig.env ?? {},
+      process: null,
+      outputBuffer: '',
+    });
     return info;
   }
 
@@ -85,6 +93,7 @@ class TerminalBackendService {
       cwd: record.info.cwd,
       env: {
         ...process.env,
+        ...record.launchEnv,
         TERM: 'xterm-256color',
         COLORTERM: 'truecolor',
         TERM_PROGRAM: 'netior',
@@ -108,6 +117,7 @@ class TerminalBackendService {
     ptyProcess.onExit(({ exitCode }) => {
       record.process = null;
       record.info.exitCode = exitCode;
+      agentRuntimeManager.cleanupTerminalLaunch(sessionId, 'exit', exitCode);
       this.setState(record, 'exited');
       this.send(IPC_CHANNELS.TERMINAL_EXIT, { sessionId, exitCode });
     });
@@ -143,6 +153,7 @@ class TerminalBackendService {
   shutdown(sessionId: string): void {
     const record = this.sessions.get(sessionId);
     if (!record) return;
+    agentRuntimeManager.cleanupTerminalLaunch(sessionId, 'shutdown', record.info.exitCode);
     record.process?.kill();
     record.process = null;
     this.sessions.delete(sessionId);
@@ -180,8 +191,6 @@ class TerminalBackendService {
 
   private replaySession(record: TerminalSessionRecord, target?: WebContents): void {
     if (!target || target.isDestroyed()) return;
-
-    console.log(`[PTY] replaySession sessionId=${record.info.sessionId}, state=${record.info.state}, bufferChars=${record.outputBuffer.length}`);
 
     target.send(IPC_CHANNELS.TERMINAL_READY, {
       sessionId: record.info.sessionId,

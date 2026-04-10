@@ -4,8 +4,8 @@ import type { TerminalLaunchConfig } from '@netior/shared/types';
 import { terminalBackendService } from '../pty/pty-manager';
 
 export function registerPtyIpc(): void {
-  ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE_INSTANCE, (_event, sessionId: string, launchConfig: TerminalLaunchConfig) => {
-    const session = terminalBackendService.createInstance(sessionId, launchConfig);
+  ipcMain.handle(IPC_CHANNELS.TERMINAL_CREATE_INSTANCE, async (_event, sessionId: string, launchConfig: TerminalLaunchConfig) => {
+    const session = await terminalBackendService.createInstance(sessionId, launchConfig);
     return { success: true, data: session };
   });
 
