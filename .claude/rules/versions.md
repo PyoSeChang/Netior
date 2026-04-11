@@ -27,9 +27,9 @@ packages:
     impact: local
     contracts: []
   desktop-app:
-    version: "1.1.4"
+    version: "1.1.5"
     type: patch
-    summary: "netior-service를 DB/native 단일 소유자로 정리하고 Narre 런타임 경계를 분리했다"
+    summary: "모듈을 단일 경로 모델로 되돌리고 터미널 cwd를 프로젝트 루트로 고정했다"
     impact: local
     contracts: []
   narre-eval:
