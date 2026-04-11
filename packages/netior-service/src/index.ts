@@ -126,18 +126,19 @@ import type {
   TypeGroupCreate,
   TypeGroupKind,
   TypeGroupUpdate,
+  NetiorServiceResponse,
 } from '@netior/shared/types';
 
 const PORT = parseInt(process.env.PORT ?? process.env.NETIOR_SERVICE_PORT ?? '3201', 10);
 const DB_PATH = process.env.NETIOR_SERVICE_DB_PATH;
-const NATIVE_BINDING = process.env.NETIOR_SERVICE_NATIVE_BINDING;
+const EVAL_QUERIES_ENABLED = process.env.NETIOR_SERVICE_ENABLE_EVAL === '1';
 
 if (!DB_PATH) {
   console.error('Error: NETIOR_SERVICE_DB_PATH environment variable is required');
   process.exit(1);
 }
 
-initDatabase(DB_PATH, NATIVE_BINDING ? { nativeBinding: NATIVE_BINDING } : undefined);
+initDatabase(DB_PATH);
 
 const server = createServer(async (req, res) => {
   try {
@@ -174,6 +175,37 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         timestamp: new Date().toISOString(),
       },
     });
+    return;
+  }
+
+  if (pathname === '/eval/query') {
+    if (!EVAL_QUERIES_ENABLED) {
+      sendJson(res, 404, { ok: false, error: 'Route not found' });
+      return;
+    }
+
+    if (method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
+      return;
+    }
+
+    const body = await readJsonBody<{ sql?: string; params?: unknown[] }>(req);
+    const sql = body.sql?.trim();
+    if (!sql) {
+      sendJson(res, 400, { ok: false, error: 'sql is required' });
+      return;
+    }
+
+    if (!sql.toLowerCase().startsWith('select')) {
+      sendJson(res, 400, { ok: false, error: 'Only SELECT queries are allowed' });
+      return;
+    }
+
+    const rows = getDatabase()
+      .prepare(sql)
+      .all(...(body.params ?? [])) as Record<string, unknown>[];
+
+    sendJson(res, 200, { ok: true, data: rows });
     return;
   }
 
@@ -1034,6 +1066,33 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
+  if (pathname === '/eval/query') {
+    if (!EVAL_QUERIES_ENABLED) {
+      sendJson(res, 404, { ok: false, error: `Route not found: ${method} ${pathname}` });
+      return;
+    }
+
+    if (method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
+      return;
+    }
+
+    const body = await readJsonBody<{ sql?: string; params?: unknown[] }>(req);
+    const sql = body.sql?.trim();
+    if (!sql) {
+      sendJson(res, 400, { ok: false, error: 'sql is required' });
+      return;
+    }
+    if (!/^select\b/i.test(sql)) {
+      sendJson(res, 400, { ok: false, error: 'Only SELECT statements are allowed for /eval/query' });
+      return;
+    }
+
+    const rows = getDatabase().prepare(sql).all(...(body.params ?? [])) as Record<string, unknown>[];
+    sendJson(res, 200, { ok: true, data: rows });
+    return;
+  }
+
   sendJson(res, 404, { ok: false, error: `Route not found: ${method} ${pathname}` });
 }
 
@@ -1097,7 +1156,7 @@ async function readJsonBody<T>(req: IncomingMessage): Promise<T> {
 function sendJson(
   res: ServerResponse,
   statusCode: number,
-  payload: { ok: true; data: unknown } | { ok: false; error: string },
+  payload: NetiorServiceResponse<unknown>,
 ): void {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');

@@ -10,10 +10,10 @@ import type {
   RelationTypeCreate,
   Concept,
   ConceptCreate,
+  FileEntity,
+  FileEntityCreate,
   Module,
   ModuleCreate,
-  ModuleDirectory,
-  ModuleDirectoryCreate,
 } from '@netior/shared/types';
 
 // ── Scenario Definition ──
@@ -169,12 +169,12 @@ export interface QualitativeItem {
 export interface SeedContext {
   tempDir: string;
   scenarioDir: string;
-  createProject(data: ProjectCreate): Project;
-  createArchetype(data: ArchetypeCreate): Archetype;
-  createRelationType(data: RelationTypeCreate): RelationType;
-  createConcept(data: ConceptCreate): Concept;
-  createModule(data: ModuleCreate): Module;
-  addModuleDirectory(data: ModuleDirectoryCreate): ModuleDirectory;
+  createProject(data: ProjectCreate): Promise<Project>;
+  createArchetype(data: ArchetypeCreate): Promise<Archetype>;
+  createRelationType(data: RelationTypeCreate): Promise<RelationType>;
+  createConcept(data: ConceptCreate): Promise<Concept>;
+  createFileEntity(data: FileEntityCreate): Promise<FileEntity>;
+  createModule(data: ModuleCreate): Promise<Module>;
   copyFixtures(): Promise<void>;
   setTemplateVars(vars: Record<string, string>): void;
 }

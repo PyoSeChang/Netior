@@ -21,6 +21,7 @@ import { migrate015 } from '../migrations/015-type-groups';
 import { migrate016 } from '../migrations/016-backfill-object-records';
 import { migrate017 } from '../migrations/017-edge-system-contract-and-group-node-type';
 import { migrate018 } from '../migrations/018-unify-hierarchy-parent-contract';
+import { migrate019 } from '../migrations/019-module-path';
 
 let testDb: Database.Database | null = null;
 
@@ -47,6 +48,7 @@ export function setupTestDb(): Database.Database {
   migrate016(testDb);
   migrate017(testDb);
   migrate018(testDb);
+  migrate019(testDb);
   testDb.pragma('foreign_keys = ON');
   return testDb;
 }

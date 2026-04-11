@@ -1,8 +1,17 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
-import type { Module, ModuleCreate, ModuleUpdate, ModuleDirectory, ModuleDirectoryCreate } from '@netior/shared/types';
+import type {
+  Module,
+  ModuleCreate,
+  ModuleDirectory,
+  ModuleDirectoryCreate,
+  ModuleUpdate,
+} from '@netior/shared/types';
 
-// ── Module ──
+function getModuleById(id: string): Module | undefined {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM modules WHERE id = ?').get(id) as Module | undefined;
+}
 
 export function createModule(data: ModuleCreate): Module {
   const db = getDatabase();
@@ -10,10 +19,10 @@ export function createModule(data: ModuleCreate): Module {
   const now = new Date().toISOString();
 
   db.prepare(
-    `INSERT INTO modules (id, project_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-  ).run(id, data.project_id, data.name, now, now);
+    `INSERT INTO modules (id, project_id, name, path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(id, data.project_id, data.name, data.path, now, now);
 
-  return db.prepare('SELECT * FROM modules WHERE id = ?').get(id) as Module;
+  return getModuleById(id) as Module;
 }
 
 export function listModules(projectId: string): Module[] {
@@ -25,19 +34,22 @@ export function listModules(projectId: string): Module[] {
 
 export function updateModule(id: string, data: ModuleUpdate): Module | undefined {
   const db = getDatabase();
-  const existing = db.prepare('SELECT * FROM modules WHERE id = ?').get(id) as Module | undefined;
+  const existing = getModuleById(id);
   if (!existing) return undefined;
 
   const now = new Date().toISOString();
   db.prepare(
-    `UPDATE modules SET name = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE modules
+        SET name = ?, path = ?, updated_at = ?
+      WHERE id = ?`,
   ).run(
     data.name !== undefined ? data.name : existing.name,
+    data.path !== undefined ? data.path : existing.path,
     now,
     id,
   );
 
-  return db.prepare('SELECT * FROM modules WHERE id = ?').get(id) as Module;
+  return getModuleById(id);
 }
 
 export function deleteModule(id: string): boolean {
@@ -46,7 +58,10 @@ export function deleteModule(id: string): boolean {
   return result.changes > 0;
 }
 
-// ── Module Directory ──
+function getModuleDirectoryById(id: string): ModuleDirectory | undefined {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM module_directories WHERE id = ?').get(id) as ModuleDirectory | undefined;
+}
 
 export function addModuleDirectory(data: ModuleDirectoryCreate): ModuleDirectory {
   const db = getDatabase();
@@ -57,7 +72,7 @@ export function addModuleDirectory(data: ModuleDirectoryCreate): ModuleDirectory
     `INSERT INTO module_directories (id, module_id, dir_path, created_at) VALUES (?, ?, ?, ?)`,
   ).run(id, data.module_id, data.dir_path, now);
 
-  return db.prepare('SELECT * FROM module_directories WHERE id = ?').get(id) as ModuleDirectory;
+  return getModuleDirectoryById(id) as ModuleDirectory;
 }
 
 export function listModuleDirectories(moduleId: string): ModuleDirectory[] {
@@ -67,10 +82,10 @@ export function listModuleDirectories(moduleId: string): ModuleDirectory[] {
     .all(moduleId) as ModuleDirectory[];
 }
 
-export function updateModuleDirectoryPath(id: string, dirPath: string): ModuleDirectory {
+export function updateModuleDirectoryPath(id: string, dirPath: string): ModuleDirectory | undefined {
   const db = getDatabase();
   db.prepare('UPDATE module_directories SET dir_path = ? WHERE id = ?').run(dirPath, id);
-  return db.prepare('SELECT * FROM module_directories WHERE id = ?').get(id) as ModuleDirectory;
+  return getModuleDirectoryById(id);
 }
 
 export function removeModuleDirectory(id: string): boolean {

@@ -6,7 +6,7 @@ import {
   listRelationTypes,
   getConceptsByProject,
   listNetworks,
-} from '@netior/core';
+} from '../netior-service-client.js';
 
 export function registerProjectTools(server: McpServer): void {
   server.tool(
@@ -15,7 +15,7 @@ export function registerProjectTools(server: McpServer): void {
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
-        const project = getProjectById(project_id);
+        const project = await getProjectById(project_id);
         if (!project) {
           return {
             content: [{ type: 'text' as const, text: `Error: Project not found: ${project_id}` }],
@@ -23,10 +23,10 @@ export function registerProjectTools(server: McpServer): void {
           };
         }
 
-        const archetypes = listArchetypes(project_id);
-        const relationTypes = listRelationTypes(project_id);
-        const concepts = getConceptsByProject(project_id);
-        const networks = listNetworks(project_id);
+        const archetypes = await listArchetypes(project_id);
+        const relationTypes = await listRelationTypes(project_id);
+        const concepts = await getConceptsByProject(project_id);
+        const networks = await listNetworks(project_id);
 
         const summary = {
           project: {

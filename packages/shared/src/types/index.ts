@@ -277,12 +277,51 @@ export interface LayoutEdgeVisual {
 }
 
 // ============================================
+// Service DTOs
+// ============================================
+
+export interface NodePosition {
+  nodeId: string;
+  positionJson: string;
+}
+
+export interface EdgeVisual {
+  edgeId: string;
+  visualJson: string;
+}
+
+export interface NetworkFullData {
+  network: Network;
+  layout: Layout | undefined;
+  nodes: (NetworkNode & {
+    object?: ObjectRecord;
+    concept?: Concept;
+    file?: FileEntity;
+  })[];
+  edges: (Edge & { relation_type?: RelationType })[];
+  nodePositions: NodePosition[];
+  edgeVisuals: EdgeVisual[];
+}
+
+// ============================================
 // IPC
 // ============================================
 
 export type IpcResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+export interface NetiorServiceSuccess<T> {
+  ok: true;
+  data: T;
+}
+
+export interface NetiorServiceError {
+  ok: false;
+  error: string;
+}
+
+export type NetiorServiceResponse<T> = NetiorServiceSuccess<T> | NetiorServiceError;
 
 // ============================================
 // File System
@@ -306,6 +345,7 @@ export interface Module {
   id: string;
   project_id: string;
   name: string;
+  path: string;
   created_at: string;
   updated_at: string;
 }
@@ -313,15 +353,13 @@ export interface Module {
 export interface ModuleCreate {
   project_id: string;
   name: string;
+  path: string;
 }
 
 export interface ModuleUpdate {
   name?: string;
+  path?: string;
 }
-
-// ============================================
-// Module Directory
-// ============================================
 
 export interface ModuleDirectory {
   id: string;

@@ -25,7 +25,7 @@ import {
   setEdgeVisual, getEdgeVisuals, removeEdgeVisual,
 } from '../repositories/layout';
 import { createFileEntity, getFileEntity, getFileEntityByPath, getFileEntitiesByProject, updateFileEntity, deleteFileEntity } from '../repositories/file';
-import { createModule, listModules, updateModule, deleteModule, addModuleDirectory, listModuleDirectories, removeModuleDirectory } from '../repositories/module';
+import { createModule, listModules, updateModule, deleteModule } from '../repositories/module';
 import { getEditorPrefs, upsertEditorPrefs } from '../repositories/editor-prefs';
 import { createRelationType, listRelationTypes, getRelationType, updateRelationType, deleteRelationType } from '../repositories/relation-type';
 import { createObject, getObject, getObjectByRef, deleteObject, deleteObjectByRef } from '../repositories/objects';
@@ -639,61 +639,33 @@ describe('Repositories', () => {
     });
 
     it('should create and list modules', () => {
-      const m = createModule({ project_id: projectId, name: 'frontend' });
+      const m = createModule({ project_id: projectId, name: 'frontend', path: '/tmp/mod/frontend' });
       expect(m.id).toBeDefined();
       expect(m.name).toBe('frontend');
+      expect(m.path).toBe('/tmp/mod/frontend');
 
       const list = listModules(projectId);
       expect(list).toHaveLength(1);
       expect(list[0].id).toBe(m.id);
     });
 
-    it('should update module name', () => {
-      const m = createModule({ project_id: projectId, name: 'old' });
-      const updated = updateModule(m.id, { name: 'new' });
+    it('should update module name and path', () => {
+      const m = createModule({ project_id: projectId, name: 'old', path: '/tmp/mod/old' });
+      const updated = updateModule(m.id, { name: 'new', path: '/tmp/mod/new' });
       expect(updated?.name).toBe('new');
+      expect(updated?.path).toBe('/tmp/mod/new');
     });
 
     it('should delete module', () => {
-      const m = createModule({ project_id: projectId, name: 'del' });
+      const m = createModule({ project_id: projectId, name: 'del', path: '/tmp/mod/del' });
       expect(deleteModule(m.id)).toBe(true);
       expect(listModules(projectId)).toHaveLength(0);
     });
 
     it('should cascade delete when project is deleted', () => {
-      createModule({ project_id: projectId, name: 'mod' });
+      createModule({ project_id: projectId, name: 'mod', path: '/tmp/mod/mod' });
       deleteProject(projectId);
       expect(listModules(projectId)).toHaveLength(0);
-    });
-
-    it('should add and list directories', () => {
-      const m = createModule({ project_id: projectId, name: 'mod' });
-      const d = addModuleDirectory({ module_id: m.id, dir_path: '/home/src' });
-      expect(d.dir_path).toBe('/home/src');
-
-      const dirs = listModuleDirectories(m.id);
-      expect(dirs).toHaveLength(1);
-    });
-
-    it('should enforce unique dir_path per module', () => {
-      const m = createModule({ project_id: projectId, name: 'mod' });
-      addModuleDirectory({ module_id: m.id, dir_path: '/dup' });
-      expect(() => addModuleDirectory({ module_id: m.id, dir_path: '/dup' })).toThrow();
-    });
-
-    it('should remove directory', () => {
-      const m = createModule({ project_id: projectId, name: 'mod' });
-      const d = addModuleDirectory({ module_id: m.id, dir_path: '/rm' });
-      expect(removeModuleDirectory(d.id)).toBe(true);
-      expect(listModuleDirectories(m.id)).toHaveLength(0);
-    });
-
-    it('should cascade delete directories when module is deleted', () => {
-      const m = createModule({ project_id: projectId, name: 'mod' });
-      addModuleDirectory({ module_id: m.id, dir_path: '/a' });
-      addModuleDirectory({ module_id: m.id, dir_path: '/b' });
-      deleteModule(m.id);
-      expect(listModuleDirectories(m.id)).toHaveLength(0);
     });
   });
 

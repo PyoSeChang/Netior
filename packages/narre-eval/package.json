@@ -12,7 +12,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@netior/core": "workspace:*",
     "@netior/shared": "workspace:*",
     "@anthropic-ai/sdk": "latest",
     "yaml": "^2.3.4",

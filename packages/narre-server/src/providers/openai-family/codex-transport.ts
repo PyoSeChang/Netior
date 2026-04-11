@@ -3,7 +3,7 @@ import { createServer } from 'net';
 import type { NarreCodexSettings, NarreToolCall } from '@netior/shared/types';
 import type { NarreMcpServerConfig } from '../../runtime/provider-adapter.js';
 import { CodexThreadStore } from '../codex-thread-store.js';
-import { askToolSchema, confirmToolSchema, proposalToolSchema } from './schemas.js';
+import { askToolSchema, confirmToolSchema, proposalToolSchema } from '../shared/ui-schemas.js';
 import type { OpenAIFamilyTransport, OpenAIFamilyTransportRunContext } from './transport.js';
 
 interface JsonRpcResponse {

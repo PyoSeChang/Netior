@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@netior/core": "workspace:*",
     "@netior/shared": "workspace:*",
     "fast-glob": "^3.3.3",
     "pdfjs-dist": "^4.10.38",

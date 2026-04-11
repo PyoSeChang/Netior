@@ -1,4 +1,3 @@
-import { getDatabase } from '@netior/core';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   VerifyItem,
@@ -13,6 +12,7 @@ import type {
   ScenarioVersionInfo,
   ProvenanceInfo,
 } from './types.js';
+import { evalQuery } from './netior-service-client.js';
 
 /** Bump when verifier types, grading logic, or metric definitions change. */
 export const GRADING_VERSION = '2.0.0';
@@ -101,10 +101,11 @@ export async function gradeScenario(
   verify: VerifyItem[],
   qualitative: QualitativeItem[],
   projectId: string,
+  serviceUrl: string,
   runJudge: boolean,
   ctx: GradeContext,
 ): Promise<ScenarioResult> {
-  const verifyResults = gradeVerify(verify, projectId, transcript);
+  const verifyResults = await gradeVerify(verify, projectId, transcript, serviceUrl);
 
   let judgeScores: JudgeScore[] = [];
   let judgeAvg: number | null = null;
@@ -143,25 +144,26 @@ export async function gradeScenario(
 
 // ── Verify ──
 
-function gradeVerify(
+async function gradeVerify(
   items: VerifyItem[],
   projectId: string,
   transcript: Transcript,
-): VerifyResult[] {
+  serviceUrl: string,
+): Promise<VerifyResult[]> {
   const results: VerifyResult[] = [];
 
   for (const item of items) {
     if (item.db) {
-      results.push(...gradeDb(item.name, item.db, projectId));
+      results.push(...await gradeDb(item.name, item.db, projectId, serviceUrl));
     }
     if (item.db_absent) {
-      results.push(gradeDbAbsent(item.name, item.db_absent, projectId));
+      results.push(await gradeDbAbsent(item.name, item.db_absent, projectId, serviceUrl));
     }
     if (item.db_row_match) {
-      results.push(gradeDbRowMatch(item.name, item.db_row_match, projectId));
+      results.push(await gradeDbRowMatch(item.name, item.db_row_match, projectId, serviceUrl));
     }
     if (item.side_effect) {
-      results.push(gradeSideEffect(item.name, item.side_effect, projectId));
+      results.push(await gradeSideEffect(item.name, item.side_effect, projectId, serviceUrl));
     }
     if (item.tool) {
       results.push(gradeTool(item.name, item.tool, transcript));
@@ -180,21 +182,22 @@ function gradeVerify(
   return results;
 }
 
-function gradeDb(
+async function gradeDb(
   name: string,
   spec: NonNullable<VerifyItem['db']>,
   projectId: string,
-): VerifyResult[] {
-  const db = getDatabase();
+  serviceUrl: string,
+): Promise<VerifyResult[]> {
   const results: VerifyResult[] = [];
 
   const condition = spec.condition
     ? spec.condition.replace(/\{\{project_id\}\}/g, projectId)
     : `project_id = '${projectId}'`;
 
-  const rows = db
-    .prepare(`SELECT * FROM ${spec.table} WHERE ${condition}`)
-    .all() as Record<string, unknown>[];
+  const rows = await evalQuery<Record<string, unknown>>(
+    serviceUrl,
+    `SELECT * FROM ${spec.table} WHERE ${condition}`,
+  );
 
   if (spec.expect.count !== undefined) {
     results.push({
@@ -248,25 +251,25 @@ function gradeDb(
   return results;
 }
 
-function gradeDbAbsent(
+async function gradeDbAbsent(
   name: string,
   spec: NonNullable<VerifyItem['db_absent']>,
   projectId: string,
-): VerifyResult {
-  const db = getDatabase();
-
+  serviceUrl: string,
+): Promise<VerifyResult> {
   const condition = spec.condition
     ? `${spec.condition} AND project_id = '${projectId}'`
     : `project_id = '${projectId}'`;
 
-  const row = db
-    .prepare(`SELECT COUNT(*) as cnt FROM ${spec.table} WHERE ${condition}`)
-    .get() as { cnt: number };
+  const [row] = await evalQuery<{ cnt: number }>(
+    serviceUrl,
+    `SELECT COUNT(*) as cnt FROM ${spec.table} WHERE ${condition}`,
+  );
 
   return {
     name,
-    passed: row.cnt === 0,
-    detail: row.cnt === 0 ? 'absent (correct)' : `found ${row.cnt} rows`,
+    passed: (row?.cnt ?? 0) === 0,
+    detail: (row?.cnt ?? 0) === 0 ? 'absent (correct)' : `found ${row?.cnt ?? 0} rows`,
   };
 }
 
@@ -333,21 +336,22 @@ function gradeResponse(
 
 // ── Row Match ──
 
-function gradeDbRowMatch(
+async function gradeDbRowMatch(
   name: string,
   spec: NonNullable<VerifyItem['db_row_match']>,
   projectId: string,
-): VerifyResult {
-  const db = getDatabase();
-
+  serviceUrl: string,
+): Promise<VerifyResult> {
   const matchEntries = Object.entries(spec.match);
   const whereClauses = matchEntries.map(([col]) => `${col} = ?`);
   whereClauses.push('project_id = ?');
   const params = [...matchEntries.map(([, val]) => val), projectId];
 
-  const row = db
-    .prepare(`SELECT * FROM ${spec.table} WHERE ${whereClauses.join(' AND ')}`)
-    .get(...params) as Record<string, unknown> | undefined;
+  const [row] = await evalQuery<Record<string, unknown>>(
+    serviceUrl,
+    `SELECT * FROM ${spec.table} WHERE ${whereClauses.join(' AND ')}`,
+    params,
+  );
 
   if (!row) {
     const matchDesc = matchEntries.map(([c, v]) => `${c}="${v}"`).join(', ');
@@ -383,28 +387,29 @@ function gradeDbRowMatch(
 
 // ── Side-Effect Invariants ──
 
-function gradeSideEffect(
+async function gradeSideEffect(
   name: string,
   spec: NonNullable<VerifyItem['side_effect']>,
   projectId: string,
-): VerifyResult {
-  const db = getDatabase();
-
+  serviceUrl: string,
+): Promise<VerifyResult> {
   const condition = spec.condition
     ? spec.condition.replace(/\{\{project_id\}\}/g, projectId)
     : `project_id = '${projectId}'`;
 
-  const row = db
-    .prepare(`SELECT COUNT(*) as cnt FROM ${spec.table} WHERE ${condition}`)
-    .get() as { cnt: number };
+  const [row] = await evalQuery<{ cnt: number }>(
+    serviceUrl,
+    `SELECT COUNT(*) as cnt FROM ${spec.table} WHERE ${condition}`,
+  );
 
-  const passed = row.cnt === spec.expect_count;
+  const count = row?.cnt ?? 0;
+  const passed = count === spec.expect_count;
   return {
     name,
     passed,
     detail: passed
       ? `${spec.table} count unchanged (${spec.expect_count})`
-      : `expected ${spec.expect_count} rows in ${spec.table}, got ${row.cnt}`,
+      : `expected ${spec.expect_count} rows in ${spec.table}, got ${count}`,
   };
 }
 

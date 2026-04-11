@@ -156,12 +156,11 @@ async function main() {
         continue;
       }
 
-      let tempDir: string | null = null;
+      let setup: Awaited<ReturnType<typeof setupScenario>> | null = null;
 
       try {
         console.log('  Setting up scenario...');
-        const setup = await setupScenario(scenario.scenarioDir, scenario.seed, scenario.id);
-        tempDir = setup.tempDir;
+        setup = await setupScenario(scenario.scenarioDir, scenario.seed, scenario.id);
 
         console.log('  Starting narre-server...');
         await adapter.setup({
@@ -169,12 +168,13 @@ async function main() {
           port: options.port,
           dbPath: setup.dbPath,
           dataDir: EVAL_DATA_DIR,
+          serviceUrl: setup.serviceUrl,
           env: {},
         });
 
         console.log('  Sending turns...');
         const startTime = Date.now();
-        const transcript = await runScenario(adapter, scenario, setup.projectId, setup.templateVars);
+        const transcript = await runScenario(adapter, scenario, setup.projectId, setup.serviceUrl, setup.templateVars);
         const durationMs = Date.now() - startTime;
 
         console.log(`  Completed in ${(durationMs / 1000).toFixed(1)}s (${transcript.totalToolCalls} tool calls)`);
@@ -193,6 +193,7 @@ async function main() {
           scenario.verify,
           scenario.qualitative,
           setup.projectId,
+          setup.serviceUrl,
           options.judge,
           gradeCtx,
         );
@@ -232,7 +233,9 @@ async function main() {
         console.error(`  ERROR: ${(error as Error).message}`);
       } finally {
         await adapter.teardown();
-        if (tempDir) teardownScenario(tempDir);
+        if (setup) {
+          await teardownScenario(setup);
+        }
       }
     }
   }

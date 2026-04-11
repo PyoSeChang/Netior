@@ -4,6 +4,7 @@ import { createRequire } from 'module';
 import { join } from 'path';
 import type { NarreBehaviorSettings, NarreCodexSettings } from '@netior/shared/types';
 import { resolveSidecarRuntime } from './sidecar-runtime';
+import { getNetiorServiceBaseUrl } from './netior-service-manager';
 
 export type NarreProviderName = 'claude' | 'openai' | 'codex';
 
@@ -13,7 +14,6 @@ export interface StartNarreServerConfig {
   openaiModel?: string;
   behaviorSettings?: NarreBehaviorSettings;
   codexSettings?: NarreCodexSettings;
-  dbPath: string;
   dataDir: string;
   port?: number;
 }
@@ -76,7 +76,6 @@ function buildLaunchSignature(config: StartNarreServerConfig): string {
     openaiModel: config.openaiModel ?? '',
     behaviorSettings: config.behaviorSettings ?? null,
     codexSettings: config.codexSettings ?? null,
-    dbPath: config.dbPath,
     dataDir: config.dataDir,
     port: config.port ?? DEFAULT_NARRE_PORT,
     externalNodePath: process.env.NETIOR_NARRE_NODE_PATH ?? process.env.npm_node_execpath ?? null,
@@ -112,7 +111,6 @@ export async function startNarreServer(config: StartNarreServerConfig): Promise<
   const baseUrl = `http://127.0.0.1:${port}`;
   console.log(`[narre-server] Starting: ${modulePath}`);
   console.log(`[narre-server] Provider: ${config.provider}`);
-  console.log(`[narre-server] DB: ${config.dbPath}`);
   console.log(`[narre-server] Data: ${config.dataDir}`);
   console.log(`[narre-server] Port: ${port}`);
   console.log(`[narre-server] Runtime: ${runtime.description}`);
@@ -122,6 +120,9 @@ export async function startNarreServer(config: StartNarreServerConfig): Promise<
     env: {
       ...process.env,
       ...runtime.env,
+      ...(getNetiorServiceBaseUrl()
+        ? { NETIOR_SERVICE_URL: getNetiorServiceBaseUrl() as string }
+        : {}),
       NARRE_PROVIDER: config.provider,
       ...(config.provider === 'claude'
         ? { ANTHROPIC_API_KEY: config.apiKey ?? '' }
@@ -137,7 +138,6 @@ export async function startNarreServer(config: StartNarreServerConfig): Promise<
       ...(config.codexSettings
         ? { NARRE_CODEX_SETTINGS_JSON: JSON.stringify(config.codexSettings) }
         : {}),
-      MOC_DB_PATH: config.dbPath,
       MOC_DATA_DIR: config.dataDir,
       PORT: String(port),
     },

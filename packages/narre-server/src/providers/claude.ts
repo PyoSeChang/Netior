@@ -1,109 +1,20 @@
-import { createSdkMcpServer, query, tool } from '@anthropic-ai/claude-agent-sdk';
-import { randomUUID } from 'crypto';
-import { z } from 'zod';
-import type { NarreCard, NarreToolCall } from '@netior/shared/types';
+import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { NarreToolCall } from '@netior/shared/types';
 import type {
   NarreProviderAdapter,
   NarreProviderRunContext,
   NarreProviderRunResult,
 } from '../runtime/provider-adapter.js';
-import { PendingUiResponses } from '../tools/pending-ui-responses.js';
-
-const proposalCellTypeSchema = z.enum(['text', 'icon', 'color', 'enum', 'boolean', 'readonly']);
+import { createClaudeSdkUiServer } from './shared/claude-sdk-ui-server.js';
+import { NarreUiBridge } from './shared/ui-bridge.js';
 
 export class ClaudeProviderAdapter implements NarreProviderAdapter {
   readonly name = 'claude';
 
-  private readonly pendingUiResponses = new PendingUiResponses();
-
-  createConversationMcpServers(sendCard: (card: NarreCard) => void): Record<string, unknown> {
-    return {
-      'narre-ui': createSdkMcpServer({
-        name: 'narre-ui',
-        tools: [
-          tool(
-            'propose',
-            'Present a proposal table to the user for review and inline editing. Use this when suggesting archetypes, relation types, or concepts.',
-            {
-              title: z.string().describe('Title for the proposal'),
-              columns: z.array(z.object({
-                key: z.string(),
-                label: z.string(),
-                cellType: proposalCellTypeSchema.describe('text | icon | color | enum | boolean | readonly'),
-                options: z.array(z.string()).optional(),
-              })),
-              rows: z.array(z.object({
-                id: z.string(),
-                values: z.record(z.string(), z.unknown()),
-              })),
-            },
-            async (args) => {
-              const callId = randomUUID();
-              sendCard({
-                type: 'proposal',
-                toolCallId: callId,
-                title: args.title,
-                columns: args.columns,
-                rows: args.rows,
-              });
-              const response = await this.pendingUiResponses.waitForResponse(callId);
-              return { content: [{ type: 'text' as const, text: response }] };
-            },
-          ),
-          tool(
-            'ask',
-            'Ask the user a structured question with selectable options. Use for gathering preferences or domain information.',
-            {
-              question: z.string().describe('The question to ask'),
-              options: z.array(z.object({
-                label: z.string(),
-                description: z.string().optional(),
-              })),
-              multiSelect: z.boolean().optional().describe('Allow multiple selections'),
-            },
-            async (args) => {
-              const callId = randomUUID();
-              sendCard({
-                type: 'interview',
-                toolCallId: callId,
-                question: args.question,
-                options: args.options,
-                multiSelect: args.multiSelect ?? undefined,
-              });
-              const response = await this.pendingUiResponses.waitForResponse(callId);
-              return { content: [{ type: 'text' as const, text: response }] };
-            },
-          ),
-          tool(
-            'confirm',
-            'Request user confirmation before a destructive or significant action.',
-            {
-              message: z.string().describe('Description of the action requiring confirmation'),
-              actions: z.array(z.object({
-                key: z.string(),
-                label: z.string(),
-                variant: z.enum(['danger', 'default']).optional(),
-              })),
-            },
-            async (args) => {
-              const callId = randomUUID();
-              sendCard({
-                type: 'permission',
-                toolCallId: callId,
-                message: args.message,
-                actions: args.actions,
-              });
-              const response = await this.pendingUiResponses.waitForResponse(callId);
-              return { content: [{ type: 'text' as const, text: response }] };
-            },
-          ),
-        ],
-      }),
-    };
-  }
+  private readonly uiBridge = new NarreUiBridge();
 
   resolveUiCall(toolCallId: string, response: unknown): boolean {
-    return this.pendingUiResponses.resolve(toolCallId, response);
+    return this.uiBridge.resolveResponse(toolCallId, response);
   }
 
   async run(context: NarreProviderRunContext): Promise<NarreProviderRunResult> {
@@ -117,7 +28,7 @@ export class ClaudeProviderAdapter implements NarreProviderAdapter {
       maxTurns: 30,
       tools: [],
       model: 'sonnet',
-      mcpServers: context.mcpServers,
+      mcpServers: this.buildMcpServers(context),
     };
 
     if (context.isResume) {
@@ -163,5 +74,20 @@ export class ClaudeProviderAdapter implements NarreProviderAdapter {
     }
 
     return { assistantText, toolCalls };
+  }
+
+  private buildMcpServers(context: NarreProviderRunContext): Record<string, unknown> {
+    return {
+      ...Object.fromEntries(context.mcpServerConfigs.map((config) => [
+        config.name,
+        {
+          command: config.command,
+          args: config.args,
+          env: config.env,
+          cwd: config.cwd,
+        },
+      ])),
+      'narre-ui': createClaudeSdkUiServer(context.onCard, this.uiBridge),
+    };
   }
 }

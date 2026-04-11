@@ -1,11 +1,8 @@
-import { listModules, listModuleDirectories, getProjectById } from '@netior/core';
+import { getProjectById, listModules } from '../netior-service-client.js';
 import { resolve } from 'path';
 
-export function getAllowedPaths(projectId: string): string[] {
-  const modules = listModules(projectId);
-  return modules.flatMap(m =>
-    listModuleDirectories(m.id).map(d => resolve(d.dir_path))
-  );
+export async function getAllowedPaths(projectId: string): Promise<string[]> {
+  return (await listModules(projectId)).map((module) => resolve(module.path));
 }
 
 export function isPathAllowed(targetPath: string, allowedPaths: string[]): boolean {
@@ -17,12 +14,12 @@ export function isPathAllowed(targetPath: string, allowedPaths: string[]): boole
 
 /**
  * Returns allowed paths array on success, or error message string on failure.
- * Validates against registered module directories.
+ * Validates against registered module paths.
  */
-export function validatePath(projectId: string, targetPath: string): string[] | string {
-  const allowed = getAllowedPaths(projectId);
-  if (allowed.length === 0) return 'No module directories registered for this project';
-  if (!isPathAllowed(targetPath, allowed)) return 'Path is outside registered module directories';
+export async function validatePath(projectId: string, targetPath: string): Promise<string[] | string> {
+  const allowed = await getAllowedPaths(projectId);
+  if (allowed.length === 0) return 'No module paths registered for this project';
+  if (!isPathAllowed(targetPath, allowed)) return 'Path is outside registered module paths';
   return allowed;
 }
 
@@ -31,8 +28,8 @@ export function validatePath(projectId: string, targetPath: string): string[] | 
  * Use this for file-entity-based operations where the file may not be under a module directory.
  * Returns null on success, or error message string on failure.
  */
-export function validateProjectRootPath(projectId: string, targetPath: string): string | null {
-  const project = getProjectById(projectId);
+export async function validateProjectRootPath(projectId: string, targetPath: string): Promise<string | null> {
+  const project = await getProjectById(projectId);
   if (!project) return `Project not found: ${projectId}`;
   const rootDir = resolve(project.root_dir);
   const resolved = resolve(targetPath);

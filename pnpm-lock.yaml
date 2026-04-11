@@ -71,9 +71,9 @@ importers:
       '@monaco-editor/react':
         specifier: ^4.7.0
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@18.3.1)(react@18.3.1)
-      '@netior/core':
+      '@netior/narre-server':
         specifier: workspace:*
-        version: link:../netior-core
+        version: link:../narre-server
       '@netior/service':
         specifier: workspace:*
         version: link:../netior-service
@@ -95,9 +95,6 @@ importers:
       '@xterm/xterm':
         specifier: 6.1.0-beta.191
         version: 6.1.0-beta.191
-      better-sqlite3:
-        specifier: ^9.4.0
-        version: 9.6.0
       codemirror-markdown-hybrid:
         specifier: ^1.2.2
         version: 1.2.2(@codemirror/commands@6.10.3)(@codemirror/lang-markdown@6.5.0)(@codemirror/state@6.6.0)(@codemirror/view@6.40.0)
@@ -135,9 +132,6 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7)(@types/react@18.3.28)(react-dom@18.3.1)(react@18.3.1)
-      '@types/better-sqlite3':
-        specifier: ^7.6.8
-        version: 7.6.13
       '@types/react':
         specifier: ^18.2.48
         version: 18.3.28
@@ -195,9 +189,6 @@ importers:
       '@anthropic-ai/sdk':
         specifier: latest
         version: 0.81.0
-      '@netior/core':
-        specifier: workspace:*
-        version: link:../netior-core
       '@netior/shared':
         specifier: workspace:*
         version: link:../shared
@@ -256,7 +247,7 @@ importers:
         version: 5.0.10
       tsup:
         specifier: ^8.0.1
-        version: 8.5.1(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 8.5.1(typescript@5.9.3)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -278,7 +269,7 @@ importers:
         version: 5.0.10
       tsup:
         specifier: ^8.0.1
-        version: 8.5.1(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 8.5.1(typescript@5.9.3)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -291,9 +282,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
         version: 1.29.0(zod@4.3.6)
-      '@netior/core':
-        specifier: workspace:*
-        version: link:../netior-core
       '@netior/shared':
         specifier: workspace:*
         version: link:../shared
@@ -312,7 +300,7 @@ importers:
         version: 5.0.10
       tsup:
         specifier: ^8.0.1
-        version: 8.5.1(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 8.5.1(typescript@5.9.3)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -331,7 +319,7 @@ importers:
         version: 5.0.10
       tsup:
         specifier: ^8.0.1
-        version: 8.5.1(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 8.5.1(typescript@5.9.3)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -343,7 +331,7 @@ importers:
         version: 5.0.10
       tsup:
         specifier: ^8.0.1
-        version: 8.5.1(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 8.5.1(typescript@5.9.3)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -8592,6 +8580,50 @@ packages:
       joycon: 3.1.1
       picocolors: 1.1.1
       postcss-load-config: 6.0.1(tsx@4.21.0)(yaml@2.8.3)
+      resolve-from: 5.0.0
+      rollup: 4.60.0
+      source-map: 0.7.6
+      sucrase: 3.35.1
+      tinyexec: 0.3.2
+      tinyglobby: 0.2.15
+      tree-kill: 1.2.2
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - jiti
+      - supports-color
+      - tsx
+      - yaml
+    dev: true
+
+  /tsup@8.5.1(typescript@5.9.3):
+    resolution: {integrity: sha512-xtgkqwdhpKWr3tKPmCkvYmS9xnQK3m3XgxZHwSUjvfTjp7YfXe5tT3GgWi0F2N+ZSMsOeWeZFh7ZZFg5iPhing==}
+    engines: {node: '>=18'}
+    hasBin: true
+    peerDependencies:
+      '@microsoft/api-extractor': ^7.36.0
+      '@swc/core': ^1
+      postcss: ^8.4.12
+      typescript: '>=4.5.0'
+    peerDependenciesMeta:
+      '@microsoft/api-extractor':
+        optional: true
+      '@swc/core':
+        optional: true
+      postcss:
+        optional: true
+      typescript:
+        optional: true
+    dependencies:
+      bundle-require: 5.1.0(esbuild@0.27.4)
+      cac: 6.7.14
+      chokidar: 4.0.3
+      consola: 3.4.2
+      debug: 4.4.3
+      esbuild: 0.27.4
+      fix-dts-default-cjs-exports: 1.0.1
+      joycon: 3.1.1
+      picocolors: 1.1.1
+      postcss-load-config: 6.0.1(jiti@1.21.7)(postcss@8.5.8)
       resolve-from: 5.0.0
       rollup: 4.60.0
       source-map: 0.7.6

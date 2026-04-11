@@ -15,7 +15,6 @@ export interface NarreProviderRunContext {
   userPrompt: string;
   sessionId: string;
   isResume: boolean;
-  mcpServers: Record<string, unknown>;
   mcpServerConfigs: NarreMcpServerConfig[];
   onText: (text: string) => void;
   onToolStart: (tool: string, input: Record<string, unknown>) => void;
@@ -30,7 +29,6 @@ export interface NarreProviderRunResult {
 
 export interface NarreProviderAdapter {
   readonly name: string;
-  createConversationMcpServers: (sendCard: (card: NarreCard) => void) => Record<string, unknown>;
   resolveUiCall: (toolCallId: string, response: unknown) => boolean;
   run: (context: NarreProviderRunContext) => Promise<NarreProviderRunResult>;
 }

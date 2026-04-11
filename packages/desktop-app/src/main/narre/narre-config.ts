@@ -114,7 +114,6 @@ export async function syncNarreServerWithSettings(): Promise<boolean> {
   const codexSettings = await getConfiguredCodexSettings();
 
   const dbDir = join(app.getPath('userData'), 'data');
-  const dbPath = join(dbDir, app.isPackaged ? 'netior.db' : 'netior-dev.db');
 
   if (provider === 'openai' && !apiKey) {
     stopNarreServer();
@@ -127,7 +126,6 @@ export async function syncNarreServerWithSettings(): Promise<boolean> {
     openaiModel,
     behaviorSettings,
     codexSettings,
-    dbPath,
     dataDir: dbDir,
   });
 }

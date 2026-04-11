@@ -11,6 +11,7 @@ interface ResolveSidecarRuntimeOptions {
   envVarName: string;
   displayName: string;
   minNodeMajor?: number;
+  allowElectronFallback?: boolean;
 }
 
 export function resolveSidecarRuntime(options: ResolveSidecarRuntimeOptions): SidecarRuntime {
@@ -18,9 +19,7 @@ export function resolveSidecarRuntime(options: ResolveSidecarRuntimeOptions): Si
   if (explicitRuntime) {
     return {
       command: explicitRuntime,
-      env: {
-        NETIOR_ELECTRON_PATH: process.execPath,
-      },
+      env: {},
       description: `configured node runtime (${explicitRuntime})`,
     };
   }
@@ -29,9 +28,7 @@ export function resolveSidecarRuntime(options: ResolveSidecarRuntimeOptions): Si
   if (devNodePath && devNodePath !== process.execPath) {
     return {
       command: devNodePath,
-      env: {
-        NETIOR_ELECTRON_PATH: process.execPath,
-      },
+      env: {},
       description: `development node runtime (${devNodePath})`,
     };
   }
@@ -40,14 +37,20 @@ export function resolveSidecarRuntime(options: ResolveSidecarRuntimeOptions): Si
   if (bundledRuntime) {
     return {
       command: bundledRuntime,
-      env: {
-        NETIOR_ELECTRON_PATH: process.execPath,
-      },
+      env: {},
       description: `bundled node runtime (${bundledRuntime})`,
     };
   }
 
   const electronNodeMajor = parseInt(process.versions.node.split('.')[0] ?? '0', 10);
+  if (options.allowElectronFallback === false) {
+    const requirement = options.minNodeMajor != null ? `Node ${options.minNodeMajor}+` : 'an external Node runtime';
+    throw new Error(
+      `${options.displayName} requires ${requirement}. ` +
+      `Set ${options.envVarName} to a compatible Node binary or bundle one with the app.`,
+    );
+  }
+
   if (options.minNodeMajor != null && electronNodeMajor < options.minNodeMajor) {
     throw new Error(
       `${options.displayName} requires Node ${options.minNodeMajor}+. ` +
@@ -59,7 +62,6 @@ export function resolveSidecarRuntime(options: ResolveSidecarRuntimeOptions): Si
     command: process.execPath,
     env: {
       ELECTRON_RUN_AS_NODE: '1',
-      NETIOR_ELECTRON_PATH: process.execPath,
     },
     description: `Electron runtime (Node ${process.versions.node})`,
   };

@@ -5,7 +5,7 @@ import {
   createArchetype,
   updateArchetype,
   deleteArchetype,
-} from '@netior/core';
+} from '../netior-service-client.js';
 import { emitChange } from '../events.js';
 
 export function registerArchetypeTools(server: McpServer): void {
@@ -15,7 +15,7 @@ export function registerArchetypeTools(server: McpServer): void {
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
-        const result = listArchetypes(project_id);
+        const result = await listArchetypes(project_id);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -41,7 +41,7 @@ export function registerArchetypeTools(server: McpServer): void {
     },
     async ({ project_id, name, icon, color, node_shape, description }) => {
       try {
-        const result = createArchetype({
+        const result = await createArchetype({
           project_id,
           name,
           icon,
@@ -75,7 +75,7 @@ export function registerArchetypeTools(server: McpServer): void {
     },
     async ({ archetype_id, name, icon, color, node_shape, description }) => {
       try {
-        const result = updateArchetype(archetype_id, {
+        const result = await updateArchetype(archetype_id, {
           name,
           icon,
           color,
@@ -107,7 +107,7 @@ export function registerArchetypeTools(server: McpServer): void {
     { archetype_id: z.string().describe('The archetype ID to delete') },
     async ({ archetype_id }) => {
       try {
-        const deleted = deleteArchetype(archetype_id);
+        const deleted = await deleteArchetype(archetype_id);
         if (!deleted) {
           return {
             content: [{ type: 'text' as const, text: `Error: Archetype not found: ${archetype_id}` }],

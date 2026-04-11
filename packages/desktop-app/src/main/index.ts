@@ -14,17 +14,6 @@ import { getRemoteConfig, setRemoteConfig } from './netior-service/netior-servic
 app.name = 'Netior';
 app.setPath('userData', join(app.getPath('appData'), 'netior'));
 
-function getNativeBinding(): string | undefined {
-  const candidates = [
-    join(__dirname, '../../node_modules/better-sqlite3/build/Release/better_sqlite3.node'),
-    join(process.resourcesPath ?? '', 'app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node'),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) return p;
-  }
-  return undefined;
-}
-
 function getNotificationIcon() {
   const candidates = [
     join(app.getAppPath(), 'build/icons/netior-app-icon.png'),
@@ -185,11 +174,7 @@ app.whenReady().then(async () => {
   const dbDir = join(app.getPath('userData'), 'data');
   mkdirSync(dbDir, { recursive: true });
   const dbPath = join(dbDir, is.dev ? 'netior-dev.db' : 'netior.db');
-  const nativeBinding = getNativeBinding();
-  const netiorServiceStarted = await startNetiorService({
-    dbPath,
-    nativeBinding,
-  });
+  const netiorServiceStarted = await startNetiorService({ dbPath });
   if (!netiorServiceStarted) {
     throw new Error('Netior service failed to start');
   }

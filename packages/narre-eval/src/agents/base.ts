@@ -10,6 +10,7 @@ export interface EvalRunContext {
   port: number;
   dbPath: string;
   dataDir: string;
+  serviceUrl: string;
   env: Record<string, string | undefined>;
 }
 

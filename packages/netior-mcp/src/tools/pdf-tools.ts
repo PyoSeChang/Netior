@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { getFileEntity, updateFileMetadataField } from '@netior/core';
+import { getFileEntity, updateFileMetadataField } from '../netior-service-client.js';
 import { validateProjectRootPath } from './path-validation.js';
 import { emitChange } from '../events.js';
 
@@ -27,7 +27,7 @@ export function registerPdfTools(server: McpServer): void {
     },
     async ({ project_id, file_path, start_page, end_page }) => {
       try {
-        const validationError = validateProjectRootPath(project_id, file_path);
+        const validationError = await validateProjectRootPath(project_id, file_path);
         if (validationError) {
           return {
             content: [{ type: 'text' as const, text: `Error: ${validationError}` }],
@@ -90,7 +90,7 @@ export function registerPdfTools(server: McpServer): void {
     },
     async ({ project_id, file_path, start_page, end_page }) => {
       try {
-        const validationError = validateProjectRootPath(project_id, file_path);
+        const validationError = await validateProjectRootPath(project_id, file_path);
         if (validationError) {
           return {
             content: [{ type: 'text' as const, text: `Error: ${validationError}` }],
@@ -177,7 +177,7 @@ export function registerPdfTools(server: McpServer): void {
     },
     async ({ file_id }) => {
       try {
-        const entity = getFileEntity(file_id);
+        const entity = await getFileEntity(file_id);
         if (!entity) {
           return {
             content: [{ type: 'text' as const, text: `Error: File entity not found: ${file_id}` }],
@@ -227,7 +227,7 @@ export function registerPdfTools(server: McpServer): void {
     },
     async ({ file_id, pdf_toc }) => {
       try {
-        const updated = updateFileMetadataField(file_id, 'pdf_toc', pdf_toc);
+        const updated = await updateFileMetadataField(file_id, 'pdf_toc', pdf_toc);
         if (!updated) {
           return {
             content: [{ type: 'text' as const, text: `Error: File entity not found: ${file_id}` }],

@@ -17,7 +17,7 @@
     "dev": "tsup --watch",
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit",
-    "test": "node ../desktop-app/scripts/rebuild-native.js && vitest run",
+    "test": "node scripts/rebuild-native.js && vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {

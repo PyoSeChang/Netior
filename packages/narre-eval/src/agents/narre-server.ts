@@ -124,12 +124,12 @@ export class NarreServerAdapter implements EvalAgentAdapter {
     await ensurePortAvailable(ctx.port, this.pidPath);
     mkdirSync(ctx.dataDir, { recursive: true });
 
-    this.process = spawn('node', [serverPath], {
+    this.process = spawn(process.execPath, [serverPath], {
       env: {
         ...process.env,
         PORT: String(ctx.port),
-        MOC_DB_PATH: ctx.dbPath,
         MOC_DATA_DIR: ctx.dataDir,
+        NETIOR_SERVICE_URL: ctx.serviceUrl,
         ANTHROPIC_API_KEY: apiKey,
       },
       stdio: ['ignore', 'pipe', 'pipe'],

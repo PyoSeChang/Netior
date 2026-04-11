@@ -36,6 +36,9 @@ import type {
   NetworkNodeUpdate,
   NetworkTreeNode,
   NetworkUpdate,
+  NetworkFullData,
+  NodePosition,
+  EdgeVisual,
   ObjectRecord,
   Project,
   ProjectCreate,
@@ -47,21 +50,10 @@ import type {
   TypeGroupCreate,
   TypeGroupKind,
   TypeGroupUpdate,
+  Layout,
+  NetiorServiceResponse,
 } from '@netior/shared/types';
-import type { Layout, LayoutEdgeVisual, LayoutNodePosition, NetworkFullData } from '@netior/core';
 import { getNetiorServiceBaseUrl } from '../process/netior-service-manager';
-
-interface ServiceSuccess<T> {
-  ok: true;
-  data: T;
-}
-
-interface ServiceError {
-  ok: false;
-  error: string;
-}
-
-type ServiceResponse<T> = ServiceSuccess<T> | ServiceError;
 
 export async function getRemoteConfig(key: string): Promise<unknown> {
   return requestJson<unknown>(`/config/${encodeURIComponent(key)}`);
@@ -535,8 +527,8 @@ export async function updateRemoteLayout(id: string, data: {
   });
 }
 
-export async function getRemoteLayoutNodePositions(layoutId: string): Promise<LayoutNodePosition[]> {
-  return requestJson<LayoutNodePosition[]>(`/layouts/${encodeURIComponent(layoutId)}/nodes`);
+export async function getRemoteLayoutNodePositions(layoutId: string): Promise<NodePosition[]> {
+  return requestJson<NodePosition[]>(`/layouts/${encodeURIComponent(layoutId)}/nodes`);
 }
 
 export async function setRemoteLayoutNodePosition(
@@ -556,8 +548,8 @@ export async function removeRemoteLayoutNodePosition(layoutId: string, nodeId: s
   });
 }
 
-export async function getRemoteLayoutEdgeVisuals(layoutId: string): Promise<LayoutEdgeVisual[]> {
-  return requestJson<LayoutEdgeVisual[]>(`/layouts/${encodeURIComponent(layoutId)}/edges`);
+export async function getRemoteLayoutEdgeVisuals(layoutId: string): Promise<EdgeVisual[]> {
+  return requestJson<EdgeVisual[]>(`/layouts/${encodeURIComponent(layoutId)}/edges`);
 }
 
 export async function setRemoteLayoutEdgeVisual(
@@ -591,9 +583,9 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  let payload: ServiceResponse<T>;
+  let payload: NetiorServiceResponse<T>;
   try {
-    payload = await response.json() as ServiceResponse<T>;
+    payload = await response.json() as NetiorServiceResponse<T>;
   } catch (error) {
     throw new Error(`Invalid JSON from Netior service: ${(error as Error).message}`);
   }

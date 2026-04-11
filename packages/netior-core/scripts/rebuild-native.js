@@ -1,13 +1,13 @@
 /**
- * Rebuild better-sqlite3 native module for system Node.js (for vitest).
- * Usage: node scripts/rebuild-native.js
- *
- * After running, better-sqlite3 works with system Node (tests).
- * Run `pnpm rebuild:electron` to switch back for Electron app dev.
+ * Rebuild better-sqlite3 native module for system Node.js.
+ * Used by @netior/core tests and any Node-sidecar workflows that need
+ * the current Node ABI instead of Electron's ABI.
  */
-const { execSync } = require('child_process');
-const { resolve, dirname } = require('path');
+import { execSync } from 'child_process';
+import { createRequire } from 'module';
+import { dirname } from 'path';
 
+const require = createRequire(import.meta.url);
 const bsPkg = require.resolve('better-sqlite3/package.json');
 const bsDir = dirname(bsPkg);
 

@@ -1,11 +1,11 @@
 import { tool } from '@openai/agents';
 import type { NarreProviderRunContext } from '../../runtime/provider-adapter.js';
-import type { OpenAIFamilyUiBridge } from './ui-bridge.js';
-import { askToolSchema, confirmToolSchema, proposalToolSchema } from './schemas.js';
+import type { NarreUiBridge } from '../shared/ui-bridge.js';
+import { askToolSchema, confirmToolSchema, proposalToolSchema } from '../shared/ui-schemas.js';
 
 export function createOpenAIFamilyConversationTools(
   context: NarreProviderRunContext,
-  uiBridge: OpenAIFamilyUiBridge,
+  uiBridge: NarreUiBridge,
 ) {
   return [
     tool({

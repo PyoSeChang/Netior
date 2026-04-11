@@ -17,8 +17,8 @@ import type {
   FileEntity,
   RelationType,
   NetworkBreadcrumbItem,
+  NetworkFullData,
 } from '@netior/shared/types';
-import type { Layout, LayoutNodePosition, LayoutEdgeVisual } from './layout';
 
 // ── Network ──
 
@@ -166,19 +166,6 @@ export function ensureProjectRootNetwork(projectId: string): Network {
 }
 
 // ── Network Full Data ──
-
-export interface NetworkFullData {
-  network: Network;
-  layout: Layout | undefined;
-  nodes: (NetworkNode & {
-    object?: ObjectRecord;
-    concept?: Concept;
-    file?: FileEntity;
-  })[];
-  edges: (Edge & { relation_type?: RelationType })[];
-  nodePositions: LayoutNodePosition[];
-  edgeVisuals: LayoutEdgeVisual[];
-}
 
 type RelationTypeRow = Omit<RelationType, 'directed'> & { directed: number };
 

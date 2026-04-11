@@ -32,8 +32,6 @@ export interface NarreRuntimeEvents {
 }
 
 export interface NarreRuntimeConfig {
-  mcpDbPath: string;
-  electronPath?: string;
   sessionStore: SessionStore;
   provider: NarreProviderAdapter;
   resolveMcpServerPath: () => string | null;
@@ -96,7 +94,6 @@ export class NarreRuntime {
     const sessionData = await this.config.sessionStore.getSession(resolvedSessionId, request.projectId);
     const history = sessionData?.messages ?? [];
     const isResume = history.length > 1;
-    const mcpServers = this.buildLegacyMcpServers(mcpServerPath, events.onCard);
     const mcpServerConfigs = this.buildMcpServerConfigs(mcpServerPath);
     for (const config of mcpServerConfigs) {
       console.log(
@@ -111,7 +108,6 @@ export class NarreRuntime {
       userPrompt: processedMessage,
       sessionId: resolvedSessionId,
       isResume,
-      mcpServers,
       mcpServerConfigs,
       onText: events.onText,
       onToolStart: events.onToolStart,
@@ -131,25 +127,12 @@ export class NarreRuntime {
     return { sessionId: resolvedSessionId };
   }
 
-  private buildLegacyMcpServers(mcpServerPath: string, sendCard: (card: NarreCard) => void): Record<string, unknown> {
-    const [netiorConfig] = this.buildMcpServerConfigs(mcpServerPath);
-
-    return {
-      netior: {
-        command: netiorConfig.command,
-        args: netiorConfig.args,
-        env: netiorConfig.env,
-      },
-      ...this.config.provider.createConversationMcpServers(sendCard),
-    };
-  }
-
   private buildMcpServerConfigs(mcpServerPath: string): NarreMcpServerConfig[] {
     const runningInsideElectronNode = Boolean(process.versions.electron) || process.env.ELECTRON_RUN_AS_NODE === '1';
-    const mcpCommand = runningInsideElectronNode
-      ? (this.config.electronPath || process.execPath)
-      : process.execPath;
-    const mcpEnv: Record<string, string> = { MOC_DB_PATH: this.config.mcpDbPath };
+    const mcpCommand = process.execPath;
+    const mcpEnv: Record<string, string> = {
+      NETIOR_SERVICE_URL: process.env.NETIOR_SERVICE_URL ?? `http://127.0.0.1:${process.env.NETIOR_SERVICE_PORT ?? '3201'}`,
+    };
 
     if (runningInsideElectronNode) {
       mcpEnv.ELECTRON_RUN_AS_NODE = '1';

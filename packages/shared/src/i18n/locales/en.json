@@ -712,6 +712,8 @@
     "noModules": "No modules",
     "noModule": "No module",
     "moduleName": "Module name",
+    "modulePath": "Module path",
+    "selectModulePath": "Select module path",
     "addModule": "Add module"
   },
   "objectPanel": {

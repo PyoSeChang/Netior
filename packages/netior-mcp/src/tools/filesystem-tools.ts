@@ -7,14 +7,14 @@ import { getAllowedPaths, validatePath } from './path-validation.js';
 export function registerFilesystemTools(server: McpServer): void {
   server.tool(
     'list_directory',
-    'List contents of a directory within registered module directories',
+    'List contents of a directory within registered module paths',
     {
       project_id: z.string().describe('The project ID'),
       dir_path: z.string().describe('Absolute path to the directory'),
     },
     async ({ project_id, dir_path }) => {
       try {
-        const validation = validatePath(project_id, dir_path);
+        const validation = await validatePath(project_id, dir_path);
         if (typeof validation === 'string') {
           return {
             content: [{ type: 'text' as const, text: `Error: ${validation}` }],
@@ -38,7 +38,7 @@ export function registerFilesystemTools(server: McpServer): void {
 
   server.tool(
     'read_file',
-    'Read contents of a file within registered module directories',
+    'Read contents of a file within registered module paths',
     {
       project_id: z.string().describe('The project ID'),
       file_path: z.string().describe('Absolute path to the file'),
@@ -46,7 +46,7 @@ export function registerFilesystemTools(server: McpServer): void {
     },
     async ({ project_id, file_path, max_lines }) => {
       try {
-        const validation = validatePath(project_id, file_path);
+        const validation = await validatePath(project_id, file_path);
         if (typeof validation === 'string') {
           return {
             content: [{ type: 'text' as const, text: `Error: ${validation}` }],
@@ -77,7 +77,7 @@ export function registerFilesystemTools(server: McpServer): void {
 
   server.tool(
     'glob_files',
-    'Find files matching a glob pattern within registered module directories',
+    'Find files matching a glob pattern within registered module paths',
     {
       project_id: z.string().describe('The project ID'),
       pattern: z.string().describe('Glob pattern (e.g. "**/*.md")'),
@@ -86,7 +86,7 @@ export function registerFilesystemTools(server: McpServer): void {
     async ({ project_id, pattern, base_dir }) => {
       try {
         if (base_dir) {
-          const validation = validatePath(project_id, base_dir);
+          const validation = await validatePath(project_id, base_dir);
           if (typeof validation === 'string') {
             return {
               content: [{ type: 'text' as const, text: `Error: ${validation}` }],
@@ -97,11 +97,11 @@ export function registerFilesystemTools(server: McpServer): void {
 
         const searchPaths = base_dir
           ? [base_dir]
-          : getAllowedPaths(project_id);
+          : await getAllowedPaths(project_id);
 
         if (searchPaths.length === 0) {
           return {
-            content: [{ type: 'text' as const, text: 'Error: No module directories registered for this project' }],
+            content: [{ type: 'text' as const, text: 'Error: No module paths registered for this project' }],
             isError: true,
           };
         }
@@ -130,7 +130,7 @@ export function registerFilesystemTools(server: McpServer): void {
 
   server.tool(
     'grep_files',
-    'Search file contents with a regex pattern within registered module directories',
+    'Search file contents with a regex pattern within registered module paths',
     {
       project_id: z.string().describe('The project ID'),
       pattern: z.string().describe('Regex pattern to search for'),
@@ -140,7 +140,7 @@ export function registerFilesystemTools(server: McpServer): void {
     async ({ project_id, pattern, base_dir, file_glob }) => {
       try {
         if (base_dir) {
-          const validation = validatePath(project_id, base_dir);
+          const validation = await validatePath(project_id, base_dir);
           if (typeof validation === 'string') {
             return {
               content: [{ type: 'text' as const, text: `Error: ${validation}` }],
@@ -151,11 +151,11 @@ export function registerFilesystemTools(server: McpServer): void {
 
         const searchPaths = base_dir
           ? [base_dir]
-          : getAllowedPaths(project_id);
+          : await getAllowedPaths(project_id);
 
         if (searchPaths.length === 0) {
           return {
-            content: [{ type: 'text' as const, text: 'Error: No module directories registered for this project' }],
+            content: [{ type: 'text' as const, text: 'Error: No module paths registered for this project' }],
             isError: true,
           };
         }

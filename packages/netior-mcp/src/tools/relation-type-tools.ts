@@ -5,7 +5,7 @@ import {
   createRelationType,
   updateRelationType,
   deleteRelationType,
-} from '@netior/core';
+} from '../netior-service-client.js';
 import type { LineStyle } from '@netior/shared/types';
 import { emitChange } from '../events.js';
 
@@ -16,7 +16,7 @@ export function registerRelationTypeTools(server: McpServer): void {
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
-        const result = listRelationTypes(project_id);
+        const result = await listRelationTypes(project_id);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -42,7 +42,7 @@ export function registerRelationTypeTools(server: McpServer): void {
     },
     async ({ project_id, name, directed, line_style, color, description }) => {
       try {
-        const result = createRelationType({
+        const result = await createRelationType({
           project_id,
           name,
           directed,
@@ -76,7 +76,7 @@ export function registerRelationTypeTools(server: McpServer): void {
     },
     async ({ relation_type_id, name, directed, line_style, color, description }) => {
       try {
-        const result = updateRelationType(relation_type_id, {
+        const result = await updateRelationType(relation_type_id, {
           name,
           directed,
           line_style,
@@ -108,7 +108,7 @@ export function registerRelationTypeTools(server: McpServer): void {
     { relation_type_id: z.string().describe('The relation type ID to delete') },
     async ({ relation_type_id }) => {
       try {
-        const deleted = deleteRelationType(relation_type_id);
+        const deleted = await deleteRelationType(relation_type_id);
         if (!deleted) {
           return {
             content: [{ type: 'text' as const, text: `Error: Relation type not found: ${relation_type_id}` }],

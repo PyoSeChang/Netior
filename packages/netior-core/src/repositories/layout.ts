@@ -1,18 +1,10 @@
 import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
-import type { Layout } from '@netior/shared/types';
+import type { EdgeVisual, Layout, NodePosition } from '@netior/shared/types';
 
 export type { Layout };
-
-export interface LayoutNodePosition {
-  nodeId: string;
-  positionJson: string;
-}
-
-export interface LayoutEdgeVisual {
-  edgeId: string;
-  visualJson: string;
-}
+export type LayoutNodePosition = NodePosition;
+export type LayoutEdgeVisual = EdgeVisual;
 
 // ── Layout CRUD ──
 

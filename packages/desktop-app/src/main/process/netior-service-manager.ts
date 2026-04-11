@@ -32,7 +32,6 @@ function resolveNetiorServicePath(): string | null {
 
 export async function startNetiorService(config: {
   dbPath: string;
-  nativeBinding?: string;
   port?: number;
 }): Promise<boolean> {
   if (netiorServiceProcess) {
@@ -50,15 +49,15 @@ export async function startNetiorService(config: {
   const runtime = resolveSidecarRuntime({
     envVarName: 'NETIOR_SERVICE_NODE_PATH',
     displayName: 'Netior service',
+    minNodeMajor: 22,
+    allowElectronFallback: false,
   });
-  const useElectronNode = runtime.command === process.execPath && runtime.env.ELECTRON_RUN_AS_NODE === '1';
 
   netiorServiceProcess = spawn(runtime.command, [modulePath], {
     env: {
       ...process.env,
       ...runtime.env,
       NETIOR_SERVICE_DB_PATH: config.dbPath,
-      ...(useElectronNode && config.nativeBinding ? { NETIOR_SERVICE_NATIVE_BINDING: config.nativeBinding } : {}),
       PORT: String(port),
     },
     stdio: ['ignore', 'pipe', 'pipe'],

@@ -6,7 +6,7 @@ import {
   createConcept,
   updateConcept,
   deleteConcept,
-} from '@netior/core';
+} from '../netior-service-client.js';
 import { emitChange } from '../events.js';
 
 export function registerConceptTools(server: McpServer): void {
@@ -20,8 +20,8 @@ export function registerConceptTools(server: McpServer): void {
     async ({ project_id, query }) => {
       try {
         const result = query
-          ? searchConcepts(project_id, query)
-          : getConceptsByProject(project_id);
+          ? await searchConcepts(project_id, query)
+          : await getConceptsByProject(project_id);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -46,7 +46,7 @@ export function registerConceptTools(server: McpServer): void {
     },
     async ({ project_id, title, archetype_id, color, icon }) => {
       try {
-        const result = createConcept({
+        const result = await createConcept({
           project_id,
           title,
           archetype_id,
@@ -78,7 +78,7 @@ export function registerConceptTools(server: McpServer): void {
     },
     async ({ concept_id, title, archetype_id, color, icon }) => {
       try {
-        const result = updateConcept(concept_id, {
+        const result = await updateConcept(concept_id, {
           title,
           archetype_id,
           color,
@@ -109,7 +109,7 @@ export function registerConceptTools(server: McpServer): void {
     { concept_id: z.string().describe('The concept ID to delete') },
     async ({ concept_id }) => {
       try {
-        const deleted = deleteConcept(concept_id);
+        const deleted = await deleteConcept(concept_id);
         if (!deleted) {
           return {
             content: [{ type: 'text' as const, text: `Error: Concept not found: ${concept_id}` }],
