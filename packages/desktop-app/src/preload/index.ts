@@ -313,6 +313,8 @@ const electronAPI = {
     },
   },
   agent: {
+    setName: (terminalSessionId: string, name: string) =>
+      ipcRenderer.invoke('agent:setName', terminalSessionId, name) as Promise<boolean>,
     onSessionEvent: (callback: (event: AgentSessionEvent) => void) => {
       const handler = (_event: IpcRendererEvent, payload: AgentSessionEvent) => callback(payload);
       ipcRenderer.on('agent:sessionEvent', handler);

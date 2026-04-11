@@ -29,6 +29,7 @@ export interface AgentRuntimeAdapter {
     launchConfig: TerminalLaunchConfig,
   ): Promise<{ launchConfig: TerminalLaunchConfig; active: boolean }>;
   cleanupTerminalLaunch?(terminalSessionId: string, reason: TerminalCleanupReason, exitCode: number | null): void;
+  setSessionName?(terminalSessionId: string, name: string): Promise<boolean>;
 }
 
 class AgentRuntimeManager implements AgentRuntimeSink {
@@ -126,6 +127,23 @@ class AgentRuntimeManager implements AgentRuntimeSink {
       adapter.cleanupTerminalLaunch?.(terminalSessionId, reason, exitCode);
     }
     this.terminalAdapters.delete(terminalSessionId);
+  }
+
+  async setTerminalSessionName(terminalSessionId: string, name: string): Promise<boolean> {
+    const adapters = this.terminalAdapters.get(terminalSessionId);
+    if (!adapters || adapters.length === 0) {
+      return false;
+    }
+
+    let handled = false;
+    for (const adapter of adapters) {
+      if (!adapter.setSessionName) {
+        continue;
+      }
+      handled = (await adapter.setSessionName(terminalSessionId, name)) || handled;
+    }
+
+    return handled;
   }
 
   private broadcast(channel: string, payload: unknown): void {
