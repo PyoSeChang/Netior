@@ -145,6 +145,17 @@ export function subscribeAgentSessionStore(callback: () => void): () => void {
   return () => { listeners.delete(callback); };
 }
 
+export function setAgentSessionName(
+  provider: AgentSessionEvent['provider'],
+  sessionId: string,
+  name: string | null,
+): void {
+  updateEntry(getSessionKey(provider, sessionId), (prev) => ({
+    ...prev,
+    name,
+  }));
+}
+
 export function getAgentSessionStateByTerminal(terminalSessionId: string): AgentSessionState | null {
   for (const state of agentSessions.values()) {
     if (state.surface.kind === 'terminal' && state.surface.id === terminalSessionId) {

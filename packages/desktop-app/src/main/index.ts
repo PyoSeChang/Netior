@@ -258,6 +258,9 @@ app.whenReady().then(async () => {
     shell.beep();
     return true;
   });
+  ipcMain.handle('agent:setName', async (_event, terminalSessionId: string, name: string) => {
+    return agentRuntimeManager.setTerminalSessionName(terminalSessionId, name);
+  });
 
   // Detached editor window IPC (host-based)
   ipcMain.handle('editor:detach', (_event, hostId: string, title: string) => {

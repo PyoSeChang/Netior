@@ -63,6 +63,8 @@ interface CodexAppServerSession {
   activationInFlight: Promise<void> | null;
   pendingRequests: Map<JsonRpcId, PendingRequest>;
   externalSessionId: string | null;
+  pendingName: string | null;
+  nameUpdateInFlight: Promise<void> | null;
   started: boolean;
   lastStatus: AgentStatus | null;
   lastStatusReason: AgentAttentionReason | null;
@@ -944,6 +946,10 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       activationInFlight: null,
       pendingRequests: new Map(),
       externalSessionId: null,
+      pendingName: launchConfig.agent?.provider === 'codex' && typeof launchConfig.title === 'string' && launchConfig.title !== 'Codex'
+        ? launchConfig.title
+        : null,
+      nameUpdateInFlight: null,
       started: false,
       lastStatus: null,
       lastStatusReason: null,
@@ -999,6 +1005,19 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     exitCode: number | null,
   ): void {
     this.cleanupSession(terminalSessionId, reason, exitCode);
+  }
+
+  async setSessionName(terminalSessionId: string, name: string): Promise<boolean> {
+    const session = this.sessions.get(terminalSessionId);
+    const trimmedName = name.trim();
+    if (!session || trimmedName.length === 0) {
+      return false;
+    }
+
+    session.pendingName = trimmedName;
+    await this.ensureSessionActivated(session);
+    await this.flushPendingName(session);
+    return true;
   }
 
   private ensureSessionActivated(session: CodexAppServerSession): Promise<void> {
@@ -1253,12 +1272,19 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     }
 
     this.ensureSessionStarted(session, thread.id);
-    if (typeof thread.name === 'string' && thread.name.length > 0) {
+    if (session.pendingName && thread.name === session.pendingName) {
+      session.pendingName = null;
+    }
+    const hasPendingNameOverride = typeof session.pendingName === 'string' && session.pendingName.length > 0;
+    if (!hasPendingNameOverride && typeof thread.name === 'string' && thread.name.length > 0) {
       this.sink?.emitNameEvent({
         provider: 'codex',
         sessionId: session.terminalSessionId,
         name: thread.name,
       });
+    }
+    if (hasPendingNameOverride) {
+      void this.flushPendingName(session);
     }
     if (thread.status) {
       const nextStatus = toAgentStatusUpdate(thread.status);
@@ -1279,6 +1305,11 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     }
 
     this.ensureSessionStarted(session, threadId);
+    if (session.pendingName === threadName) {
+      session.pendingName = null;
+    } else if (session.pendingName) {
+      void this.flushPendingName(session);
+    }
     this.sink?.emitNameEvent({
       provider: 'codex',
       sessionId: session.terminalSessionId,
@@ -1395,6 +1426,9 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     session.externalSessionId = externalSessionId;
 
     if (session.started) {
+      if (session.pendingName) {
+        void this.flushPendingName(session);
+      }
       return;
     }
 
@@ -1406,6 +1440,9 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       externalSessionId,
       type: 'start',
     });
+    if (session.pendingName) {
+      void this.flushPendingName(session);
+    }
   }
 
   private emitStatus(
@@ -1444,6 +1481,8 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       pending.reject(new Error(`Codex app-server session closed during ${reason}`));
     }
     session.pendingRequests.clear();
+    session.pendingName = null;
+    session.nameUpdateInFlight = null;
 
     try {
       session.activationWatcher?.close();
@@ -1479,6 +1518,45 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       session.child.kill();
     }
     session.child = null;
+  }
+
+  private flushPendingName(session: CodexAppServerSession): Promise<void> {
+    if (session.nameUpdateInFlight) {
+      return session.nameUpdateInFlight;
+    }
+
+    const pendingName = session.pendingName;
+    const threadId = session.externalSessionId;
+    if (!pendingName || !threadId || !session.socket) {
+      return Promise.resolve();
+    }
+
+    session.nameUpdateInFlight = this.sendRequest(session, 'thread/name/set', {
+      threadId,
+      name: pendingName,
+    }, 3_000)
+      .then(() => {
+        if (session.pendingName === pendingName) {
+          session.pendingName = null;
+        }
+      })
+      .catch((error) => {
+        console.warn(
+          `[CodexAppServer:${session.terminalSessionId}] thread/name/set failed: ${formatRpcError(error)}`,
+        );
+      })
+      .finally(() => {
+        session.nameUpdateInFlight = null;
+        if (
+          this.sessions.has(session.terminalSessionId)
+          && session.pendingName
+          && session.pendingName !== pendingName
+        ) {
+          void this.flushPendingName(session);
+        }
+      });
+
+    return session.nameUpdateInFlight;
   }
 
   private readThread(params: unknown): { id: string; name?: string | null; status?: unknown } | null {

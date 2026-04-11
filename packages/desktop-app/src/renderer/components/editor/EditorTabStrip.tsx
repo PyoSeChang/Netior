@@ -12,6 +12,7 @@ import { FileIcon } from '../sidebar/FileIcon';
 import {
   getAgentSessionStateByTerminal,
   getAgentSessionStoreVersion,
+  setAgentSessionName,
   subscribeAgentSessionStore,
   type AgentSessionState,
 } from '../../lib/agent-session-store';
@@ -262,9 +263,42 @@ export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, hostId
   }, [hostId, onTabDrop, onFileDrop]);
 
   const handleRenameSubmit = useCallback((tabId: string, newTitle: string) => {
-    useEditorStore.getState().updateTitle(tabId, newTitle, true);
+    const trimmedTitle = newTitle.trim();
+    if (!trimmedTitle) {
+      setRenamingTabId(null);
+      return;
+    }
+
+    const tab = tabs.find((item) => item.id === tabId);
+    if (!tab) {
+      setRenamingTabId(null);
+      return;
+    }
+
+    const previousTitle = tab.title;
+    const agentState = tab.type === 'terminal' ? getAgentSessionStateByTerminal(tab.targetId) : null;
+    const shouldSyncCodexName = tab.type === 'terminal'
+      && (tab.terminalLaunchConfig?.agent?.provider === 'codex' || agentState?.provider === 'codex');
+
+    useEditorStore.getState().updateTitle(tabId, trimmedTitle, true);
+    if (shouldSyncCodexName) {
+      const previousAgentName = agentState?.provider === 'codex' ? agentState.name : null;
+      setAgentSessionName('codex', tab.targetId, trimmedTitle);
+      void window.electron.agent.setName(tab.targetId, trimmedTitle)
+        .then((handled) => {
+          if (!handled && agentState?.provider === 'codex') {
+            throw new Error('Codex terminal session is not active');
+          }
+        })
+        .catch((error) => {
+          console.error('[EditorTabStrip] failed to sync Codex thread name:', error);
+          useEditorStore.getState().updateTitle(tabId, previousTitle, true);
+          setAgentSessionName('codex', tab.targetId, previousAgentName);
+        });
+    }
+
     setRenamingTabId(null);
-  }, []);
+  }, [tabs]);
 
   return (
     <div
