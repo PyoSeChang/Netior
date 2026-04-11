@@ -4,13 +4,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin({ exclude: ['@netior/shared', '@netior/core'] })],
+    plugins: [externalizeDepsPlugin({ exclude: ['@netior/shared'] })],
     resolve: {
       alias: {
         '@main': resolve('src/main'),
         '@shared': resolve('src/shared'),
         '@netior/shared': resolve('../shared/src'),
-        '@netior/core': resolve('../netior-core/src'),
       },
     },
   },

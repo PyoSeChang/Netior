@@ -3,6 +3,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { initDatabase, closeDatabase } from '@netior/core';
 import { registerAllTools } from './tools/index.js';
 
+// MCP stdio transport requires stdout to stay protocol-only.
+console.log = (...args: unknown[]) => {
+  console.error(...args);
+};
+
 async function main(): Promise<void> {
   const dbPath = process.env.MOC_DB_PATH;
   if (!dbPath) {

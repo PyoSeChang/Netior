@@ -44,7 +44,7 @@ export function MinimizedEditorTabs(): JSX.Element | null {
                 event.stopPropagation();
                 requestCloseTab(tab.id);
               }}
-              aria-label={t('editor.closeTab')}
+              aria-label={t('editor.closeWithoutSaving')}
             >
               <X size={10} />
             </button>

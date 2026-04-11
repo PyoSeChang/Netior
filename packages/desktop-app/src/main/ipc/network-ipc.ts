@@ -1,18 +1,29 @@
 import { ipcMain } from 'electron';
 import type { IpcResult } from '@netior/shared/types';
 import {
-  createNetwork, listNetworks, updateNetwork, deleteNetwork, getNetworkFull,
-  getNetworkAncestors, getNetworkTree, getAppRootNetwork, getProjectRootNetwork,
-  addNetworkNode, updateNetworkNode, removeNetworkNode,
-  createEdge, getEdge, updateEdge, deleteEdge,
-} from '@netior/core';
+  addRemoteNetworkNode,
+  createRemoteEdge,
+  createRemoteNetwork,
+  deleteRemoteEdge,
+  deleteRemoteNetwork,
+  getRemoteAppRootNetwork,
+  getRemoteEdge,
+  getRemoteNetworkAncestors,
+  getRemoteNetworkFull,
+  getRemoteNetworkTree,
+  getRemoteProjectRootNetwork,
+  listRemoteNetworks,
+  removeRemoteNetworkNode,
+  updateRemoteEdge,
+  updateRemoteNetwork,
+  updateRemoteNetworkNode,
+} from '../netior-service/netior-service-client';
 import { broadcastChange } from './broadcast-change';
 
 export function registerNetworkIpc(): void {
-  // Network CRUD
   ipcMain.handle('network:create', async (_e, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = createNetwork(data);
+      const result = await createRemoteNetwork(data);
       broadcastChange({ type: 'networks', action: 'created', id: result.id });
       return { success: true, data: result };
     } catch (err) {
@@ -22,7 +33,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('network:list', async (_e, projectId: string, rootOnly?: boolean): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: listNetworks(projectId, rootOnly) };
+      return { success: true, data: await listRemoteNetworks(projectId, rootOnly) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -30,7 +41,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('network:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateNetwork(id, data);
+      const result = await updateRemoteNetwork(id, data);
       broadcastChange({ type: 'networks', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
@@ -40,7 +51,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('network:delete', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = deleteNetwork(id);
+      const result = await deleteRemoteNetwork(id);
       broadcastChange({ type: 'networks', action: 'deleted', id });
       return { success: true, data: result };
     } catch (err) {
@@ -50,7 +61,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('network:getFull', async (_e, networkId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getNetworkFull(networkId) };
+      return { success: true, data: await getRemoteNetworkFull(networkId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -58,7 +69,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('network:getAppRoot', async (): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getAppRootNetwork() };
+      return { success: true, data: await getRemoteAppRootNetwork() };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -66,7 +77,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('network:getProjectRoot', async (_e, projectId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getProjectRootNetwork(projectId) };
+      return { success: true, data: await getRemoteProjectRootNetwork(projectId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -74,7 +85,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('network:getAncestors', async (_e, networkId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getNetworkAncestors(networkId) };
+      return { success: true, data: await getRemoteNetworkAncestors(networkId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -82,16 +93,15 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('network:getTree', async (_e, projectId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getNetworkTree(projectId) };
+      return { success: true, data: await getRemoteNetworkTree(projectId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   });
 
-  // Network Node
   ipcMain.handle('networkNode:add', async (_e, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = addNetworkNode(data);
+      const result = await addRemoteNetworkNode(data);
       broadcastChange({ type: 'networks', action: 'updated', id: data.network_id });
       return { success: true, data: result };
     } catch (err) {
@@ -101,7 +111,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('networkNode:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateNetworkNode(id, data);
+      const result = await updateRemoteNetworkNode(id, data);
       broadcastChange({ type: 'networks', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
@@ -111,7 +121,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('networkNode:remove', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = removeNetworkNode(id);
+      const result = await removeRemoteNetworkNode(id);
       broadcastChange({ type: 'networks', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
@@ -119,10 +129,9 @@ export function registerNetworkIpc(): void {
     }
   });
 
-  // Edge
   ipcMain.handle('edge:create', async (_e, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = createEdge(data);
+      const result = await createRemoteEdge(data);
       broadcastChange({ type: 'edges', action: 'created', id: result.id });
       return { success: true, data: result };
     } catch (err) {
@@ -132,7 +141,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('edge:get', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getEdge(id) };
+      return { success: true, data: await getRemoteEdge(id) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -140,7 +149,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('edge:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateEdge(id, data);
+      const result = await updateRemoteEdge(id, data);
       broadcastChange({ type: 'edges', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
@@ -150,7 +159,7 @@ export function registerNetworkIpc(): void {
 
   ipcMain.handle('edge:delete', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = deleteEdge(id);
+      const result = await deleteRemoteEdge(id);
       broadcastChange({ type: 'edges', action: 'deleted', id });
       return { success: true, data: result };
     } catch (err) {

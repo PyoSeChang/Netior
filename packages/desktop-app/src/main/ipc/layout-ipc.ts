@@ -1,17 +1,21 @@
 import { ipcMain } from 'electron';
 import type { IpcResult } from '@netior/shared/types';
 import {
-  getLayoutByNetwork, updateLayout, deleteLayout,
-  setNodePosition, getNodePositions, removeNodePosition,
-  setEdgeVisual, getEdgeVisuals, removeEdgeVisual,
-} from '@netior/core';
+  getRemoteLayoutByNetwork,
+  getRemoteLayoutEdgeVisuals,
+  getRemoteLayoutNodePositions,
+  removeRemoteLayoutEdgeVisual,
+  removeRemoteLayoutNodePosition,
+  setRemoteLayoutEdgeVisual,
+  setRemoteLayoutNodePosition,
+  updateRemoteLayout,
+} from '../netior-service/netior-service-client';
 import { broadcastChange } from './broadcast-change';
 
 export function registerLayoutIpc(): void {
-  // Layout
   ipcMain.handle('layout:getByNetwork', async (_e, networkId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getLayoutByNetwork(networkId) };
+      return { success: true, data: await getRemoteLayoutByNetwork(networkId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -19,7 +23,7 @@ export function registerLayoutIpc(): void {
 
   ipcMain.handle('layout:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateLayout(id, data);
+      const result = await updateRemoteLayout(id, data);
       broadcastChange({ type: 'layouts', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
@@ -27,10 +31,9 @@ export function registerLayoutIpc(): void {
     }
   });
 
-  // Layout Nodes
   ipcMain.handle('layoutNode:setPosition', async (_e, layoutId: string, nodeId: string, positionJson: string): Promise<IpcResult<unknown>> => {
     try {
-      setNodePosition(layoutId, nodeId, positionJson);
+      await setRemoteLayoutNodePosition(layoutId, nodeId, positionJson);
       broadcastChange({ type: 'layouts', action: 'updated', id: layoutId });
       return { success: true, data: true };
     } catch (err) {
@@ -40,7 +43,7 @@ export function registerLayoutIpc(): void {
 
   ipcMain.handle('layoutNode:getPositions', async (_e, layoutId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getNodePositions(layoutId) };
+      return { success: true, data: await getRemoteLayoutNodePositions(layoutId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -48,7 +51,7 @@ export function registerLayoutIpc(): void {
 
   ipcMain.handle('layoutNode:remove', async (_e, layoutId: string, nodeId: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = removeNodePosition(layoutId, nodeId);
+      const result = await removeRemoteLayoutNodePosition(layoutId, nodeId);
       broadcastChange({ type: 'layouts', action: 'updated', id: layoutId });
       return { success: true, data: result };
     } catch (err) {
@@ -56,10 +59,9 @@ export function registerLayoutIpc(): void {
     }
   });
 
-  // Layout Edges
   ipcMain.handle('layoutEdge:setVisual', async (_e, layoutId: string, edgeId: string, visualJson: string): Promise<IpcResult<unknown>> => {
     try {
-      setEdgeVisual(layoutId, edgeId, visualJson);
+      await setRemoteLayoutEdgeVisual(layoutId, edgeId, visualJson);
       broadcastChange({ type: 'layouts', action: 'updated', id: layoutId });
       return { success: true, data: true };
     } catch (err) {
@@ -69,7 +71,7 @@ export function registerLayoutIpc(): void {
 
   ipcMain.handle('layoutEdge:getVisuals', async (_e, layoutId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getEdgeVisuals(layoutId) };
+      return { success: true, data: await getRemoteLayoutEdgeVisuals(layoutId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -77,7 +79,7 @@ export function registerLayoutIpc(): void {
 
   ipcMain.handle('layoutEdge:remove', async (_e, layoutId: string, edgeId: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = removeEdgeVisual(layoutId, edgeId);
+      const result = await removeRemoteLayoutEdgeVisual(layoutId, edgeId);
       broadcastChange({ type: 'layouts', action: 'updated', id: layoutId });
       return { success: true, data: result };
     } catch (err) {

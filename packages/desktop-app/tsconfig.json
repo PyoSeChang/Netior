@@ -8,8 +8,7 @@
       "@/*": ["src/*"],
       "@main/*": ["src/main/*"],
       "@renderer/*": ["src/renderer/*"],
-      "@shared/*": ["src/shared/*"],
-      "@netior/shared/types": ["../shared/src/types/index.ts"]
+      "@shared/*": ["src/shared/*"]
     },
     "jsx": "react-jsx"
   },

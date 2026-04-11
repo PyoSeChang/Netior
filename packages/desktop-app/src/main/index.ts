@@ -2,11 +2,13 @@ import { app, shell, BrowserWindow, ipcMain, Menu, Notification, nativeImage } f
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { mkdirSync, existsSync } from 'fs';
-import { initDatabase, closeDatabase, getSetting, setSetting } from '@netior/core';
 import { registerAllIpc } from './ipc';
 import { ptyManager } from './pty/pty-manager';
-import { startNarreServer, stopNarreServer } from './process/narre-server-manager';
+import { stopNarreServer } from './process/narre-server-manager';
+import { startNetiorService, stopNetiorService } from './process/netior-service-manager';
 import { agentRuntimeManager } from './agent-runtime/agent-runtime-manager';
+import { getConfiguredNarreProvider, syncNarreServerWithSettings } from './narre/narre-config';
+import { getRemoteConfig, setRemoteConfig } from './netior-service/netior-service-client';
 
 // Force userData to %APPDATA%/netior
 app.name = 'Netior';
@@ -55,25 +57,27 @@ function attachWindowStateEvents(win: BrowserWindow): void {
   win.on('leave-full-screen', () => sendWindowMaximizedState(win));
 }
 
-function loadWindowBounds(): { width: number; height: number; x?: number; y?: number; isMaximized?: boolean } {
-  const raw = getSetting('windowBounds');
+async function loadWindowBounds(): Promise<{ width: number; height: number; x?: number; y?: number; isMaximized?: boolean }> {
+  const raw = await getRemoteConfig('windowBounds');
   if (raw) {
     try {
-      return JSON.parse(raw);
+      return typeof raw === 'string'
+        ? JSON.parse(raw)
+        : raw as { width: number; height: number; x?: number; y?: number; isMaximized?: boolean };
     } catch { /* use defaults */ }
   }
   return { width: 1200, height: 800 };
 }
 
-function saveWindowBounds(win: BrowserWindow): void {
+async function saveWindowBounds(win: BrowserWindow): Promise<void> {
   const isMaximized = win.isMaximized();
   // Save normal (non-maximized) bounds so restore works correctly
   const bounds = isMaximized ? (win as any)._lastNormalBounds ?? win.getNormalBounds() : win.getBounds();
-  setSetting('windowBounds', JSON.stringify({ ...bounds, isMaximized }));
+  await setRemoteConfig('windowBounds', JSON.stringify({ ...bounds, isMaximized }));
 }
 
-function createWindow(): void {
-  const saved = loadWindowBounds();
+async function createWindow(): Promise<void> {
+  const saved = await loadWindowBounds();
 
   mainWindow = new BrowserWindow({
     width: saved.width,
@@ -112,7 +116,9 @@ function createWindow(): void {
   });
 
   mainWindow.on('close', () => {
-    if (mainWindow) saveWindowBounds(mainWindow);
+    if (mainWindow) {
+      void saveWindowBounds(mainWindow);
+    }
   });
 
   mainWindow.on('ready-to-show', () => {
@@ -176,18 +182,27 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  // Initialize database with injectable path
   const dbDir = join(app.getPath('userData'), 'data');
   mkdirSync(dbDir, { recursive: true });
   const dbPath = join(dbDir, is.dev ? 'netior-dev.db' : 'netior.db');
-  console.log(`[DB] Using database: ${dbPath}`);
   const nativeBinding = getNativeBinding();
-  initDatabase(dbPath, nativeBinding ? { nativeBinding } : undefined);
+  const netiorServiceStarted = await startNetiorService({
+    dbPath,
+    nativeBinding,
+  });
+  if (!netiorServiceStarted) {
+    throw new Error('Netior service failed to start');
+  }
+  console.log('[netior-service] Startup enabled');
   registerAllIpc();
 
-  // Start Narre server (Claude Agent SDK falls back to OAuth if no API key)
-  const apiKey = getSetting('anthropic_api_key') || '';
-  startNarreServer({ apiKey, dbPath, dataDir: dbDir });
+  try {
+    const narreProvider = await getConfiguredNarreProvider();
+    const narreStarted = await syncNarreServerWithSettings();
+    console.log(`[narre-server] Startup ${narreStarted ? 'enabled' : 'skipped'} (provider=${narreProvider})`);
+  } catch (error) {
+    console.warn(`[narre-server] Startup skipped: ${(error as Error).message}`);
+  }
 
   // Window control IPC
   ipcMain.on('window:minimize', (event) => {
@@ -396,14 +411,16 @@ app.whenReady().then(async () => {
     pendingDragTabId = null;
   });
 
-  createWindow();
+  await createWindow();
 
   agentRuntimeManager.start().catch((err) => {
     console.error('[AgentRuntime] Failed to start:', err);
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      void createWindow();
+    }
   });
 });
 
@@ -411,6 +428,6 @@ app.on('window-all-closed', () => {
   ptyManager.killAll();
   agentRuntimeManager.stop();
   stopNarreServer();
-  closeDatabase();
+  stopNetiorService();
   if (process.platform !== 'darwin') app.quit();
 });

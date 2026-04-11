@@ -169,7 +169,11 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
   };
 
   const browserSections = useMemo(() => {
-    const sections = [
+    const sections: Array<{
+      key: NetworkBrowserItem['objectType'];
+      label: string;
+      items: NetworkBrowserItem[];
+    }> = [
       {
         key: 'network' as const,
         label: t('sidebar.networks'),

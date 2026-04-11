@@ -507,7 +507,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           network_id: networkId ?? node.network_id,
           source_node_id: outerContainerId,
           target_node_id: childId,
-          relation_type_id: null,
+          relation_type_id: undefined,
           system_contract: 'core:contains',
         });
 

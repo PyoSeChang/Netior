@@ -1,15 +1,21 @@
 import { ipcMain } from 'electron';
 import type { IpcResult } from '@netior/shared/types';
 import {
-  createContext, listContexts, getContext, updateContext, deleteContext,
-  addContextMember, removeContextMember, getContextMembers,
-} from '@netior/core';
+  addRemoteContextMember,
+  createRemoteContext,
+  deleteRemoteContext,
+  getRemoteContext,
+  getRemoteContextMembers,
+  listRemoteContexts,
+  removeRemoteContextMember,
+  updateRemoteContext,
+} from '../netior-service/netior-service-client';
 import { broadcastChange } from './broadcast-change';
 
 export function registerContextIpc(): void {
   ipcMain.handle('context:create', async (_e, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = createContext(data);
+      const result = await createRemoteContext(data);
       broadcastChange({ type: 'contexts', action: 'created', id: result.id });
       return { success: true, data: result };
     } catch (err) {
@@ -19,7 +25,7 @@ export function registerContextIpc(): void {
 
   ipcMain.handle('context:list', async (_e, networkId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: listContexts(networkId) };
+      return { success: true, data: await listRemoteContexts(networkId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -27,7 +33,7 @@ export function registerContextIpc(): void {
 
   ipcMain.handle('context:get', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getContext(id) };
+      return { success: true, data: await getRemoteContext(id) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -35,7 +41,7 @@ export function registerContextIpc(): void {
 
   ipcMain.handle('context:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateContext(id, data);
+      const result = await updateRemoteContext(id, data);
       broadcastChange({ type: 'contexts', action: 'updated', id });
       return { success: true, data: result };
     } catch (err) {
@@ -45,7 +51,7 @@ export function registerContextIpc(): void {
 
   ipcMain.handle('context:delete', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = deleteContext(id);
+      const result = await deleteRemoteContext(id);
       broadcastChange({ type: 'contexts', action: 'deleted', id });
       return { success: true, data: result };
     } catch (err) {
@@ -55,7 +61,7 @@ export function registerContextIpc(): void {
 
   ipcMain.handle('context:addMember', async (_e, contextId: string, memberType: string, memberId: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = addContextMember(contextId, memberType as 'object' | 'edge', memberId);
+      const result = await addRemoteContextMember(contextId, memberType as 'object' | 'edge', memberId);
       broadcastChange({ type: 'contexts', action: 'updated', id: contextId });
       return { success: true, data: result };
     } catch (err) {
@@ -65,8 +71,7 @@ export function registerContextIpc(): void {
 
   ipcMain.handle('context:removeMember', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = removeContextMember(id);
-      return { success: true, data: result };
+      return { success: true, data: await removeRemoteContextMember(id) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -74,7 +79,7 @@ export function registerContextIpc(): void {
 
   ipcMain.handle('context:getMembers', async (_e, contextId: string): Promise<IpcResult<unknown>> => {
     try {
-      return { success: true, data: getContextMembers(contextId) };
+      return { success: true, data: await getRemoteContextMembers(contextId) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }

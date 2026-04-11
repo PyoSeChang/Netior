@@ -2496,7 +2496,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     type: 'file' | 'dir',
     position: { x: number; y: number },
   ) => {
-    if (!currentNetwork) return;
+    if (!currentNetwork || !projectId) return;
 
     let fileEntity = await fileService.getByPath(projectId, path);
     if (!fileEntity) {

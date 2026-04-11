@@ -6,11 +6,24 @@ import { randomUUID } from 'crypto';
 import type { IpcResult, NarreSession, NarreStreamEvent } from '@netior/shared/types';
 import { IPC_CHANNELS } from '@netior/shared/constants';
 import {
-  getSetting, setSetting,
-  searchConcepts, listArchetypes, listRelationTypes, listNetworks,
-  getProjectById, getFileEntitiesByProject,
-} from '@netior/core';
-import { startNarreServer, isNarreServerRunning } from '../process/narre-server-manager';
+  getRemoteProject,
+  listRemoteArchetypes,
+  listRemoteFilesByProject,
+  listRemoteNetworks,
+  listRemoteRelationTypes,
+  searchRemoteConcepts,
+} from '../netior-service/netior-service-client';
+import {
+  getNarreServerBaseUrl,
+  isNarreServerRunning,
+} from '../process/narre-server-manager';
+import {
+  getApiKeySettingKey,
+  getConfiguredNarreApiKey,
+  getConfiguredNarreProvider,
+  syncNarreServerWithSettings,
+  writeNarreSetting,
+} from '../narre/narre-config';
 
 function getNarreDir(projectId: string): string {
   const dir = join(app.getPath('userData'), 'data', 'narre', projectId);
@@ -35,11 +48,107 @@ function saveSessionsIndex(projectId: string, data: { sessions: NarreSession[] }
   writeFileSync(indexPath, JSON.stringify(data, null, 2), 'utf-8');
 }
 
+function getNarreServerUrl(path: string): URL {
+  const baseUrl = getNarreServerBaseUrl();
+  if (!baseUrl) {
+    throw new Error('Narre server is not running');
+  }
+
+  return new URL(path, baseUrl);
+}
+
+async function ensureNarreServerBaseUrl(): Promise<string> {
+  const existingBaseUrl = getNarreServerBaseUrl();
+  if (existingBaseUrl) {
+    return existingBaseUrl;
+  }
+
+  try {
+    const started = await syncNarreServerWithSettings();
+    if (!started) {
+      throw new Error('Narre server start was skipped. Check the selected provider and API key.');
+    }
+  } catch (error) {
+    const logPath = join(app.getPath('userData'), 'data', 'logs', 'narre-server.log');
+    throw new Error(`${(error as Error).message} See ${logPath}`);
+  }
+
+  const restartedBaseUrl = getNarreServerBaseUrl();
+  if (!restartedBaseUrl) {
+    const logPath = join(app.getPath('userData'), 'data', 'logs', 'narre-server.log');
+    throw new Error(`Narre server failed to start. See ${logPath}`);
+  }
+
+  return restartedBaseUrl;
+}
+
+async function requestNarreServer<T>(path: string, init?: RequestInit): Promise<T> {
+  const baseUrl = await ensureNarreServerBaseUrl();
+
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    let message = `Narre server request failed: ${response.status}`;
+    try {
+      const payload = await response.json() as { error?: string };
+      if (payload.error) {
+        message = payload.error;
+      }
+    } catch {
+      // Ignore parse failures and keep the HTTP status message.
+    }
+    throw new Error(message);
+  }
+
+  return await response.json() as T;
+}
+
+async function listRemoteNarreSessions(projectId: string): Promise<NarreSession[]> {
+  return requestNarreServer<NarreSession[]>(`/sessions?projectId=${encodeURIComponent(projectId)}`);
+}
+
+async function createRemoteNarreSession(projectId: string): Promise<NarreSession> {
+  return requestNarreServer<NarreSession>('/sessions', {
+    method: 'POST',
+    body: JSON.stringify({ projectId }),
+  });
+}
+
+async function getRemoteNarreSession(sessionId: string): Promise<unknown> {
+  const payload = await requestNarreServer<{
+    projectId?: string;
+    session: NarreSession;
+    messages: unknown[];
+  }>(`/sessions/${encodeURIComponent(sessionId)}`);
+
+  return {
+    ...payload.session,
+    messages: payload.messages,
+    ...(payload.projectId ? { projectId: payload.projectId } : {}),
+  };
+}
+
+async function deleteRemoteNarreSession(sessionId: string): Promise<boolean> {
+  const payload = await requestNarreServer<{ success: boolean }>(`/sessions/${encodeURIComponent(sessionId)}`, {
+    method: 'DELETE',
+  });
+  return payload.success;
+}
+
 export function registerNarreIpc(): void {
   ipcMain.handle(IPC_CHANNELS.NARRE_LIST_SESSIONS, async (_e, projectId: string): Promise<IpcResult<NarreSession[]>> => {
     try {
+      if (isNarreServerRunning()) {
+        return { success: true, data: await listRemoteNarreSessions(projectId) };
+      }
+
       const index = getSessionsIndex(projectId);
-      // Sort by last_message_at descending
       index.sessions.sort((a, b) =>
         new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime(),
       );
@@ -51,6 +160,10 @@ export function registerNarreIpc(): void {
 
   ipcMain.handle(IPC_CHANNELS.NARRE_CREATE_SESSION, async (_e, projectId: string): Promise<IpcResult<NarreSession>> => {
     try {
+      if (isNarreServerRunning()) {
+        return { success: true, data: await createRemoteNarreSession(projectId) };
+      }
+
       const now = new Date().toISOString();
       const session: NarreSession = {
         id: randomUUID(),
@@ -77,6 +190,10 @@ export function registerNarreIpc(): void {
 
   ipcMain.handle(IPC_CHANNELS.NARRE_GET_SESSION, async (_e, sessionId: string): Promise<IpcResult<unknown>> => {
     try {
+      if (isNarreServerRunning()) {
+        return { success: true, data: await getRemoteNarreSession(sessionId) };
+      }
+
       // We need to search across all project dirs to find the session
       // For now, the sessionId is globally unique, so we scan
       const baseDir = join(app.getPath('userData'), 'data', 'narre');
@@ -107,6 +224,10 @@ export function registerNarreIpc(): void {
 
   ipcMain.handle(IPC_CHANNELS.NARRE_DELETE_SESSION, async (_e, sessionId: string): Promise<IpcResult<boolean>> => {
     try {
+      if (isNarreServerRunning()) {
+        return { success: true, data: await deleteRemoteNarreSession(sessionId) };
+      }
+
       const baseDir = join(app.getPath('userData'), 'data', 'narre');
       if (!existsSync(baseDir)) {
         return { success: false, error: 'Session not found' };
@@ -140,8 +261,13 @@ export function registerNarreIpc(): void {
 
   ipcMain.handle(IPC_CHANNELS.NARRE_GET_API_KEY_STATUS, async (): Promise<IpcResult<boolean>> => {
     try {
-      const key = getSetting('anthropic_api_key');
-      return { success: true, data: !!key && key.length > 0 };
+      const provider = await getConfiguredNarreProvider();
+      if (provider === 'codex') {
+        return { success: true, data: true };
+      }
+
+      const key = await getConfiguredNarreApiKey(provider);
+      return { success: true, data: typeof key === 'string' && key.length > 0 };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -149,13 +275,13 @@ export function registerNarreIpc(): void {
 
   ipcMain.handle(IPC_CHANNELS.NARRE_SET_API_KEY, async (_e, key: string): Promise<IpcResult<boolean>> => {
     try {
-      setSetting('anthropic_api_key', key);
-      // Start narre-server if not already running
-      if (key && !isNarreServerRunning()) {
-        const dbDir = join(app.getPath('userData'), 'data');
-        const dbPath = join(dbDir, 'netior.db'); // Will be overridden by env in dev
-        startNarreServer({ apiKey: key, dbPath, dataDir: dbDir });
+      const provider = await getConfiguredNarreProvider();
+      const keySetting = getApiKeySettingKey(provider);
+      if (!keySetting) {
+        return { success: false, error: 'Selected Narre provider uses local Codex login instead of an API key.' };
       }
+      await writeNarreSetting(keySetting, key);
+      await syncNarreServerWithSettings();
       return { success: true, data: true };
     } catch (err) {
       return { success: false, error: (err as Error).message };
@@ -170,10 +296,12 @@ export function registerNarreIpc(): void {
         description?: string | null; meta?: Record<string, unknown>;
       }> = [];
       const maxResults = 30;
+      const lowerQuery = query.toLowerCase();
 
-      // Search concepts
-      const archetypeMap = new Map(listArchetypes(projectId).map((a) => [a.id, a]));
-      const concepts = searchConcepts(projectId, query);
+      const archetypes = await listRemoteArchetypes(projectId);
+      const archetypeMap = new Map(archetypes.map((a) => [a.id, a]));
+      const concepts = await searchRemoteConcepts(projectId, query);
+
       for (const c of concepts) {
         if (results.length >= maxResults) break;
         const arch = c.archetype_id ? archetypeMap.get(c.archetype_id) : null;
@@ -184,7 +312,6 @@ export function registerNarreIpc(): void {
       }
 
       // Search archetypes
-      const lowerQuery = query.toLowerCase();
       for (const a of archetypeMap.values()) {
         if (results.length >= maxResults) break;
         if (a.name.toLowerCase().includes(lowerQuery)) {
@@ -196,7 +323,7 @@ export function registerNarreIpc(): void {
       }
 
       // Search relation types
-      const relationTypes = listRelationTypes(projectId);
+      const relationTypes = await listRemoteRelationTypes(projectId);
       for (const rt of relationTypes) {
         if (results.length >= maxResults) break;
         if (rt.name.toLowerCase().includes(lowerQuery)) {
@@ -208,7 +335,7 @@ export function registerNarreIpc(): void {
       }
 
       // Search networks
-      const networks = listNetworks(projectId);
+      const networks = await listRemoteNetworks(projectId);
       for (const nw of networks) {
         if (results.length >= maxResults) break;
         if (nw.name.toLowerCase().includes(lowerQuery)) {
@@ -220,7 +347,7 @@ export function registerNarreIpc(): void {
       }
 
       // Search file entities
-      const files = getFileEntitiesByProject(projectId);
+      const files = await listRemoteFilesByProject(projectId);
       for (const fe of files) {
         if (results.length >= maxResults) break;
         const fileName = fe.path.split('/').pop() ?? fe.path;
@@ -253,24 +380,27 @@ export function registerNarreIpc(): void {
       }
 
       // Build project metadata for system prompt (narre-server doesn't access DB)
-      const project = getProjectById(projectId);
-      const archetypes = project ? listArchetypes(projectId) : [];
-      const relationTypes = project ? listRelationTypes(projectId) : [];
+      const project = await getRemoteProject(projectId);
+      const archetypes = project
+        ? await listRemoteArchetypes(projectId)
+        : [];
+      const relationTypes = project
+        ? await listRemoteRelationTypes(projectId)
+        : [];
 
       const projectMetadata = {
         projectName: project?.name ?? projectId,
+        projectRootDir: project?.root_dir ?? null,
         archetypes: archetypes.map((a) => ({ name: a.name, icon: a.icon, color: a.color, node_shape: a.node_shape })),
         relationTypes: relationTypes.map((r) => ({ name: r.name, directed: r.directed, line_style: r.line_style, color: r.color })),
       };
 
       const body = JSON.stringify({ sessionId, projectId, message, mentions, projectMetadata });
-      const agentPort = 3100;
+      const chatUrl = new URL('/chat', await ensureNarreServerBaseUrl());
 
       const req = http.request(
+        chatUrl,
         {
-          hostname: 'localhost',
-          port: agentPort,
-          path: '/chat',
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -323,7 +453,7 @@ export function registerNarreIpc(): void {
         console.error('[narre] Narre server connection error:', err.message);
         mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
           type: 'error',
-          error: `Narre server connection failed: ${err.message}. Is the API key set?`,
+          error: `Narre server connection failed: ${err.message}. Check the selected provider auth settings.`,
         } as NarreStreamEvent);
         // Send done so the UI exits streaming state
         mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
@@ -349,14 +479,12 @@ export function registerNarreIpc(): void {
       };
 
       const body = JSON.stringify({ toolCallId, response });
-      const agentPort = 3100;
+      const respondUrl = new URL('/chat/respond', await ensureNarreServerBaseUrl());
 
       return new Promise((resolve) => {
         const req = http.request(
+          respondUrl,
           {
-            hostname: 'localhost',
-            port: agentPort,
-            path: '/chat/respond',
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -396,13 +524,11 @@ export function registerNarreIpc(): void {
       }
 
       const body = JSON.stringify({ projectId, command, args });
-      const agentPort = 3100;
+      const commandUrl = new URL('/command', await ensureNarreServerBaseUrl());
 
       const req = http.request(
+        commandUrl,
         {
-          hostname: 'localhost',
-          port: agentPort,
-          path: '/command',
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

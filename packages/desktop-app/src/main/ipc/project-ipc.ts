@@ -1,12 +1,17 @@
 import { ipcMain } from 'electron';
 import type { IpcResult } from '@netior/shared/types';
-import { createProject, listProjects, deleteProject, updateProject, updateProjectRootDir } from '@netior/core';
+import {
+  createRemoteProject,
+  deleteRemoteProject,
+  listRemoteProjects,
+  updateRemoteProject,
+  updateRemoteProjectRootDir,
+} from '../netior-service/netior-service-client';
 
 export function registerProjectIpc(): void {
   ipcMain.handle('project:create', async (_e, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = createProject(data);
-      return { success: true, data: result };
+      return { success: true, data: await createRemoteProject(data) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -14,8 +19,7 @@ export function registerProjectIpc(): void {
 
   ipcMain.handle('project:list', async (): Promise<IpcResult<unknown>> => {
     try {
-      const result = listProjects();
-      return { success: true, data: result };
+      return { success: true, data: await listRemoteProjects() };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -23,8 +27,7 @@ export function registerProjectIpc(): void {
 
   ipcMain.handle('project:delete', async (_e, id: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = deleteProject(id);
-      return { success: true, data: result };
+      return { success: true, data: await deleteRemoteProject(id) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -32,8 +35,7 @@ export function registerProjectIpc(): void {
 
   ipcMain.handle('project:update', async (_e, id: string, data): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateProject(id, data);
-      return { success: true, data: result };
+      return { success: true, data: await updateRemoteProject(id, data) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -41,8 +43,7 @@ export function registerProjectIpc(): void {
 
   ipcMain.handle('project:updateRootDir', async (_e, id: string, rootDir: string): Promise<IpcResult<unknown>> => {
     try {
-      const result = updateProjectRootDir(id, rootDir);
-      return { success: true, data: result };
+      return { success: true, data: await updateRemoteProjectRootDir(id, rootDir) };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }

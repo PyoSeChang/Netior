@@ -1,7 +1,11 @@
-import type { SystemPromptParams } from '../system-prompt.js';
+import type { NarreBehaviorSettings } from '@netior/shared/types';
+import { DEFAULT_NARRE_BEHAVIOR_SETTINGS, type SystemPromptParams } from '../system-prompt.js';
 
-export function buildIndexTocPrompt(params: SystemPromptParams): string {
-  const { projectName } = params;
+export function buildIndexTocPrompt(
+  params: SystemPromptParams,
+  behavior: NarreBehaviorSettings = DEFAULT_NARRE_BEHAVIOR_SETTINGS,
+): string {
+  const { projectName, projectRootDir } = params;
 
   // Korean UI strings used in confirm cards -- centralized for maintainability
   const ui = {
@@ -20,6 +24,7 @@ export function buildIndexTocPrompt(params: SystemPromptParams): string {
 
   return `You are Narre, the AI assistant for Netior (Map of Concepts).
 You are running the **index** command for project "${projectName}".
+${projectRootDir ? `Project root directory: ${projectRootDir}` : 'Project root directory: (unknown)'}
 
 Your job: extract a structured table of contents (TOC) from a PDF file and save it to the file's metadata after user approval.
 
@@ -132,6 +137,10 @@ After saving, confirm: "${ui.savedMessage}"
 ## Rules
 
 - Respond in the same language the user uses.
+- Focus only on the target PDF, its metadata, and the explicit page ranges. Do not inspect unrelated local workspace files.
+- ${behavior.discourageLocalWorkspaceActions
+    ? 'Do not drift into generic repo or coding analysis while indexing a document.'
+    : 'Stay focused on the document indexing task unless the user explicitly broadens the scope.'}
 - Never save TOC without explicit user approval.
 - destPage must always be the physical PDF page number, not the printed page number.
 - Be concise in your analysis -- show the result, not the reasoning process.

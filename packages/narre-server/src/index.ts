@@ -1,23 +1,23 @@
 import express from 'express';
 import cors from 'cors';
-import { query } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
-import type { NarreMessage, NarreMention, NarreToolCall, NarreStreamEvent } from '@netior/shared/types';
-import { buildSystemPrompt, type SystemPromptParams } from './system-prompt.js';
-import { buildOnboardingPrompt } from './prompts/onboarding.js';
-import { buildIndexTocPrompt } from './prompts/index-toc.js';
+import type { NarreBehaviorSettings, NarreCodexSettings, NarreMention } from '@netior/shared/types';
+import {
+  normalizeNarreBehaviorSettings,
+  type SystemPromptParams,
+} from './system-prompt.js';
 import { SessionStore } from './session-store.js';
 import { initSSE, sendSSEEvent, endSSE } from './streaming.js';
-import { parseCommand, isConversationCommand } from './command-router.js';
-import { createNarreUiServer, resolveUiCall } from './ui-tools.js';
-
-// Command-specific system prompt builders
-const commandPromptBuilders: Record<string, (params: SystemPromptParams) => string> = {
-  onboarding: buildOnboardingPrompt,
-  index: buildIndexTocPrompt,
-};
+import { parseCommand } from './command-router.js';
+import { NarreRuntime } from './runtime/narre-runtime.js';
+import type { NarreProviderAdapter } from './runtime/provider-adapter.js';
+import { ClaudeProviderAdapter } from './providers/claude.js';
+import { OpenAIProviderAdapter } from './providers/openai.js';
+import { CodexProviderAdapter } from './providers/codex.js';
+import { normalizeCodexRuntimeSettings } from './providers/openai-family/codex-transport.js';
+import { initNarreLogging } from './logging.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -35,10 +35,24 @@ if (!MOC_DB_PATH) {
   process.exit(1);
 }
 
+const narreLogFilePath = initNarreLogging(MOC_DATA_DIR);
+console.log(`[narre] Log file: ${narreLogFilePath}`);
+
 // UI tools may block waiting for user interaction — extend stream close timeout
 process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT = process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT || '300000';
 
 const sessionStore = new SessionStore(MOC_DATA_DIR);
+const behaviorSettings = parseBehaviorSettings();
+const codexSettings = parseCodexSettings();
+const provider = createProviderAdapter(process.env.NARRE_PROVIDER ?? 'claude');
+const runtime = new NarreRuntime({
+  mcpDbPath: MOC_DB_PATH,
+  electronPath: process.env.NETIOR_ELECTRON_PATH,
+  behaviorSettings,
+  provider,
+  resolveMcpServerPath,
+  sessionStore,
+});
 const app = express();
 
 app.use(cors());
@@ -67,20 +81,22 @@ app.post('/sessions', async (req, res) => {
 });
 
 app.get('/sessions/:id', async (req, res) => {
-  const projectId = req.query.projectId as string;
-  if (!projectId) { res.status(400).json({ error: 'projectId required' }); return; }
   try {
-    const result = await sessionStore.getSession(req.params.id, projectId);
+    const projectId = req.query.projectId as string | undefined;
+    const result = projectId
+      ? await sessionStore.getSession(req.params.id, projectId)
+      : await sessionStore.getSessionById(req.params.id);
     if (!result) { res.status(404).json({ error: 'Session not found' }); return; }
     res.json(result);
   } catch (error) { res.status(500).json({ error: (error as Error).message }); }
 });
 
 app.delete('/sessions/:id', async (req, res) => {
-  const projectId = req.query.projectId as string;
-  if (!projectId) { res.status(400).json({ error: 'projectId required' }); return; }
   try {
-    const deleted = await sessionStore.deleteSession(req.params.id, projectId);
+    const projectId = req.query.projectId as string | undefined;
+    const deleted = projectId
+      ? await sessionStore.deleteSession(req.params.id, projectId)
+      : await sessionStore.deleteSessionById(req.params.id);
     if (!deleted) { res.status(404).json({ error: 'Session not found' }); return; }
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: (error as Error).message }); }
@@ -90,7 +106,7 @@ app.delete('/sessions/:id', async (req, res) => {
 app.post('/chat/respond', (req, res) => {
   const { toolCallId, response } = req.body;
   if (!toolCallId) { res.status(400).json({ error: 'toolCallId required' }); return; }
-  const resolved = resolveUiCall(toolCallId, response);
+  const resolved = runtime.resolveUiCall(toolCallId, response);
   if (!resolved) { res.status(404).json({ error: 'No pending UI call' }); return; }
   res.json({ ok: true });
 });
@@ -126,25 +142,34 @@ app.post('/chat', async (req, res) => {
     return;
   }
 
-  // Check if message is a slash command
   const parsedCommand = parseCommand(message);
-
-  // System commands should use the /command endpoint
   if (parsedCommand && parsedCommand.command.type === 'system') {
     res.status(400).json({ error: 'Use /command endpoint for system commands' });
     return;
   }
 
-  let activeSessionId = sessionId;
+  initSSE(res);
 
   try {
-    // 1. Resolve or create session
-    if (!activeSessionId) {
-      const newSession = await sessionStore.createSession(projectId, message.slice(0, 60));
-      activeSessionId = newSession.id;
-    }
+    console.log(
+      `[narre] Chat request provider=${provider.name} project=${projectId} session=${sessionId ?? 'new'} ` +
+      `chars=${message.length} mentions=${mentions?.length ?? 0}`,
+    );
 
-    initSSE(res);
+    const result = await runtime.runChat(
+      { sessionId, projectId, message, mentions, projectMetadata },
+      {
+        onText: (content) => sendSSEEvent(res, { type: 'text', content }),
+        onToolStart: (tool, toolInput) => sendSSEEvent(res, { type: 'tool_start', tool, toolInput }),
+        onToolEnd: (tool, toolResult) => sendSSEEvent(res, { type: 'tool_end', tool, toolResult }),
+        onCard: (card) => sendSSEEvent(res, { type: 'card', card }),
+        onError: (error) => sendSSEEvent(res, { type: 'error', error }),
+      },
+    );
+    console.log(`[narre] Chat completed provider=${provider.name} session=${result.sessionId}`);
+    sendSSEEvent(res, { type: 'done', sessionId: result.sessionId });
+    return;
+    /*
 
     // 2. Build system prompt — use command-specific prompt if available
     const metadata = projectMetadata ?? {
@@ -289,15 +314,13 @@ app.post('/chat', async (req, res) => {
 
     sendSSEEvent(res, { type: 'done', sessionId: activeSessionId });
     endSSE(res);
+    */
   } catch (error) {
     console.error('Chat endpoint error:', error);
-    if (res.headersSent) {
-      sendSSEEvent(res, { type: 'error', error: (error as Error).message });
-      sendSSEEvent(res, { type: 'done', sessionId: activeSessionId });
-      endSSE(res);
-    } else {
-      res.status(500).json({ error: (error as Error).message });
-    }
+    sendSSEEvent(res, { type: 'error', error: (error as Error).message });
+    sendSSEEvent(res, { type: 'done', sessionId });
+  } finally {
+    endSSE(res);
   }
 });
 
@@ -313,21 +336,57 @@ function resolveMcpServerPath(): string | null {
   return null;
 }
 
-function buildMentionTag(mention: NarreMention): string {
-  switch (mention.type) {
-    case 'concept': return `[concept:id=${mention.id}, title="${mention.display}"]`;
-    case 'network': return `[network:id=${mention.id}, name="${mention.display}"]`;
-    case 'edge': return `[edge:id=${mention.id}]`;
-    case 'archetype': return `[archetype:id=${mention.id}, name="${mention.display}"]`;
-    case 'relationType': return `[relationType:id=${mention.id}, name="${mention.display}"]`;
-    case 'module': return `[module:path="${mention.path}"]`;
-    case 'file': return `[file:path="${mention.path}"]`;
-    default: return mention.display;
+function createProviderAdapter(providerName: string): NarreProviderAdapter {
+  switch (providerName) {
+    case 'claude':
+      return new ClaudeProviderAdapter();
+    case 'openai':
+      return new OpenAIProviderAdapter({
+        dataDir: MOC_DATA_DIR!,
+        model: process.env.NARRE_OPENAI_MODEL,
+      });
+    case 'codex':
+      return new CodexProviderAdapter({
+        dataDir: MOC_DATA_DIR!,
+        model: process.env.NARRE_CODEX_MODEL,
+        runtimeSettings: codexSettings,
+      });
+    default:
+      throw new Error(`Unsupported Narre provider: ${providerName}`);
+  }
+}
+
+function parseBehaviorSettings(): NarreBehaviorSettings {
+  const raw = process.env.NARRE_BEHAVIOR_SETTINGS_JSON;
+  if (!raw) {
+    return normalizeNarreBehaviorSettings(undefined);
+  }
+
+  try {
+    return normalizeNarreBehaviorSettings(JSON.parse(raw));
+  } catch (error) {
+    console.warn(`[narre] Failed to parse NARRE_BEHAVIOR_SETTINGS_JSON: ${(error as Error).message}`);
+    return normalizeNarreBehaviorSettings(undefined);
+  }
+}
+
+function parseCodexSettings(): NarreCodexSettings {
+  const raw = process.env.NARRE_CODEX_SETTINGS_JSON;
+  if (!raw) {
+    return normalizeCodexRuntimeSettings(undefined);
+  }
+
+  try {
+    return normalizeCodexRuntimeSettings(JSON.parse(raw));
+  } catch (error) {
+    console.warn(`[narre] Failed to parse NARRE_CODEX_SETTINGS_JSON: ${(error as Error).message}`);
+    return normalizeCodexRuntimeSettings(undefined);
   }
 }
 
 app.listen(PORT, () => {
   console.log(`Narre server listening on port ${PORT}`);
+  console.log(`Provider: ${provider.name}`);
   console.log(`Data directory: ${MOC_DATA_DIR}`);
   console.log(`MCP DB path: ${MOC_DB_PATH}`);
 });

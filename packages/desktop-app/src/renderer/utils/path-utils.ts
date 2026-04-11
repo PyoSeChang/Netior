@@ -28,10 +28,17 @@ export function toRelativePath(rootDir: string, absolutePath: string): string {
 
 /**
  * Convert a relative path (from project root) to an absolute path.
+ * If the input is already absolute, return it normalized.
  * Both inputs are normalized to forward slashes.
  */
 export function toAbsolutePath(rootDir: string, relativePath: string): string {
   const root = normalizePath(rootDir);
-  const rel = normalizePath(relativePath).replace(/^\//, '');
-  return root + '/' + rel;
+  const normalizedPath = normalizePath(relativePath);
+
+  if (/^(?:[A-Za-z]:\/|\/|\/\/)/.test(normalizedPath)) {
+    return normalizedPath;
+  }
+
+  const rel = normalizedPath.replace(/^\//, '');
+  return root ? `${root}/${rel}` : rel;
 }

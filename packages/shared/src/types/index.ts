@@ -671,6 +671,29 @@ export interface NarreToolCall {
   error?: string;
 }
 
+export type NarreGraphPriority = 'balanced' | 'strict';
+
+export interface NarreBehaviorSettings {
+  graphPriority: NarreGraphPriority;
+  discourageLocalWorkspaceActions: boolean;
+  extraInstructions?: string;
+}
+
+export type NarreCodexSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access';
+export type NarreCodexApprovalPolicy = 'untrusted' | 'on-request' | 'never';
+
+export interface NarreCodexSettings {
+  model?: string;
+  useProjectRootAsWorkingDirectory: boolean;
+  sandboxMode: NarreCodexSandboxMode;
+  approvalPolicy: NarreCodexApprovalPolicy;
+  enableShellTool: boolean;
+  enableMultiAgent: boolean;
+  enableWebSearch: boolean;
+  enableViewImage: boolean;
+  enableApps: boolean;
+}
+
 export interface NarreStreamEvent {
   type: 'text' | 'tool_start' | 'tool_end' | 'error' | 'done' | 'card';
   content?: string;

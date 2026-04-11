@@ -224,8 +224,21 @@ export function NarreChat({
         message: text,
         mentions: mentions.length > 0 ? mentions : undefined,
       });
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send Narre message';
+      const errorMsg: NarreMessage = {
+        role: 'assistant',
+        content: `[Error: ${message}]`,
+        timestamp: new Date().toISOString(),
+      };
+      streamingContentRef.current = '';
+      streamingToolCallsRef.current = [];
+      streamingCardsRef.current = [];
+      setStreamingContent('');
+      setStreamingToolCalls([]);
+      setStreamingCards([]);
       setIsStreaming(false);
+      setMessages((prev) => [...prev, errorMsg]);
     }
   }, [sessionId, projectId, onSessionCreated]);
 

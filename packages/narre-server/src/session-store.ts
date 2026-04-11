@@ -96,6 +96,28 @@ export class SessionStore {
     return { session, messages: file?.messages ?? [] };
   }
 
+  private async listProjectIds(): Promise<string[]> {
+    try {
+      const entries = await fs.readdir(path.join(this.dataDir, 'narre'), { withFileTypes: true });
+      return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+    } catch {
+      return [];
+    }
+  }
+
+  async getSessionById(
+    sessionId: string,
+  ): Promise<{ projectId: string; session: NarreSession; messages: NarreMessage[] } | null> {
+    const projectIds = await this.listProjectIds();
+    for (const projectId of projectIds) {
+      const result = await this.getSession(sessionId, projectId);
+      if (result) {
+        return { projectId, ...result };
+      }
+    }
+    return null;
+  }
+
   async appendMessage(sessionId: string, projectId: string, message: NarreMessage): Promise<void> {
     // Update session file
     const file = await this.readSessionFile(projectId, sessionId) ?? { messages: [] };
@@ -136,5 +158,16 @@ export class SessionStore {
       // file may not exist
     }
     return true;
+  }
+
+  async deleteSessionById(sessionId: string): Promise<boolean> {
+    const projectIds = await this.listProjectIds();
+    for (const projectId of projectIds) {
+      const deleted = await this.deleteSession(sessionId, projectId);
+      if (deleted) {
+        return true;
+      }
+    }
+    return false;
   }
 }

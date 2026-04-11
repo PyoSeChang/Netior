@@ -46,7 +46,7 @@ export async function sendMessage(data: {
   mentions?: NarreMention[];
 }): Promise<void> {
   // Fire-and-forget: streaming events come via onStreamEvent
-  await window.electron.narre.sendMessage(data as Record<string, unknown>);
+  unwrapIpc(await window.electron.narre.sendMessage(data as Record<string, unknown>));
 }
 
 export function onStreamEvent(callback: (event: unknown) => void): () => void {
@@ -58,7 +58,7 @@ export async function respondToCard(
   toolCallId: string,
   response: unknown,
 ): Promise<void> {
-  await window.electron.narre.respondToCard({ sessionId, toolCallId, response });
+  unwrapIpc(await window.electron.narre.respondToCard({ sessionId, toolCallId, response }));
 }
 
 export async function executeCommand(
@@ -66,7 +66,7 @@ export async function executeCommand(
   command: string,
   args?: Record<string, string>,
 ): Promise<void> {
-  await window.electron.narre.executeCommand({ projectId, command, args });
+  unwrapIpc(await window.electron.narre.executeCommand({ projectId, command, args }));
 }
 
 export const narreService = {
