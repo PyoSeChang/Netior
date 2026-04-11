@@ -20,14 +20,14 @@ function getWindowsBuildNumber(): number | null {
   return Number.isFinite(buildNumber) ? buildNumber : null;
 }
 
-function getWorktreeLabel(): string | null {
+function getWorktreeLabel(): string {
   const normalized = process.cwd().replace(/\\/g, '/');
   const marker = '/.claude/worktrees/';
   const markerIndex = normalized.indexOf(marker);
-  if (markerIndex === -1) return null;
+  if (markerIndex === -1) return 'main';
 
-  const label = normalized.slice(markerIndex + marker.length).split('/').filter(Boolean).join('/');
-  return label || null;
+  const segments = normalized.slice(markerIndex + marker.length).split('/').filter(Boolean);
+  return segments[0] || 'main';
 }
 
 const electronAPI = {
