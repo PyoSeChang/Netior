@@ -39,6 +39,7 @@
     "@netior/shared": "workspace:*",
     "@uiw/react-codemirror": "^4.25.9",
     "@xterm/addon-fit": "0.12.0-beta.191",
+    "@xterm/addon-search": "0.17.0-beta.191",
     "@xterm/addon-web-links": "0.13.0-beta.191",
     "@xterm/addon-webgl": "0.20.0-beta.190",
     "@xterm/xterm": "6.1.0-beta.191",

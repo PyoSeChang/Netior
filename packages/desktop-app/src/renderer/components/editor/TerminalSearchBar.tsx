@@ -1,24 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
 import { useI18n } from '../../hooks/useI18n';
 import { IconButton } from '../ui/IconButton';
 import { ChevronUp, ChevronDown, X } from 'lucide-react';
+import type { TerminalEngineInstance } from '../../lib/terminal/engine';
 
-interface XtermWithFind {
-  findNext(term: string, opts: { incremental?: boolean }): Promise<boolean>;
-  findPrevious(term: string, opts: { incremental?: boolean }): Promise<boolean>;
-  clearSearchDecorations(): void;
-  clearActiveSearchDecoration(): void;
-  findResult?: { resultIndex: number; resultCount: number };
-  onDidChangeFindResults?: (listener: (result: { resultIndex: number; resultCount: number }) => void) => { dispose(): void };
-}
-
-function getXterm(instance: ITerminalInstance | null): XtermWithFind | undefined {
-  return (instance as unknown as { xterm?: XtermWithFind })?.xterm;
+function getSearchController(instance: TerminalEngineInstance | null) {
+  return instance?.getSearchController();
 }
 
 interface TerminalSearchBarProps {
-  instanceRef: React.RefObject<ITerminalInstance | null>;
+  instanceRef: React.RefObject<TerminalEngineInstance | null>;
   onClose: () => void;
 }
 
@@ -36,9 +27,9 @@ export function TerminalSearchBar({ instanceRef, onClose }: TerminalSearchBarPro
     inputRef.current?.select();
 
     // Subscribe to find result changes
-    const xterm = getXterm(instanceRef.current);
-    if (xterm?.onDidChangeFindResults) {
-      findResultListenerRef.current = xterm.onDidChangeFindResults((result) => {
+    const searchController = getSearchController(instanceRef.current);
+    if (searchController?.onDidChangeFindResults) {
+      findResultListenerRef.current = searchController.onDidChangeFindResults((result) => {
         setMatchIndex(result.resultIndex);
         setMatchCount(result.resultCount);
         setNotFound(result.resultCount === 0);
@@ -48,31 +39,30 @@ export function TerminalSearchBar({ instanceRef, onClose }: TerminalSearchBarPro
     return () => {
       findResultListenerRef.current?.dispose();
       findResultListenerRef.current = null;
-      getXterm(instanceRef.current)?.clearSearchDecorations();
+      getSearchController(instanceRef.current)?.clearSearchDecorations();
     };
   }, [instanceRef]);
 
   const doFind = useCallback((direction: 'next' | 'previous') => {
-    const xterm = getXterm(instanceRef.current);
-    if (!xterm || !query) {
+    const searchController = getSearchController(instanceRef.current);
+    if (!searchController || !query) {
       setMatchIndex(-1);
       setMatchCount(0);
       setNotFound(false);
       return;
     }
 
-    const fn = direction === 'next' ? xterm.findNext : xterm.findPrevious;
-    void fn.call(xterm, query, { incremental: direction === 'next' }).then((found) => {
+    const fn = direction === 'next' ? searchController.findNext : searchController.findPrevious;
+    void fn.call(searchController, query, { incremental: direction === 'next' }).then((found) => {
       if (!found) {
         setNotFound(true);
         setMatchIndex(-1);
         setMatchCount(0);
       } else {
         setNotFound(false);
-        // Read latest result from xterm
-        if (xterm.findResult) {
-          setMatchIndex(xterm.findResult.resultIndex);
-          setMatchCount(xterm.findResult.resultCount);
+        if (searchController.findResult) {
+          setMatchIndex(searchController.findResult.resultIndex);
+          setMatchCount(searchController.findResult.resultCount);
         }
       }
     });
@@ -80,7 +70,7 @@ export function TerminalSearchBar({ instanceRef, onClose }: TerminalSearchBarPro
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      getXterm(instanceRef.current)?.clearSearchDecorations();
+      getSearchController(instanceRef.current)?.clearSearchDecorations();
       onClose();
       return;
     }
@@ -94,7 +84,7 @@ export function TerminalSearchBar({ instanceRef, onClose }: TerminalSearchBarPro
     const value = e.target.value;
     setQuery(value);
     if (!value) {
-      getXterm(instanceRef.current)?.clearSearchDecorations();
+      getSearchController(instanceRef.current)?.clearSearchDecorations();
       setMatchIndex(-1);
       setMatchCount(0);
       setNotFound(false);

@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { EditorTab } from '@netior/shared/types';
 import type { TranslationKey } from '@netior/shared/i18n';
-import type { ITerminalInstance } from '@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/terminal/browser/terminal';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
-import { getOrCreateTerminalInstance, adjustTerminalFontSize, resetTerminalFontSize } from '../../lib/terminal/terminal-services';
+import { adjustTerminalFontSize, resetTerminalFontSize } from '../../lib/terminal/terminal-services';
+import { getTerminalEngine, type TerminalEngineInstance } from '../../lib/terminal/engine';
 import { TerminalSearchBar } from './TerminalSearchBar';
 import { TerminalTodoPanel } from './TerminalTodoPanel';
 import { extractFileLink, extractFileLinks, extractUrl, extractUrls } from '../../lib/terminal/terminal-link-parser';
@@ -197,22 +197,16 @@ function isNearPosition(a: TerminalCursorPosition | null, b: TerminalCursorPosit
   return Math.abs(a.x - b.x) <= threshold && Math.abs(a.y - b.y) <= threshold;
 }
 
-function disposeVsCodeTerminalLinks(instance: ITerminalInstance): boolean {
-  const contribution = (instance as unknown as {
-    getContribution?(id: string): { dispose?(): void } | undefined;
-  }).getContribution?.('terminal.link');
-
-  if (contribution?.dispose) {
-    contribution.dispose();
-    return true;
-  }
-  return false;
+function disableBuiltinTerminalLinks(instance: TerminalEngineInstance): boolean {
+  if (!instance.disableBuiltinLinkHandling) return false;
+  instance.disableBuiltinLinkHandling();
+  return true;
 }
 
 export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const actionOverlayRefEl = useRef<HTMLDivElement>(null);
-  const instanceRef = useRef<ITerminalInstance | null>(null);
+  const instanceRef = useRef<TerminalEngineInstance | null>(null);
   const sessionId = tab.targetId;
   const currentProjectId = useProjectStore((s) => s.currentProject?.id ?? null);
   const cwdRef = useRef(tab.terminalCwd ?? getDefaultTerminalCwd());
@@ -410,12 +404,13 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
     let scrollbarObserver: MutationObserver | null = null;
     let titleListener: { dispose(): void } | null = null;
     const linkContributionDisposeTimers: number[] = [];
+    const terminalEngine = getTerminalEngine();
 
-    const disposeBuiltInLinksSoon = (instance: ITerminalInstance): void => {
-      disposeVsCodeTerminalLinks(instance);
-      linkContributionDisposeTimers.push(window.setTimeout(() => disposeVsCodeTerminalLinks(instance), 0));
-      linkContributionDisposeTimers.push(window.setTimeout(() => disposeVsCodeTerminalLinks(instance), 120));
-      linkContributionDisposeTimers.push(window.setTimeout(() => disposeVsCodeTerminalLinks(instance), 500));
+    const disableBuiltInLinksSoon = (instance: TerminalEngineInstance): void => {
+      disableBuiltinTerminalLinks(instance);
+      linkContributionDisposeTimers.push(window.setTimeout(() => disableBuiltinTerminalLinks(instance), 0));
+      linkContributionDisposeTimers.push(window.setTimeout(() => disableBuiltinTerminalLinks(instance), 120));
+      linkContributionDisposeTimers.push(window.setTimeout(() => disableBuiltinTerminalLinks(instance), 500));
     };
 
     const patchScrollbars = (): void => {
@@ -470,9 +465,9 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
         return;
       }
 
-      let instance: ITerminalInstance;
+      let instance: TerminalEngineInstance;
       try {
-        instance = await getOrCreateTerminalInstance(sessionId, cwd, tab.title, tab.terminalLaunchConfig);
+        instance = await terminalEngine.getOrCreateTerminal(sessionId, cwd, tab.title, tab.terminalLaunchConfig);
       } catch (error) {
         if (!disposed) {
           const message = error instanceof Error ? error.message : 'Failed to start terminal.';
@@ -490,7 +485,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
 
       instance.attachToElement(container);
       instance.setVisible(true);
-      disposeBuiltInLinksSoon(instance);
+      disableBuiltInLinksSoon(instance);
       instance.layout({
         width: container.clientWidth,
         height: container.clientHeight,
@@ -524,21 +519,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
 
       void instance.focusWhenReady();
 
-      type XtermBufferLine = { translateToString(trimRight?: boolean): string; isWrapped?: boolean };
-      type XtermLike = {
-        element?: HTMLElement;
-        cols?: number;
-        dimensions?: { css?: { cell?: { width?: number; height?: number } } };
-        buffer: {
-          active: {
-            viewportY: number;
-            length: number;
-            getLine(bufferLineIndex: number): XtermBufferLine | undefined;
-          };
-        };
-      };
-      type XtermTerminalWrapper = { raw?: XtermLike };
-      const xt = (instance as unknown as { xterm?: XtermTerminalWrapper }).xterm?.raw;
+      const xt = instance.getRawXterm();
       if (xt) {
         const getLogicalLine = (bufferLineNumber: number): { text: string; startLineNumber: number } => {
           const startBufferIndex = bufferLineNumber - 1;
@@ -717,7 +698,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
         e.preventDefault();
         e.stopPropagation();
         logShortcut('shortcut.terminal.copySelection');
-        (instance as unknown as { xterm?: { copySelection(): void } }).xterm?.copySelection();
+        instance.copySelection();
         return;
       }
 
@@ -885,11 +866,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       }
 
       ctrlMouseDownRef.current = null;
-      const instance = instanceRef.current as unknown as {
-        getSelection?(): string;
-        xterm?: { getSelection?(): string };
-      } | null;
-      const selectedText = (instance?.getSelection?.() ?? instance?.xterm?.getSelection?.() ?? '').trim();
+      const selectedText = instanceRef.current?.getSelection().trim() ?? '';
       if (!selectedText) return;
       const rect = container.getBoundingClientRect();
       showOverlayForText(selectedText, rect.left + 24, rect.top + 24);

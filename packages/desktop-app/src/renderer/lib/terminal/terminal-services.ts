@@ -20,15 +20,47 @@ interface TerminalDomRoots {
   terminal: HTMLDivElement;
 }
 
+export interface TerminalAppearanceSnapshot {
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  letterSpacing: number;
+  minimumContrastRatio: number;
+  cursorBlink: boolean;
+  colors: {
+    background: string;
+    foreground: string;
+    muted: string;
+    border: string;
+    accent: string;
+    accentHover: string;
+    selection: string;
+    inactiveSelection: string;
+    scrollbar: string;
+    scrollbarHover: string;
+    scrollbarActive: string;
+    findMatchBackground: string;
+    findMatchHighlightBackground: string;
+    findMatchBorder: string;
+    findMatchHighlightBorder: string;
+  };
+}
+
 const terminalInstances = new Map<string, Promise<ITerminalInstance>>();
+const terminalAppearanceListeners = new Set<(snapshot: TerminalAppearanceSnapshot) => void>();
 
 const DEFAULT_FONT_SIZE = 13;
 const MIN_FONT_SIZE = 8;
 const MAX_FONT_SIZE = 28;
+const TERMINAL_FONT_FAMILY = "'Cascadia Code', 'Consolas', 'Courier New', monospace";
+const TERMINAL_LINE_HEIGHT = 1.25;
+const TERMINAL_LETTER_SPACING = 0.2;
+const TERMINAL_MINIMUM_CONTRAST_RATIO = 4.5;
 let currentFontSize = DEFAULT_FONT_SIZE;
 let initializePromise: Promise<void> | null = null;
 let roots: TerminalDomRoots | null = null;
 let themeObserver: MutationObserver | null = null;
+let cachedAppearanceSnapshot: TerminalAppearanceSnapshot | null = null;
 
 function getCssColorAsHex(property: string, fallback: string): string {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(property).trim();
@@ -52,7 +84,7 @@ function withAlpha(hex: string, alphaHex: string): string {
   return `${hex}${alphaHex}`;
 }
 
-function buildTerminalUserConfiguration(): string {
+function buildTerminalAppearanceSnapshot(): TerminalAppearanceSnapshot {
   const isDark = document.documentElement.getAttribute('data-mode') !== 'light';
   const background = getCssColorAsHex('--surface-editor', isDark ? '#242424' : '#f5f5f5');
   const foreground = getCssColorAsHex('--text-default', isDark ? '#d4d4d4' : '#1f2328');
@@ -66,12 +98,62 @@ function buildTerminalUserConfiguration(): string {
   const scrollbarHover = withAlpha(muted, isDark ? '66' : '55');
   const scrollbarActive = withAlpha(accentHover, isDark ? '88' : '77');
 
+  return {
+    fontFamily: TERMINAL_FONT_FAMILY,
+    fontSize: currentFontSize,
+    lineHeight: TERMINAL_LINE_HEIGHT,
+    letterSpacing: TERMINAL_LETTER_SPACING,
+    minimumContrastRatio: TERMINAL_MINIMUM_CONTRAST_RATIO,
+    cursorBlink: true,
+    colors: {
+      background,
+      foreground,
+      muted,
+      border,
+      accent,
+      accentHover,
+      selection,
+      inactiveSelection,
+      scrollbar,
+      scrollbarHover,
+      scrollbarActive,
+      findMatchBackground: withAlpha(accent, isDark ? '44' : '33'),
+      findMatchHighlightBackground: withAlpha(accent, isDark ? '22' : '18'),
+      findMatchBorder: accent,
+      findMatchHighlightBorder: withAlpha(accent, isDark ? '66' : '44'),
+    },
+  };
+}
+
+function ensureTerminalThemeObserver(): void {
+  if (themeObserver || typeof document === 'undefined') return;
+
+  themeObserver = new MutationObserver(() => {
+    cachedAppearanceSnapshot = null;
+    if (initializePromise) {
+      void applyTerminalThemeConfiguration();
+    }
+    const snapshot = getTerminalAppearanceSnapshot();
+    for (const listener of terminalAppearanceListeners) {
+      listener(snapshot);
+    }
+  });
+
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-mode', 'data-concept', 'data-theme-variant', 'style'],
+  });
+}
+
+function buildTerminalUserConfiguration(): string {
+  const appearance = getTerminalAppearanceSnapshot();
+
   return JSON.stringify({
     'terminal.integrated.defaultLocation': 'view',
-    'terminal.integrated.fontFamily': "'Cascadia Code', 'Consolas', 'Courier New', monospace",
-    'terminal.integrated.fontSize': currentFontSize,
-    'terminal.integrated.lineHeight': 1.25,
-    'terminal.integrated.letterSpacing': 0.2,
+    'terminal.integrated.fontFamily': appearance.fontFamily,
+    'terminal.integrated.fontSize': appearance.fontSize,
+    'terminal.integrated.lineHeight': appearance.lineHeight,
+    'terminal.integrated.letterSpacing': appearance.letterSpacing,
     'terminal.integrated.gpuAcceleration': 'auto',
     'terminal.integrated.enablePersistentSessions': false,
     'terminal.integrated.shellIntegration.enabled': true,
@@ -80,40 +162,58 @@ function buildTerminalUserConfiguration(): string {
     'terminal.integrated.commandsToSkipShell': [
       '-workbench.action.togglePanel',
     ],
-    'terminal.integrated.cursorBlinking': true,
+    'terminal.integrated.cursorBlinking': appearance.cursorBlink,
     'terminal.integrated.smoothScrolling': true,
-    'terminal.integrated.minimumContrastRatio': 4.5,
+    'terminal.integrated.minimumContrastRatio': appearance.minimumContrastRatio,
     'terminal.integrated.showDimensions': false,
     'workbench.colorCustomizations': {
-      'terminal.background': background,
-      'terminal.foreground': foreground,
-      'terminalCursor.foreground': foreground,
-      'terminalCursor.background': background,
-      'terminal.selectionBackground': selection,
-      'terminal.inactiveSelectionBackground': inactiveSelection,
+      'terminal.background': appearance.colors.background,
+      'terminal.foreground': appearance.colors.foreground,
+      'terminalCursor.foreground': appearance.colors.foreground,
+      'terminalCursor.background': appearance.colors.background,
+      'terminal.selectionBackground': appearance.colors.selection,
+      'terminal.inactiveSelectionBackground': appearance.colors.inactiveSelection,
       'terminal.border': '#00000000',
-      'terminal.dropBackground': withAlpha(accent, isDark ? '26' : '1a'),
-      'terminal.tab.activeBorder': accent,
-      'terminal.tab.activeBorderTop': accent,
-      'terminal.tab.activeForeground': foreground,
-      'terminal.tab.inactiveForeground': muted,
-      'terminalCommandDecoration.defaultBackground': accent,
+      'terminal.dropBackground': withAlpha(appearance.colors.accent, '26'),
+      'terminal.tab.activeBorder': appearance.colors.accent,
+      'terminal.tab.activeBorderTop': appearance.colors.accent,
+      'terminal.tab.activeForeground': appearance.colors.foreground,
+      'terminal.tab.inactiveForeground': appearance.colors.muted,
+      'terminalCommandDecoration.defaultBackground': appearance.colors.accent,
       'scrollbar.shadow': '#00000000',
-      'scrollbarSlider.background': scrollbar,
-      'scrollbarSlider.hoverBackground': scrollbarHover,
-      'scrollbarSlider.activeBackground': scrollbarActive,
-      'editor.background': background,
-      'panel.background': background,
-      'terminal.findMatchBackground': withAlpha(accent, isDark ? '44' : '33'),
-      'terminal.findMatchHighlightBackground': withAlpha(accent, isDark ? '22' : '18'),
-      'terminal.findMatchBorder': accent,
-      'terminal.findMatchHighlightBorder': withAlpha(accent, isDark ? '66' : '44'),
+      'scrollbarSlider.background': appearance.colors.scrollbar,
+      'scrollbarSlider.hoverBackground': appearance.colors.scrollbarHover,
+      'scrollbarSlider.activeBackground': appearance.colors.scrollbarActive,
+      'editor.background': appearance.colors.background,
+      'panel.background': appearance.colors.background,
+      'terminal.findMatchBackground': appearance.colors.findMatchBackground,
+      'terminal.findMatchHighlightBackground': appearance.colors.findMatchHighlightBackground,
+      'terminal.findMatchBorder': appearance.colors.findMatchBorder,
+      'terminal.findMatchHighlightBorder': appearance.colors.findMatchHighlightBorder,
     },
   });
 }
 
 async function applyTerminalThemeConfiguration(): Promise<void> {
   await updateUserConfiguration(buildTerminalUserConfiguration());
+}
+
+export function getTerminalAppearanceSnapshot(): TerminalAppearanceSnapshot {
+  ensureTerminalThemeObserver();
+  cachedAppearanceSnapshot ??= buildTerminalAppearanceSnapshot();
+  return cachedAppearanceSnapshot;
+}
+
+export function onTerminalAppearanceChanged(
+  listener: (snapshot: TerminalAppearanceSnapshot) => void,
+): { dispose(): void } {
+  ensureTerminalThemeObserver();
+  terminalAppearanceListeners.add(listener);
+  return {
+    dispose(): void {
+      terminalAppearanceListeners.delete(listener);
+    },
+  };
 }
 
 function ensureDomRoots(): TerminalDomRoots {
@@ -173,16 +273,7 @@ export async function ensureTerminalServices(): Promise<void> {
     const terminalConfigurationService = await getService(ITerminalConfigurationService);
     terminalService.setContainers(domRoots.panel, domRoots.terminal);
     terminalConfigurationService.setPanelContainer(domRoots.panel);
-
-    if (!themeObserver) {
-      themeObserver = new MutationObserver(() => {
-        void applyTerminalThemeConfiguration();
-      });
-      themeObserver.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-mode', 'data-concept', 'data-theme-variant', 'style'],
-      });
-    }
+    ensureTerminalThemeObserver();
   })();
 
   return initializePromise;
@@ -269,10 +360,24 @@ export async function getOrCreateTerminalInstance(
 
 export function adjustTerminalFontSize(delta: number): void {
   currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, currentFontSize + delta));
-  void updateUserConfiguration(buildTerminalUserConfiguration());
+  cachedAppearanceSnapshot = null;
+  if (initializePromise) {
+    void updateUserConfiguration(buildTerminalUserConfiguration());
+  }
+  const snapshot = getTerminalAppearanceSnapshot();
+  for (const listener of terminalAppearanceListeners) {
+    listener(snapshot);
+  }
 }
 
 export function resetTerminalFontSize(): void {
   currentFontSize = DEFAULT_FONT_SIZE;
-  void updateUserConfiguration(buildTerminalUserConfiguration());
+  cachedAppearanceSnapshot = null;
+  if (initializePromise) {
+    void updateUserConfiguration(buildTerminalUserConfiguration());
+  }
+  const snapshot = getTerminalAppearanceSnapshot();
+  for (const listener of terminalAppearanceListeners) {
+    listener(snapshot);
+  }
 }
