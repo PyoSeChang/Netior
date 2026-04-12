@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, Notification, nativeImage, screen } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
+import { IPC_CHANNELS } from '@netior/shared/constants';
 import { mkdirSync, existsSync } from 'fs';
 import { registerAllIpc } from './ipc';
 import { ptyManager } from './pty/pty-manager';
@@ -339,6 +340,9 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('agent:setName', async (_event, terminalSessionId: string, name: string) => {
     return agentRuntimeManager.setTerminalSessionName(terminalSessionId, name);
+  });
+  ipcMain.handle(IPC_CHANNELS.AGENT_GET_SNAPSHOT, () => {
+    return agentRuntimeManager.getSessionSnapshots();
   });
 
   // Detached editor window IPC (host-based)

@@ -168,6 +168,7 @@ export const IPC_CHANNELS = {
   CLAUDE_NAME_CHANGED: 'claude:nameChanged',
 
   // Agent Runtime
+  AGENT_GET_SNAPSHOT: 'agent:getSnapshot',
   AGENT_SESSION_EVENT: 'agent:sessionEvent',
   AGENT_STATUS_EVENT: 'agent:statusEvent',
   AGENT_NAME_CHANGED: 'agent:nameChanged',

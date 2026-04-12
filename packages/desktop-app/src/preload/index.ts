@@ -1,8 +1,10 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { release } from 'node:os';
+import { IPC_CHANNELS } from '@netior/shared/constants';
 import type {
   AgentNameEvent,
   AgentSessionEvent,
+  AgentSessionSnapshot,
   AgentStatusEvent,
   AgentTurnEvent,
   TerminalLaunchConfig,
@@ -313,6 +315,8 @@ const electronAPI = {
     },
   },
   agent: {
+    getSnapshot: () =>
+      ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_SNAPSHOT) as Promise<AgentSessionSnapshot[]>,
     setName: (terminalSessionId: string, name: string) =>
       ipcRenderer.invoke('agent:setName', terminalSessionId, name) as Promise<boolean>,
     onSessionEvent: (callback: (event: AgentSessionEvent) => void) => {

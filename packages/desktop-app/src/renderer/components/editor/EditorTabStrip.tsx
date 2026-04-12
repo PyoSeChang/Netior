@@ -121,7 +121,7 @@ interface TabItemProps {
 
 function TabItem({ tab, isActive, isFocusedPane, isRenaming, onActivate, onClose, onContextMenu, onRenameSubmit, onRenameCancel, activeRef }: TabItemProps): JSX.Element {
   const agentState = useAgentState(tab.targetId);
-  const label = tab.title;
+  const label = tab.type === 'terminal' && agentState?.name ? agentState.name : tab.title;
 
   return (
     <div

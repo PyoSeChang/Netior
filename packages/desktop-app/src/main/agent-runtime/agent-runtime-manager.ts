@@ -4,6 +4,7 @@ import type {
   AgentNameEvent,
   AgentProvider,
   AgentSessionEvent,
+  AgentSessionSnapshot,
   AgentStatusEvent,
   TerminalLaunchConfig,
   AgentTurnEvent,
@@ -34,6 +35,7 @@ export interface AgentRuntimeAdapter {
 
 class AgentRuntimeManager implements AgentRuntimeSink {
   private readonly terminalAdapters = new Map<string, AgentRuntimeAdapter[]>();
+  private readonly sessionSnapshots = new Map<string, AgentSessionSnapshot>();
 
   constructor(private readonly adapters: AgentRuntimeAdapter[]) {}
 
@@ -50,6 +52,7 @@ class AgentRuntimeManager implements AgentRuntimeSink {
   }
 
   emitSessionEvent(event: AgentSessionEvent): void {
+    this.applySessionEvent(event);
     this.broadcast(IPC_CHANNELS.AGENT_SESSION_EVENT, event);
 
     if (event.provider === 'claude' && event.surface.kind === 'terminal') {
@@ -62,6 +65,7 @@ class AgentRuntimeManager implements AgentRuntimeSink {
   }
 
   emitStatusEvent(event: AgentStatusEvent): void {
+    this.applyStatusEvent(event);
     this.broadcast(IPC_CHANNELS.AGENT_STATUS_EVENT, event);
 
     if (event.provider === 'claude' && (event.status === 'idle' || event.status === 'working')) {
@@ -73,6 +77,7 @@ class AgentRuntimeManager implements AgentRuntimeSink {
   }
 
   emitNameEvent(event: AgentNameEvent): void {
+    this.applyNameEvent(event);
     this.broadcast(IPC_CHANNELS.AGENT_NAME_CHANGED, event);
 
     if (event.provider === 'claude') {
@@ -84,7 +89,12 @@ class AgentRuntimeManager implements AgentRuntimeSink {
   }
 
   emitTurnEvent(event: AgentTurnEvent): void {
+    this.applyTurnEvent(event);
     this.broadcast(IPC_CHANNELS.AGENT_TURN_EVENT, event);
+  }
+
+  getSessionSnapshots(): AgentSessionSnapshot[] {
+    return Array.from(this.sessionSnapshots.values(), (snapshot) => ({ ...snapshot }));
   }
 
   async prepareTerminalLaunch(
@@ -144,6 +154,70 @@ class AgentRuntimeManager implements AgentRuntimeSink {
     }
 
     return handled;
+  }
+
+  private getSessionKey(provider: AgentProvider, sessionId: string): string {
+    return `${provider}:${sessionId}`;
+  }
+
+  private applySessionEvent(event: AgentSessionEvent): void {
+    const key = this.getSessionKey(event.provider, event.sessionId);
+    if (event.type === 'stop') {
+      this.sessionSnapshots.delete(key);
+      return;
+    }
+
+    const prev = this.sessionSnapshots.get(key);
+    this.sessionSnapshots.set(key, {
+      provider: event.provider,
+      sessionId: event.sessionId,
+      surface: event.surface,
+      externalSessionId: event.externalSessionId ?? prev?.externalSessionId ?? null,
+      status: prev?.status ?? 'idle',
+      reason: prev?.reason ?? null,
+      name: prev?.name ?? null,
+      turnState: prev?.turnState ?? 'idle',
+    });
+  }
+
+  private applyStatusEvent(event: AgentStatusEvent): void {
+    const key = this.getSessionKey(event.provider, event.sessionId);
+    const prev = this.sessionSnapshots.get(key);
+    if (!prev) {
+      return;
+    }
+
+    this.sessionSnapshots.set(key, {
+      ...prev,
+      status: event.status,
+      reason: event.reason ?? null,
+    });
+  }
+
+  private applyNameEvent(event: AgentNameEvent): void {
+    const key = this.getSessionKey(event.provider, event.sessionId);
+    const prev = this.sessionSnapshots.get(key);
+    if (!prev) {
+      return;
+    }
+
+    this.sessionSnapshots.set(key, {
+      ...prev,
+      name: event.name,
+    });
+  }
+
+  private applyTurnEvent(event: AgentTurnEvent): void {
+    const key = this.getSessionKey(event.provider, event.sessionId);
+    const prev = this.sessionSnapshots.get(key);
+    if (!prev) {
+      return;
+    }
+
+    this.sessionSnapshots.set(key, {
+      ...prev,
+      turnState: event.type === 'start' ? 'working' : 'idle',
+    });
   }
 
   private broadcast(channel: string, payload: unknown): void {

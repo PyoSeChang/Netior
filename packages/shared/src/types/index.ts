@@ -899,6 +899,17 @@ export interface AgentTurnEvent {
   type: 'start' | 'complete';
 }
 
+export interface AgentSessionSnapshot {
+  provider: AgentProvider;
+  sessionId: string;
+  surface: AgentSurfaceRef;
+  externalSessionId: string | null;
+  status: AgentStatus;
+  reason: AgentAttentionReason | null;
+  name: string | null;
+  turnState: 'idle' | 'working';
+}
+
 // ============================================
 // Claude Code Integration Types
 // ============================================

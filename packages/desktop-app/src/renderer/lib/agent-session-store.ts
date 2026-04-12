@@ -2,6 +2,7 @@ import type {
   AgentAttentionReason,
   AgentNameEvent,
   AgentSessionEvent,
+  AgentSessionSnapshot,
   AgentStatusEvent,
   AgentTurnEvent,
   AgentUxState,
@@ -74,21 +75,86 @@ function updateEntry(
   notify();
 }
 
+function syncTerminalTabTitle(state: AgentSessionState, name: string | null): void {
+  if (!name || state.surface.kind !== 'terminal') {
+    return;
+  }
+
+  useEditorStore.getState().updateTitle(`terminal:${state.surface.id}`, name);
+}
+
+function toSessionState(snapshot: AgentSessionSnapshot): AgentSessionState {
+  const attentionReason = toAttentionReason(snapshot.reason);
+  return {
+    provider: snapshot.provider,
+    sessionId: snapshot.sessionId,
+    surface: snapshot.surface,
+    externalSessionId: snapshot.externalSessionId ?? null,
+    status: snapshot.status,
+    uxState: toUxState(snapshot.status, attentionReason),
+    attentionReason,
+    name: snapshot.name,
+    turnState: snapshot.turnState,
+  };
+}
+
+function hydrateSnapshot(snapshots: AgentSessionSnapshot[]): void {
+  if (snapshots.length === 0) {
+    return;
+  }
+
+  let changed = false;
+  const next = new Map(agentSessions);
+
+  for (const snapshot of snapshots) {
+    const key = getSessionKey(snapshot.provider, snapshot.sessionId);
+    const state = toSessionState(snapshot);
+    const prev = next.get(key);
+    if (
+      prev
+      && prev.provider === state.provider
+      && prev.sessionId === state.sessionId
+      && prev.surface.kind === state.surface.kind
+      && prev.surface.id === state.surface.id
+      && prev.externalSessionId === state.externalSessionId
+      && prev.status === state.status
+      && prev.uxState === state.uxState
+      && prev.attentionReason === state.attentionReason
+      && prev.name === state.name
+      && prev.turnState === state.turnState
+    ) {
+      continue;
+    }
+
+    next.set(key, state);
+    syncTerminalTabTitle(state, state.name);
+    changed = true;
+  }
+
+  if (!changed) {
+    return;
+  }
+
+  agentSessions = next;
+  notify();
+}
+
 function handleSessionEvent(event: AgentSessionEvent): void {
   const key = getSessionKey(event.provider, event.sessionId);
 
   if (event.type === 'start') {
+    const prev = agentSessions.get(key);
     const next = new Map(agentSessions);
     next.set(key, {
       provider: event.provider,
       sessionId: event.sessionId,
       surface: event.surface,
-      externalSessionId: event.externalSessionId ?? null,
-      status: 'idle',
-      uxState: 'idle',
-      attentionReason: null,
-      name: null,
-      turnState: 'idle',
+      externalSessionId: event.externalSessionId ?? prev?.externalSessionId ?? null,
+      status: prev?.status ?? 'idle',
+      uxState: prev?.uxState ?? 'idle',
+      attentionReason: prev?.attentionReason ?? null,
+      name: prev?.name ?? null,
+      turnState: prev?.turnState ?? 'idle',
     });
     agentSessions = next;
     notify();
@@ -115,25 +181,14 @@ function handleStatusEvent(event: AgentStatusEvent): void {
 
 function handleNameEvent(event: AgentNameEvent): void {
   const key = getSessionKey(event.provider, event.sessionId);
-  console.log('[AgentSessionStore] nameChanged', {
-    provider: event.provider,
-    sessionId: event.sessionId,
-    name: event.name,
-  });
   updateEntry(key, (prev) => ({
     ...prev,
     name: event.name,
   }));
 
   const state = agentSessions.get(key);
-  if (state?.surface.kind === 'terminal') {
-    console.log('[AgentSessionStore] syncTabTitle', {
-      provider: event.provider,
-      sessionId: event.sessionId,
-      tabId: `terminal:${state.surface.id}`,
-      name: event.name,
-    });
-    useEditorStore.getState().updateTitle(`terminal:${state.surface.id}`, event.name);
+  if (state) {
+    syncTerminalTabTitle(state, event.name);
   }
 }
 
@@ -152,6 +207,7 @@ export function initAgentSessionStore(): void {
   window.electron.agent.onStatusEvent(handleStatusEvent);
   window.electron.agent.onNameChanged(handleNameEvent);
   window.electron.agent.onTurnEvent(handleTurnEvent);
+  void window.electron.agent.getSnapshot().then(hydrateSnapshot).catch(() => {});
 }
 
 export function getAgentSessionStoreVersion(): number {
