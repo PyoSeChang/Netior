@@ -10,7 +10,6 @@ import { SettingsModal } from './components/settings/SettingsModal';
 import { ShortcutOverlay } from './components/shortcuts/ShortcutOverlay';
 import { ToastContainer } from './components/ui/Toast';
 import { WindowControls } from './components/ui/WindowControls';
-import { WindowAlwaysOnTopButton } from './components/ui/WindowAlwaysOnTopButton';
 import { WindowTitleBar } from './components/ui/WindowTitleBar';
 import { MissingFilesDialog } from './components/home/MissingFilesDialog';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
@@ -195,7 +194,6 @@ function TitleBar(): JSX.Element {
       right={(
         <div className="flex items-stretch">
           <MinimizedEditorTabs />
-          <WindowAlwaysOnTopButton />
           <WindowControls />
         </div>
       )}

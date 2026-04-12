@@ -42,7 +42,7 @@ export function getRuntimeInstanceDir(): string {
 }
 
 export function getRuntimeSessionDataDir(): string {
-  return join(getRuntimeInstanceDir(), 'session-data');
+  return join(getRuntimeRootDir(), 'session-data');
 }
 
 export function getRuntimeDataDir(): string {

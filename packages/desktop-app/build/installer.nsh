@@ -30,11 +30,11 @@
           Goto netior_close_loop
         ${EndIf}
       ${EndIf}
-    Return
+    Goto netior_check_done
   ${EndIf}
 
   ${If} $R0 == ""
-    Return
+    Goto netior_check_done
   ${EndIf}
 
   DetailPrint "No running ${PRODUCT_NAME} process detected. Pre-cleaning previous install at $R0"
@@ -42,13 +42,14 @@
 
   IfFileExists "$R0\\*.*" 0 +4
     DetailPrint "Pre-cleanup failed for $R0. Falling back to default app-running check."
-    Return
+    Goto netior_check_done
 
   DeleteRegKey SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}"
   !ifdef UNINSTALL_REGISTRY_KEY_2
     DeleteRegKey SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY_2}"
   !endif
   DeleteRegKey SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}"
+  netior_check_done:
 !macroend
 
 !macro _netiorManualCleanupOldInstall
