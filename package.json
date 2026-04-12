@@ -7,7 +7,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "predev:desktop": "node scripts/ensure-desktop-sidecars.mjs",
-    "dev:desktop": "pnpm --filter @netior/desktop-app dev",
+    "dev:desktop": "node scripts/ensure-desktop-sidecars.mjs && pnpm --filter @netior/desktop-app dev",
     "rebuild:native": "pnpm --filter @netior/core exec node scripts/rebuild-native.js",
     "lint": "turbo run lint",
     "postinstall": "pnpm run rebuild:native",

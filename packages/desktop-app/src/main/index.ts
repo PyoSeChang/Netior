@@ -12,10 +12,15 @@ import { getRemoteConfig, setRemoteConfig } from './netior-service/netior-servic
 import { initMainLogging } from './logging';
 import {
   getNetiorServicePort,
+  getRuntimeInstanceId,
   getRuntimeScope,
   getRuntimeSessionDataDir,
   getSharedUserDataRoot,
 } from './runtime/runtime-paths';
+import {
+  registerDesktopRuntimeInstance,
+  unregisterDesktopRuntimeInstance,
+} from './runtime/runtime-coordination';
 
 // Force userData to %APPDATA%/netior
 app.name = 'Netior';
@@ -23,12 +28,9 @@ app.setPath('userData', getSharedUserDataRoot());
 app.setPath('sessionData', getRuntimeSessionDataDir());
 const desktopMainLogFilePath = initMainLogging();
 console.log(`[desktop-main] Runtime scope: ${getRuntimeScope()}`);
+console.log(`[desktop-main] Runtime instance: ${getRuntimeInstanceId()}`);
 console.log(`[desktop-main] Log file: ${desktopMainLogFilePath}`);
-
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
-if (!hasSingleInstanceLock) {
-  app.quit();
-}
+registerDesktopRuntimeInstance();
 
 function getNotificationIcon() {
   const candidates = [
@@ -501,17 +503,6 @@ app.whenReady().then(async () => {
   });
 });
 
-if (hasSingleInstanceLock) {
-  app.on('second-instance', () => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      void createWindow();
-      return;
-    }
-
-    focusMainWindow('second-instance');
-  });
-}
-
 function resolveStoredWindowBounds(raw: unknown): StoredWindowBounds {
   const primaryDisplay = screen.getPrimaryDisplay();
   const defaultWidth = Math.min(1200, primaryDisplay.workArea.width);
@@ -606,9 +597,14 @@ function clamp(value: number, min: number, max: number): number {
 app.on('window-all-closed', () => {
   ptyManager.killAll();
   agentRuntimeManager.stop();
+  unregisterDesktopRuntimeInstance();
   stopNarreServer();
   stopNetiorService();
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('will-quit', () => {
+  unregisterDesktopRuntimeInstance();
 });
 
 async function withTimeout<T>(

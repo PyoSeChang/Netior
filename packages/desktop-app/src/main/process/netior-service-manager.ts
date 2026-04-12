@@ -4,11 +4,19 @@ import { join } from 'path';
 import { createRequire } from 'module';
 import { resolveSidecarRuntime } from './sidecar-runtime';
 import { getNetiorServicePort } from '../runtime/runtime-paths';
+import {
+  clearSharedSidecarState,
+  hasOtherDesktopRuntimeInstances,
+  stopSharedSidecarProcess,
+  writeSharedSidecarState,
+} from '../runtime/runtime-coordination';
 
 const require = createRequire(import.meta.url);
+const NETIOR_SERVICE_SIDECAR_NAME = 'netior-service' as const;
 
 let netiorServiceProcess: ChildProcess | null = null;
 let netiorServiceBaseUrl: string | null = null;
+let netiorServiceOwnedByCurrentProcess = false;
 
 function resolveNetiorServicePath(): string | null {
   const candidates = [
@@ -50,7 +58,25 @@ export async function startNetiorService(config: {
   dbPath: string;
   port?: number;
 }): Promise<boolean> {
+  const port = config.port ?? getNetiorServicePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  if (netiorServiceBaseUrl) {
+    if (await waitForHealth(baseUrl, 1, 0)) {
+      return true;
+    }
+
+    netiorServiceBaseUrl = null;
+    netiorServiceOwnedByCurrentProcess = false;
+  }
+
   if (netiorServiceProcess) {
+    return true;
+  }
+
+  if (await waitForHealth(baseUrl, 1, 0)) {
+    console.log(`[netior-service] Reusing shared service at ${baseUrl}`);
+    netiorServiceBaseUrl = baseUrl;
+    netiorServiceOwnedByCurrentProcess = false;
     return true;
   }
 
@@ -60,8 +86,6 @@ export async function startNetiorService(config: {
     return false;
   }
 
-  const port = config.port ?? getNetiorServicePort();
-  const baseUrl = `http://127.0.0.1:${port}`;
   const runtime = resolveSidecarRuntime({
     envVarName: 'NETIOR_SERVICE_NODE_PATH',
     displayName: 'Netior service',
@@ -69,7 +93,7 @@ export async function startNetiorService(config: {
     allowElectronFallback: false,
   });
 
-  netiorServiceProcess = spawn(runtime.command, [modulePath], {
+  const child = spawn(runtime.command, [modulePath], {
     env: {
       ...process.env,
       ...runtime.env,
@@ -78,25 +102,37 @@ export async function startNetiorService(config: {
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  netiorServiceProcess = child;
+  netiorServiceOwnedByCurrentProcess = true;
+  const spawnedPid = child.pid ?? null;
 
-  netiorServiceProcess.stdout?.on('data', (data: Buffer) => {
+  child.stdout?.on('data', (data: Buffer) => {
     console.log('[netior-service:stdout]', data.toString().trim());
   });
 
-  netiorServiceProcess.stderr?.on('data', (data: Buffer) => {
+  child.stderr?.on('data', (data: Buffer) => {
     console.error('[netior-service:stderr]', data.toString().trim());
   });
 
-  netiorServiceProcess.on('exit', (code, signal) => {
+  child.on('exit', (code, signal) => {
     console.log(`[netior-service] Exited: code=${code}, signal=${signal}`);
-    netiorServiceProcess = null;
-    netiorServiceBaseUrl = null;
+    if (spawnedPid != null) {
+      clearSharedSidecarState(NETIOR_SERVICE_SIDECAR_NAME, spawnedPid);
+    }
+    if (netiorServiceProcess === child) {
+      netiorServiceProcess = null;
+      netiorServiceBaseUrl = null;
+      netiorServiceOwnedByCurrentProcess = false;
+    }
   });
 
-  netiorServiceProcess.on('error', (error) => {
+  child.on('error', (error) => {
     console.error('[netior-service] Spawn error:', error.message);
-    netiorServiceProcess = null;
-    netiorServiceBaseUrl = null;
+    if (netiorServiceProcess === child) {
+      netiorServiceProcess = null;
+      netiorServiceBaseUrl = null;
+      netiorServiceOwnedByCurrentProcess = false;
+    }
   });
 
   const healthy = await waitForHealth(baseUrl);
@@ -107,15 +143,37 @@ export async function startNetiorService(config: {
   }
 
   netiorServiceBaseUrl = baseUrl;
+  if (child.exitCode == null && netiorServiceProcess === child && spawnedPid != null) {
+    writeSharedSidecarState(NETIOR_SERVICE_SIDECAR_NAME, { pid: spawnedPid, port });
+  } else {
+    netiorServiceOwnedByCurrentProcess = false;
+    console.log(`[netior-service] Connected to shared service at ${baseUrl}`);
+  }
   return true;
 }
 
 export function stopNetiorService(): void {
-  if (netiorServiceProcess) {
-    netiorServiceProcess.kill();
+  const child = netiorServiceProcess;
+  const childPid = child?.pid ?? null;
+
+  if (hasOtherDesktopRuntimeInstances()) {
+    console.log('[netior-service] Other desktop instances detected, leaving shared service running');
     netiorServiceProcess = null;
+    netiorServiceBaseUrl = null;
+    netiorServiceOwnedByCurrentProcess = false;
+    return;
   }
+
+  if (netiorServiceOwnedByCurrentProcess && child && child.exitCode == null && !child.killed) {
+    child.kill();
+    clearSharedSidecarState(NETIOR_SERVICE_SIDECAR_NAME, childPid);
+  } else {
+    stopSharedSidecarProcess(NETIOR_SERVICE_SIDECAR_NAME);
+  }
+
+  netiorServiceProcess = null;
   netiorServiceBaseUrl = null;
+  netiorServiceOwnedByCurrentProcess = false;
 }
 
 export function isNetiorServiceRunning(): boolean {
@@ -126,8 +184,8 @@ export function getNetiorServiceBaseUrl(): string | null {
   return netiorServiceBaseUrl;
 }
 
-async function waitForHealth(baseUrl: string): Promise<boolean> {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+async function waitForHealth(baseUrl: string, attempts = 20, delayMs = 250): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/health`);
       if (response.ok) {
@@ -137,7 +195,9 @@ async function waitForHealth(baseUrl: string): Promise<boolean> {
       // Service still starting.
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (attempt + 1 < attempts && delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
 
   return false;

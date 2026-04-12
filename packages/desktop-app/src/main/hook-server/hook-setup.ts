@@ -30,17 +30,30 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function resolvePort() {
   const runtimeScope = (process.env.NETIOR_RUNTIME_SCOPE || '').trim();
+  const runtimeInstanceId = (process.env.NETIOR_RUNTIME_INSTANCE_ID || '').trim();
   if (!runtimeScope || !/^[a-z0-9._-]+$/i.test(runtimeScope)) {
     return null;
   }
 
-  try {
-    const portText = readFileSync(join(__dirname, 'runtimes', runtimeScope, 'port'), 'utf-8').trim();
-    const port = parseInt(portText, 10);
-    return Number.isFinite(port) && port > 0 ? port : null;
-  } catch {
-    return null;
+  const candidates = [];
+  if (runtimeInstanceId && /^[a-z0-9._-]+$/i.test(runtimeInstanceId)) {
+    candidates.push(join(__dirname, 'runtimes', runtimeScope, runtimeInstanceId, 'port'));
   }
+  candidates.push(join(__dirname, 'runtimes', runtimeScope, 'port'));
+
+  for (const candidate of candidates) {
+    try {
+      const portText = readFileSync(candidate, 'utf-8').trim();
+      const port = parseInt(portText, 10);
+      if (Number.isFinite(port) && port > 0) {
+        return port;
+      }
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null;
 }
 
 async function main() {

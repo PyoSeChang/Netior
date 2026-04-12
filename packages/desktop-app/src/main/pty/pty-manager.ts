@@ -10,7 +10,7 @@ import type {
   TerminalSessionState,
 } from '@netior/shared/types';
 import { agentRuntimeManager } from '../agent-runtime/agent-runtime-manager';
-import { getRuntimeScope } from '../runtime/runtime-paths';
+import { getRuntimeInstanceId, getRuntimeScope } from '../runtime/runtime-paths';
 
 
 function resolveShell(config?: TerminalLaunchConfig): { command: string; args: string[]; title: string } {
@@ -100,6 +100,7 @@ class TerminalBackendService {
         TERM_PROGRAM: 'netior',
         NETIOR_PTY_ID: sessionId,
         NETIOR_RUNTIME_SCOPE: getRuntimeScope(),
+        NETIOR_RUNTIME_INSTANCE_ID: getRuntimeInstanceId(),
       } as Record<string, string>,
       useConpty: true,
     });

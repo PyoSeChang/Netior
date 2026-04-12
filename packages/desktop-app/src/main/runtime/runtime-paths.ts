@@ -16,6 +16,10 @@ export function getRuntimeScope(): string {
   });
 }
 
+export function getRuntimeInstanceId(): string {
+  return `pid-${process.pid}`;
+}
+
 export function getWorktreeLabel(): string {
   return extractWorktreeLabel(process.cwd());
 }
@@ -29,8 +33,16 @@ export function getRuntimeRootDir(): string {
   return join(getSharedUserDataRoot(), 'runtime', runtimeScope);
 }
 
+export function getRuntimeInstancesDir(): string {
+  return join(getRuntimeRootDir(), 'instances');
+}
+
+export function getRuntimeInstanceDir(): string {
+  return join(getRuntimeInstancesDir(), getRuntimeInstanceId());
+}
+
 export function getRuntimeSessionDataDir(): string {
-  return join(getRuntimeRootDir(), 'session-data');
+  return join(getRuntimeInstanceDir(), 'session-data');
 }
 
 export function getRuntimeDataDir(): string {
@@ -52,7 +64,7 @@ export function getRuntimeUndoTrashDir(): string {
 }
 
 export function getRuntimeAgentRuntimeDir(): string {
-  return join(getRuntimeRootDir(), 'agent-runtime');
+  return join(getRuntimeInstanceDir(), 'agent-runtime');
 }
 
 export function getSharedHooksDir(): string {
@@ -63,8 +75,12 @@ export function getHookDispatcherPath(): string {
   return join(getSharedHooksDir(), HOOK_DISPATCHER_FILENAME);
 }
 
-export function getHookRuntimeDir(): string {
+export function getHookRuntimeScopeDir(): string {
   return join(getSharedHooksDir(), 'runtimes', getRuntimeScope());
+}
+
+export function getHookRuntimeDir(): string {
+  return join(getHookRuntimeScopeDir(), getRuntimeInstanceId());
 }
 
 export function getHookRuntimePortFilePath(): string {
