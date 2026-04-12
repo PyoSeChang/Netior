@@ -46,7 +46,7 @@ interface ForkedHyperTermProps {
   isTermVisible: boolean;
   onData(data: string): void;
   onResize(cols: number, rows: number): void;
-  onTitle(title: string): void;
+  onTitle?(title: string): void;
   onActive(): void;
 }
 
@@ -218,9 +218,11 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
     this.disposables.push(this.term.onResize(({ cols, rows }) => {
       this.props.onResize(cols, rows);
     }));
-    this.disposables.push(this.term.onTitleChange((title) => {
-      this.props.onTitle(title);
-    }));
+    if (this.props.onTitle) {
+      this.disposables.push(this.term.onTitleChange((title) => {
+        this.props.onTitle?.(title);
+      }));
+    }
     this.disposables.push(this.searchAddon.onDidChangeResults((result) => {
       this.searchController.findResult = result;
     }));
@@ -439,4 +441,3 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
     this.termWrapperRef = node;
   };
 }
-

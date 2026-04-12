@@ -15,6 +15,11 @@ import { resolveFirstExistingFilePath, type ResolvedFilePath } from '../../lib/f
 import { openExternal } from '../../lib/open-external';
 import { useI18n } from '../../hooks/useI18n';
 import {
+  getAgentSessionStateByTerminal,
+  getAgentSessionStoreVersion,
+  subscribeAgentSessionStore,
+} from '../../lib/agent-session-store';
+import {
   getFileOpenPaneOptions,
   openFileInPane,
   openFileTab,
@@ -209,12 +214,15 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   const actionOverlayRefEl = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<TerminalEngineInstance | null>(null);
   const sessionId = tab.targetId;
+  useSyncExternalStore(subscribeAgentSessionStore, getAgentSessionStoreVersion);
+  const agentState = getAgentSessionStateByTerminal(sessionId);
   const currentProjectId = useProjectStore((s) => s.currentProject?.id ?? null);
   const cwdRef = useRef(tab.terminalCwd ?? getDefaultTerminalCwd());
   const updateTitle = useEditorStore((s) => s.updateTitle);
   const { t } = useI18n();
   const [searchVisible, setSearchVisible] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
+  const ignoreTerminalTitleChanges = Boolean(tab.terminalLaunchConfig?.agent || agentState);
   const [actionOverlay, setActionOverlay] = useState<TerminalActionOverlayState | null>(null);
   const [linkUnderlineSegments, setLinkUnderlineSegments] = useState<TerminalLinkUnderlineSegment[]>([]);
   const actionOverlayRef = useRef<TerminalActionOverlayState | null>(null);
@@ -448,10 +456,22 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       instance.attachToElement(container);
       instance.setVisible(true);
 
-      titleListener = instance.onTitleChanged(() => {
+      if (!ignoreTerminalTitleChanges) {
+        titleListener = instance.onTitleChanged(() => {
+          console.log('[TerminalEditor] terminalTitleChanged', {
+            tabId: tab.id,
+            sessionId,
+            title: instance.title,
+          });
+          updateTitle(tab.id, instance.title);
+        });
+        console.log('[TerminalEditor] initialTerminalTitle', {
+          tabId: tab.id,
+          sessionId,
+          title: instance.title,
+        });
         updateTitle(tab.id, instance.title);
-      });
-      updateTitle(tab.id, instance.title);
+      }
 
       void instance.focusWhenReady();
 
@@ -849,6 +869,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
     tab.title,
     updateTitle,
     currentProjectId,
+    ignoreTerminalTitleChanges,
     showOverlayForText,
     showOverlayForTarget,
     resolveAndSetOverlay,

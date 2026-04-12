@@ -361,7 +361,7 @@ async function maybeNotifyCompletion(snapshot: AgentTerminalSnapshot): Promise<v
   const tabId = getTerminalTabId(snapshot.terminalSessionId);
   const store = useEditorStore.getState();
   const tab = store.tabs.find((entry) => entry.id === tabId);
-  const title = snapshot.terminalName || tab?.title || `${getProviderLabel(snapshot.provider)} Terminal`;
+  const title = tab?.title || snapshot.terminalName || `${getProviderLabel(snapshot.provider)} Terminal`;
   const isActive = isTabActiveInHost(tabId);
 
   if (!tab) return;
@@ -439,7 +439,7 @@ async function maybeNotifyAttention(snapshot: AgentTerminalSnapshot): Promise<vo
   const tabId = getTerminalTabId(snapshot.terminalSessionId);
   const store = useEditorStore.getState();
   const tab = store.tabs.find((entry) => entry.id === tabId);
-  const title = snapshot.terminalName || tab?.title || `${getProviderLabel(snapshot.provider)} Terminal`;
+  const title = tab?.title || snapshot.terminalName || `${getProviderLabel(snapshot.provider)} Terminal`;
   const isActive = isTabActiveInHost(tabId);
 
   if (!tab) return;

@@ -1,5 +1,4 @@
 import { createElement, createRef } from 'react';
-import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import type { TerminalLaunchConfig, TerminalSessionInfo } from '@netior/shared/types';
 import { unwrapIpc } from '../../../services/ipc';
@@ -44,12 +43,12 @@ function getDefaultArgs(): string[] | undefined {
 
 function buildLaunchConfig(
   cwd: string,
-  title: string,
+  initialTitle: string,
   launchConfig?: TerminalEngineLaunchConfig,
 ): TerminalLaunchConfig {
   return {
     cwd,
-    title,
+    title: initialTitle,
     shell: launchConfig?.shell ?? getDefaultExecutable(),
     args: launchConfig?.args ?? getDefaultArgs(),
     agent: launchConfig?.agent,
@@ -80,7 +79,7 @@ export class HyperTerminalSurface implements TerminalEngineInstance {
   constructor(
     private readonly sessionId: string,
     private readonly cwd: string,
-    initialTitle: string,
+    private readonly initialTitle: string,
     private readonly launchConfig?: TerminalEngineLaunchConfig,
     private readonly onDidExit?: () => void,
   ) {
@@ -104,7 +103,7 @@ export class HyperTerminalSurface implements TerminalEngineInstance {
 
     this.registerRuntimeDisposable(window.electron.terminal.onReady((payload) => {
       if (payload.sessionId !== this.sessionId) return;
-      if (payload.title) {
+      if (this.acceptsTerminalTitleChanges && payload.title) {
         this.setTitle(payload.title);
       }
       this.resolveReady();
@@ -113,10 +112,12 @@ export class HyperTerminalSurface implements TerminalEngineInstance {
       if (eventSessionId !== this.sessionId) return;
       this.termsRef.current?.write(data);
     }));
-    this.registerRuntimeDisposable(window.electron.terminal.onTitleChanged((eventSessionId, title) => {
-      if (eventSessionId !== this.sessionId) return;
-      this.setTitle(title);
-    }));
+    if (this.acceptsTerminalTitleChanges) {
+      this.registerRuntimeDisposable(window.electron.terminal.onTitleChanged((eventSessionId, title) => {
+        if (eventSessionId !== this.sessionId) return;
+        this.setTitle(title);
+      }));
+    }
     this.registerRuntimeDisposable(window.electron.terminal.onExit((eventSessionId) => {
       if (eventSessionId !== this.sessionId) return;
       this.releaseRuntime();
@@ -139,10 +140,10 @@ export class HyperTerminalSurface implements TerminalEngineInstance {
     this.startPromise = (async () => {
       const info = unwrapIpc<TerminalSessionInfo>(await window.electron.terminal.createInstance(
         this.sessionId,
-        buildLaunchConfig(this.cwd, this.currentTitle, this.launchConfig),
+        buildLaunchConfig(this.cwd, this.initialTitle, this.launchConfig),
       ));
 
-      if (info.title) {
+      if (this.acceptsTerminalTitleChanges && info.title) {
         this.setTitle(info.title);
       }
       this.lastResizeCols = info.cols;
@@ -251,9 +252,7 @@ export class HyperTerminalSurface implements TerminalEngineInstance {
     this.releaseRuntime();
     disposeAll(this.allDisposables);
     if (this.reactRoot) {
-      flushSync(() => {
-        this.reactRoot?.unmount();
-      });
+      this.reactRoot.unmount();
       this.reactRoot = null;
     }
     this.hostElement.parentElement?.removeChild(this.hostElement);
@@ -275,6 +274,10 @@ export class HyperTerminalSurface implements TerminalEngineInstance {
     disposeAll(this.runtimeDisposables);
   }
 
+  private get acceptsTerminalTitleChanges(): boolean {
+    return !this.launchConfig?.agent;
+  }
+
   private setTitle(title: string): void {
     if (!title || title === this.currentTitle) return;
     this.currentTitle = title;
@@ -291,34 +294,34 @@ export class HyperTerminalSurface implements TerminalEngineInstance {
   private renderTerms(): void {
     if (!this.reactRoot) return;
 
-    flushSync(() => {
-      this.reactRoot?.render(
-        createElement(ForkedHyperTerms, {
-          ref: this.termsRef,
-          uid: this.sessionId,
-          appearance: this.currentAppearance,
-          launchConfig: this.launchConfig,
-          visible: this.visible,
-          onData: (data: string) => {
-            window.electron.terminal.input(this.sessionId, data);
-          },
-          onResize: (cols: number, rows: number) => {
-            if (this.lastResizeCols === cols && this.lastResizeRows === rows) {
-              return;
+    this.reactRoot.render(
+      createElement(ForkedHyperTerms, {
+        ref: this.termsRef,
+        uid: this.sessionId,
+        appearance: this.currentAppearance,
+        launchConfig: this.launchConfig,
+        visible: this.visible,
+        onData: (data: string) => {
+          window.electron.terminal.input(this.sessionId, data);
+        },
+        onResize: (cols: number, rows: number) => {
+          if (this.lastResizeCols === cols && this.lastResizeRows === rows) {
+            return;
+          }
+          this.lastResizeCols = cols;
+          this.lastResizeRows = rows;
+          window.electron.terminal.resize(this.sessionId, cols, rows);
+        },
+        onTitle: this.acceptsTerminalTitleChanges
+          ? (title: string) => {
+              this.setTitle(title);
             }
-            this.lastResizeCols = cols;
-            this.lastResizeRows = rows;
-            window.electron.terminal.resize(this.sessionId, cols, rows);
-          },
-          onTitle: (title: string) => {
-            this.setTitle(title);
-          },
-          onActive: () => {
-            // Hyper uses this to update the active session stack.
-            // Netior has one terminal surface per tab, so no extra state write is needed.
-          },
-        }),
-      );
-    });
+          : undefined,
+        onActive: () => {
+          // Hyper uses this to update the active session stack.
+          // Netior has one terminal surface per tab, so no extra state write is needed.
+        },
+      }),
+    );
   }
 }

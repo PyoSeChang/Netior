@@ -6,6 +6,7 @@ import type {
   AgentTurnEvent,
   AgentUxState,
 } from '@netior/shared/types';
+import { useEditorStore } from '../stores/editor-store';
 
 export interface AgentSessionState {
   provider: AgentSessionEvent['provider'];
@@ -113,10 +114,27 @@ function handleStatusEvent(event: AgentStatusEvent): void {
 }
 
 function handleNameEvent(event: AgentNameEvent): void {
-  updateEntry(getSessionKey(event.provider, event.sessionId), (prev) => ({
+  const key = getSessionKey(event.provider, event.sessionId);
+  console.log('[AgentSessionStore] nameChanged', {
+    provider: event.provider,
+    sessionId: event.sessionId,
+    name: event.name,
+  });
+  updateEntry(key, (prev) => ({
     ...prev,
     name: event.name,
   }));
+
+  const state = agentSessions.get(key);
+  if (state?.surface.kind === 'terminal') {
+    console.log('[AgentSessionStore] syncTabTitle', {
+      provider: event.provider,
+      sessionId: event.sessionId,
+      tabId: `terminal:${state.surface.id}`,
+      name: event.name,
+    });
+    useEditorStore.getState().updateTitle(`terminal:${state.surface.id}`, event.name);
+  }
 }
 
 function handleTurnEvent(event: AgentTurnEvent): void {

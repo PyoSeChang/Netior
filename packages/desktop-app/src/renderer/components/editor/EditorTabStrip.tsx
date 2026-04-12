@@ -12,7 +12,6 @@ import { FileIcon } from '../sidebar/FileIcon';
 import {
   getAgentSessionStateByTerminal,
   getAgentSessionStoreVersion,
-  setAgentSessionName,
   subscribeAgentSessionStore,
   type AgentSessionState,
 } from '../../lib/agent-session-store';
@@ -122,7 +121,7 @@ interface TabItemProps {
 
 function TabItem({ tab, isActive, isFocusedPane, isRenaming, onActivate, onClose, onContextMenu, onRenameSubmit, onRenameCancel, activeRef }: TabItemProps): JSX.Element {
   const agentState = useAgentState(tab.targetId);
-  const label = (tab.type === 'terminal' && agentState?.name) ? agentState.name : tab.title;
+  const label = tab.title;
 
   return (
     <div
@@ -144,7 +143,7 @@ function TabItem({ tab, isActive, isFocusedPane, isRenaming, onActivate, onClose
       <TabIcon tab={tab} />
       {isRenaming ? (
         <InlineRenameInput
-          value={tab.title}
+          value={label}
           onSubmit={(v) => onRenameSubmit(tab.id, v)}
           onCancel={onRenameCancel}
         />
@@ -300,26 +299,25 @@ export function EditorTabStrip({ tabs, activeTabId, isFocusedPane = true, hostId
       return;
     }
 
-    const previousTitle = tab.title;
     const agentState = tab.type === 'terminal' ? getAgentSessionStateByTerminal(tab.targetId) : null;
-    const shouldSyncCodexName = tab.type === 'terminal'
-      && (tab.terminalLaunchConfig?.agent?.provider === 'codex' || agentState?.provider === 'codex');
+    const shouldSyncAgentName = tab.type === 'terminal'
+      && Boolean(tab.terminalLaunchConfig?.agent || agentState);
+    const previousTitle = tab.title;
 
-    useEditorStore.getState().updateTitle(tabId, trimmedTitle, true);
-    if (shouldSyncCodexName) {
-      const previousAgentName = agentState?.provider === 'codex' ? agentState.name : null;
-      setAgentSessionName('codex', tab.targetId, trimmedTitle);
+    if (shouldSyncAgentName) {
+      useEditorStore.getState().updateTitle(tabId, trimmedTitle, true);
       void window.electron.agent.setName(tab.targetId, trimmedTitle)
         .then((handled) => {
-          if (!handled && agentState?.provider === 'codex') {
-            throw new Error('Codex terminal session is not active');
+          if (!handled) {
+            throw new Error('Agent terminal session name sync is not active');
           }
         })
         .catch((error) => {
-          console.error('[EditorTabStrip] failed to sync Codex thread name:', error);
           useEditorStore.getState().updateTitle(tabId, previousTitle, true);
-          setAgentSessionName('codex', tab.targetId, previousAgentName);
+          console.error('[EditorTabStrip] failed to sync agent session name:', error);
         });
+    } else {
+      useEditorStore.getState().updateTitle(tabId, trimmedTitle, true);
     }
 
     setRenamingTabId(null);

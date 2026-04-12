@@ -900,11 +900,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       let changed = false;
       const tabs = s.tabs.map((t) => {
         if (t.id !== tabId) return t;
-        if (t.isManuallyRenamed && !isManualRename) return t;
-        const nextIsManuallyRenamed = isManualRename ? true : t.isManuallyRenamed;
+        const isAgentTerminalTab = t.type === 'terminal' && Boolean(t.terminalLaunchConfig?.agent);
+        if (t.isManuallyRenamed && !isManualRename && !isAgentTerminalTab) return t;
+        const nextIsManuallyRenamed = isAgentTerminalTab
+          ? false
+          : isManualRename
+            ? true
+            : t.isManuallyRenamed;
         if (t.title === title && t.isManuallyRenamed === nextIsManuallyRenamed) return t;
         changed = true;
-        return { ...t, title, ...(isManualRename ? { isManuallyRenamed: true } : {}) };
+        return { ...t, title, isManuallyRenamed: nextIsManuallyRenamed };
       });
       return changed ? { tabs } : { tabs: s.tabs };
     });

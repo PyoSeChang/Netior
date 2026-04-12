@@ -2,6 +2,8 @@ import { useEditorStore, MAIN_HOST_ID } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
 import type { TerminalLaunchConfig } from '@netior/shared/types';
 
+const DEFAULT_CODEX_SESSION_NAME = 'codex';
+
 function resolveTerminalCwd(): string | undefined {
   return useProjectStore.getState().currentProject?.root_dir ?? undefined;
 }
@@ -30,7 +32,7 @@ export function openTerminalTab(
 }
 
 export function openCodexTab(hostId = MAIN_HOST_ID): void {
-  openTerminalTab(hostId, 'Codex', {
+  openTerminalTab(hostId, DEFAULT_CODEX_SESSION_NAME, {
     terminalLaunchConfig: {
       shell: 'codex',
       args: ['--no-alt-screen'],

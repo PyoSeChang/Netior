@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'child_process';
 import { createHash, randomBytes } from 'crypto';
 import { app } from 'electron';
-import { chmodSync, existsSync, mkdirSync, watch, writeFileSync, type FSWatcher } from 'fs';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, watch, writeFileSync, type FSWatcher } from 'fs';
 import { createConnection, createServer, type Socket } from 'net';
 import { basename, delimiter, join } from 'path';
 import type { AgentAttentionReason, AgentStatus, TerminalLaunchConfig } from '@netior/shared/types';
@@ -66,9 +66,12 @@ interface CodexAppServerSession {
   externalSessionId: string | null;
   pendingName: string | null;
   nameUpdateInFlight: Promise<void> | null;
+  loadedThreadRecoveryInFlight: Promise<void> | null;
   started: boolean;
   lastStatus: AgentStatus | null;
   lastStatusReason: AgentAttentionReason | null;
+  lastObservedName: string | null;
+  lastEmittedName: string | null;
   spawnError: Error | null;
 }
 
@@ -849,6 +852,83 @@ function toAgentStatusUpdate(status: unknown): AgentStatusUpdate {
   return { status: 'offline', reason: null };
 }
 
+const ANSI_ESCAPE_PATTERN = /\u001B\[[0-?]*[ -/]*[@-~]/g;
+const ZERO_WIDTH_PATTERN = /[\u200B-\u200D\uFEFF]/g;
+const LEADING_SPINNER_PATTERN = /^[\s\u2800-\u28FF\u2580-\u259F\u25A0-\u25FF\u2500-\u257F\u2190-\u21FF|/\\-]+/u;
+const INLINE_SPINNER_PATTERN = /[\u2800-\u28FF\u2580-\u259F\u25A0-\u25FF\u2500-\u257F\u2190-\u21FF]+/gu;
+const LEADING_DECORATION_PATTERN = /^[^\p{L}\p{N}]+/u;
+const TRANSIENT_THREAD_NAME_TOKEN = '(?:working|loading|thinking|running|responding|starting|initializing)';
+const TRANSIENT_THREAD_NAME_PATTERN = new RegExp(`^${TRANSIENT_THREAD_NAME_TOKEN}(?:\\b|[\\s.:()0-9-].*)$`, 'i');
+const TRANSIENT_THREAD_PREFIX_PATTERN = new RegExp(`^${TRANSIENT_THREAD_NAME_TOKEN}[\\s.:()\\-–—|/\\\\]+`, 'i');
+const TRANSIENT_THREAD_SUFFIX_PATTERN = new RegExp(`[\\s.:()\\-–—|/\\\\]+${TRANSIENT_THREAD_NAME_TOKEN}$`, 'i');
+const EDGE_SEPARATOR_PATTERN = /^[\s.:()\-–—|/\\]+|[\s.:()\-–—|/\\]+$/g;
+
+const DEFAULT_CODEX_SESSION_NAME = 'codex';
+
+function sanitizeCodexThreadName(name: string | null | undefined): string | null {
+  if (typeof name !== 'string') {
+    return null;
+  }
+
+  const normalized = name
+    .replace(ANSI_ESCAPE_PATTERN, '')
+    .replace(ZERO_WIDTH_PATTERN, '')
+    .replace(LEADING_SPINNER_PATTERN, '')
+    .replace(INLINE_SPINNER_PATTERN, ' ')
+    .replace(LEADING_DECORATION_PATTERN, '')
+    .replace(TRANSIENT_THREAD_PREFIX_PATTERN, '')
+    .replace(TRANSIENT_THREAD_SUFFIX_PATTERN, '')
+    .replace(EDGE_SEPARATOR_PATTERN, '')
+    .trim();
+
+  return normalized || null;
+}
+
+function isTransientCodexThreadName(name: string | null | undefined): boolean {
+  const normalized = sanitizeCodexThreadName(name);
+  if (!normalized) {
+    return true;
+  }
+
+  return TRANSIENT_THREAD_NAME_PATTERN.test(normalized);
+}
+
+function isDefaultCodexSessionName(name: string | null | undefined): boolean {
+  return typeof name === 'string' && name.trim().toLowerCase() === DEFAULT_CODEX_SESSION_NAME;
+}
+
+function getDefaultCodexSessionName(name: string | null | undefined): string {
+  return sanitizeCodexThreadName(name) ?? DEFAULT_CODEX_SESSION_NAME;
+}
+
+function logCodexThreadName(
+  wrapperDir: string,
+  sessionId: string,
+  source: 'thread/started' | 'thread/name/updated' | 'thread/read' | 'emit',
+  rawName: string | null | undefined,
+  status: AgentStatus | null,
+): void {
+  if (typeof rawName !== 'string') {
+    return;
+  }
+
+  const trimmedRawName = rawName.trim();
+  const sanitizedName = sanitizeCodexThreadName(rawName);
+  const transient = isTransientCodexThreadName(rawName);
+  const shouldAlwaysLog = source === 'thread/read' || source === 'emit';
+  if (!shouldAlwaysLog && trimmedRawName === sanitizedName && !transient) {
+    return;
+  }
+
+  const line = `[CodexAppServer:${sessionId}] name source=${source} raw=${JSON.stringify(rawName)} sanitized=${JSON.stringify(sanitizedName)} transient=${transient} status=${status ?? 'null'}`;
+  console.log(line);
+  try {
+    appendFileSync(join(wrapperDir, 'events.log'), `${line}\n`, 'utf-8');
+  } catch {
+    // ignore debug log write failures
+  }
+}
+
 async function connectWebSocket(url: string, timeoutMs: number): Promise<WebSocketLike> {
   return new Promise((resolve, reject) => {
     const socket = new LoopbackWebSocketClient(url);
@@ -947,13 +1027,16 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       activationInFlight: null,
       pendingRequests: new Map(),
       externalSessionId: null,
-      pendingName: launchConfig.agent?.provider === 'codex' && typeof launchConfig.title === 'string' && launchConfig.title !== 'Codex'
+      pendingName: launchConfig.agent?.provider === 'codex' && typeof launchConfig.title === 'string' && !isDefaultCodexSessionName(launchConfig.title)
         ? launchConfig.title
         : null,
       nameUpdateInFlight: null,
+      loadedThreadRecoveryInFlight: null,
       started: false,
       lastStatus: null,
       lastStatusReason: null,
+      lastObservedName: null,
+      lastEmittedName: null,
       spawnError: null,
     };
 
@@ -987,7 +1070,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
 
     if (launchConfig.agent?.provider === 'codex') {
       resolvedLaunchConfig.shell = 'codex';
-      resolvedLaunchConfig.title = launchConfig.title ?? 'Codex';
+      resolvedLaunchConfig.title = launchConfig.title ?? DEFAULT_CODEX_SESSION_NAME;
       resolvedLaunchConfig.agent = {
         provider: 'codex',
         remoteUrl,
@@ -1277,13 +1360,9 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       session.pendingName = null;
     }
     const hasPendingNameOverride = typeof session.pendingName === 'string' && session.pendingName.length > 0;
-    if (!hasPendingNameOverride && typeof thread.name === 'string' && thread.name.length > 0) {
-      this.sink?.emitNameEvent({
-        provider: 'codex',
-        sessionId: session.terminalSessionId,
-        name: thread.name,
-      });
-    }
+    session.lastObservedName = sanitizeCodexThreadName(thread.name);
+    logCodexThreadName(session.wrapperDir, session.terminalSessionId, 'thread/started', thread.name, session.lastStatus);
+    this.emitStableThreadName(session, thread.name);
     if (hasPendingNameOverride) {
       void this.flushPendingName(session);
     }
@@ -1291,6 +1370,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       const nextStatus = toAgentStatusUpdate(thread.status);
       this.emitStatus(session, nextStatus.status, nextStatus.reason);
     }
+    void this.refreshCanonicalThreadName(session, thread.id);
   }
 
   private handleThreadNameUpdated(session: CodexAppServerSession, params: unknown): void {
@@ -1301,21 +1381,21 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     const payload = params as { threadId?: unknown; threadName?: unknown };
     const threadId = typeof payload.threadId === 'string' ? payload.threadId : null;
     const threadName = typeof payload.threadName === 'string' ? payload.threadName : null;
-    if (!threadId || !threadName) {
+    if (!threadId || threadName == null) {
       return;
     }
 
     this.ensureSessionStarted(session, threadId);
-    if (session.pendingName === threadName) {
+    logCodexThreadName(session.wrapperDir, session.terminalSessionId, 'thread/name/updated', threadName, session.lastStatus);
+    const isPendingNameConfirmation = session.pendingName === threadName;
+    if (isPendingNameConfirmation) {
       session.pendingName = null;
     } else if (session.pendingName) {
       void this.flushPendingName(session);
     }
-    this.sink?.emitNameEvent({
-      provider: 'codex',
-      sessionId: session.terminalSessionId,
-      name: threadName,
-    });
+    session.lastObservedName = sanitizeCodexThreadName(threadName);
+    this.emitStableThreadName(session, threadName);
+    void this.refreshCanonicalThreadName(session, threadId);
   }
 
   private handleThreadStatusChanged(session: CodexAppServerSession, params: unknown): void {
@@ -1332,6 +1412,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     this.ensureSessionStarted(session, threadId);
     const nextStatus = toAgentStatusUpdate(payload.status);
     this.emitStatus(session, nextStatus.status, nextStatus.reason);
+    void this.refreshCanonicalThreadName(session, threadId);
   }
 
   private handleTurnStarted(session: CodexAppServerSession, params: unknown): void {
@@ -1350,6 +1431,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     if (session.lastStatus !== 'blocked') {
       this.emitStatus(session, 'working');
     }
+    void this.refreshCanonicalThreadName(session, threadId);
     this.sink?.emitTurnEvent({
       provider: 'codex',
       sessionId: session.terminalSessionId,
@@ -1395,6 +1477,7 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     }
 
     this.ensureSessionStarted(session, threadId);
+    void this.refreshCanonicalThreadName(session, threadId);
     this.sink?.emitTurnEvent({
       provider: 'codex',
       sessionId: session.terminalSessionId,
@@ -1422,6 +1505,8 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       session.started = false;
       session.lastStatus = null;
       session.lastStatusReason = null;
+      session.lastObservedName = null;
+      session.lastEmittedName = null;
     }
 
     session.externalSessionId = externalSessionId;
@@ -1463,6 +1548,52 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       status,
       reason,
     });
+    this.emitStableThreadName(session, session.lastObservedName);
+  }
+
+  private emitStableThreadName(
+    session: CodexAppServerSession,
+    name: string | null | undefined,
+  ): void {
+    const sanitizedName = sanitizeCodexThreadName(name);
+    logCodexThreadName(session.wrapperDir, session.terminalSessionId, 'emit', name, session.lastStatus);
+    if (!sanitizedName) {
+      return;
+    }
+    if (isTransientCodexThreadName(sanitizedName)) {
+      return;
+    }
+    if (session.pendingName) {
+      return;
+    }
+    if (session.lastEmittedName === sanitizedName) {
+      return;
+    }
+
+    session.lastEmittedName = sanitizedName;
+    this.sink?.emitNameEvent({
+      provider: 'codex',
+      sessionId: session.terminalSessionId,
+      name: sanitizedName,
+    });
+  }
+
+  private emitFallbackThreadName(session: CodexAppServerSession): void {
+    if (session.pendingName || session.lastObservedName) {
+      return;
+    }
+
+    const fallbackName = getDefaultCodexSessionName(null);
+    if (session.lastEmittedName === fallbackName) {
+      return;
+    }
+
+    session.lastEmittedName = fallbackName;
+    this.sink?.emitNameEvent({
+      provider: 'codex',
+      sessionId: session.terminalSessionId,
+      name: fallbackName,
+    });
   }
 
   private cleanupSession(
@@ -1484,6 +1615,9 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
     session.pendingRequests.clear();
     session.pendingName = null;
     session.nameUpdateInFlight = null;
+    session.loadedThreadRecoveryInFlight = null;
+    session.lastObservedName = null;
+    session.lastEmittedName = null;
 
     try {
       session.activationWatcher?.close();
@@ -1536,10 +1670,11 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       threadId,
       name: pendingName,
     }, 3_000)
-      .then(() => {
+      .then(async () => {
         if (session.pendingName === pendingName) {
           session.pendingName = null;
         }
+        await this.refreshCanonicalThreadName(session, threadId);
       })
       .catch((error) => {
         console.warn(
@@ -1558,6 +1693,89 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       });
 
     return session.nameUpdateInFlight;
+  }
+
+  private async refreshCanonicalThreadName(
+    session: CodexAppServerSession,
+    threadId: string,
+  ): Promise<void> {
+    if (!threadId || !session.socket || !this.sessions.has(session.terminalSessionId)) {
+      return;
+    }
+
+    try {
+      const response = await this.sendRequest(session, 'thread/read', {
+        threadId,
+        includeTurns: false,
+      }, 3_000);
+      const thread = this.readThread(response);
+      if (!thread || thread.id !== threadId) {
+        return;
+      }
+
+      if (thread.status) {
+        const nextStatus = toAgentStatusUpdate(thread.status);
+        this.emitStatus(session, nextStatus.status, nextStatus.reason);
+      }
+      session.lastObservedName = sanitizeCodexThreadName(thread.name);
+      logCodexThreadName(
+        session.wrapperDir,
+        session.terminalSessionId,
+        'thread/read',
+        thread.name,
+        session.lastStatus,
+      );
+      if (session.lastObservedName) {
+        this.emitStableThreadName(session, thread.name);
+      } else {
+        this.emitFallbackThreadName(session);
+      }
+    } catch (error) {
+      const message = formatRpcError(error);
+      console.warn(
+        `[CodexAppServer:${session.terminalSessionId}] thread/read failed: ${message}`,
+      );
+      if (message.includes('thread not loaded')) {
+        await this.recoverLoadedThread(session, threadId);
+      }
+    }
+  }
+
+  private recoverLoadedThread(
+    session: CodexAppServerSession,
+    failedThreadId: string,
+  ): Promise<void> {
+    if (
+      session.loadedThreadRecoveryInFlight
+      || !session.socket
+      || !this.sessions.has(session.terminalSessionId)
+    ) {
+      return session.loadedThreadRecoveryInFlight ?? Promise.resolve();
+    }
+
+    session.loadedThreadRecoveryInFlight = this.sendRequest(session, 'thread/loaded/list', {
+      limit: 10,
+    }, 3_000)
+      .then(async (response) => {
+        const threadIds = this.readLoadedThreadIds(response);
+        const candidateThreadId = threadIds.find((threadId) => threadId !== failedThreadId) ?? null;
+        if (!candidateThreadId) {
+          return;
+        }
+
+        this.ensureSessionStarted(session, candidateThreadId);
+        await this.refreshCanonicalThreadName(session, candidateThreadId);
+      })
+      .catch((error) => {
+        console.warn(
+          `[CodexAppServer:${session.terminalSessionId}] thread/loaded/list failed: ${formatRpcError(error)}`,
+        );
+      })
+      .finally(() => {
+        session.loadedThreadRecoveryInFlight = null;
+      });
+
+    return session.loadedThreadRecoveryInFlight;
   }
 
   private readThread(params: unknown): { id: string; name?: string | null; status?: unknown } | null {
@@ -1580,6 +1798,19 @@ export class CodexAppServerAdapter implements AgentRuntimeAdapter {
       name: typeof payload.name === 'string' ? payload.name : null,
       status: payload.status,
     };
+  }
+
+  private readLoadedThreadIds(params: unknown): string[] {
+    if (!params || typeof params !== 'object' || !('data' in params)) {
+      return [];
+    }
+
+    const data = (params as { data?: unknown }).data;
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data.filter((threadId): threadId is string => typeof threadId === 'string');
   }
 
   private readTurn(params: unknown): { id: string; status?: string | null } | null {

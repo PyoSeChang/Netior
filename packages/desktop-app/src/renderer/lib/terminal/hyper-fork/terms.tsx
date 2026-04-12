@@ -25,7 +25,7 @@ interface ForkedHyperTermsProps {
   visible: boolean;
   onData(data: string): void;
   onResize(cols: number, rows: number): void;
-  onTitle(title: string): void;
+  onTitle?(title: string): void;
   onActive(): void;
 }
 
@@ -121,4 +121,3 @@ export class ForkedHyperTerms extends React.PureComponent<ForkedHyperTermsProps>
     this.termGroupRef = group;
   };
 }
-
