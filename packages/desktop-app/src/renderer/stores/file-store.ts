@@ -20,6 +20,76 @@ export interface ClipboardState {
   action: ClipboardAction;
 }
 
+function normalizePath(targetPath: string): string {
+  return targetPath.replace(/\\/g, '/');
+}
+
+function buildRootFileTree(dirs: string[], trees: FileTreeNode[][]): FileTreeNode[] {
+  return dirs.length === 1
+    ? trees[0]
+    : dirs.map((dirPath, index) => {
+        const normalizedPath = normalizePath(dirPath);
+        const name = normalizedPath.split('/').filter(Boolean).pop() || normalizedPath;
+        return {
+          name,
+          path: normalizedPath,
+          type: 'directory' as const,
+          children: trees[index],
+        };
+      });
+}
+
+function mergeFileTreeNodes(nextNodes: FileTreeNode[], prevNodes: FileTreeNode[]): FileTreeNode[] {
+  const prevByPath = new Map(prevNodes.map((node) => [normalizePath(node.path), node]));
+  let changed = nextNodes.length !== prevNodes.length;
+
+  const merged = nextNodes.map((nextNode) => {
+    const prevNode = prevByPath.get(normalizePath(nextNode.path));
+    if (!prevNode || prevNode.type !== nextNode.type) {
+      changed = true;
+      return nextNode;
+    }
+
+    if (nextNode.type === 'directory') {
+      let children = nextNode.children;
+      if (nextNode.children) {
+        children = mergeFileTreeNodes(nextNode.children, prevNode.children ?? []);
+      } else if (nextNode.hasChildren !== false && prevNode.children) {
+        children = prevNode.children;
+      }
+
+      const mergedNode: FileTreeNode = children
+        ? { ...nextNode, children, hasChildren: undefined }
+        : nextNode;
+
+      if (
+        prevNode.name === mergedNode.name
+        && prevNode.path === mergedNode.path
+        && prevNode.hasChildren === mergedNode.hasChildren
+        && prevNode.children === mergedNode.children
+      ) {
+        return prevNode;
+      }
+
+      changed = true;
+      return mergedNode;
+    }
+
+    if (
+      prevNode.name === nextNode.name
+      && prevNode.path === nextNode.path
+      && prevNode.extension === nextNode.extension
+    ) {
+      return prevNode;
+    }
+
+    changed = true;
+    return nextNode;
+  });
+
+  return changed ? merged : prevNodes;
+}
+
 interface FileStore {
   fileTree: FileTreeNode[];
   openFiles: OpenFile[];
@@ -56,17 +126,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     set({ loading: true, rootDirs: dirs });
     try {
       const trees = await Promise.all(dirs.map((d) => fsService.readDirShallow(d, 2)));
-      const fileTree = dirs.length === 1
-        ? trees[0]
-        : dirs.map((dirPath, i) => {
-            const name = dirPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || dirPath;
-            return {
-              name,
-              path: dirPath.replace(/\\/g, '/'),
-              type: 'directory' as const,
-              children: trees[i],
-            };
-          });
+      const fileTree = buildRootFileTree(dirs, trees);
       set({ fileTree });
     } finally {
       set({ loading: false });
@@ -85,7 +145,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const mergeChildren = (nodes: FileTreeNode[]): FileTreeNode[] =>
         nodes.map((node) => {
           if (node.path === dirPath && node.type === 'directory') {
-            return { ...node, children, hasChildren: undefined };
+            return {
+              ...node,
+              children: mergeFileTreeNodes(children, node.children ?? []),
+              hasChildren: undefined,
+            };
           }
           if (node.children) {
             return { ...node, children: mergeChildren(node.children) };
@@ -108,18 +172,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
     // Silent refresh — no loading flag so FileTree stays mounted
     const dirs = rootDirs;
     const trees = await Promise.all(dirs.map((d) => fsService.readDirShallow(d, 2)));
-    const fileTree = dirs.length === 1
-      ? trees[0]
-      : dirs.map((dirPath, i) => {
-          const name = dirPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || dirPath;
-          return {
-            name,
-            path: dirPath.replace(/\\/g, '/'),
-            type: 'directory' as const,
-            children: trees[i],
-          };
-        });
-    set({ fileTree });
+    const nextTree = buildRootFileTree(dirs, trees);
+    set((state) => ({ fileTree: mergeFileTreeNodes(nextTree, state.fileTree) }));
   },
 
   openFile: async (relativePath, rootDir) => {

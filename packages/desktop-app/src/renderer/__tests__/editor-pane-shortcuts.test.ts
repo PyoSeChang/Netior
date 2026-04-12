@@ -19,6 +19,7 @@ Object.defineProperty(globalThis, 'window', {
 // Import after mock
 const { collectLeaves, getActiveLeaf, useEditorStore, containsTab } = await import('../stores/editor-store');
 const { cycleTab, activateTabByNumber, cyclePane } = await import('../shortcuts/useGlobalShortcuts');
+const { openFileInPane, openFileTab } = await import('../lib/open-file-tab');
 
 // ── Test fixtures ──
 
@@ -452,5 +453,91 @@ describe('minimize / restore tabs', () => {
     expect(rightLeaf?.type).toBe('leaf');
     expect(rightLeaf?.type === 'leaf' ? rightLeaf.tabIds : []).toEqual(['b']);
     expect(state.activeTabId).toBe('b');
+  });
+});
+
+describe('openFileInPane source-pane active preservation', () => {
+  beforeEach(() => {
+    useEditorStore.getState().clear();
+  });
+
+  it('preserves the source pane active tab while opening in another pane', async () => {
+    useEditorStore.setState({
+      tabs: makeTabs('a1', 'a3', 'a5', 'b1'),
+      activeTabId: 'a3',
+      sideLayout: makeBranch(
+        makeLeaf(['a1', 'a3', 'a5'], 'a3'),
+        makeLeaf(['b1'], 'b1'),
+      ),
+    });
+
+    await openFileInPane('C:/tmp/result.md', 'b1', 'side', undefined, {
+      preserveActiveInSourcePaneForTabId: 'a3',
+    });
+
+    const state = useEditorStore.getState();
+    const leftLeaf = state.sideLayout?.type === 'branch' ? state.sideLayout.children[0] : null;
+    const rightLeaf = state.sideLayout?.type === 'branch' ? state.sideLayout.children[1] : null;
+
+    expect(leftLeaf?.type).toBe('leaf');
+    expect(leftLeaf?.type === 'leaf' ? leftLeaf.activeTabId : null).toBe('a3');
+    expect(rightLeaf?.type).toBe('leaf');
+    expect(rightLeaf?.type === 'leaf' ? rightLeaf.activeTabId : null).toBe('file:C:/tmp/result.md');
+    expect(state.activeTabId).toBe('file:C:/tmp/result.md');
+  });
+});
+
+describe('openFileTab smart pane routing', () => {
+  beforeEach(() => {
+    useEditorStore.getState().clear();
+  });
+
+  it('preserves the source pane active tab when a work tab opens into another document pane', async () => {
+    useEditorStore.setState({
+      tabs: [
+        { ...makeTab('term'), type: 'terminal', targetId: 'term', title: 'term' } as any,
+        ...makeTabs('a3', 'a5', 'b1'),
+      ],
+      activeTabId: 'term',
+      sideLayout: makeBranch(
+        makeLeaf(['term', 'a3', 'a5'], 'a3'),
+        makeLeaf(['b1'], 'b1'),
+      ),
+    });
+
+    await openFileTab({
+      filePath: 'C:/tmp/smart.md',
+      sourceTabId: 'term',
+      placement: 'smart',
+    });
+
+    const state = useEditorStore.getState();
+    const leftLeaf = state.sideLayout?.type === 'branch' ? state.sideLayout.children[0] : null;
+    const rightLeaf = state.sideLayout?.type === 'branch' ? state.sideLayout.children[1] : null;
+
+    expect(leftLeaf?.type === 'leaf' ? leftLeaf.activeTabId : null).toBe('a3');
+    expect(rightLeaf?.type === 'leaf' ? rightLeaf.activeTabId : null).toBe('file:C:/tmp/smart.md');
+  });
+});
+
+describe('setStale idempotence', () => {
+  beforeEach(() => {
+    useEditorStore.getState().clear();
+  });
+
+  it('does not notify when stale value is unchanged', () => {
+    useEditorStore.setState({
+      tabs: makeTabs('a1'),
+      activeTabId: 'a1',
+      sideLayout: makeLeaf(['a1'], 'a1'),
+    });
+
+    const listener = vi.fn();
+    const unsubscribe = useEditorStore.subscribe(listener);
+
+    useEditorStore.getState().setStale('a1', false);
+
+    unsubscribe();
+    expect(listener).not.toHaveBeenCalled();
   });
 });

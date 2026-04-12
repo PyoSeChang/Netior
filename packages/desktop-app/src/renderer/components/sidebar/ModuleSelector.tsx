@@ -3,6 +3,7 @@ import { Package, Plus, Trash2, ChevronDown, Pencil, FolderOpen } from 'lucide-r
 import { useModuleStore } from '../../stores/module-store';
 import { useI18n } from '../../hooks/useI18n';
 import { fsService } from '../../services';
+import { Tooltip } from '../ui/Tooltip';
 
 interface ModuleSelectorProps {
   projectId: string;
@@ -127,7 +128,7 @@ export function ModuleSelector({ projectId, projectRootDir }: ModuleSelectorProp
             {modules.map((m) => (
               <div
                 key={m.id}
-                className={`group flex cursor-pointer items-center gap-2 px-2 py-1 text-xs transition-colors ${
+                className={`group cursor-pointer px-2 py-1 text-xs transition-colors ${
                   m.id === activeModuleId
                     ? 'bg-interactive-selected text-accent'
                     : 'text-secondary hover:bg-surface-hover hover:text-default'
@@ -138,7 +139,7 @@ export function ModuleSelector({ projectId, projectRootDir }: ModuleSelectorProp
                 {renamingId === m.id ? (
                   <input
                     ref={renameInputRef}
-                    className="flex-1 rounded border border-subtle bg-input px-1 py-0.5 text-xs text-default outline-none focus:border-accent"
+                    className="w-full rounded border border-subtle bg-input px-1 py-0.5 text-xs text-default outline-none focus:border-accent"
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
                     onKeyDown={(e) => {
@@ -152,36 +153,39 @@ export function ModuleSelector({ projectId, projectRootDir }: ModuleSelectorProp
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate">{m.name}</div>
+                  <div className="min-w-0">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1 truncate">{m.name}</div>
+                      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Tooltip content={t('sidebar.editModuleName' as never)} position="top">
+                          <button
+                            className="rounded p-0.5 text-muted hover:text-default"
+                            onClick={(e) => startRename(e, m.id, m.name)}
+                          >
+                            <Pencil size={10} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content={t('sidebar.editModulePath' as never)} position="top">
+                          <button
+                            className="rounded p-0.5 text-muted hover:text-default"
+                            onClick={(e) => changePath(e, m.id)}
+                          >
+                            <FolderOpen size={10} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content={t('sidebar.deleteModule' as never)} position="top">
+                          <button
+                            className="rounded p-0.5 text-muted hover:text-status-error"
+                            onClick={(e) => handleDelete(e, m.id)}
+                          >
+                            <Trash2 size={10} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                    </div>
                     <div className="truncate text-[11px] text-muted">
                       {m.path || t('sidebar.selectModulePath')}
                     </div>
-                  </div>
-                )}
-                {renamingId !== m.id && (
-                  <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button
-                      className="rounded p-0.5 text-muted hover:text-default"
-                      onClick={(e) => startRename(e, m.id, m.name)}
-                      title={t('sidebar.editModuleName' as never)}
-                    >
-                      <Pencil size={10} />
-                    </button>
-                    <button
-                      className="rounded p-0.5 text-muted hover:text-default"
-                      onClick={(e) => changePath(e, m.id)}
-                      title={t('sidebar.editModulePath' as never)}
-                    >
-                      <FolderOpen size={10} />
-                    </button>
-                    <button
-                      className="rounded p-0.5 text-muted hover:text-status-error"
-                      onClick={(e) => handleDelete(e, m.id)}
-                      title={t('sidebar.deleteModule' as never)}
-                    >
-                      <Trash2 size={10} />
-                    </button>
                   </div>
                 )}
               </div>

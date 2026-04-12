@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import type { SplitDirection } from '@netior/shared/types';
-import { isTabDrag, getTabDragDataAsync } from '../../hooks/useTabDrag';
+import { isTabDrag, getTabDragDataAsync, flushTabDragData } from '../../hooks/useTabDrag';
 import { getFileOpenDragData, isFileOpenDrag } from '../../hooks/useFileOpenDrag';
 
 export type DropZone = 'top' | 'bottom' | 'left' | 'right' | 'center';
@@ -81,6 +81,7 @@ export function DropZoneOverlay({ onDrop, onFileDrop, centerOnly, active }: Drop
       }
 
       const tabId = await getTabDragDataAsync(e);
+      flushTabDragData();
       console.log(`[DropZoneOverlay] drop tab centerOnly=${!!centerOnly}, zone=${zone}, tabId=${tabId}`);
       if (tabId) onDrop({ tabId, zone, direction, position });
     },

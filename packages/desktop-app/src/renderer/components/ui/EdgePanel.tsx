@@ -84,6 +84,8 @@ export function EdgePanel({
   const panelRounded = isLeft ? 'rounded-r-md' : 'rounded-l-md';
   const panelBorder = isLeft ? 'border-y border-r border-subtle' : 'border-y border-l border-subtle';
   const hiddenTransform = isLeft ? '-translate-x-full' : 'translate-x-full';
+  const triggerTop = `calc(3rem + ${topOffset}px)`;
+  const triggerHeight = 60;
 
   const showHeader = title || onPinChange || headerActions;
 
@@ -92,7 +94,7 @@ export function EdgePanel({
       {!pinned && (
         <svg
           className={`pointer-events-none absolute ${trapezoidPos} z-30`}
-          style={{ top: `calc(3rem + ${topOffset}px)` }}
+          style={{ top: triggerTop }}
           width="6"
           height="60"
           viewBox="0 0 6 60"
@@ -103,7 +105,8 @@ export function EdgePanel({
 
       {!pinned && (
         <div
-          className={`absolute ${triggerPos} top-0 z-30 w-2 h-full`}
+          className={`absolute ${triggerPos} z-30 w-2`}
+          style={{ top: triggerTop, height: triggerHeight }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         />

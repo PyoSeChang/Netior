@@ -369,9 +369,11 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
   const openOverlayFileInPane = useCallback((pane: FileOpenPaneOption) => {
     const file = actionOverlay?.resolvedFile;
     if (!file) return;
-    void openFileInPane(file.path, pane.activeTabId, pane.mode);
+    void openFileInPane(file.path, pane.activeTabId, pane.mode, undefined, {
+      preserveActiveInSourcePaneForTabId: tab.id,
+    });
     closeActionOverlay();
-  }, [actionOverlay?.resolvedFile, closeActionOverlay]);
+  }, [actionOverlay?.resolvedFile, closeActionOverlay, tab.id]);
 
   const getTextTargetLink = useCallback((target: TerminalTextTarget, exactOnly = true): TerminalTextLink => {
     if (target.link) return target.link;

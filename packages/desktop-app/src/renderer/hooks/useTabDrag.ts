@@ -55,6 +55,15 @@ export function clearTabDragData(): void {
   }, 600);
 }
 
+export function flushTabDragData(): void {
+  if (clearTimer) {
+    clearTimeout(clearTimer);
+    clearTimer = null;
+  }
+  console.log('[TabDrag] clear immediate');
+  window.electron.editor.clearDragTab();
+}
+
 export function isTabDrag(e: React.DragEvent): boolean {
   const hasLocalType = e.dataTransfer.types.includes(TAB_DRAG_TYPE);
   if (hasLocalType) return true;

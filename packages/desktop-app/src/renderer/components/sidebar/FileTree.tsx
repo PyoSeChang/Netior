@@ -357,7 +357,9 @@ function FileTreeItem({
             }
           }}
           onContextMenu={(e) => {
-            onSelect(e, node.path);
+            if (!selectedPaths.has(node.path)) {
+              onSelect(e, node.path);
+            }
             onContextMenu(e, node);
           }}
         >
@@ -442,7 +444,9 @@ function FileTreeItem({
         }
       }}
       onContextMenu={(e) => {
-        onSelect(e, node.path);
+        if (!selectedPaths.has(node.path)) {
+          onSelect(e, node.path);
+        }
         onContextMenu(e, node);
       }}
     >
@@ -642,10 +646,27 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
     const nextPaths = compactPaths(updater(clipboard.paths));
     if (nextPaths.length > 0) {
       setClipboard(nextPaths, clipboard.action);
+      void fsService.writeClipboardFiles(nextPaths, clipboard.action).catch((error) => {
+        console.error('[FileTree] Failed to sync system clipboard:', error);
+        showToast('error', t('fileTree.clipboardFailed' as TranslationKey));
+      });
     } else {
       clearClipboard();
     }
-  }, [clipboard, clearClipboard, setClipboard]);
+  }, [clipboard, clearClipboard, setClipboard, t]);
+
+  const handleClipboardAction = useCallback(async (paths: string[], action: 'copy' | 'cut') => {
+    const nextPaths = compactPaths(paths);
+    if (nextPaths.length === 0) return;
+
+    setClipboard(nextPaths, action);
+    try {
+      await fsService.writeClipboardFiles(nextPaths, action);
+    } catch (error) {
+      console.error('[FileTree] Failed to write file clipboard:', { action, paths: nextPaths, error });
+      showToast('error', t('fileTree.clipboardFailed' as TranslationKey));
+    }
+  }, [setClipboard, t]);
 
   const handleRenameSubmit = useCallback(async (oldPath: string, newName: string) => {
     const validationError = validateFileName(newName);
@@ -1041,12 +1062,12 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
     items.push({
       label: t('fileTree.copy' as TranslationKey),
       shortcut: 'Ctrl+C',
-      onClick: () => setClipboard(selection, 'copy'),
+      onClick: () => { void handleClipboardAction(selection, 'copy'); },
     });
     items.push({
       label: t('fileTree.cut' as TranslationKey),
       shortcut: 'Ctrl+X',
-      onClick: () => setClipboard(selection, 'cut'),
+      onClick: () => { void handleClipboardAction(selection, 'cut'); },
     });
 
     if (clipboard || hasSystemFiles || hasClipboardImage) {
@@ -1097,7 +1118,7 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
     });
 
     return items;
-  }, [contextMenu, clipboard, hasSystemFiles, hasClipboardImage, rootDirs, onFileClick, setClipboard, handlePaste, handleDelete, getParentDir, getActiveSelection, selectedPaths, t]);
+  }, [contextMenu, clipboard, hasSystemFiles, hasClipboardImage, rootDirs, onFileClick, handleClipboardAction, handlePaste, handleDelete, getParentDir, getActiveSelection, selectedPaths, t]);
 
   const newInputPlaceholder = newInput?.type === 'file'
     ? t('fileTree.filenamePlaceholder' as TranslationKey)
@@ -1208,13 +1229,13 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
     if (key === 'c' && activeSelection.length > 0) {
       e.preventDefault();
       logShortcut('shortcut.fileTree.copySelection');
-      setClipboard(activeSelection, 'copy');
+      await handleClipboardAction(activeSelection, 'copy');
       return;
     }
     if (key === 'x' && activeSelection.length > 0) {
       e.preventDefault();
       logShortcut('shortcut.fileTree.cutSelection');
-      setClipboard(activeSelection, 'cut');
+      await handleClipboardAction(activeSelection, 'cut');
       return;
     }
     if (key === 'v') {
@@ -1239,7 +1260,7 @@ export function FileTree({ nodes, onFileClick }: FileTreeProps): JSX.Element {
     getActiveSelection,
     handleUndo,
     visibleItems,
-    setClipboard,
+    handleClipboardAction,
     focusedPath,
     handlePasteSelection,
   ]);

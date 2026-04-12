@@ -17,6 +17,10 @@ interface OpenFileTabParams {
   placement?: FileOpenPlacement;
 }
 
+interface OpenFileInPaneOptions {
+  preserveActiveInSourcePaneForTabId?: string;
+}
+
 const WORK_SOURCE_TYPES = new Set<EditorTabType>(['terminal', 'narre']);
 const DOCUMENT_TARGET_TYPES = new Set<EditorTabType>(['file']);
 
@@ -34,6 +38,34 @@ function getLeaves(layout: SplitNode | null): SplitLeaf[] {
 
 function findLeafWithTabId(layout: SplitNode | null, tabId: string): SplitLeaf | null {
   return getLeaves(layout).find((leaf) => leaf.tabIds.includes(tabId)) ?? null;
+}
+
+function setActiveInLeaf(node: SplitNode, tabId: string): SplitNode {
+  if (node.type === 'leaf') {
+    if (!node.tabIds.includes(tabId)) return node;
+    return node.activeTabId === tabId ? node : { ...node, activeTabId: tabId };
+  }
+
+  const nextLeft = setActiveInLeaf(node.children[0], tabId);
+  const nextRight = setActiveInLeaf(node.children[1], tabId);
+  if (nextLeft === node.children[0] && nextRight === node.children[1]) return node;
+  return { ...node, children: [nextLeft, nextRight] };
+}
+
+function restorePaneActiveTab(mode: 'side' | 'full' | null, activeTabId: string | null): void {
+  if (!mode || !activeTabId) return;
+
+  useEditorStore.setState((state) => {
+    const layout = mode === 'side' ? state.sideLayout : state.fullLayout;
+    if (!layout || !containsTab(layout, activeTabId)) return {};
+
+    const nextLayout = setActiveInLeaf(layout, activeTabId);
+    if (nextLayout === layout) return {};
+
+    return mode === 'side'
+      ? { sideLayout: nextLayout }
+      : { fullLayout: nextLayout };
+  });
 }
 
 function getLeafMode(tabId: string): 'side' | 'full' | null {
@@ -106,9 +138,14 @@ export async function openFileTab({
 
   if (sourceTab && sourceMode && WORK_SOURCE_TYPES.has(sourceTab.type)) {
     const documentLeaf = findDocumentLeaf(sourceMode, sourceTab.id);
+    const sourceLeafActiveTabId = findLeafWithTabId(
+      sourceMode === 'side' ? useEditorStore.getState().sideLayout : useEditorStore.getState().fullLayout,
+      sourceTab.id,
+    )?.activeTabId ?? null;
     if (documentLeaf) {
       await openFileTabRaw(filePath, title, sourceMode);
       useEditorStore.getState().moveTabToPane(targetTabId, documentLeaf.activeTabId, sourceMode);
+      restorePaneActiveTab(sourceMode, sourceLeafActiveTabId);
       return;
     }
 
@@ -129,9 +166,29 @@ export async function openFileInPane(
   targetPaneTabId: string,
   mode: 'side' | 'full',
   title = fileTitle(filePath),
+  options?: OpenFileInPaneOptions,
 ): Promise<void> {
+  const state = useEditorStore.getState();
+  const sourceTabId = options?.preserveActiveInSourcePaneForTabId ?? state.activeTabId ?? undefined;
+  const sourceMode = sourceTabId ? getLeafMode(sourceTabId) : null;
+  const sourceLayout = sourceMode === 'side'
+    ? state.sideLayout
+    : sourceMode === 'full'
+      ? state.fullLayout
+      : null;
+  const targetLayout = mode === 'side' ? state.sideLayout : state.fullLayout;
+  const sourceLeaf = sourceTabId && sourceLayout
+    ? findLeafWithTabId(sourceLayout, sourceTabId)
+    : null;
+  const targetLeaf = targetLayout ? findLeafWithTabId(targetLayout, targetPaneTabId) : null;
+  const sourceLeafActiveTabId = sourceLeaf && sourceLeaf !== targetLeaf
+    ? sourceLeaf.activeTabId
+    : null;
+
   await openFileTabRaw(filePath, title, mode);
   useEditorStore.getState().moveTabToPane(tabIdForFile(filePath), targetPaneTabId, mode);
+
+  restorePaneActiveTab(sourceMode, sourceLeafActiveTabId);
 }
 
 export async function openFileBesideTab(
