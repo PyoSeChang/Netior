@@ -158,7 +158,7 @@ async function buildProjectMetadata(projectId: string, serviceUrl: string): Prom
       name: item.name,
       description: item.description,
       color: item.color,
-      lineStyle: item.line_style,
+      line_style: item.line_style,
       directed: item.directed,
     })),
   };

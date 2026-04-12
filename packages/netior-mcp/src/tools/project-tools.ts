@@ -1,17 +1,113 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ArchetypeField, NetworkTreeNode, TypeGroup } from '@netior/shared/types';
 import {
+  getAppRootNetwork,
   getProjectById,
+  getProjectRootNetwork,
+  getNetworkTree,
+  listArchetypeFields,
   listArchetypes,
   listRelationTypes,
+  listTypeGroups,
   getConceptsByProject,
   listNetworks,
 } from '../netior-service-client.js';
 
+function buildTypeGroupPathMap(groups: TypeGroup[]): Map<string, string> {
+  const byId = new Map(groups.map((group) => [group.id, group]));
+  const cache = new Map<string, string>();
+
+  const resolvePath = (group: TypeGroup): string => {
+    const cached = cache.get(group.id);
+    if (cached) {
+      return cached;
+    }
+
+    const parent = group.parent_group_id ? byId.get(group.parent_group_id) : null;
+    const path = parent ? `${resolvePath(parent)}/${group.name}` : group.name;
+    cache.set(group.id, path);
+    return path;
+  };
+
+  for (const group of groups) {
+    resolvePath(group);
+  }
+
+  return cache;
+}
+
+function mapTypeGroups(groups: TypeGroup[]): Array<{ id: string; kind: string; path: string }> {
+  const pathMap = buildTypeGroupPathMap(groups);
+  return groups.map((group) => ({
+    id: group.id,
+    kind: group.kind,
+    path: pathMap.get(group.id) ?? group.name,
+  }));
+}
+
+function buildOptionsPreview(options: string | null): string[] | undefined {
+  if (!options) {
+    return undefined;
+  }
+
+  const values = options
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (values.length === 0) {
+    return undefined;
+  }
+
+  return values.slice(0, 5);
+}
+
+function mapArchetypeFields(
+  fields: ArchetypeField[],
+  archetypeNames: Map<string, string>,
+): Array<{
+  id: string;
+  name: string;
+  field_type: string;
+  required: boolean;
+  ref_archetype_name?: string;
+  options_preview?: string[];
+}> {
+  return fields.map((field) => {
+    const optionsPreview = buildOptionsPreview(field.options);
+
+    return {
+      id: field.id,
+      name: field.name,
+      field_type: field.field_type,
+      required: field.required,
+      ...(field.ref_archetype_id
+        ? { ref_archetype_name: archetypeNames.get(field.ref_archetype_id) ?? field.ref_archetype_id }
+        : {}),
+      ...(optionsPreview ? { options_preview: optionsPreview } : {}),
+    };
+  });
+}
+
+interface ProjectSummaryNetworkTreeNode {
+  id: string;
+  name: string;
+  children: ProjectSummaryNetworkTreeNode[];
+}
+
+function mapNetworkTree(nodes: NetworkTreeNode[]): ProjectSummaryNetworkTreeNode[] {
+  return nodes.map((node) => ({
+    id: node.network.id,
+    name: node.network.name,
+    children: mapNetworkTree(node.children),
+  }));
+}
+
 export function registerProjectTools(server: McpServer): void {
   server.tool(
     'get_project_summary',
-    'Get a summary of a project including counts and names of archetypes, relation types, concepts, and networks',
+    'Get a summary of a project including schema, relation, type-group, concept, and network context',
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
@@ -23,10 +119,34 @@ export function registerProjectTools(server: McpServer): void {
           };
         }
 
-        const archetypes = await listArchetypes(project_id);
-        const relationTypes = await listRelationTypes(project_id);
-        const concepts = await getConceptsByProject(project_id);
-        const networks = await listNetworks(project_id);
+        const [
+          archetypes,
+          relationTypes,
+          concepts,
+          networks,
+          archetypeGroups,
+          relationTypeGroups,
+          appRootNetwork,
+          projectRootNetwork,
+          networkTree,
+        ] = await Promise.all([
+          listArchetypes(project_id),
+          listRelationTypes(project_id),
+          getConceptsByProject(project_id),
+          listNetworks(project_id),
+          listTypeGroups(project_id, 'archetype'),
+          listTypeGroups(project_id, 'relation_type'),
+          getAppRootNetwork(),
+          getProjectRootNetwork(project_id),
+          getNetworkTree(project_id),
+        ]);
+        const archetypeNameMap = new Map<string, string>(archetypes.map((archetype) => [archetype.id, archetype.name]));
+        const archetypeFieldsById = new Map<string, ArchetypeField[]>(
+          await Promise.all(
+            archetypes.map(async (archetype) => [archetype.id, await listArchetypeFields(archetype.id)] as const),
+          ),
+        );
+        const typeGroups = mapTypeGroups([...archetypeGroups, ...relationTypeGroups]);
 
         const summary = {
           project: {
@@ -36,11 +156,30 @@ export function registerProjectTools(server: McpServer): void {
           },
           archetypes: {
             count: archetypes.length,
-            items: archetypes.map((a) => ({ id: a.id, name: a.name, icon: a.icon, color: a.color })),
+            items: archetypes.map((archetype) => ({
+              id: archetype.id,
+              name: archetype.name,
+              icon: archetype.icon,
+              color: archetype.color,
+              node_shape: archetype.node_shape,
+              description: archetype.description,
+              fields: mapArchetypeFields(archetypeFieldsById.get(archetype.id) ?? [], archetypeNameMap),
+            })),
           },
           relation_types: {
             count: relationTypes.length,
-            items: relationTypes.map((r) => ({ id: r.id, name: r.name, directed: r.directed, line_style: r.line_style })),
+            items: relationTypes.map((relationType) => ({
+              id: relationType.id,
+              name: relationType.name,
+              directed: relationType.directed,
+              line_style: relationType.line_style,
+              color: relationType.color,
+              description: relationType.description,
+            })),
+          },
+          type_groups: {
+            count: typeGroups.length,
+            items: typeGroups,
           },
           concepts: {
             count: concepts.length,
@@ -50,6 +189,11 @@ export function registerProjectTools(server: McpServer): void {
             count: networks.length,
             items: networks.map((n) => ({ id: n.id, name: n.name, parent_network_id: n.parent_network_id })),
           },
+          root_networks: {
+            app_root: appRootNetwork ? { id: appRootNetwork.id, name: appRootNetwork.name } : null,
+            project_root: projectRootNetwork ? { id: projectRootNetwork.id, name: projectRootNetwork.name } : null,
+          },
+          network_tree: mapNetworkTree(networkTree),
         };
 
         return {
