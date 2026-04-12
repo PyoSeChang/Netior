@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Pin, PinOff } from 'lucide-react';
-import { Tooltip } from './Tooltip';
 import { useI18n } from '../../hooks/useI18n';
+import { PinToggleButton } from './PinToggleButton';
 
 interface EdgePanelProps {
   /** Which edge the panel slides from. */
@@ -124,14 +123,12 @@ export function EdgePanel({
             <div className="ml-auto flex items-center gap-1">
               {headerActions}
               {onPinChange && (
-                <Tooltip content={pinned ? t('edgePanel.unpin') : t('edgePanel.pin')}>
-                  <button
-                    className={`rounded p-0.5 hover:bg-surface-hover ${pinned ? 'text-accent' : 'text-muted hover:text-default'}`}
-                    onClick={() => onPinChange(!pinned)}
-                  >
-                    {pinned ? <PinOff size={12} /> : <Pin size={12} />}
-                  </button>
-                </Tooltip>
+                <PinToggleButton
+                  pinned={pinned}
+                  onPinChange={onPinChange}
+                  pinLabel={t('edgePanel.pin')}
+                  unpinLabel={t('edgePanel.unpin')}
+                />
               )}
             </div>
           </div>

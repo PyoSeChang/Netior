@@ -1,7 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, Notification, nativeImage, screen } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
-import { IPC_CHANNELS } from '@netior/shared/constants';
 import { mkdirSync, existsSync } from 'fs';
 import { registerAllIpc } from './ipc';
 import { ptyManager } from './pty/pty-manager';
@@ -80,11 +79,16 @@ function sendWindowMaximizedState(win: BrowserWindow): void {
   win.webContents.send('window:maximized-changed', win.isMaximized());
 }
 
+function sendWindowAlwaysOnTopState(win: BrowserWindow): void {
+  win.webContents.send('window:always-on-top-changed', win.isAlwaysOnTop());
+}
+
 function attachWindowStateEvents(win: BrowserWindow): void {
   win.on('maximize', () => sendWindowMaximizedState(win));
   win.on('unmaximize', () => sendWindowMaximizedState(win));
   win.on('enter-full-screen', () => sendWindowMaximizedState(win));
   win.on('leave-full-screen', () => sendWindowMaximizedState(win));
+  win.on('always-on-top-changed', () => sendWindowAlwaysOnTopState(win));
 }
 
 async function loadWindowBounds(): Promise<StoredWindowBounds> {
@@ -273,6 +277,12 @@ app.whenReady().then(async () => {
   ipcMain.on('window:minimize', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.minimize();
   });
+  ipcMain.on('window:toggleAlwaysOnTop', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    win.setAlwaysOnTop(!win.isAlwaysOnTop());
+    sendWindowAlwaysOnTopState(win);
+  });
   ipcMain.on('window:maximize', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win?.isMaximized()) win.unmaximize();
@@ -283,6 +293,9 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('window:isMaximized', (event) => {
     return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false;
+  });
+  ipcMain.handle('window:isAlwaysOnTop', (event) => {
+    return BrowserWindow.fromWebContents(event.sender)?.isAlwaysOnTop() ?? false;
   });
   ipcMain.handle('shell:openExternal', async (_event, url: string) => {
     await shell.openExternal(url);
@@ -341,7 +354,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('agent:setName', async (_event, terminalSessionId: string, name: string) => {
     return agentRuntimeManager.setTerminalSessionName(terminalSessionId, name);
   });
-  ipcMain.handle(IPC_CHANNELS.AGENT_GET_SNAPSHOT, () => {
+  ipcMain.handle('agent:getSnapshot', () => {
     return agentRuntimeManager.getSessionSnapshots();
   });
 

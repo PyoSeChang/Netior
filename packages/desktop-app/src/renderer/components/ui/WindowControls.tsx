@@ -48,13 +48,13 @@ export function WindowControls({ className = '' }: WindowControlsProps): JSX.Ele
       if (mounted) setIsMaximized(value);
     }).catch(() => {});
 
-    const cleanup = window.electron.window.onMaximizedChanged((value) => {
+    const cleanupMaximized = window.electron.window.onMaximizedChanged((value) => {
       setIsMaximized(value);
     });
 
     return () => {
       mounted = false;
-      cleanup();
+      cleanupMaximized();
     };
   }, []);
 

@@ -140,7 +140,8 @@ function hydrateSnapshot(snapshots: AgentSessionSnapshot[]): void {
 }
 
 export async function refreshAgentSessionStore(): Promise<void> {
-  hydrateSnapshot(await window.electron.agent.getSnapshot());
+  const snapshots = await window.electron.agent.getSnapshot();
+  hydrateSnapshot(snapshots);
 }
 
 function handleSessionEvent(event: AgentSessionEvent): void {

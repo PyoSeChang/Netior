@@ -10,6 +10,8 @@ import { SettingsModal } from './components/settings/SettingsModal';
 import { ShortcutOverlay } from './components/shortcuts/ShortcutOverlay';
 import { ToastContainer } from './components/ui/Toast';
 import { WindowControls } from './components/ui/WindowControls';
+import { WindowAlwaysOnTopButton } from './components/ui/WindowAlwaysOnTopButton';
+import { WindowTitleBar } from './components/ui/WindowTitleBar';
 import { MissingFilesDialog } from './components/home/MissingFilesDialog';
 import { ConfirmDialog } from './components/ui/ConfirmDialog';
 import { useGlobalShortcuts } from './shortcuts/useGlobalShortcuts';
@@ -165,44 +167,39 @@ function TitleBar(): JSX.Element {
   const worktreeLabel = import.meta.env.DEV ? window.electron.app.worktreeLabel : null;
 
   return (
-    <div
-      className="relative z-[1000] grid h-9 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-subtle pl-4"
-      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-    >
-      {/* Left: app name + project */}
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="flex items-center gap-2 text-secondary">
-          <NetiorTitleMark />
-          <span className="text-sm font-medium text-secondary">Netior</span>
-          {import.meta.env.DEV && (
-            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-              DEV
-            </span>
-          )}
-          {worktreeLabel && (
-            <span
-              className="max-w-[180px] truncate rounded border border-default bg-surface-card px-1.5 py-0.5 text-[10px] font-medium leading-none text-secondary"
-              title={`worktree: ${worktreeLabel}`}
-            >
-              {worktreeLabel}
-            </span>
-          )}
+    <WindowTitleBar
+      left={(
+        <>
+          <div className="flex items-center gap-2 text-secondary">
+            <NetiorTitleMark />
+            <span className="text-sm font-medium text-secondary">Netior</span>
+            {import.meta.env.DEV && (
+              <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                DEV
+              </span>
+            )}
+            {worktreeLabel && (
+              <span
+                className="max-w-[180px] truncate rounded border border-default bg-surface-card px-1.5 py-0.5 text-[10px] font-medium leading-none text-secondary"
+                title={`worktree: ${worktreeLabel}`}
+              >
+                {worktreeLabel}
+              </span>
+            )}
+          </div>
+          <span className="text-xs text-muted">/</span>
+          <ProjectSwitcher />
+        </>
+      )}
+      center={<TitleBarBreadcrumb />}
+      right={(
+        <div className="flex items-stretch">
+          <MinimizedEditorTabs />
+          <WindowAlwaysOnTopButton />
+          <WindowControls />
         </div>
-        <span className="text-xs text-muted">/</span>
-        <ProjectSwitcher />
-      </div>
-
-      {/* Center: breadcrumb */}
-      <div className="flex min-w-0 justify-center px-3">
-        <TitleBarBreadcrumb />
-      </div>
-
-      {/* Right: minimized tabs + window controls */}
-      <div className="flex min-w-0 justify-end">
-        <MinimizedEditorTabs />
-        <WindowControls />
-      </div>
-    </div>
+      )}
+    />
   );
 }
 

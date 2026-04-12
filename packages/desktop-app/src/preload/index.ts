@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { release } from 'node:os';
-import { IPC_CHANNELS } from '@netior/shared/constants';
 import type {
   AgentNameEvent,
   AgentSessionEvent,
@@ -38,13 +37,20 @@ const electronAPI = {
   },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
+    toggleAlwaysOnTop: () => ipcRenderer.send('window:toggleAlwaysOnTop'),
     maximize: () => ipcRenderer.send('window:maximize'),
     close: () => ipcRenderer.send('window:close'),
     isMaximized: () => ipcRenderer.invoke('window:isMaximized') as Promise<boolean>,
+    isAlwaysOnTop: () => ipcRenderer.invoke('window:isAlwaysOnTop') as Promise<boolean>,
     onMaximizedChanged: (callback: (isMaximized: boolean) => void) => {
       const handler = (_event: IpcRendererEvent, isMaximized: boolean) => callback(isMaximized);
       ipcRenderer.on('window:maximized-changed', handler);
       return () => { ipcRenderer.removeListener('window:maximized-changed', handler); };
+    },
+    onAlwaysOnTopChanged: (callback: (isAlwaysOnTop: boolean) => void) => {
+      const handler = (_event: IpcRendererEvent, isAlwaysOnTop: boolean) => callback(isAlwaysOnTop);
+      ipcRenderer.on('window:always-on-top-changed', handler);
+      return () => { ipcRenderer.removeListener('window:always-on-top-changed', handler); };
     },
     onAppShortcut: (callback: (shortcut: string) => void) => {
       const handler = (_event: IpcRendererEvent, shortcut: string) => callback(shortcut);
@@ -316,7 +322,7 @@ const electronAPI = {
   },
   agent: {
     getSnapshot: () =>
-      ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_SNAPSHOT) as Promise<AgentSessionSnapshot[]>,
+      ipcRenderer.invoke('agent:getSnapshot') as Promise<AgentSessionSnapshot[]>,
     setName: (terminalSessionId: string, name: string) =>
       ipcRenderer.invoke('agent:setName', terminalSessionId, name) as Promise<boolean>,
     onSessionEvent: (callback: (event: AgentSessionEvent) => void) => {
