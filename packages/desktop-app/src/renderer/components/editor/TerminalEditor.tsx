@@ -52,6 +52,7 @@ interface TerminalCursorPosition {
 }
 
 interface TerminalActionOverlayState {
+  kind: 'selection' | 'link';
   x: number;
   y: number;
   selectedText: string;
@@ -81,6 +82,7 @@ function clamp(value: number, min: number, max: number): number {
 
 function getActionOverlayKey(overlay: TerminalActionOverlayState): string {
   return [
+    overlay.kind,
     overlay.x,
     overlay.y,
     overlay.selectedText,
@@ -205,8 +207,18 @@ function isNearPosition(a: TerminalCursorPosition | null, b: TerminalCursorPosit
 function getXtermCellSize(xt: ReturnType<TerminalEngineInstance['getRawXterm']>): { width: number; height: number } | null {
   const width = xt?.dimensions?.css?.cell?.width ?? xt?._core?._renderService?.dimensions?.actualCellWidth;
   const height = xt?.dimensions?.css?.cell?.height ?? xt?._core?._renderService?.dimensions?.actualCellHeight;
-  if (!width || !height) return null;
-  return { width, height };
+  if (width && height) return { width, height };
+
+  const screen = xt?.element?.querySelector<HTMLElement>('.xterm-screen');
+  const rowsContainer = xt?.element?.querySelector<HTMLElement>('.xterm-rows');
+  const firstRow = rowsContainer?.querySelector<HTMLElement>('div');
+  const screenRect = screen?.getBoundingClientRect();
+  const rowRect = firstRow?.getBoundingClientRect();
+  const fallbackWidth = screenRect && xt?.cols ? screenRect.width / xt.cols : undefined;
+  const fallbackHeight = rowRect?.height || (screenRect && xt?.rows ? screenRect.height / xt.rows : undefined);
+
+  if (!fallbackWidth || !fallbackHeight) return null;
+  return { width: fallbackWidth, height: fallbackHeight };
 }
 
 export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
@@ -298,7 +310,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       ? extractUrl(text, col)?.url
       : extractUrls(trimmed)[0]?.url;
     if (url) {
-      setActionOverlay({ x, y, selectedText: url, url });
+      setActionOverlay({ kind: 'selection', x, y, selectedText: url, url });
       return;
     }
 
@@ -307,6 +319,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       : extractFileLinks(trimmed)[0];
     if (fileLink) {
       resolveAndSetOverlay({
+        kind: 'selection',
         x,
         y,
         selectedText: fileLink.path,
@@ -325,11 +338,12 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
       fileLink: extractFileLink(target.text, target.col) ?? undefined,
     };
     if (link.url) {
-      setActionOverlay({ x, y, selectedText: link.url, url: link.url });
+      setActionOverlay({ kind: 'link', x, y, selectedText: link.url, url: link.url });
       return;
     }
     if (link.fileLink) {
       resolveAndSetOverlay({
+        kind: 'link',
         x,
         y,
         selectedText: link.fileLink.path,
@@ -713,6 +727,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
         void resolveFirstExistingFilePath(fileInput, cwdRef.current).then((resolvedFile) => {
           if (!resolvedFile) {
             resolveAndSetOverlay({
+              kind: 'link',
               x: target.x,
               y: target.y,
               selectedText: fileInput,

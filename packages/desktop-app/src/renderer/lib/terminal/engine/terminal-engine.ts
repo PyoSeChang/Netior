@@ -30,6 +30,7 @@ export interface TerminalRawXterm {
   element?: HTMLElement;
   textarea?: HTMLTextAreaElement | null;
   cols?: number;
+  rows?: number;
   modes?: {
     bracketedPasteMode?: boolean;
   };

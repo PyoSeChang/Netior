@@ -150,13 +150,13 @@ function TabItem({ tab, isActive, isFocusedPane, isRenaming, onActivate, onClose
       ) : (
         <span className={isActive ? 'whitespace-nowrap' : 'max-w-[120px] truncate'}>{label}</span>
       )}
+      <TabStatus tab={tab} agentState={agentState} />
       <button
         className="ml-0.5 rounded p-0.5 text-muted opacity-0 hover:text-default group-hover:opacity-100"
         onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}
       >
         <X size={10} />
       </button>
-      <TabStatus tab={tab} agentState={agentState} />
     </div>
   );
 }
