@@ -93,6 +93,22 @@
     "hideEdgeDebugOverlay": "Hide Edge Debug Overlay"
   },
   "layout": {
+    "calendar": {
+      "timeValue": "Date",
+      "endTimeValue": "End Date",
+      "view": "View",
+      "weekStartsOn": "Week Starts On",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "previous": "Previous",
+      "next": "Next",
+      "today": "Today",
+      "now": "Now",
+      "allDay": "All Day",
+      "sunday": "Sunday",
+      "monday": "Monday"
+    },
     "timeline": {
       "timeValue": "Time Value",
       "endTimeValue": "End Time Value",

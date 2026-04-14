@@ -7,30 +7,32 @@ import type { RenderNode, RenderEdge } from '../types';
 export interface FieldRequirement {
   /** Standard key the plugin reads from metadata (e.g., 'time_value') */
   key: string;
-  type: 'number' | 'string' | 'enum';
+  type: 'number' | 'string' | 'enum' | 'date';
   label: string;
   required: boolean;
   default?: unknown;
   /** Enum options (when type='enum') */
   options?: string[];
+  optionLabelKeyPrefix?: string;
 }
 
 /** A user-configurable layout option */
 export interface ConfigField {
   key: string;
-  type: 'string' | 'number' | 'enum';
+  type: 'string' | 'number' | 'enum' | 'date';
   label: string;
   default: unknown;
   options?: string[];
+  optionLabelKeyPrefix?: string;
 }
 
 // ── Interaction ──
 
 export interface InteractionConstraints {
   /** Lock pan to a single axis? null = free pan */
-  panAxis: 'x' | 'y' | null;
+  panAxis: 'x' | 'y' | 'none' | null;
   /** Lock node drag to a single axis? null = free drag */
-  nodeDragAxis: 'x' | 'y' | null;
+  nodeDragAxis: 'x' | 'y' | 'none' | null;
   /** Enable span resize handles? */
   enableSpanResize: boolean;
 }
@@ -47,11 +49,12 @@ export interface LayoutComputeInput {
   nodes: LayoutRenderNode[];
   edges: RenderEdge[];
   viewport: { width: number; height: number };
+  viewportState: { zoom: number; panX: number; panY: number };
   config: Record<string, unknown>;
 }
 
 export interface LayoutComputeResult {
-  [nodeId: string]: { x: number; y: number; width?: number };
+  [nodeId: string]: { x: number; y: number; width?: number; height?: number };
 }
 
 // ── Node Drop ──
@@ -89,6 +92,84 @@ export interface LayoutLayerProps {
   onContextMenu?: (type: 'workspace' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
 }
 
+export interface LayoutViewportResetContext {
+  viewport: { width: number; height: number };
+  config: Record<string, unknown>;
+}
+
+export type LayoutViewportMode = 'world' | 'timeline' | 'screen';
+export type LayoutWheelBehavior = 'freeform' | 'timeline' | 'calendar';
+
+export interface LayoutViewportPolicy {
+  viewportMode?: LayoutViewportMode;
+  wheelBehavior?: LayoutWheelBehavior;
+  persistViewport?: boolean;
+  interactionConstraints?: InteractionConstraints;
+  viewportReset?: { zoom: number; panX: number; panY: number };
+}
+
+export type LayoutControlsPresentation = 'floating-draggable' | 'header-fixed';
+
+export interface LayoutViewportPolicyContext {
+  viewport: { width: number; height: number };
+  config: Record<string, unknown>;
+}
+
+export interface LayoutControlContext {
+  zoom: number;
+  panX: number;
+  panY: number;
+  config: Record<string, unknown>;
+  setZoom: (z: number) => void;
+  setPanX: (x: number) => void;
+  setPanY: (y: number) => void;
+  updateConfig: (
+    patch:
+      | Record<string, unknown>
+      | ((config: Record<string, unknown>) => Record<string, unknown>),
+  ) => void | Promise<void>;
+}
+
+export interface LayoutResolvedControlItem {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+}
+
+export interface LayoutWheelContext extends LayoutControlContext {
+  event: WheelEvent;
+  viewport: { width: number; height: number };
+  nodes: LayoutRenderNode[];
+}
+
+export interface LayoutControlsRendererProps {
+  mode: 'browse' | 'edit';
+  zoom: number;
+  panX: number;
+  panY: number;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  config: Record<string, unknown>;
+  hiddenControls?: Array<'zoom' | 'fit' | 'nav' | 'mode'>;
+  extraItems?: LayoutResolvedControlItem[];
+  setZoom: (z: number) => void;
+  setPanX: (x: number) => void;
+  setPanY: (y: number) => void;
+  updateConfig: (
+    patch:
+      | Record<string, unknown>
+      | ((config: Record<string, unknown>) => Record<string, unknown>),
+  ) => void | Promise<void>;
+  onToggleMode: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitToScreen: () => void;
+  onNavigateBack: () => void;
+  onNavigateForward: () => void;
+}
+
 // ── Plugin Interface ──
 
 export interface WorkspaceLayoutPlugin {
@@ -104,12 +185,22 @@ export interface WorkspaceLayoutPlugin {
 
   /** Interaction constraints */
   interactionConstraints: InteractionConstraints;
+  /** How the node layer should interpret world coordinates */
+  viewportMode?: LayoutViewportMode;
+  /** How wheel gestures should behave inside the workspace */
+  wheelBehavior?: LayoutWheelBehavior;
+  /** Whether pan/zoom should be restored and persisted for this layout */
+  persistViewport?: boolean;
+  /** Dynamic viewport policy derived from config and viewport size */
+  getViewportPolicy?: (context: LayoutViewportPolicyContext) => LayoutViewportPolicy;
+  /** Default viewport for layouts that manage their own framing */
+  getViewportReset?: (context: LayoutViewportResetContext) => { zoom: number; panX: number; panY: number };
 
   /** Compute node positions */
   computeLayout(input: LayoutComputeInput): LayoutComputeResult;
 
   /** Classify nodes into card vs overlay rendering */
-  classifyNodes(nodes: LayoutRenderNode[]): {
+  classifyNodes(nodes: LayoutRenderNode[], config: Record<string, unknown>): {
     cardNodes: LayoutRenderNode[];
     overlayNodes: LayoutRenderNode[];
   };
@@ -124,12 +215,20 @@ export interface WorkspaceLayoutPlugin {
 
   /** Hide default control buttons */
   hiddenControls?: Array<'zoom' | 'fit' | 'nav' | 'mode'>;
+  /** How the remote control should be presented for this layout */
+  controlsPresentation?: LayoutControlsPresentation;
+  /** Custom controls renderer for layouts that want header-integrated actions */
+  ControlsComponent?: React.ComponentType<LayoutControlsRendererProps>;
+
+  /** Custom wheel handling for layouts that do not use the workspace defaults */
+  onWheel?: (context: LayoutWheelContext) => void;
 
   /** Additional control buttons provided by this plugin */
   controlItems?: Array<{
     key: string;
     icon: React.ReactNode;
     label: string;
-    onClick: (context: { zoom: number; panX: number; setZoom: (z: number) => void; setPanX: (x: number) => void }) => void;
+    isActive?: (context: LayoutControlContext) => boolean;
+    onClick: (context: LayoutControlContext) => void | Promise<void>;
   }>;
 }

@@ -11,9 +11,17 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
   displayName: 'Gantt Chart',
 
   requiredFields: [
-    { key: 'time_value', type: 'date' as 'number', label: 'layout.timeline.timeValue', required: true },
-    { key: 'end_time_value', type: 'date' as 'number', label: 'layout.timeline.endTimeValue', required: false },
-    { key: 'role', type: 'enum', label: 'layout.timeline.role', required: true, default: 'occurrence', options: ['period', 'occurrence'] },
+    { key: 'time_value', type: 'date', label: 'layout.timeline.timeValue', required: true },
+    { key: 'end_time_value', type: 'date', label: 'layout.timeline.endTimeValue', required: false },
+    {
+      key: 'role',
+      type: 'enum',
+      label: 'layout.timeline.role',
+      required: true,
+      default: 'occurrence',
+      options: ['period', 'occurrence'],
+      optionLabelKeyPrefix: 'layout.timeline',
+    },
     { key: 'color', type: 'string', label: 'layout.timeline.color', required: false },
   ],
 
@@ -30,6 +38,16 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
     panAxis: 'x', // drag pan = horizontal only. vertical scroll via Shift+wheel
     nodeDragAxis: null, // nodes can be dragged both X (time) and Y (lane)
     enableSpanResize: true,
+  },
+  viewportMode: 'timeline',
+  wheelBehavior: 'timeline',
+  persistViewport: false,
+  getViewportReset({ viewport }) {
+    return {
+      zoom: 1,
+      panX: viewport.width / 2,
+      panY: 0,
+    };
   },
 
   computeLayout: computeTimelineLayout,
@@ -68,9 +86,10 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
       key: 'go-to-today',
       icon: React.createElement(CalendarDays, { size: 14 }),
       label: '오늘로 이동',
-      onClick: ({ setZoom, setPanX }) => {
+      onClick: ({ setZoom, setPanX, setPanY }) => {
         setZoom(1);
         setPanX(window.innerWidth / 2);
+        setPanY(0);
       },
     },
   ],

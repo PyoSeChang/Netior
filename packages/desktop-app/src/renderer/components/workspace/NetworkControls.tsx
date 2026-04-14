@@ -2,29 +2,15 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Eye, Pencil, ZoomIn, ZoomOut, Maximize, ChevronLeft, ChevronRight, GripHorizontal } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { useI18n } from '../../hooks/useI18n';
+import type {
+  LayoutControlsPresentation,
+  LayoutControlsRendererProps,
+} from './layout-plugins/types';
 
 type HiddenControl = 'zoom' | 'fit' | 'nav' | 'mode';
 
-interface ExtraControlItem {
-  key: string;
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}
-
-interface NetworkControlsProps {
-  mode: 'browse' | 'edit';
-  zoom: number;
-  canGoBack: boolean;
-  canGoForward: boolean;
-  onToggleMode: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onFitToScreen: () => void;
-  onNavigateBack: () => void;
-  onNavigateForward: () => void;
-  hiddenControls?: HiddenControl[];
-  extraItems?: ExtraControlItem[];
+interface NetworkControlsProps extends LayoutControlsRendererProps {
+  presentation?: LayoutControlsPresentation;
 }
 
 export function NetworkControls({
@@ -40,13 +26,16 @@ export function NetworkControls({
   onNavigateForward,
   hiddenControls = [],
   extraItems = [],
+  presentation = 'floating-draggable',
 }: NetworkControlsProps): JSX.Element {
   const { t } = useI18n();
   const [pos, setPos] = useState({ x: -1, y: -1 }); // -1 = default position
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isFloating = presentation === 'floating-draggable';
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if (!isFloating) return;
     e.preventDefault();
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -68,7 +57,7 @@ export function NetworkControls({
     };
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
-  }, [pos]);
+  }, [isFloating, pos]);
 
   const hidden = new Set(hiddenControls);
   const showMode = !hidden.has('mode');
@@ -76,25 +65,33 @@ export function NetworkControls({
   const showZoom = !hidden.has('zoom');
   const showFit = !hidden.has('fit');
 
-  const isCustomPos = pos.x !== -1;
-  const style: React.CSSProperties = isCustomPos
-    ? { position: 'fixed', left: pos.x, top: pos.y, zIndex: 50 }
-    : { position: 'absolute', right: 8, top: 8, zIndex: 30 };
+  const isCustomPos = isFloating && pos.x !== -1;
+  const style: React.CSSProperties = isFloating
+    ? (
+      isCustomPos
+        ? { position: 'fixed', left: pos.x, top: pos.y, zIndex: 50 }
+        : { position: 'absolute', right: 8, top: 8, zIndex: 30 }
+    )
+    : { position: 'absolute', right: 12, top: 12, zIndex: 30 };
+  const containerClassName = isFloating
+    ? 'flex items-center gap-1 rounded-lg border border-subtle bg-surface-panel px-1.5 py-1 shadow-sm'
+    : 'flex items-center gap-1 rounded-md border border-subtle bg-surface-panel/95 px-2 py-1.5 shadow-sm backdrop-blur';
 
   return (
     <div
       ref={containerRef}
-      className="flex items-center gap-1 rounded-lg border border-subtle bg-surface-panel px-1.5 py-1 shadow-sm"
+      className={containerClassName}
       style={style}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* Drag handle */}
-      <div
-        className="cursor-grab active:cursor-grabbing text-muted hover:text-secondary p-0.5"
-        onMouseDown={handleDragStart}
-      >
-        <GripHorizontal size={12} />
-      </div>
+      {isFloating && (
+        <div
+          className="cursor-grab active:cursor-grabbing p-0.5 text-muted hover:text-secondary"
+          onMouseDown={handleDragStart}
+        >
+          <GripHorizontal size={12} />
+        </div>
+      )}
 
       {/* Mode toggle */}
       {showMode && (
@@ -186,7 +183,9 @@ export function NetworkControls({
           {extraItems.map((item) => (
             <Tooltip key={item.key} content={item.label} position="bottom">
               <button
-                className="rounded p-1 text-secondary hover:bg-surface-hover hover:text-default"
+                className={`rounded p-1 hover:bg-surface-hover hover:text-default ${
+                  item.active ? 'text-accent' : 'text-secondary'
+                }`}
                 onClick={item.onClick}
               >
                 {item.icon}

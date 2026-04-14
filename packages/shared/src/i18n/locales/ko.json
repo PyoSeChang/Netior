@@ -93,6 +93,22 @@
     "hideEdgeDebugOverlay": "엣지 디버그 오버레이 숨기기"
   },
   "layout": {
+    "calendar": {
+      "timeValue": "날짜",
+      "endTimeValue": "종료 날짜",
+      "view": "보기",
+      "weekStartsOn": "주 시작 요일",
+      "day": "일간",
+      "week": "주간",
+      "month": "월간",
+      "previous": "이전",
+      "next": "다음",
+      "today": "오늘",
+      "now": "지금",
+      "allDay": "종일",
+      "sunday": "일요일",
+      "monday": "월요일"
+    },
     "timeline": {
       "timeValue": "시간 값",
       "endTimeValue": "종료 시간 값",

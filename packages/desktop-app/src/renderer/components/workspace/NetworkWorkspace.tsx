@@ -29,7 +29,7 @@ import type { RenderNode, RenderEdge, RenderPoint, RenderEdgeAnchor } from './ty
 import type { NodeResizeDirection } from './node-components/types';
 import { getLayout } from './layout-plugins/registry';
 import type { LayoutRenderNode } from './layout-plugins/types';
-import { isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
+import { dateToEpochDays, isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
 import { useNetworkShortcuts } from './useNetworkShortcuts';
 import { HIERARCHY_PARENT_CONTRACT, isHierarchyParentContract } from '../../lib/hierarchy-contract';
 
@@ -73,11 +73,54 @@ interface NodeResizePreview {
   height: number;
 }
 
+interface ParsedTemporalMetadataValue {
+  epochDay: number;
+  minutesOfDay?: number;
+  hasTime: boolean;
+}
+
 const HIERARCHY_ROOT_CHILD_MIN_Y_OFFSET = 112;
 const HIERARCHY_MAGNETIC_THRESHOLD = 28;
 const HIERARCHY_X_MAGNETIC_THRESHOLD = 28;
 const GROUP_COLLAPSED_SIZE = { width: 240, height: 72 };
 const HIERARCHY_COLLAPSED_SIZE = { width: 260, height: 84 };
+
+function parseTemporalMetadataValue(value: string): ParsedTemporalMetadataValue | null {
+  const hasExplicitTime = /[T\s]\d{2}:\d{2}/.test(value);
+  if (!hasExplicitTime) {
+    const epochDay = isoToEpochDays(value);
+    return epochDay == null ? null : { epochDay, hasTime: false };
+  }
+
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+  const parsed = new Date(normalized);
+  if (!Number.isNaN(parsed.getTime())) {
+    return {
+      epochDay: dateToEpochDays(parsed),
+      minutesOfDay: parsed.getHours() * 60 + parsed.getMinutes(),
+      hasTime: true,
+    };
+  }
+
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+  if (!match) return null;
+
+  const [, year, month, day, hour, minute] = match;
+  const fallback = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+  );
+  if (Number.isNaN(fallback.getTime())) return null;
+
+  return {
+    epochDay: dateToEpochDays(fallback),
+    minutesOfDay: Number(hour) * 60 + Number(minute),
+    hasTime: true,
+  };
+}
 
 function pickInitialNetworkId(
   projectId: string,
@@ -1092,10 +1135,30 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     setEdgeLinkingState(null);
   }, [workspaceMode]);
 
-  // Restore viewport from layout (freeform only ??timeline always resets to today)
+  // --- Layout plugin ---
+  const layoutType = currentLayout?.layout_type ?? 'freeform';
+  const layoutPlugin = useMemo(() => getLayout(layoutType), [layoutType]);
+  const layoutConfig = useMemo(() => {
+    if (!currentLayout?.layout_config_json) return {};
+    try { return JSON.parse(currentLayout.layout_config_json); } catch { return {}; }
+  }, [currentLayout?.layout_config_json]);
+  const viewportPolicy = useMemo(
+    () => layoutPlugin.getViewportPolicy?.({
+      viewport: containerSize,
+      config: layoutConfig,
+    }) ?? {},
+    [containerSize, layoutConfig, layoutPlugin],
+  );
+  const viewportMode = viewportPolicy.viewportMode ?? layoutPlugin.viewportMode ?? 'world';
+  const wheelBehavior = viewportPolicy.wheelBehavior ?? layoutPlugin.wheelBehavior ?? (viewportMode === 'timeline' ? 'timeline' : 'freeform');
+  const persistViewport = viewportPolicy.persistViewport ?? layoutPlugin.persistViewport ?? true;
+  const interactionConstraints = viewportPolicy.interactionConstraints ?? layoutPlugin.interactionConstraints;
+  const controlsPresentation = layoutPlugin.controlsPresentation ?? 'floating-draggable';
+
+  // Restore viewport from layout when the layout owns persisted pan/zoom.
   useEffect(() => {
     if (!currentLayout) return;
-    if (currentLayout.layout_type === 'horizontal-timeline') return; // handled by layout reset effect
+    if (!persistViewport) return;
     if (currentLayout.viewport_json) {
       try {
         const vp = JSON.parse(currentLayout.viewport_json);
@@ -1106,22 +1169,27 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         // ignore invalid JSON
       }
     }
-  }, [currentNetwork?.id]);
+  }, [currentLayout?.id, currentNetwork?.id, persistViewport]);
 
-  // Reset viewport when layout changes (e.g., freeform ??timeline)
-  // Reset viewport for timeline networks (always center on today)
+  // Reset viewport when entering a layout that manages its own framing.
   const prevNetworkIdRef = useRef<string | undefined>(undefined);
   const prevLayoutRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!currentNetwork || !containerSize.width) return;
-    const newLayout = currentLayout?.layout_type ?? 'freeform';
+    const newLayout = layoutPlugin.key;
     const networkChanged = prevNetworkIdRef.current !== currentNetwork.id;
     const layoutChanged = prevLayoutRef.current !== undefined && prevLayoutRef.current !== newLayout;
 
-    if (newLayout === 'horizontal-timeline' && (networkChanged || layoutChanged)) {
-      setZoom(1);
-      setPanX(containerSize.width / 2);
-      setPanY(0);
+    if ((networkChanged || layoutChanged) && !persistViewport) {
+      const reset = viewportPolicy.viewportReset
+        ?? layoutPlugin.getViewportReset?.({
+          viewport: containerSize,
+          config: layoutConfig,
+        })
+        ?? { zoom: 1, panX: 0, panY: 0 };
+      setZoom(reset.zoom);
+      setPanX(reset.panX);
+      setPanY(reset.panY);
     } else if (layoutChanged && newLayout === 'freeform') {
       setZoom(1);
       setPanX(containerSize.width / 2);
@@ -1130,7 +1198,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
     prevNetworkIdRef.current = currentNetwork.id;
     prevLayoutRef.current = newLayout;
-  }, [currentLayout?.layout_type, currentNetwork?.id, containerSize]);
+  }, [containerSize, currentNetwork?.id, layoutConfig, layoutPlugin, persistViewport, viewportPolicy]);
 
   // Container resize observer: shift viewport center when the workspace resizes
   const prevSizeRef = useRef<{ width: number; height: number } | null>(null);
@@ -1144,8 +1212,12 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         const dx = width - prev.width;
         const dy = height - prev.height;
         if (dx !== 0 || dy !== 0) {
-          setPanX((p) => p + dx / 2);
-          setPanY((p) => p + dy / 2);
+          if (viewportMode === 'world') {
+            setPanX((p) => p + dx / 2);
+            setPanY((p) => p + dy / 2);
+          } else if (viewportMode === 'timeline') {
+            setPanX((p) => p + dx / 2);
+          }
         }
       }
       prevSizeRef.current = { width, height };
@@ -1153,7 +1225,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [viewportMode]);
 
   const archetypes = useArchetypeStore((s) => s.archetypes);
   const relationTypes = useRelationTypeStore((s) => s.relationTypes);
@@ -1291,7 +1363,6 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   }, [activeContextId, loadContextMembers, membersByContext]);
 
   const activeContextMembers = activeContextId ? (membersByContext[activeContextId] ?? []) : [];
-  const activeContext = activeContextId ? contexts.find((context) => context.id === activeContextId) ?? null : null;
   const activeContextObjectIds = useMemo(
     () => new Set(activeContextMembers.filter((member) => member.member_type === 'object').map((member) => member.member_id)),
     [activeContextMembers],
@@ -1402,13 +1473,31 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       });
   }, [edges, visualMap, isContextFiltering, activeContextEdgeIds, containsParentByChild, hierarchyContainerIds, visibleRenderNodes]);
 
-  // --- Layout plugin ---
-  const layoutType = currentLayout?.layout_type ?? 'freeform';
-  const layoutPlugin = useMemo(() => getLayout(layoutType), [layoutType]);
-  const layoutConfig = useMemo(() => {
-    if (!currentLayout?.layout_config_json) return {};
-    try { return JSON.parse(currentLayout.layout_config_json); } catch { return {}; }
-  }, [currentLayout?.layout_config_json]);
+  const updatePluginConfig = useCallback(async (
+    patch:
+      | Record<string, unknown>
+      | ((config: Record<string, unknown>) => Record<string, unknown>),
+  ) => {
+    const liveLayout = useNetworkStore.getState().currentLayout;
+    if (!liveLayout) return;
+
+    let baseConfig: Record<string, unknown> = {};
+    if (liveLayout.layout_config_json) {
+      try {
+        baseConfig = JSON.parse(liveLayout.layout_config_json) as Record<string, unknown>;
+      } catch {
+        baseConfig = {};
+      }
+    }
+
+    const nextConfig = typeof patch === 'function'
+      ? patch(baseConfig)
+      : { ...baseConfig, ...patch };
+    const nextLayout = await layoutService.update(liveLayout.id, {
+      layout_config_json: JSON.stringify(nextConfig),
+    });
+    useNetworkStore.setState({ currentLayout: nextLayout });
+  }, []);
 
   // Load concept_properties for all concept nodes
   // Re-fetch when concept store properties change (user edits in concept editor)
@@ -1462,10 +1551,15 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           // Find the property value by field_id
           const prop = props.find((p) => p.field_id === fieldIdOrValue);
           if (prop?.value != null) {
-            // Try date parsing first (for timeline date fields)
-            const epochDays = isoToEpochDays(prop.value);
-            if (epochDays != null) {
-              metadata[metaKey] = epochDays;
+            const temporalValue = parseTemporalMetadataValue(prop.value);
+            if (temporalValue) {
+              metadata[metaKey] = temporalValue.epochDay;
+              if (typeof temporalValue.minutesOfDay === 'number') {
+                metadata[`${metaKey}_minutes`] = temporalValue.minutesOfDay;
+              }
+              if (temporalValue.hasTime) {
+                metadata[`${metaKey}_has_time`] = true;
+              }
             } else {
               const num = Number(prop.value);
               metadata[metaKey] = isNaN(num) ? prop.value : num;
@@ -1485,9 +1579,10 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       nodes: layoutRenderNodes,
       edges: renderEdges,
       viewport: { width: containerSize.width, height: containerSize.height },
+      viewportState: { zoom, panX, panY },
       config: layoutConfig,
     }),
-    [layoutPlugin, layoutRenderNodes, renderEdges, containerSize, layoutConfig],
+    [layoutPlugin, layoutRenderNodes, renderEdges, containerSize, zoom, panX, panY, layoutConfig],
   );
 
   // Apply computed positions to nodes
@@ -1495,28 +1590,34 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     layoutRenderNodes.map((n) => {
       const pos = layoutResult[n.id];
       if (!pos) return n;
-      return { ...n, x: pos.x, y: pos.y, width: pos.width ?? n.width };
+      return {
+        ...n,
+        x: pos.x,
+        y: pos.y,
+        width: pos.width ?? n.width,
+        height: pos.height ?? n.height,
+      };
     }),
   [layoutRenderNodes, layoutResult]);
 
   // Classify nodes (freeform: all as cardNodes, timeline: period+span ??overlay)
   const { cardNodes } = useMemo(
-    () => layoutPlugin.classifyNodes(positionedNodes),
-    [layoutPlugin, positionedNodes],
+    () => layoutPlugin.classifyNodes(positionedNodes, layoutConfig),
+    [layoutConfig, layoutPlugin, positionedNodes],
   );
   const cardRenderNodes = useMemo<RenderNode[]>(() => cardNodes, [cardNodes]);
   const previewRenderNodes = useMemo(() => {
-    if (!nodeResizePreview) return visibleRenderNodes;
+    if (!nodeResizePreview) return positionedNodes;
 
-    const baseNode = visibleRenderNodes.find((node) => node.id === nodeResizePreview.nodeId);
-    if (!baseNode) return visibleRenderNodes;
+    const baseNode = positionedNodes.find((node) => node.id === nodeResizePreview.nodeId);
+    if (!baseNode) return positionedNodes;
 
     const deltaX = nodeResizePreview.x - baseNode.x;
     const deltaY = baseNode.isHierarchy
       ? (nodeResizePreview.y - nodeResizePreview.height / 2) - (baseNode.y - (baseNode.height ?? 220) / 2)
       : nodeResizePreview.y - baseNode.y;
 
-    return visibleRenderNodes.map((node) => {
+    return positionedNodes.map((node) => {
       if (node.id === nodeResizePreview.nodeId) {
         return {
           ...node,
@@ -1537,7 +1638,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
       return node;
     });
-  }, [containsParentByChild, nodeResizePreview, visibleRenderNodes]);
+  }, [containsParentByChild, nodeResizePreview, positionedNodes]);
 
   const previewCardRenderNodes = useMemo<RenderNode[]>(() => (
     cardRenderNodes.map((node) => previewRenderNodes.find((candidate) => candidate.id === node.id) ?? node)
@@ -1866,13 +1967,18 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     });
   }, [archetypeNames, contextNames, networkNames, nodes, projectNames, relationTypeNames]);
 
-  if (layoutPlugin.key !== 'freeform' && cardNodes.length > 0) {
-    console.log('[NW] cardNodes:', cardNodes.map(n => ({ id: n.id.slice(0,8), label: n.label, x: n.x, y: n.y, role: (n as any).metadata?.role, tv: (n as any).metadata?.time_value })));
-  }
-
   // --- Mouse interaction (via useInteraction, same pattern as Culturium) ---
 
-  const isTimeline = layoutPlugin.key !== 'freeform';
+  const isTimeline = viewportMode === 'timeline';
+  const toLayoutCoordinates = useCallback((screenX: number, screenY: number) => {
+    if (viewportMode === 'screen') {
+      return { x: screenX, y: screenY };
+    }
+    if (viewportMode === 'timeline') {
+      return { x: (screenX - panX) / zoom, y: screenY - panY };
+    }
+    return { x: (screenX - panX) / zoom, y: (screenY - panY) / zoom };
+  }, [panX, panY, viewportMode, zoom]);
 
   const serializePositionJson = useCallback((
     nodeId: string,
@@ -2138,7 +2244,24 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
 
-    if (isTimeline) {
+    if (layoutPlugin.onWheel) {
+      layoutPlugin.onWheel({
+        event: e,
+        viewport: containerSize,
+        nodes: positionedNodes,
+        zoom,
+        panX,
+        panY,
+        config: layoutConfig,
+        setZoom,
+        setPanX,
+        setPanY,
+        updateConfig: updatePluginConfig,
+      });
+      return;
+    }
+
+    if (wheelBehavior === 'timeline') {
       // Timeline: Ctrl+wheel = zoom (X only), wheel = horizontal scroll, Shift+wheel = vertical scroll
       if (e.ctrlKey) {
         const rect = containerRef.current?.getBoundingClientRect();
@@ -2153,6 +2276,19 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         setPanY((py) => py - e.deltaY);
       } else {
         setPanX((px) => px - e.deltaY);
+      }
+      return;
+    }
+
+    if (wheelBehavior === 'calendar') {
+      if (e.ctrlKey) return;
+      if (Math.abs(e.deltaX) > 0) {
+        setPanX((px) => px - e.deltaX);
+      }
+      if (e.shiftKey && e.deltaY !== 0) {
+        setPanX((px) => px - e.deltaY);
+      } else if (e.deltaY !== 0) {
+        setPanY((py) => py - e.deltaY);
       }
       return;
     }
@@ -2176,7 +2312,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     setZoom(newZoom);
     setPanX(newPanX);
     setPanY(newPanY);
-  }, [zoom, panX, panY, navigateBack, isTimeline]);
+  }, [containerSize, positionedNodes, zoom, panX, panY, layoutConfig, layoutPlugin, navigateBack, updatePluginConfig, wheelBehavior]);
 
   const handleNodeResizeStart = useCallback((
     nodeId: string,
@@ -2531,8 +2667,9 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     zoom,
     panX,
     panY,
+    viewportMode,
     mode: workspaceMode,
-    constraints: layoutPlugin.interactionConstraints,
+    constraints: interactionConstraints,
     onPanChange: handlePanChange,
     onNodeDragEnd: handleNodeDragEndWithContainment,
     onSelectionBox: handleSelectionBox,
@@ -2659,19 +2796,19 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const worldX = (mx - panX) / zoom;
-    const worldY = (my - panY) / zoom;
+    const { x: worldX, y: worldY } = toLayoutCoordinates(mx, my);
     setNetworkContextMenu({ x: e.clientX, y: e.clientY, worldX, worldY });
-  }, [currentNetwork, panX, panY, zoom]);
+  }, [currentNetwork, toLayoutCoordinates]);
 
   // Save viewport on change (debounced)
   useEffect(() => {
     if (!currentLayout) return;
+    if (!persistViewport) return;
     const timer = setTimeout(() => {
       saveViewport(JSON.stringify({ x: panX, y: panY, zoom }));
     }, 500);
     return () => clearTimeout(timer);
-  }, [panX, panY, zoom, currentLayout, saveViewport]);
+  }, [panX, panY, zoom, currentLayout, persistViewport, saveViewport]);
 
   const fitToScreen = useCallback(() => {
     if (renderNodes.length === 0 || !containerSize.width) return;
@@ -2704,9 +2841,23 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   }, [workspaceMode]);
 
   const controlExtraItems = useMemo(() => {
+    const controlContext = {
+      zoom,
+      panX,
+      panY,
+      config: layoutConfig,
+      setZoom,
+      setPanX,
+      setPanY,
+      updateConfig: updatePluginConfig,
+    };
     const pluginItems = layoutPlugin.controlItems?.map((item) => ({
       ...item,
-      onClick: () => item.onClick({ zoom, panX, setZoom, setPanX }),
+      label: item.label.includes('.') ? t(item.label as never) : item.label,
+      active: item.isActive?.(controlContext) ?? false,
+      onClick: () => {
+        void item.onClick(controlContext);
+      },
     })) ?? [];
 
     return isDev ? [
@@ -2718,7 +2869,29 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         onClick: () => setShowEdgeDebugOverlay((value) => !value),
       },
     ] : pluginItems;
-  }, [isDev, layoutPlugin.controlItems, panX, setPanX, setZoom, showEdgeDebugOverlay, t, zoom]);
+  }, [isDev, layoutConfig, layoutPlugin.controlItems, panX, panY, setPanX, setPanY, setZoom, showEdgeDebugOverlay, t, updatePluginConfig, zoom]);
+
+  const controlsRendererProps = useMemo(() => ({
+    mode: workspaceMode,
+    zoom,
+    panX,
+    panY,
+    canGoBack: networkHistory.length > 0,
+    canGoForward: false,
+    config: layoutConfig,
+    hiddenControls: layoutPlugin.hiddenControls,
+    extraItems: controlExtraItems,
+    setZoom,
+    setPanX,
+    setPanY,
+    updateConfig: updatePluginConfig,
+    onToggleMode: toggleMode,
+    onZoomIn: () => setZoom((z) => Math.min(5, z * 1.2)),
+    onZoomOut: () => setZoom((z) => Math.max(0.005, z / 1.2)),
+    onFitToScreen: fitToScreen,
+    onNavigateBack: () => navigateBack(),
+    onNavigateForward: () => {},
+  }), [workspaceMode, zoom, panX, panY, networkHistory.length, layoutConfig, layoutPlugin.hiddenControls, controlExtraItems, setZoom, setPanX, setPanY, updatePluginConfig, toggleMode, fitToScreen, navigateBack]);
 
   useNetworkShortcuts({
     selectedIds,
@@ -2775,8 +2948,10 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         if (dropItems.length === 0) return;
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
-        const worldX = (e.clientX - rect.left - panX) / zoom;
-        const worldY = (e.clientY - rect.top - panY) / zoom;
+        const { x: worldX, y: worldY } = toLayoutCoordinates(
+          e.clientX - rect.left,
+          e.clientY - rect.top,
+        );
         for (const [index, item] of dropItems.entries()) {
           await addFileNodeAtPosition(item.path, item.type, {
             x: worldX + index * 32,
@@ -2785,35 +2960,14 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         }
       }}
     >
-      <NetworkControls
-        mode={workspaceMode}
-        zoom={zoom}
-        canGoBack={networkHistory.length > 0}
-        canGoForward={false}
-        onToggleMode={toggleMode}
-        onZoomIn={() => setZoom((z) => Math.min(5, z * 1.2))}
-        onZoomOut={() => setZoom((z) => Math.max(0.005, z / 1.2))}
-        onFitToScreen={fitToScreen}
-        onNavigateBack={() => navigateBack()}
-        onNavigateForward={() => {}}
-        hiddenControls={layoutPlugin.hiddenControls}
-        extraItems={controlExtraItems}
-      />
-
-      <div className="pointer-events-none absolute left-3 top-3 z-20 flex max-w-[320px] flex-col gap-2">
-        <div className="rounded-lg border border-subtle bg-surface-panel/90 px-3 py-2 shadow-sm backdrop-blur">
-          <div className="text-[10px] uppercase tracking-[0.12em] text-muted">Network</div>
-          <div className="truncate text-sm font-medium text-default">{currentNetwork.name}</div>
-          {activeContext && (
-            <div className="mt-1 flex items-center gap-2">
-              <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[10px] font-medium text-accent">
-                Context
-              </span>
-              <span className="truncate text-xs text-secondary">{activeContext.name}</span>
-            </div>
-          )}
-        </div>
-      </div>
+      {layoutPlugin.ControlsComponent ? (
+        <layoutPlugin.ControlsComponent {...controlsRendererProps} />
+      ) : (
+        <NetworkControls
+          {...controlsRendererProps}
+          presentation={controlsPresentation}
+        />
+      )}
 
       <layoutPlugin.BackgroundComponent
         width={containerSize.width}
@@ -2833,6 +2987,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         zoom={zoom}
         panX={panX}
         panY={panY}
+        viewportMode={viewportMode}
         zIndex={0}
         renderHitArea={false}
         renderVisibleStroke
@@ -2927,7 +3082,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         zoom={zoom}
         panX={panX}
         panY={panY}
-        timelineMode={isTimeline}
+        viewportMode={viewportMode}
         nodeDragOffset={magneticNodeDragOffset}
         dragFollowerIds={dragFollowerIds}
         onNodeResizeStart={handleNodeResizeStart}
@@ -3166,6 +3321,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         zoom={zoom}
         panX={panX}
         panY={panY}
+        viewportMode={viewportMode}
         zIndex={3}
         renderHitArea
         renderVisibleStroke={false}

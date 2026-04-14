@@ -149,6 +149,12 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
   const activePlugin = useMemo(() => getLayout(session.state?.layout_type), [session.state?.layout_type]);
   const layoutConfig = session.state?.layout_config ?? {};
   const fieldMappings = (layoutConfig.field_mappings ?? {}) as Record<string, Record<string, string>>;
+  const getOptionLabel = useCallback((value: string, keyPrefix?: string) => {
+    if (!keyPrefix) return value;
+    const key = `${keyPrefix}.${value}`;
+    const translated = t(key as never);
+    return translated === key ? value : translated;
+  }, [t]);
 
   const update = (patch: Partial<NetworkState>) => {
     session.setState((prev) => ({ ...prev, ...patch }));
@@ -761,7 +767,10 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
                       />
                     ) : field.type === 'enum' ? (
                       <Select
-                        options={(field.options ?? []).map((o) => ({ value: o, label: t(`layout.timeline.${o}` as never) ?? o }))}
+                        options={(field.options ?? []).map((o) => ({
+                          value: o,
+                          label: getOptionLabel(o, field.optionLabelKeyPrefix),
+                        }))}
                         value={(layoutConfig[field.key] as string) ?? (field.default as string)}
                         onChange={(e) => updateLayoutConfig({ [field.key]: e.target.value })}
                         selectSize="sm"
@@ -830,7 +839,10 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
                           <div key={req.key} className="flex items-center gap-2">
                             <span className="w-28 shrink-0 text-xs text-secondary">{t(req.label as never) ?? req.label}</span>
                             <Select
-                              options={(req.options ?? []).map((o) => ({ value: o, label: t(`layout.timeline.${o}` as never) ?? o }))}
+                              options={(req.options ?? []).map((o) => ({
+                                value: o,
+                                label: getOptionLabel(o, req.optionLabelKeyPrefix),
+                              }))}
                               value={archMapping[req.key] ?? (req.default as string) ?? ''}
                               onChange={(e) => updateFieldMapping(archId, req.key, e.target.value)}
                               selectSize="sm"
@@ -839,10 +851,18 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
                         );
                       }
                       const reqLabel = t(req.label as never) ?? req.label;
+                      const allowedFieldTypes =
+                        req.type === 'date'
+                          ? ['date', 'datetime']
+                          : req.type === 'number'
+                            ? ['number', 'rating']
+                            : req.type === 'string'
+                              ? ['text', 'textarea', 'url', 'color', 'select', 'radio']
+                              : null;
                       const fieldOptions = [
                         { value: '', label: req.required ? `-- ${reqLabel} --` : `(${t('common.none') ?? 'None'})` },
                         ...archFields
-                          .filter((f) => ['date', 'datetime'].includes(f.field_type))
+                          .filter((f) => !allowedFieldTypes || allowedFieldTypes.includes(f.field_type))
                           .map((f) => ({ value: f.id, label: f.name })),
                       ];
                       return (
