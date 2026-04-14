@@ -46,7 +46,7 @@ export function NarreSlashPicker({
         e.stopImmediatePropagation();
         logShortcut('shortcut.narreSlashPicker.selectPrevious');
         setSelectedIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         e.stopImmediatePropagation();
         if (filtered[selectedIndex]) {
@@ -81,7 +81,7 @@ export function NarreSlashPicker({
   return createPortal(
     <div
       ref={containerRef}
-      className="fixed z-[10001] w-[280px] rounded-lg border border-default bg-surface-panel shadow-lg overflow-hidden"
+      className="fixed z-[10001] w-[320px] rounded-lg border border-default bg-surface-panel shadow-lg overflow-hidden"
       style={{ bottom: position.bottom, left: position.left }}
       onMouseDown={(e) => e.preventDefault()}
     >

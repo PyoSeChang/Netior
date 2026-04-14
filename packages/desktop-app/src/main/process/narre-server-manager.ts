@@ -43,6 +43,10 @@ function resolveNarreServerPath(): string | null {
     join(__dirname, '../../../../narre-server/dist/index.js'),
     join(__dirname, '../../../narre-server/dist/index.cjs'),
     join(__dirname, '../../../narre-server/dist/index.js'),
+    join(__dirname, '../../../../narre-server/dist-trace/index.cjs'),
+    join(__dirname, '../../../../narre-server/dist-trace/index.js'),
+    join(__dirname, '../../../narre-server/dist-trace/index.cjs'),
+    join(__dirname, '../../../narre-server/dist-trace/index.js'),
     join(process.cwd(), 'packages/narre-server/dist/index.cjs'),
     join(process.cwd(), 'packages/narre-server/dist/index.js'),
   ];

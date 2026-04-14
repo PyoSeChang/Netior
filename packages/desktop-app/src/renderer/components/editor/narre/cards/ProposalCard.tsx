@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { NarreProposalCard, ProposalRow, ProposalColumn } from '@netior/shared/types';
 import { useI18n } from '../../../../hooks/useI18n';
+import { Badge } from '../../../ui/Badge';
 import { Button } from '../../../ui/Button';
 import { Input } from '../../../ui/Input';
 import { Select } from '../../../ui/Select';
@@ -11,8 +12,8 @@ import { IconButton } from '../../../ui/IconButton';
 
 interface ProposalCardProps {
   card: NarreProposalCard;
-  onConfirm: (rows: ProposalRow[]) => void;
-  onRetry: () => void;
+  onConfirm: (rows: ProposalRow[]) => Promise<void> | void;
+  onRetry: () => Promise<void> | void;
 }
 
 function CellEditor({
@@ -84,6 +85,7 @@ export function ProposalCard({
   const [rows, setRows] = useState<ProposalRow[]>(() =>
     card.rows.map((r) => ({ ...r, values: { ...r.values } })),
   );
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
 
   const handleCellChange = useCallback(
     (rowIdx: number, key: string, value: unknown) => {
@@ -111,13 +113,46 @@ export function ProposalCard({
     setRows((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
+  const handleConfirm = useCallback(async () => {
+    if (status === 'submitting' || status === 'submitted') {
+      return;
+    }
+
+    setStatus('submitting');
+    try {
+      await onConfirm(rows);
+      setStatus('submitted');
+    } catch {
+      setStatus('error');
+    }
+  }, [onConfirm, rows, status]);
+
+  const handleRetry = useCallback(async () => {
+    if (status === 'submitting') {
+      return;
+    }
+
+    setStatus('submitting');
+    try {
+      await onRetry();
+      setStatus('submitted');
+    } catch {
+      setStatus('error');
+    }
+  }, [onRetry, status]);
+
   return (
     <div className="mt-2 rounded-lg border border-subtle bg-surface-card p-3">
-      {card.title && (
-        <h4 className="text-xs font-semibold text-text-default mb-2">
-          {card.title}
-        </h4>
-      )}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        {card.title ? (
+          <h4 className="text-xs font-semibold text-default">
+            {card.title}
+          </h4>
+        ) : <span />}
+        {status === 'submitting' && <Badge variant="warning">{t('narre.card.submitting')}</Badge>}
+        {status === 'submitted' && <Badge variant="success">{t('narre.card.submitted')}</Badge>}
+        {status === 'error' && <Badge variant="error">{t('narre.card.submitFailed')}</Badge>}
+      </div>
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-xs">
@@ -178,10 +213,15 @@ export function ProposalCard({
       </button>
 
       <div className="flex justify-end gap-2 mt-3">
-        <Button variant="ghost" size="sm" onClick={onRetry}>
+        <Button variant="ghost" size="sm" disabled={status === 'submitting'} onClick={() => { void handleRetry(); }}>
           {t('narre.card.proposalRetry')}
         </Button>
-        <Button variant="primary" size="sm" onClick={() => onConfirm(rows)}>
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={status === 'submitting' || status === 'submitted'}
+          onClick={() => { void handleConfirm(); }}
+        >
           {t('narre.card.proposalConfirm')}
         </Button>
       </div>

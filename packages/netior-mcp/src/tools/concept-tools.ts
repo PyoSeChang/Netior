@@ -8,11 +8,12 @@ import {
   deleteConcept,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 export function registerConceptTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'list_concepts',
-    'List or search concepts in a project. If query is provided, searches by title; otherwise returns all concepts.',
     {
       project_id: z.string().describe('The project ID'),
       query: z.string().optional().describe('Search query to filter concepts by title'),
@@ -34,9 +35,9 @@ export function registerConceptTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'create_concept',
-    'Create a new concept in a project',
     {
       project_id: z.string().describe('The project ID'),
       title: z.string().describe('Concept title'),
@@ -66,9 +67,9 @@ export function registerConceptTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_concept',
-    'Update an existing concept',
     {
       concept_id: z.string().describe('The concept ID to update'),
       title: z.string().optional().describe('New title'),
@@ -103,9 +104,9 @@ export function registerConceptTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_concept',
-    'Delete a concept',
     { concept_id: z.string().describe('The concept ID to delete') },
     async ({ concept_id }) => {
       try {

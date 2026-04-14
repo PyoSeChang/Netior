@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getFileEntity, updateFileMetadataField } from '../netior-service-client.js';
 import { validateProjectRootPath } from './path-validation.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 async function extractTextFromPage(pdfDoc: unknown, pageNum: number): Promise<string> {
   // pdfjs-dist types are complex; use dynamic typing here
@@ -16,9 +17,9 @@ async function extractTextFromPage(pdfDoc: unknown, pageNum: number): Promise<st
 
 export function registerPdfTools(server: McpServer): void {
   // -- read_pdf_pages --------------------------------------------------
-  server.tool(
+  registerNetiorTool(
+    server,
     'read_pdf_pages',
-    'Extract text from specified page range of a PDF file. Use this to read TOC pages for indexing.',
     {
       project_id: z.string().describe('The project ID'),
       file_path: z.string().describe('Absolute path to the PDF file'),
@@ -79,9 +80,9 @@ export function registerPdfTools(server: McpServer): void {
   );
 
   // -- read_pdf_pages_vision ----------------------------------------
-  server.tool(
+  registerNetiorTool(
+    server,
     'read_pdf_pages_vision',
-    '[Experimental -- requires optional "canvas" npm package] Render PDF pages as images for vision-based TOC extraction. Will error if canvas is not installed. Not used by default prompts.',
     {
       project_id: z.string().describe('The project ID'),
       file_path: z.string().describe('Absolute path to the PDF file'),
@@ -169,9 +170,9 @@ export function registerPdfTools(server: McpServer): void {
   );
 
   // -- get_file_metadata --------------------------------------------
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_file_metadata',
-    'Get a file entity and its metadata from the database. Use this to check if a PDF already has a TOC.',
     {
       file_id: z.string().describe('The file entity ID'),
     },
@@ -208,9 +209,9 @@ export function registerPdfTools(server: McpServer): void {
   );
 
   // -- update_file_pdf_toc ------------------------------------------
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_file_pdf_toc',
-    'Save or update the PDF table of contents for a file entity. Only call this after the user has approved the TOC.',
     {
       file_id: z.string().describe('The file entity ID'),
       pdf_toc: z.object({

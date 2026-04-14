@@ -1,9 +1,9 @@
 export {
   askToolSchema,
   confirmToolSchema,
+  draftToolSchema,
   proposalCellTypeSchema,
-  proposalToolSchema,
   type AskToolArgs,
   type ConfirmToolArgs,
-  type ProposalToolArgs,
+  type DraftToolArgs,
 } from '../shared/ui-schemas.js';

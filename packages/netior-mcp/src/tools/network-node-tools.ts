@@ -6,13 +6,14 @@ import {
   updateNetworkNode,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 const nodeTypeSchema = z.enum(['basic', 'portal', 'group', 'hierarchy']);
 
 export function registerNetworkNodeTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'create_network_node',
-    'Create a node in a network for an existing object record',
     {
       network_id: z.string().describe('The network ID'),
       object_id: z.string().describe('The object record ID'),
@@ -40,9 +41,9 @@ export function registerNetworkNodeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_network_node',
-    'Update a network node type, parent, or metadata',
     {
       node_id: z.string().describe('The network node ID'),
       node_type: nodeTypeSchema.optional().describe('New node type'),
@@ -69,9 +70,9 @@ export function registerNetworkNodeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_network_node',
-    'Delete a network node',
     { node_id: z.string().describe('The network node ID') },
     async ({ node_id }) => {
       try {

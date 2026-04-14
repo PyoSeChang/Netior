@@ -2,18 +2,6 @@ import { randomUUID } from 'crypto';
 import type { NarreCard } from '@netior/shared/types';
 import { PendingUiResponses } from '../../tools/pending-ui-responses.js';
 
-interface ProposalCell {
-  key: string;
-  label: string;
-  cellType: 'text' | 'icon' | 'color' | 'enum' | 'boolean' | 'readonly';
-  options?: string[];
-}
-
-interface ProposalRow {
-  id: string;
-  values: Record<string, unknown>;
-}
-
 interface InterviewOption {
   label: string;
   description?: string;
@@ -34,12 +22,16 @@ export class NarreUiBridge {
     return this.pendingUiResponses.resolve(toolCallId, response);
   }
 
-  async requestProposal(
+  async requestDraft(
     emitCard: EmitCard,
     payload: {
-      title: string;
-      columns: ProposalCell[];
-      rows: ProposalRow[];
+      title?: string;
+      content: string;
+      format?: 'markdown';
+      placeholder?: string;
+      confirmLabel?: string;
+      feedbackLabel?: string;
+      feedbackPlaceholder?: string;
     },
     toolCallId?: string,
   ): Promise<string> {
@@ -47,11 +39,15 @@ export class NarreUiBridge {
       emitCard,
       toolCallId,
       (resolvedToolCallId) => ({
-        type: 'proposal',
+        type: 'draft',
         toolCallId: resolvedToolCallId,
-        title: payload.title,
-        columns: payload.columns,
-        rows: payload.rows,
+        ...(payload.title ? { title: payload.title } : {}),
+        content: payload.content,
+        format: payload.format ?? 'markdown',
+        ...(payload.placeholder ? { placeholder: payload.placeholder } : {}),
+        ...(payload.confirmLabel ? { confirmLabel: payload.confirmLabel } : {}),
+        ...(payload.feedbackLabel ? { feedbackLabel: payload.feedbackLabel } : {}),
+        ...(payload.feedbackPlaceholder ? { feedbackPlaceholder: payload.feedbackPlaceholder } : {}),
       }),
     );
   }
@@ -62,6 +58,9 @@ export class NarreUiBridge {
       question: string;
       options: InterviewOption[];
       multiSelect?: boolean;
+      allowText?: boolean;
+      textPlaceholder?: string;
+      submitLabel?: string;
     },
     toolCallId?: string,
   ): Promise<string> {
@@ -73,7 +72,10 @@ export class NarreUiBridge {
         toolCallId: resolvedToolCallId,
         question: payload.question,
         options: payload.options,
-        multiSelect: payload.multiSelect ?? undefined,
+        multiSelect: payload.multiSelect ?? true,
+        allowText: payload.allowText ?? true,
+        ...(payload.textPlaceholder ? { textPlaceholder: payload.textPlaceholder } : {}),
+        ...(payload.submitLabel ? { submitLabel: payload.submitLabel } : {}),
       }),
     );
   }

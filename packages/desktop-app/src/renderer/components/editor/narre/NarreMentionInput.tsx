@@ -1,20 +1,35 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import type { NarreMention, SlashCommand } from '@netior/shared/types';
 import { SLASH_COMMANDS } from '@netior/shared/constants';
 import type { MentionResult } from '../../../services/narre-service';
+import type { NarrePendingCommandState } from '../../../lib/narre-ui-state';
 import { useI18n } from '../../../hooks/useI18n';
+import { Badge } from '../../ui/Badge';
 import { IconButton } from '../../ui/IconButton';
 import { NarreMentionPicker } from './NarreMentionPicker';
+import { PdfTocInputForm, type PdfTocFormState } from './PdfTocInputForm';
 import { NarreSlashPicker } from './NarreSlashPicker';
 import { logShortcut } from '../../../shortcuts/shortcut-utils';
 
+export interface NarreComposerSubmit {
+  text: string;
+  mentions: NarreMention[];
+  draftHtml: string;
+  pendingCommand: NarrePendingCommandState | null;
+}
+
 interface NarreMentionInputProps {
   projectId: string;
-  onSend: (text: string, mentions: NarreMention[]) => void;
+  onSend: (payload: NarreComposerSubmit) => Promise<boolean | void> | boolean | void;
   onCommand?: (command: SlashCommand) => void;
   disabled?: boolean;
+  sendDisabled?: boolean;
   placeholder?: string;
+  draftHtml?: string;
+  pendingCommand?: NarrePendingCommandState | null;
+  onDraftChange?: (draftHtml: string) => void;
+  onPendingCommandChange?: (pendingCommand: NarrePendingCommandState | null) => void;
 }
 
 interface PickerState {
@@ -22,6 +37,16 @@ interface PickerState {
   query: string;
   position: { bottom: number; left: number };
 }
+
+interface ComposerSnapshot {
+  text: string;
+  mentions: NarreMention[];
+}
+
+const EMPTY_SNAPSHOT: ComposerSnapshot = {
+  text: '',
+  mentions: [],
+};
 
 function serializeContentEditable(el: HTMLDivElement): {
   text: string;
@@ -32,7 +57,7 @@ function serializeContentEditable(el: HTMLDivElement): {
 
   function walk(node: Node): void {
     if (node.nodeType === Node.TEXT_NODE) {
-      text += node.textContent || '';
+      text += (node.textContent || '').replace(/\u200B/g, '');
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const elem = node as HTMLElement;
       if (elem.dataset.mentionType) {
@@ -85,15 +110,56 @@ function createMentionChip(mention: MentionResult): HTMLSpanElement {
   return chip;
 }
 
+function getSlashCommandByName(commandName: string): SlashCommand | null {
+  return SLASH_COMMANDS.find((command) => command.name === commandName) ?? null;
+}
+
+function createPendingCommandState(command: SlashCommand): NarrePendingCommandState {
+  if (command.name === 'index') {
+    return {
+      name: command.name,
+      indexArgs: {
+        startPage: 1,
+        endPage: 1,
+        overviewPagesText: '',
+      },
+    };
+  }
+
+  return { name: command.name };
+}
+
+function isPdfMention(mention: NarreMention): boolean {
+  const candidate = mention.path ?? mention.display;
+  return candidate.toLowerCase().endsWith('.pdf');
+}
+
+function placeCaretAtEnd(el: HTMLDivElement): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 export function NarreMentionInput({
   projectId,
   onSend,
   onCommand,
   disabled = false,
+  sendDisabled = false,
   placeholder,
+  draftHtml = '',
+  pendingCommand = null,
+  onDraftChange,
+  onPendingCommandChange,
 }: NarreMentionInputProps): JSX.Element {
   const { t } = useI18n();
   const editorRef = useRef<HTMLDivElement>(null);
+  const [snapshot, setSnapshot] = useState<ComposerSnapshot>(EMPTY_SNAPSHOT);
   const [isEmpty, setIsEmpty] = useState(true);
   const [picker, setPicker] = useState<PickerState>({
     isOpen: false,
@@ -106,44 +172,101 @@ export function NarreMentionInput({
     position: { bottom: 0, left: 0 },
   });
   const mentionSearchStart = useRef<number | null>(null);
+  const previousDisabled = useRef(disabled);
+  const selectedCommand = pendingCommand ? getSlashCommandByName(pendingCommand.name) : null;
+  const fileMention = snapshot.mentions.find((mention) => mention.type === 'file');
 
-  const checkEmpty = useCallback(() => {
+  const syncComposerState = useCallback((): ComposerSnapshot => {
     const el = editorRef.current;
-    if (!el) return;
-    const text = el.textContent || '';
-    setIsEmpty(text.trim().length === 0);
+    if (!el) {
+      setSnapshot(EMPTY_SNAPSHOT);
+      setIsEmpty(true);
+      return EMPTY_SNAPSHOT;
+    }
+
+    const nextSnapshot = serializeContentEditable(el);
+    const text = (el.textContent || '').replace(/\u200B/g, '').trim();
+    setSnapshot(nextSnapshot);
+    setIsEmpty(text.length === 0 && nextSnapshot.mentions.length === 0);
+    return nextSnapshot;
   }, []);
 
-  const handleSend = useCallback(() => {
+  const resetEditor = useCallback(() => {
     const el = editorRef.current;
-    if (!el || disabled) return;
+    if (el) {
+      el.innerHTML = '';
+    }
 
-    const { text, mentions } = serializeContentEditable(el);
-    if (!text.trim()) return;
-
-    onSend(text, mentions);
-    logShortcut('shortcut.narreChat.sendMessage');
-    el.innerHTML = '';
+    setSnapshot(EMPTY_SNAPSHOT);
     setIsEmpty(true);
     setPicker((p) => ({ ...p, isOpen: false }));
+    setSlashPicker((p) => ({ ...p, isOpen: false }));
     mentionSearchStart.current = null;
-  }, [onSend, disabled]);
+    onDraftChange?.('');
+    onPendingCommandChange?.(null);
+  }, [onDraftChange, onPendingCommandChange]);
+
+  const commandValidationMessage = (() => {
+    if (!pendingCommand || pendingCommand.name !== 'index') {
+      return null;
+    }
+
+    if (!fileMention) {
+      return t('pdfToc.noFile');
+    }
+
+    if (!isPdfMention(fileMention)) {
+      return t('pdfToc.noPdfFile');
+    }
+
+    if (!pendingCommand.indexArgs || pendingCommand.indexArgs.endPage < pendingCommand.indexArgs.startPage) {
+      return t('pdfToc.invalidRange');
+    }
+
+    return null;
+  })();
+
+  const canSubmit = pendingCommand ? commandValidationMessage === null : !isEmpty;
+
+  const handleSend = useCallback(async () => {
+    const el = editorRef.current;
+    if (!el || disabled || sendDisabled || !canSubmit) return;
+
+    const { text, mentions } = serializeContentEditable(el);
+    if (!pendingCommand && !text.trim()) return;
+
+    const result = await onSend({
+      text,
+      mentions,
+      draftHtml: el.innerHTML,
+      pendingCommand,
+    });
+    if (result === false) return;
+
+    logShortcut('shortcut.narreChat.sendMessage');
+    resetEditor();
+  }, [canSubmit, disabled, onSend, pendingCommand, resetEditor, sendDisabled]);
 
   const handleSlashSelect = useCallback((command: SlashCommand) => {
     const el = editorRef.current;
-    if (!el) return;
-
-    if (command.type === 'conversation') {
-      // Send as a message — NarreChat will route to /chat
-      onSend(`/${command.name}`, []);
-    } else if (onCommand) {
+    if (command.type === 'system' && onCommand) {
       onCommand(command);
+      resetEditor();
+      return;
     }
 
-    el.innerHTML = '';
-    setIsEmpty(true);
+    if (el) {
+      el.innerHTML = '';
+      setSnapshot(EMPTY_SNAPSHOT);
+      setIsEmpty(true);
+      onDraftChange?.('');
+      el.focus();
+      placeCaretAtEnd(el);
+    }
+
     setSlashPicker((p) => ({ ...p, isOpen: false }));
-  }, [onSend, onCommand]);
+    onPendingCommandChange?.(createPendingCommandState(command));
+  }, [onCommand, onDraftChange, onPendingCommandChange, resetEditor]);
 
   const handleSlashPickerClose = useCallback(() => {
     setSlashPicker((p) => ({ ...p, isOpen: false }));
@@ -152,14 +275,15 @@ export function NarreMentionInput({
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (picker.isOpen || slashPicker.isOpen) {
       // Let the picker handle these keys
-      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
+      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'].includes(e.key)) {
         return; // picker's document listener will handle
       }
     }
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (sendDisabled) return;
+      void handleSend();
       return;
     }
     if (e.key === 'Enter' && e.shiftKey) {
@@ -181,7 +305,8 @@ export function NarreMentionInput({
             if (prev && (prev as HTMLElement).dataset?.chip) {
               e.preventDefault();
               prev.parentNode?.removeChild(prev);
-              checkEmpty();
+              syncComposerState();
+              onDraftChange?.(editorRef.current?.innerHTML ?? '');
               return;
             }
           }
@@ -192,17 +317,22 @@ export function NarreMentionInput({
             if (child && (child as HTMLElement).dataset?.chip) {
               e.preventDefault();
               child.parentNode?.removeChild(child);
-              checkEmpty();
+              syncComposerState();
+              onDraftChange?.(editorRef.current?.innerHTML ?? '');
               return;
             }
           }
         }
       }
     }
-  }, [picker.isOpen, slashPicker.isOpen, handleSend, checkEmpty]);
+  }, [picker.isOpen, slashPicker.isOpen, handleSend, onDraftChange, sendDisabled, syncComposerState]);
 
   const handleInput = useCallback(() => {
-    checkEmpty();
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    syncComposerState();
+    onDraftChange?.(editor.innerHTML);
 
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
@@ -222,19 +352,24 @@ export function NarreMentionInput({
     const cursorPos = range.startOffset;
 
     // Check for "/" at the start of input (slash command)
-    const fullText = editorRef.current?.textContent || '';
-    if (fullText.startsWith('/')) {
-      const slashQuery = fullText.slice(1);
-      const el = editorRef.current!;
-      const rect = el.getBoundingClientRect();
-      setSlashPicker({
-        isOpen: true,
-        query: slashQuery,
-        position: {
-          bottom: window.innerHeight - rect.top + 4,
-          left: rect.left,
-        },
-      });
+    const fullText = (editor.textContent || '').replace(/\u200B/g, '');
+    if (!pendingCommand && fullText.startsWith('/')) {
+      const slashBody = fullText.slice(1);
+      const slashQuery = slashBody.split(/\s+/, 1)[0] ?? '';
+
+      if (!/\s/.test(slashBody)) {
+        const rect = editor.getBoundingClientRect();
+        setSlashPicker({
+          isOpen: true,
+          query: slashQuery,
+          position: {
+            bottom: window.innerHeight - rect.top + 4,
+            left: rect.left,
+          },
+        });
+      } else if (slashPicker.isOpen) {
+        setSlashPicker((p) => ({ ...p, isOpen: false }));
+      }
     } else if (slashPicker.isOpen) {
       setSlashPicker((p) => ({ ...p, isOpen: false }));
     }
@@ -274,7 +409,7 @@ export function NarreMentionInput({
         mentionSearchStart.current = null;
       }
     }
-  }, [picker.isOpen, slashPicker.isOpen, checkEmpty]);
+  }, [pendingCommand, picker.isOpen, slashPicker.isOpen, onDraftChange, syncComposerState]);
 
   const handleMentionSelect = useCallback((mention: MentionResult) => {
     const el = editorRef.current;
@@ -316,9 +451,10 @@ export function NarreMentionInput({
 
     setPicker((p) => ({ ...p, isOpen: false }));
     mentionSearchStart.current = null;
-    checkEmpty();
+    syncComposerState();
+    onDraftChange?.(el.innerHTML);
     el.focus();
-  }, [checkEmpty]);
+  }, [onDraftChange, syncComposerState]);
 
   const handlePickerClose = useCallback(() => {
     setPicker((p) => ({ ...p, isOpen: false }));
@@ -329,6 +465,32 @@ export function NarreMentionInput({
   useEffect(() => {
     editorRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const wasDisabled = previousDisabled.current;
+    previousDisabled.current = disabled;
+    if (!wasDisabled || disabled) {
+      return;
+    }
+
+    const el = editorRef.current;
+    if (!el) {
+      return;
+    }
+
+    el.focus();
+    placeCaretAtEnd(el);
+  }, [disabled]);
+
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el || el.innerHTML === draftHtml) {
+      return;
+    }
+
+    el.innerHTML = draftHtml;
+    syncComposerState();
+  }, [draftHtml, syncComposerState]);
 
   return (
     <div className="flex w-full items-end gap-2">
@@ -352,6 +514,53 @@ export function NarreMentionInput({
             {placeholder || t('narre.inputPlaceholder')}
           </div>
         )}
+        {selectedCommand && !disabled && (
+          <div className="mt-2 rounded-md border border-subtle bg-surface-card px-3 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Badge variant="accent">/{selectedCommand.name}</Badge>
+                <span className="text-xs text-default">
+                  {t(selectedCommand.description as any)}
+                </span>
+                {commandValidationMessage ? (
+                  <Badge variant="warning">{commandValidationMessage}</Badge>
+                ) : (
+                  selectedCommand.name === 'index'
+                    && fileMention
+                    && isPdfMention(fileMention)
+                    && <Badge variant="success">@{fileMention.display}</Badge>
+                )}
+              </div>
+              <button
+                type="button"
+                className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
+                onClick={() => onPendingCommandChange?.(null)}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {selectedCommand.hint && (
+              <p className="mt-2 text-xs text-muted">
+                {t(selectedCommand.hint as any)}
+              </p>
+            )}
+            {pendingCommand?.name === 'index' && pendingCommand.indexArgs && (
+              <div className="mt-3">
+                <PdfTocInputForm
+                  value={pendingCommand.indexArgs as PdfTocFormState}
+                  fileDisplay={fileMention?.display}
+                  disabled={disabled || sendDisabled}
+                  onChange={(nextValue) => {
+                    onPendingCommandChange?.({
+                      ...pendingCommand,
+                      indexArgs: nextValue,
+                    });
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {picker.isOpen && (
         <NarreMentionPicker
@@ -362,7 +571,7 @@ export function NarreMentionInput({
           onClose={handlePickerClose}
         />
       )}
-      {slashPicker.isOpen && !picker.isOpen && (
+      {slashPicker.isOpen && !picker.isOpen && !pendingCommand && (
         <NarreSlashPicker
           query={slashPicker.query}
           position={slashPicker.position}
@@ -372,8 +581,8 @@ export function NarreMentionInput({
       )}
       <IconButton
         label={t('narre.sendMessage')}
-        disabled={isEmpty || disabled}
-        onClick={handleSend}
+        disabled={disabled || sendDisabled || !canSubmit}
+        onClick={() => { void handleSend(); }}
       >
         <Send size={16} />
       </IconButton>

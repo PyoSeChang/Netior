@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getObject, getObjectByRef } from '../netior-service-client.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 const objectTypeSchema = z.enum([
   'concept',
@@ -16,9 +17,9 @@ const objectTypeSchema = z.enum([
 ]);
 
 export function registerObjectTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_object',
-    'Get a network object record by object ID',
     { object_id: z.string().describe('The object ID') },
     async ({ object_id }) => {
       try {
@@ -41,9 +42,9 @@ export function registerObjectTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_object_by_ref',
-    'Get a network object record from a domain object type and ref ID',
     {
       object_type: objectTypeSchema.describe('The domain object type'),
       ref_id: z.string().describe('The referenced domain object ID'),

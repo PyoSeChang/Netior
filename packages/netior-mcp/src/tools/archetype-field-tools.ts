@@ -8,6 +8,7 @@ import {
   updateArchetypeField,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 const fieldTypeSchema = z.enum([
   'text',
@@ -29,9 +30,9 @@ const fieldTypeSchema = z.enum([
 ]);
 
 export function registerArchetypeFieldTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'list_archetype_fields',
-    'List field contracts for a specific archetype',
     { archetype_id: z.string().describe('The archetype ID') },
     async ({ archetype_id }) => {
       try {
@@ -48,9 +49,9 @@ export function registerArchetypeFieldTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'create_archetype_field',
-    'Create a field contract on an archetype. Use this for scalar fields, typed archetype references, and choice-like fields.',
     {
       archetype_id: z.string().describe('The archetype ID'),
       name: z.string().describe('Field name'),
@@ -86,9 +87,9 @@ export function registerArchetypeFieldTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_archetype_field',
-    'Update an archetype field contract',
     {
       field_id: z.string().describe('The field ID to update'),
       name: z.string().optional().describe('New field name'),
@@ -129,9 +130,9 @@ export function registerArchetypeFieldTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_archetype_field',
-    'Delete an archetype field contract',
     { field_id: z.string().describe('The field ID to delete') },
     async ({ field_id }) => {
       try {
@@ -155,9 +156,9 @@ export function registerArchetypeFieldTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'reorder_archetype_fields',
-    'Reorder field contracts within an archetype',
     {
       archetype_id: z.string().describe('The archetype ID'),
       ordered_ids: z.array(z.string()).describe('Field IDs in the desired order'),

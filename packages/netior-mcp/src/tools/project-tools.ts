@@ -13,6 +13,7 @@ import {
   getConceptsByProject,
   listNetworks,
 } from '../netior-service-client.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 function buildTypeGroupPathMap(groups: TypeGroup[]): Map<string, string> {
   const byId = new Map(groups.map((group) => [group.id, group]));
@@ -105,9 +106,9 @@ function mapNetworkTree(nodes: NetworkTreeNode[]): ProjectSummaryNetworkTreeNode
 }
 
 export function registerProjectTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_project_summary',
-    'Get a summary of a project including schema, relation, type-group, concept, and network context',
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {

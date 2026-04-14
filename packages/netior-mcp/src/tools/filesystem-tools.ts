@@ -3,11 +3,12 @@ import { z } from 'zod';
 import { readdirSync, readFileSync } from 'fs';
 import fg from 'fast-glob';
 import { getAllowedPaths, validatePath } from './path-validation.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 export function registerFilesystemTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'list_directory',
-    'List contents of a directory within registered module paths',
     {
       project_id: z.string().describe('The project ID'),
       dir_path: z.string().describe('Absolute path to the directory'),
@@ -36,9 +37,9 @@ export function registerFilesystemTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'read_file',
-    'Read contents of a file within registered module paths',
     {
       project_id: z.string().describe('The project ID'),
       file_path: z.string().describe('Absolute path to the file'),
@@ -75,9 +76,9 @@ export function registerFilesystemTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'glob_files',
-    'Find files matching a glob pattern within registered module paths',
     {
       project_id: z.string().describe('The project ID'),
       pattern: z.string().describe('Glob pattern (e.g. "**/*.md")'),
@@ -128,9 +129,9 @@ export function registerFilesystemTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'grep_files',
-    'Search file contents with a regex pattern within registered module paths',
     {
       project_id: z.string().describe('The project ID'),
       pattern: z.string().describe('Regex pattern to search for'),

@@ -7,6 +7,7 @@ import {
   updateEdge,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 const systemContractSchema = z.enum([
   'core:contains',
@@ -15,9 +16,9 @@ const systemContractSchema = z.enum([
 ]);
 
 export function registerEdgeTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'create_edge',
-    'Create an edge between two network nodes',
     {
       network_id: z.string().describe('The network ID'),
       source_node_id: z.string().describe('Source node ID'),
@@ -49,9 +50,9 @@ export function registerEdgeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_edge',
-    'Get an edge by ID',
     { edge_id: z.string().describe('The edge ID') },
     async ({ edge_id }) => {
       try {
@@ -74,9 +75,9 @@ export function registerEdgeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_edge',
-    'Update an edge relation type, system contract, or description',
     {
       edge_id: z.string().describe('The edge ID'),
       relation_type_id: z.string().nullable().optional().describe('Relation type ID or null'),
@@ -109,9 +110,9 @@ export function registerEdgeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_edge',
-    'Delete an edge',
     { edge_id: z.string().describe('The edge ID') },
     async ({ edge_id }) => {
       try {

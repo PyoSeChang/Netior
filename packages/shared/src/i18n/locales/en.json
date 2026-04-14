@@ -862,6 +862,8 @@
     "connectionError": "Connection Error",
     "retryMessage": "Please try again",
     "streaming": "Generating response...",
+    "interrupting": "Stopping response...",
+    "interruptFailed": "Failed to stop the response",
     "mentionPlaceholder": "Use @ to mention concepts, networks, etc.",
     "mentionAll": "All",
     "mentionConcept": "Concept",
@@ -872,7 +874,9 @@
     "mentionSearch": "Search...",
     "command": {
       "onboarding": "Build project type system",
+      "onboardingHint": "Starts a guided setup flow for the project's type system.",
       "index": "PDF table of contents indexing",
+      "indexHint": "Requires one PDF file mention before sending.",
       "unknownCommand": "Unknown command: {name}"
     },
     "card": {
@@ -880,11 +884,21 @@
       "proposalRetry": "Re-analyze",
       "proposalAddRow": "Add",
       "proposalDeleteRow": "Delete",
+      "draftConfirm": "Accept Edited Draft",
+      "draftFeedback": "Send Feedback",
+      "draftPlaceholder": "Edit the proposed draft directly",
+      "draftFeedbackPlaceholder": "Add revision notes or feedback",
       "addRow": "Add row",
       "removeRow": "Remove row",
       "permissionCancel": "Cancel",
       "permissionConfirm": "Confirm",
-      "interviewSubmit": "Select",
+      "permissionRequest": "Allow the tool \"{tool}\" to run?",
+      "collapse": "Collapse",
+      "interviewSubmit": "Respond",
+      "interviewPlaceholder": "Add details or feedback",
+      "submitting": "Sending...",
+      "submitted": "Sent",
+      "submitFailed": "Failed",
       "summarySuccess": "Complete",
       "summaryError": "Failed"
     }
@@ -900,7 +914,9 @@
     "overviewPages": "Overview pages (optional)",
     "overviewPagesHint": "Comma-separated (e.g. 1, 2, 3)",
     "startAnalysis": "Start analysis",
-    "noFile": "Please mention a PDF file"
+    "invalidRange": "Check the page range",
+    "noFile": "Please mention a PDF file",
+    "noPdfFile": "Only PDF files can be indexed with /index"
   },
   "pdfViewer": {
     "fitWidth": "Fit to width",

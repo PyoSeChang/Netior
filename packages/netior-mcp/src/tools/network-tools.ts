@@ -12,11 +12,12 @@ import {
   updateNetwork,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 export function registerNetworkTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'list_networks',
-    'List networks in a project',
     {
       project_id: z.string().describe('The project ID'),
       root_only: z.boolean().optional().describe('Whether to return only root-level networks'),
@@ -36,9 +37,9 @@ export function registerNetworkTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'create_network',
-    'Create a network for graph organization and navigation',
     {
       name: z.string().describe('Network name'),
       project_id: z.string().nullable().optional().describe('Project ID or null for app scope'),
@@ -66,9 +67,9 @@ export function registerNetworkTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_network',
-    'Update a network name, scope, or parent',
     {
       network_id: z.string().describe('The network ID to update'),
       name: z.string().optional().describe('New network name'),
@@ -101,9 +102,9 @@ export function registerNetworkTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_network',
-    'Delete a network',
     { network_id: z.string().describe('The network ID to delete') },
     async ({ network_id }) => {
       try {
@@ -127,9 +128,9 @@ export function registerNetworkTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_network_full',
-    'Get a network with nodes, edges, objects, and layout references',
     { network_id: z.string().describe('The network ID') },
     async ({ network_id }) => {
       try {
@@ -152,9 +153,9 @@ export function registerNetworkTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_app_root_network',
-    'Get the app root network',
     {},
     async () => {
       try {
@@ -171,9 +172,9 @@ export function registerNetworkTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_project_root_network',
-    'Get the root network for a project',
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
@@ -190,9 +191,9 @@ export function registerNetworkTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_network_tree',
-    'Get the network hierarchy tree for a project',
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
@@ -209,9 +210,9 @@ export function registerNetworkTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_network_ancestors',
-    'Get breadcrumb ancestors for a network',
     { network_id: z.string().describe('The network ID') },
     async ({ network_id }) => {
       try {

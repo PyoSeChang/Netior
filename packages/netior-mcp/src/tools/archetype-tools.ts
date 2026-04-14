@@ -7,11 +7,12 @@ import {
   deleteArchetype,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 export function registerArchetypeTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'list_archetypes',
-    'List all archetypes for a project',
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
@@ -28,9 +29,9 @@ export function registerArchetypeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'create_archetype',
-    'Create a new archetype for a project',
     {
       project_id: z.string().describe('The project ID'),
       name: z.string().describe('Archetype name'),
@@ -62,9 +63,9 @@ export function registerArchetypeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_archetype',
-    'Update an existing archetype',
     {
       archetype_id: z.string().describe('The archetype ID to update'),
       name: z.string().optional().describe('New name'),
@@ -101,9 +102,9 @@ export function registerArchetypeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_archetype',
-    'Delete an archetype',
     { archetype_id: z.string().describe('The archetype ID to delete') },
     async ({ archetype_id }) => {
       try {

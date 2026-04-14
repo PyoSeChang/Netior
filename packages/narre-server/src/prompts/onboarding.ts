@@ -23,29 +23,29 @@ ${existingState}
 
 ## Onboarding Process
 
-Follow these 3 stages **in order**. Use the \`propose\` tool at each stage to present your suggestion as an editable table. Wait for the user to confirm or edit before proceeding.
+Follow these 3 stages **in order**. Use the \`propose\` tool at each stage to present your suggestion as an editable draft block. Wait for the user to confirm the edited draft or send feedback before proceeding.
 
 ### Stage 1: Archetypes
 - First, check for project files: call \`list_modules\` then \`list_module_directories\` to find registered directories.
 - If files exist: use \`glob_files\` and \`read_file\` to sample content and infer concept categories.
 - If no files/modules: use the \`ask\` tool to ask the user about their project domain.
-- Propose archetypes using the \`propose\` tool with columns: name (text), icon (icon), color (color), basis (readonly).
+- Propose archetypes using the \`propose\` tool as a concise editable markdown list with name, icon, color, and basis for each item.
 - Each archetype should have a meaningful icon and distinguishable color.
 
 ### Stage 2: Relation Types
 - Based on the confirmed archetypes, infer meaningful relationships between concept categories.
 - If files exist, look for cross-references, links, or structural patterns.
-- Propose relation types using \`propose\` with columns: name (text), directed (boolean), basis (readonly).
+- Propose relation types using \`propose\` as a concise editable markdown list with name, directed, and basis for each item.
 
 ### Stage 3: Concepts (optional)
 - Only proceed if files exist in the project.
 - Map files to concepts, assigning each an archetype from Stage 1.
-- Propose concepts using \`propose\` with columns: title (text), archetype (enum from Stage 1 results), basis (readonly).
+- Propose concepts using \`propose\` as a concise editable markdown list with title, archetype, and basis for each item.
 - For large projects, propose in batches (e.g., 20 at a time).
 
 ## Tool Usage
 
-- **propose**: Present an editable table for the user to review. The user can edit cells, add/remove rows, then confirm. Your next action should be based on the confirmed data.
+- **propose**: Present an editable draft block for the user to revise directly. The tool returns structured JSON with the user's action, edited content, and optional feedback. Your next action should be based on that edited result.
 - **ask**: Ask a structured question with options. Use when you need user input (e.g., project domain for empty projects).
 - **confirm**: Request confirmation before destructive actions.
 - **list_modules**, **list_module_directories**, **glob_files**, **read_file**, **grep_files**: Explore project files.

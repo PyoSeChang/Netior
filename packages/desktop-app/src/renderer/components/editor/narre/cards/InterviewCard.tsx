@@ -1,12 +1,14 @@
 import React, { useState, useCallback } from 'react';
-import type { NarreInterviewCard } from '@netior/shared/types';
+import type { NarreInterviewCard, NarreInterviewResponse } from '@netior/shared/types';
 import { useI18n } from '../../../../hooks/useI18n';
+import { Badge } from '../../../ui/Badge';
 import { Button } from '../../../ui/Button';
 import { Checkbox } from '../../../ui/Checkbox';
+import { TextArea } from '../../../ui/TextArea';
 
 interface InterviewCardProps {
   card: NarreInterviewCard;
-  onSelect: (selected: string[]) => void;
+  onSelect: (response: NarreInterviewResponse) => Promise<void> | void;
 }
 
 export function InterviewCard({
@@ -15,9 +17,17 @@ export function InterviewCard({
 }: InterviewCardProps): JSX.Element {
   const { t } = useI18n();
   const [selected, setSelected] = useState<string[]>([]);
+  const [text, setText] = useState('');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
 
   const handleToggle = useCallback(
     (value: string) => {
+      if (status === 'submitted' || status === 'submitting') {
+        return;
+      }
+      if (status === 'error') {
+        setStatus('idle');
+      }
       setSelected((prev) => {
         if (card.multiSelect) {
           return prev.includes(value)
@@ -28,64 +38,105 @@ export function InterviewCard({
         return prev.includes(value) ? [] : [value];
       });
     },
-    [card.multiSelect],
+    [card.multiSelect, status],
   );
+
+  const canSubmit = selected.length > 0 || text.trim().length > 0;
+
+  const handleSubmit = useCallback(async () => {
+    if (!canSubmit || status === 'submitted' || status === 'submitting') {
+      return;
+    }
+
+    setStatus('submitting');
+    try {
+      await onSelect({
+        selected,
+        ...(text.trim() ? { text: text.trim() } : {}),
+      });
+      setStatus('submitted');
+    } catch {
+      setStatus('error');
+    }
+  }, [canSubmit, onSelect, selected, status, text]);
 
   return (
     <div className="mt-2 rounded-lg border border-subtle bg-surface-card p-3">
-      <p className="text-xs font-medium text-text-default mb-2">
-        {card.question}
-      </p>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-default">
+          {card.question}
+        </p>
+        {status === 'submitting' && <Badge variant="warning">{t('narre.card.submitting')}</Badge>}
+        {status === 'submitted' && <Badge variant="success">{t('narre.card.submitted')}</Badge>}
+        {status === 'error' && <Badge variant="error">{t('narre.card.submitFailed')}</Badge>}
+      </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2.5">
         {card.options.map((opt) => {
           const optionValue = opt.label;
           const isSelected = selected.includes(optionValue);
-          if (card.multiSelect) {
-            return (
+          return (
+            <div
+              key={optionValue}
+              className={[
+                'flex items-start gap-2 rounded-lg border px-2.5 py-2 transition-colors',
+                isSelected
+                  ? 'border-accent bg-accent-muted/40'
+                  : 'border-subtle bg-surface-base hover:bg-surface-hover',
+                status === 'submitted' ? 'opacity-80' : '',
+              ].join(' ')}
+            >
               <Checkbox
-                key={optionValue}
                 checked={isSelected}
                 onChange={() => handleToggle(optionValue)}
-                label={opt.label}
+                disabled={status === 'submitted' || status === 'submitting'}
+                label=""
               />
-            );
-          }
-          // Single select: radio-like with styled buttons
-          return (
-            <button
-              key={optionValue}
-              type="button"
-              className={[
-                'flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors',
-                isSelected
-                  ? 'bg-accent-muted text-accent border border-accent'
-                  : 'bg-surface-hover text-text-default border border-transparent hover:border-subtle',
-              ].join(' ')}
-              onClick={() => handleToggle(optionValue)}
-            >
-              <div
-                className={[
-                  'w-3 h-3 rounded-full border-2 shrink-0 transition-colors',
-                  isSelected
-                    ? 'border-accent bg-accent'
-                    : 'border-border-default bg-transparent',
-                ].join(' ')}
-              />
-              {opt.label}
-            </button>
+              <button
+                type="button"
+                className="min-w-0 flex-1 text-left"
+                disabled={status === 'submitted' || status === 'submitting'}
+                onClick={() => handleToggle(optionValue)}
+              >
+                <div className="text-xs font-medium text-default">{opt.label}</div>
+                {opt.description && (
+                  <div className="mt-0.5 text-xs text-muted">{opt.description}</div>
+                )}
+              </button>
+            </div>
           );
         })}
       </div>
 
-      <div className="flex justify-end mt-3">
+      {(card.allowText ?? true) && (
+        <div className="mt-3">
+          <TextArea
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+              if (status === 'error') {
+                setStatus('idle');
+              }
+            }}
+            placeholder={card.textPlaceholder ?? t('narre.card.interviewPlaceholder')}
+            disabled={status === 'submitted' || status === 'submitting'}
+            className="min-h-[72px] text-xs"
+          />
+        </div>
+      )}
+
+      <div className="mt-3 flex justify-end">
         <Button
           variant="primary"
           size="sm"
-          disabled={selected.length === 0}
-          onClick={() => onSelect(selected)}
+          disabled={!canSubmit || status === 'submitted' || status === 'submitting'}
+          onClick={() => { void handleSubmit(); }}
         >
-          {t('narre.card.interviewSubmit')}
+          {status === 'submitting'
+            ? t('narre.card.submitting')
+            : status === 'submitted'
+              ? t('narre.card.submitted')
+              : (card.submitLabel ?? t('narre.card.interviewSubmit'))}
         </Button>
       </div>
     </div>

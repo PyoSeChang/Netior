@@ -1,4 +1,5 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import { getNarreToolMetadata } from '@netior/shared/constants';
 import type { NarreToolCall } from '@netior/shared/types';
 import type {
   NarreProviderAdapter,
@@ -45,6 +46,10 @@ export class ClaudeProviderAdapter implements NarreProviderAdapter {
       prompt,
       options: queryOptions as Parameters<typeof query>[0]['options'],
     })) {
+      if (context.signal?.aborted) {
+        break;
+      }
+
       if (msg.type === 'assistant' && msg.message?.content) {
         const msgId = (msg as Record<string, unknown>).uuid as string | undefined;
         if (msgId) {
@@ -53,14 +58,24 @@ export class ClaudeProviderAdapter implements NarreProviderAdapter {
         }
 
         for (const block of msg.message.content) {
+          if (context.signal?.aborted) {
+            break;
+          }
+
           if ('text' in block && block.text) {
-            context.onText(block.text);
+            await context.onText(block.text);
             assistantText += block.text;
           }
           if ('name' in block && block.name) {
             const toolInput = (block.input as Record<string, unknown>) ?? {};
-            context.onToolStart(block.name, toolInput);
-            toolCalls.push({ tool: block.name, input: toolInput, status: 'running' });
+            const metadata = getNarreToolMetadata(block.name);
+            await context.onToolStart(block.name, toolInput, metadata);
+            toolCalls.push({
+              tool: block.name,
+              input: toolInput,
+              status: 'running',
+              metadata,
+            });
           }
         }
       } else if (msg.type === 'result') {
@@ -68,7 +83,7 @@ export class ClaudeProviderAdapter implements NarreProviderAdapter {
         for (const toolCall of toolCalls) {
           if (toolCall.status !== 'running') continue;
           toolCall.status = 'success';
-          context.onToolEnd(toolCall.tool, 'completed');
+          await context.onToolEnd(toolCall.tool, 'completed', toolCall.metadata ?? getNarreToolMetadata(toolCall.tool));
         }
       }
     }

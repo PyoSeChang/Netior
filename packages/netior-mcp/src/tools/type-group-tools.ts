@@ -7,13 +7,14 @@ import {
   updateTypeGroup,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 const typeGroupKindSchema = z.enum(['archetype', 'relation_type']);
 
 export function registerTypeGroupTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'list_type_groups',
-    'List type groups for archetypes or relation types in a project',
     {
       project_id: z.string().describe('The project ID'),
       kind: typeGroupKindSchema.describe('Whether to list archetype groups or relation type groups'),
@@ -33,9 +34,9 @@ export function registerTypeGroupTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'create_type_group',
-    'Create a folder-like type organization group for archetypes or relation types',
     {
       kind: typeGroupKindSchema.describe('The type-group kind'),
       name: z.string().describe('Group name'),
@@ -67,9 +68,9 @@ export function registerTypeGroupTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_type_group',
-    'Update a type group name, parent, or ordering',
     {
       group_id: z.string().describe('The type group ID to update'),
       name: z.string().optional().describe('New group name'),
@@ -102,9 +103,9 @@ export function registerTypeGroupTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_type_group',
-    'Delete a type group',
     { group_id: z.string().describe('The type group ID to delete') },
     async ({ group_id }) => {
       try {

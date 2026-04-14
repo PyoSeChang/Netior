@@ -6,6 +6,7 @@ import {
   listArchetypeFields,
   searchConcepts,
 } from '../netior-service-client.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 function parseInlineOptions(options: string | null): string[] {
   if (!options) {
@@ -23,9 +24,9 @@ function findField(fields: ArchetypeField[], fieldId: string): ArchetypeField | 
 }
 
 export function registerCandidateSourceTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_field_candidates',
-    'Get candidate values or candidate concepts for a field contract. Use this before assigning relational or choice values.',
     {
       project_id: z.string().describe('The project ID'),
       archetype_id: z.string().describe('The archetype that owns the field'),

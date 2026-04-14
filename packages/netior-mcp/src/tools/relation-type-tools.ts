@@ -8,11 +8,12 @@ import {
 } from '../netior-service-client.js';
 import type { LineStyle } from '@netior/shared/types';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 export function registerRelationTypeTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'list_relation_types',
-    'List all relation types for a project',
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {
@@ -29,9 +30,9 @@ export function registerRelationTypeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'create_relation_type',
-    'Create a new relation type for a project',
     {
       project_id: z.string().describe('The project ID'),
       name: z.string().describe('Relation type name'),
@@ -63,9 +64,9 @@ export function registerRelationTypeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'update_relation_type',
-    'Update an existing relation type',
     {
       relation_type_id: z.string().describe('The relation type ID to update'),
       name: z.string().optional().describe('New name'),
@@ -102,9 +103,9 @@ export function registerRelationTypeTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_relation_type',
-    'Delete a relation type',
     { relation_type_id: z.string().describe('The relation type ID to delete') },
     async ({ relation_type_id }) => {
       try {

@@ -6,11 +6,12 @@ import {
   upsertConceptProperty,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 export function registerConceptPropertyTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'get_concept_properties',
-    'Get the stored field values for a specific concept',
     { concept_id: z.string().describe('The concept ID') },
     async ({ concept_id }) => {
       try {
@@ -27,9 +28,9 @@ export function registerConceptPropertyTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'upsert_concept_property',
-    'Set or replace a concept property value for a specific field contract',
     {
       concept_id: z.string().describe('The concept ID'),
       field_id: z.string().describe('The field ID'),
@@ -55,9 +56,9 @@ export function registerConceptPropertyTools(server: McpServer): void {
     },
   );
 
-  server.tool(
+  registerNetiorTool(
+    server,
     'delete_concept_property',
-    'Delete a stored concept property value',
     { concept_property_id: z.string().describe('The concept property ID to delete') },
     async ({ concept_property_id }) => {
       try {

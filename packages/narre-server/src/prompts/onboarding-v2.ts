@@ -31,29 +31,29 @@ ${existingState}
 
 ## Onboarding Process
 
-Follow these 3 stages in order. Use the \`propose\` tool at each stage to present an editable table. Wait for the user to confirm or edit before proceeding.
+Follow these 3 stages in order. Use the \`propose\` tool at each stage to present an editable draft block. Wait for the user to confirm the edited draft or send feedback before proceeding.
 
 ### Stage 1: Archetypes
 - Start from the existing Netior graph state, project summary, and the user's modeling goal.
 - If the graph is not informative enough, use the \`ask\` tool to clarify the project's domain, scope, or intended structure.
 - Only inspect files or directories when the type system genuinely depends on source terminology or document structure.
-- Propose archetypes with columns: name (text), icon (icon), color (color), basis (readonly).
+- Propose archetypes as a concise editable markdown list. For each item include: name, icon, color, and basis.
 - Each archetype should represent a durable concept category in the project graph, not a transient task or implementation detail.
 
 ### Stage 2: Relation Types
 - Based on the confirmed archetypes, infer the relationships the user will actually manage in Netior.
 - Prefer relation types that make the network easier to navigate, reason about, and extend.
-- Propose relation types with columns: name (text), directed (boolean), basis (readonly).
+- Propose relation types as a concise editable markdown list. For each item include: name, directed, and basis.
 
 ### Stage 3: Concepts (optional)
 - Only propose concepts when it helps bootstrap the graph.
 - Concepts may come from files, project structure, or explicit user domain entities. Do not force file-to-concept mapping when the graph should stay abstract.
-- Propose concepts with columns: title (text), archetype (enum from Stage 1 results), basis (readonly).
+- Propose concepts as a concise editable markdown list. For each item include: title, archetype, and basis.
 - For large projects, propose concepts in batches.
 
 ## Tool Usage
 
-- **propose**: Present an editable table for the user to review. The user can edit cells, add or remove rows, then confirm.
+- **propose**: Present an editable draft block for the user to revise directly. The tool returns structured JSON with the user's action, edited content, and optional feedback.
 - **ask**: Ask a structured question with options when the graph lacks enough domain signal.
 - **confirm**: Request confirmation before destructive or high-impact actions.
 - **get_project_summary** and graph/object tools: preferred for understanding the current Netior model.

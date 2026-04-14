@@ -1,5 +1,6 @@
 import React from 'react';
-import type { NarreCard, ProposalRow } from '@netior/shared/types';
+import type { NarreCard, NarreDraftResponse, NarreInterviewResponse, ProposalRow } from '@netior/shared/types';
+import { DraftCard } from './DraftCard';
 import { ProposalCard } from './ProposalCard';
 import { PermissionCard } from './PermissionCard';
 import { InterviewCard } from './InterviewCard';
@@ -7,7 +8,7 @@ import { SummaryCard } from './SummaryCard';
 
 interface NarreCardRendererProps {
   card: NarreCard;
-  onRespond: (toolCallId: string, response: unknown) => void;
+  onRespond: (toolCallId: string, response: unknown) => Promise<void> | void;
 }
 
 export function NarreCardRenderer({
@@ -15,12 +16,23 @@ export function NarreCardRenderer({
   onRespond,
 }: NarreCardRendererProps): JSX.Element {
   switch (card.type) {
+    case 'draft': {
+      const handleDraftResponse = (response: NarreDraftResponse) => {
+        return onRespond(card.toolCallId, response);
+      };
+      return (
+        <DraftCard
+          card={card}
+          onRespond={handleDraftResponse}
+        />
+      );
+    }
     case 'proposal': {
       const handleProposalConfirm = (rows: ProposalRow[]) => {
-        onRespond(card.toolCallId, { action: 'confirm', rows });
+        return onRespond(card.toolCallId, { action: 'confirm', rows });
       };
       const handleProposalRetry = () => {
-        onRespond(card.toolCallId, { action: 'retry' });
+        return onRespond(card.toolCallId, { action: 'retry' });
       };
       return (
         <ProposalCard
@@ -32,15 +44,15 @@ export function NarreCardRenderer({
     }
     case 'permission': {
       const handlePermissionAction = (actionKey: string) => {
-        onRespond(card.toolCallId, { action: actionKey });
+        return onRespond(card.toolCallId, { action: actionKey });
       };
       return (
         <PermissionCard card={card} onAction={handlePermissionAction} />
       );
     }
     case 'interview': {
-      const handleInterviewSelect = (selected: string[]) => {
-        onRespond(card.toolCallId, { selected });
+      const handleInterviewSelect = (response: NarreInterviewResponse) => {
+        return onRespond(card.toolCallId, response);
       };
       return <InterviewCard card={card} onSelect={handleInterviewSelect} />;
     }

@@ -1,11 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { listModules } from '../netior-service-client.js';
+import { registerNetiorTool } from './shared-tool-registry.js';
 
 export function registerModuleTools(server: McpServer): void {
-  server.tool(
+  registerNetiorTool(
+    server,
     'list_modules',
-    'List all modules for a project',
     { project_id: z.string().describe('The project ID') },
     async ({ project_id }) => {
       try {

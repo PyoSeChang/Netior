@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import type { EditorTab } from '@netior/shared/types';
 import { NarreSessionList } from './narre/NarreSessionList';
 import { NarreChat } from './narre/NarreChat';
+import { getNarreProjectUiState, updateNarreProjectUiState } from '../../lib/narre-ui-state';
 
 interface NarreEditorProps {
   tab: EditorTab;
@@ -12,13 +13,22 @@ const narreStateCache = new Map<string, { view: 'sessionList' | 'chat'; sessionI
 
 export function NarreEditor({ tab }: NarreEditorProps): JSX.Element {
   const projectId = tab.targetId;
-  const cached = narreStateCache.get(projectId);
+  const persisted = getNarreProjectUiState(projectId);
+  const cached = narreStateCache.get(projectId) ?? {
+    view: persisted.view,
+    sessionId: persisted.activeSessionId,
+  };
 
   const [view, setView] = useState<'sessionList' | 'chat'>(cached?.view ?? 'sessionList');
   const [activeSessionId, setActiveSessionId] = useState<string | null>(cached?.sessionId ?? null);
 
   const updateCache = (v: 'sessionList' | 'chat', sid: string | null) => {
     narreStateCache.set(projectId, { view: v, sessionId: sid });
+    updateNarreProjectUiState(projectId, (prev) => ({
+      ...prev,
+      view: v,
+      activeSessionId: sid,
+    }));
   };
 
   const handleSelectSession = useCallback((sessionId: string) => {

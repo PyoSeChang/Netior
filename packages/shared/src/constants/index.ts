@@ -1,4 +1,7 @@
-import type { SlashCommand } from '../types/index.js';
+import type {
+  SlashCommand,
+} from '../types/index.js';
+export * from './netior-mcp-tools.js';
 
 // ============================================
 // Slash Commands
@@ -9,11 +12,34 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
     name: 'onboarding',
     description: 'narre.command.onboarding',
     type: 'conversation',
+    hint: 'narre.command.onboardingHint',
   },
   {
     name: 'index',
     description: 'narre.command.index',
     type: 'conversation',
+    hint: 'narre.command.indexHint',
+    args: [
+      {
+        name: 'startPage',
+        description: 'pdfToc.startPage',
+        required: true,
+        type: 'number',
+      },
+      {
+        name: 'endPage',
+        description: 'pdfToc.endPage',
+        required: true,
+        type: 'number',
+      },
+      {
+        name: 'overviewPages',
+        description: 'pdfToc.overviewPages',
+        required: false,
+        type: 'number_list',
+      },
+    ],
+    requiredMentionTypes: ['file'],
   },
 ] as const;
 
@@ -186,6 +212,7 @@ export const IPC_CHANNELS = {
   NARRE_SET_API_KEY: 'narre:setApiKey',
   NARRE_EXECUTE_COMMAND: 'narre:executeCommand',
   NARRE_RESPOND_CARD: 'narre:respondCard',
+  NARRE_INTERRUPT_MESSAGE: 'narre:interruptMessage',
 } as const;
 
 // ============================================

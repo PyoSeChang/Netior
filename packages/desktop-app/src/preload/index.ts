@@ -359,6 +359,7 @@ const electronAPI = {
     sendMessage: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:sendMessage', data),
     respondToCard: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:respondCard', data),
     executeCommand: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:executeCommand', data),
+    interruptMessage: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:interruptMessage', data),
     onStreamEvent: (callback: (event: unknown) => void) => {
       const handler = (_event: IpcRendererEvent, data: unknown) => callback(data);
       ipcRenderer.on('narre:streamEvent', handler);

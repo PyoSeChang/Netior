@@ -706,8 +706,120 @@ export interface NarreToolCall {
   tool: string;
   input: Record<string, unknown>;
   status: 'pending' | 'running' | 'success' | 'error';
+  metadata?: NarreToolMetadata;
   result?: string;
   error?: string;
+}
+
+export type NarreToolCategory =
+  | 'project'
+  | 'types'
+  | 'concepts'
+  | 'graph'
+  | 'files'
+  | 'modules'
+  | 'search'
+  | 'analysis';
+
+export type NarreToolKind = 'query' | 'mutation' | 'analysis';
+
+export interface NetiorMcpToolSpec {
+  key: string;
+  displayName?: string;
+  description: string;
+  category: NarreToolCategory;
+  kind: NarreToolKind;
+  isMutation: boolean;
+}
+
+export interface NarreToolMetadata {
+  displayName: string;
+  description?: string;
+  category: NarreToolCategory;
+  kind: NarreToolKind;
+  isMutation: boolean;
+}
+
+export type NarreActorProvider = 'narre' | 'claude' | 'openai' | 'codex' | 'custom';
+
+export interface NarreActor {
+  provider: NarreActorProvider;
+  id?: string;
+  label?: string;
+}
+
+export interface NarreRichTextBlock {
+  id: string;
+  type: 'rich_text';
+  text: string;
+  mentions?: NarreMention[];
+}
+
+export interface NarreCommandBlock {
+  id: string;
+  type: 'command';
+  name: string;
+  label: string;
+  args?: Record<string, string>;
+  refs?: NarreMention[];
+}
+
+export interface NarreDraftBlock {
+  id: string;
+  type: 'draft';
+  format: 'markdown';
+  content: string;
+}
+
+export interface NarreToolBlock {
+  id: string;
+  type: 'tool';
+  toolKey: string;
+  displayName?: string;
+  metadata?: NarreToolMetadata;
+  input: Record<string, unknown>;
+  output?: string;
+  error?: string;
+}
+
+export interface NarreCardBlock {
+  id: string;
+  type: 'card';
+  card: NarreCard;
+}
+
+export interface NarreTranscriptTurn {
+  id: string;
+  role: 'user' | 'assistant';
+  createdAt: string;
+  actor?: NarreActor;
+  blocks: NarreTranscriptBlock[];
+}
+
+export type NarreTranscriptBlock =
+  | NarreRichTextBlock
+  | NarreCommandBlock
+  | NarreDraftBlock
+  | NarreToolBlock
+  | NarreCardBlock;
+
+export interface NarreTranscript {
+  turns: NarreTranscriptTurn[];
+}
+
+export interface NarreSessionFileV1 {
+  messages: NarreMessage[];
+}
+
+export interface NarreSessionFileV2 {
+  version: 2;
+  transcript: NarreTranscript;
+}
+
+export interface NarreSessionDetail extends NarreSession {
+  projectId?: string;
+  messages: NarreMessage[];
+  transcript?: NarreTranscript;
 }
 
 export type NarreGraphPriority = 'balanced' | 'strict';
@@ -738,17 +850,19 @@ export interface NarreStreamEvent {
   content?: string;
   tool?: string;
   toolInput?: Record<string, unknown>;
+  toolMetadata?: NarreToolMetadata;
   toolResult?: string;
   error?: string;
   card?: NarreCard;
   sessionId?: string;
+  projectId?: string;
 }
 
 // ============================================
 // Slash Command Types
 // ============================================
 
-export type CommandArgType = 'string' | 'enum';
+export type CommandArgType = 'string' | 'enum' | 'number' | 'number_list';
 
 export interface CommandArg {
   name: string;
@@ -765,13 +879,15 @@ export interface SlashCommand {
   description: string;
   type: CommandType;
   args?: CommandArg[];
+  hint?: string;
+  requiredMentionTypes?: NarreMention['type'][];
 }
 
 // ============================================
 // Narre Response Card Types
 // ============================================
 
-export type NarreCardType = 'proposal' | 'permission' | 'interview' | 'summary';
+export type NarreCardType = 'draft' | 'proposal' | 'permission' | 'interview' | 'summary';
 
 export type ProposalCellType = 'text' | 'icon' | 'color' | 'enum' | 'boolean' | 'readonly';
 
@@ -795,6 +911,18 @@ export interface NarreProposalCard {
   rows: ProposalRow[];
 }
 
+export interface NarreDraftCard {
+  type: 'draft';
+  toolCallId: string;
+  title?: string;
+  content: string;
+  format?: 'markdown';
+  placeholder?: string;
+  confirmLabel?: string;
+  feedbackLabel?: string;
+  feedbackPlaceholder?: string;
+}
+
 export interface NarrePermissionCard {
   type: 'permission';
   toolCallId: string;
@@ -808,6 +936,20 @@ export interface NarreInterviewCard {
   question: string;
   options: Array<{ label: string; description?: string }>;
   multiSelect?: boolean;
+  allowText?: boolean;
+  textPlaceholder?: string;
+  submitLabel?: string;
+}
+
+export interface NarreInterviewResponse {
+  selected: string[];
+  text?: string;
+}
+
+export interface NarreDraftResponse {
+  action: 'confirm' | 'feedback';
+  content: string;
+  feedback?: string;
 }
 
 export interface NarreSummaryCard {
@@ -816,7 +958,12 @@ export interface NarreSummaryCard {
   items: Array<{ label: string; status: 'success' | 'error' }>;
 }
 
-export type NarreCard = NarreProposalCard | NarrePermissionCard | NarreInterviewCard | NarreSummaryCard;
+export type NarreCard =
+  | NarreDraftCard
+  | NarreProposalCard
+  | NarrePermissionCard
+  | NarreInterviewCard
+  | NarreSummaryCard;
 
 export interface NetiorChangeEvent {
   type: 'archetypes' | 'concepts' | 'relationTypes' | 'typeGroups' | 'networks' | 'edges' | 'layouts' | 'contexts';

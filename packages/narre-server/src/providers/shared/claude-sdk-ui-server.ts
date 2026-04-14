@@ -3,10 +3,10 @@ import type { NarreCard } from '@netior/shared/types';
 import {
   askToolSchema,
   confirmToolSchema,
-  proposalToolSchema,
+  draftToolSchema,
   type AskToolArgs,
   type ConfirmToolArgs,
-  type ProposalToolArgs,
+  type DraftToolArgs,
 } from './ui-schemas.js';
 import type { NarreUiBridge } from './ui-bridge.js';
 
@@ -16,12 +16,12 @@ export function createClaudeSdkUiServer(sendCard: (card: NarreCard) => void, uiB
     tools: [
       tool(
         'propose',
-        'Present a proposal table to the user for review and inline editing. Use this when suggesting archetypes, relation types, or concepts.',
-        proposalToolSchema.shape,
-        async (args: ProposalToolArgs) => ({
+        'Present an editable draft block to the user. Use this when suggesting archetypes, relation types, concepts, or any structured plan that the user may revise.',
+        draftToolSchema.shape,
+        async (args: DraftToolArgs) => ({
           content: [{
             type: 'text' as const,
-            text: await uiBridge.requestProposal(sendCard, args),
+            text: await uiBridge.requestDraft(sendCard, args),
           }],
         }),
       ),

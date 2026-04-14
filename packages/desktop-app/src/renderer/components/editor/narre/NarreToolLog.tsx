@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Check, X, Circle } from 'lucide-react';
+import { getNarreToolMetadata } from '@netior/shared/constants';
 import type { NarreToolCall } from '@netior/shared/types';
 import { useI18n } from '../../../hooks/useI18n';
+import { Badge } from '../../ui/Badge';
 import { Spinner } from '../../ui/Spinner';
 
 interface NarreToolLogProps {
@@ -22,8 +24,16 @@ function ToolStatusIcon({ status }: { status: NarreToolCall['status'] }): JSX.El
   }
 }
 
-function formatToolName(name: string): string {
-  return name.replace(/_/g, ' ');
+function formatToolLabel(call: NarreToolCall): string {
+  return call.metadata?.displayName ?? getNarreToolMetadata(call.tool).displayName;
+}
+
+function getToolMetadata(call: NarreToolCall) {
+  return call.metadata ?? getNarreToolMetadata(call.tool);
+}
+
+function formatCategoryLabel(category: ReturnType<typeof getToolMetadata>['category']): string {
+  return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 export function NarreToolLog({ calls, defaultExpanded = false }: NarreToolLogProps): JSX.Element {
@@ -50,21 +60,34 @@ export function NarreToolLog({ calls, defaultExpanded = false }: NarreToolLogPro
       {expanded && (
         <div className="border-t border-subtle px-2 py-1 flex flex-col gap-0.5">
           {calls.map((call, idx) => (
-            <div key={idx} className="flex items-center gap-1.5 py-0.5">
-              <ToolStatusIcon status={call.status} />
-              <span className={call.status === 'pending' ? 'text-muted' : 'text-secondary'}>
-                {formatToolName(call.tool)}
-              </span>
-              {call.status === 'success' && call.result && (
-                <span className="truncate text-muted ml-1">
-                  {call.result.length > 60 ? call.result.slice(0, 60) + '...' : call.result}
-                </span>
-              )}
-              {call.status === 'error' && call.error && (
-                <span className="truncate text-[var(--status-error)] ml-1">
-                  {call.error}
-                </span>
-              )}
+            <div key={idx} className="rounded-md px-1 py-1">
+              <div className="flex items-start gap-2">
+                <ToolStatusIcon status={call.status} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={call.status === 'pending' ? 'text-muted' : 'text-secondary'}>
+                      {formatToolLabel(call)}
+                    </span>
+                    <Badge>{formatCategoryLabel(getToolMetadata(call).category)}</Badge>
+                    {getToolMetadata(call).isMutation && <Badge variant="warning">Write</Badge>}
+                  </div>
+                  {call.status === 'success' && call.result ? (
+                    <div className="mt-0.5 truncate text-muted">
+                      {call.result.length > 80 ? call.result.slice(0, 80) + '...' : call.result}
+                    </div>
+                  ) : null}
+                  {call.status === 'error' && call.error ? (
+                    <div className="mt-0.5 truncate text-[var(--status-error)]">
+                      {call.error}
+                    </div>
+                  ) : null}
+                  {call.status !== 'success' && call.status !== 'error' && getToolMetadata(call).description ? (
+                    <div className="mt-0.5 text-muted">
+                      {getToolMetadata(call).description}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
           ))}
         </div>

@@ -6,8 +6,14 @@ import { randomUUID } from 'crypto';
 import type {
   ArchetypeField,
   IpcResult,
+  NarreMessage,
+  NarreSessionDetail,
+  NarreSessionFileV1,
+  NarreSessionFileV2,
   NarreSession,
   NarreStreamEvent,
+  NarreToolCall,
+  NarreTranscript,
   NetworkTreeNode,
   TypeGroup,
 } from '@netior/shared/types';
@@ -38,6 +44,19 @@ import {
 } from '../narre/narre-config';
 import { getRuntimeLogsDir, getRuntimeNarreDir } from '../runtime/runtime-paths';
 
+const NARRE_TRACE_HEADER = 'x-netior-trace-id';
+
+interface ActiveNarreChatRequest {
+  request: http.ClientRequest;
+  projectId: string;
+  sessionId: string;
+  mainWindow: BrowserWindow;
+  cancelled: boolean;
+}
+
+const activeNarreChatRequests = new Map<string, ActiveNarreChatRequest>();
+const cancelledNarreChatRequests = new WeakSet<http.ClientRequest>();
+
 function getNarreDir(projectId: string): string {
   const dir = getRuntimeNarreDir(projectId);
   if (!existsSync(dir)) {
@@ -59,6 +78,125 @@ function saveSessionsIndex(projectId: string, data: { sessions: NarreSession[] }
   const dir = getNarreDir(projectId);
   const indexPath = join(dir, 'sessions.json');
   writeFileSync(indexPath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+function cleanupActiveNarreChatRequest(sessionId: string, request: http.ClientRequest): void {
+  const activeRequest = activeNarreChatRequests.get(sessionId);
+  if (activeRequest?.request === request) {
+    activeNarreChatRequests.delete(sessionId);
+  }
+}
+
+function createEmptyTranscript(): NarreTranscript {
+  return { turns: [] };
+}
+
+function createEmptySessionFile(): NarreSessionFileV2 {
+  return {
+    version: 2,
+    transcript: createEmptyTranscript(),
+  };
+}
+
+function isSessionFileV2(value: unknown): value is NarreSessionFileV2 {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<NarreSessionFileV2>;
+  return candidate.version === 2 && Array.isArray(candidate.transcript?.turns);
+}
+
+function toolBlockToLegacyToolCall(block: {
+  toolKey: string;
+  metadata?: NarreToolCall['metadata'];
+  input: Record<string, unknown>;
+  output?: string;
+  error?: string;
+}): NarreToolCall {
+  return {
+    tool: block.toolKey,
+    input: block.input,
+    status: block.error ? 'error' : 'success',
+    ...(block.metadata ? { metadata: block.metadata } : {}),
+    ...(block.output ? { result: block.output } : {}),
+    ...(block.error ? { error: block.error } : {}),
+  };
+}
+
+function transcriptToMessages(transcript: NarreTranscript): NarreMessage[] {
+  return transcript.turns.map((turn) => {
+    const textBlocks = turn.blocks.filter((block) => block.type === 'rich_text');
+    const content = textBlocks.map((block) => block.text).join('\n\n');
+    const mentions = textBlocks.flatMap((block) => block.mentions ?? []);
+    const toolCalls = turn.blocks
+      .filter((block) => block.type === 'tool')
+      .map((block) => toolBlockToLegacyToolCall(block));
+
+    return {
+      role: turn.role,
+      content,
+      ...(mentions.length > 0 ? { mentions } : {}),
+      ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+      timestamp: turn.createdAt,
+    };
+  });
+}
+
+function normalizeSessionFile(value: unknown): NarreSessionFileV2 {
+  if (isSessionFileV2(value)) {
+    return value;
+  }
+
+  const legacy = value as Partial<NarreSessionFileV1> | null;
+  const messages = Array.isArray(legacy?.messages) ? legacy.messages : [];
+
+  return {
+    version: 2,
+    transcript: {
+      turns: messages.map((message) => ({
+        id: `turn-${randomUUID()}`,
+        role: message.role,
+        createdAt: message.timestamp,
+        blocks: [
+          ...(message.content ? [{
+            id: `block-${randomUUID()}`,
+            type: 'rich_text' as const,
+            text: message.content,
+            ...(message.mentions && message.mentions.length > 0 ? { mentions: message.mentions } : {}),
+          }] : []),
+          ...((message.tool_calls ?? []).map((toolCall) => ({
+            id: `block-${randomUUID()}`,
+            type: 'tool' as const,
+            toolKey: toolCall.tool,
+            ...(toolCall.metadata ? { metadata: toolCall.metadata } : {}),
+            input: toolCall.input,
+            ...(toolCall.result ? { output: toolCall.result } : {}),
+            ...(toolCall.error ? { error: toolCall.error } : {}),
+          }))),
+        ],
+      })),
+    },
+  };
+}
+
+function buildSessionDetail(
+  session: NarreSession | undefined,
+  projectId: string,
+  file: NarreSessionFileV2,
+): NarreSessionDetail {
+  return {
+    ...(session ?? {
+      id: '',
+      title: '',
+      created_at: new Date(0).toISOString(),
+      last_message_at: new Date(0).toISOString(),
+      message_count: file.transcript.turns.length,
+    }),
+    projectId,
+    transcript: file.transcript,
+    messages: transcriptToMessages(file.transcript),
+  };
 }
 
 function getNarreServerUrl(path: string): URL {
@@ -122,6 +260,25 @@ async function requestNarreServer<T>(path: string, init?: RequestInit): Promise<
   return await response.json() as T;
 }
 
+function summarizeNarreStreamEvent(event: NarreStreamEvent): string {
+  switch (event.type) {
+    case 'text':
+      return `type=text chars=${event.content?.length ?? 0}`;
+    case 'tool_start':
+      return `type=tool_start tool=${event.tool ?? 'unknown'}`;
+    case 'tool_end':
+      return `type=tool_end tool=${event.tool ?? 'unknown'}`;
+    case 'card':
+      return `type=card card=${event.card?.type ?? 'unknown'}`;
+    case 'error':
+      return `type=error error=${JSON.stringify(event.error ?? '')}`;
+    case 'done':
+      return `type=done session=${event.sessionId ?? 'unknown'}`;
+    default:
+      return `type=${(event as { type?: string }).type ?? 'unknown'}`;
+  }
+}
+
 async function listRemoteNarreSessions(projectId: string): Promise<NarreSession[]> {
   return requestNarreServer<NarreSession[]>(`/sessions?projectId=${encodeURIComponent(projectId)}`);
 }
@@ -133,18 +290,8 @@ async function createRemoteNarreSession(projectId: string): Promise<NarreSession
   });
 }
 
-async function getRemoteNarreSession(sessionId: string): Promise<unknown> {
-  const payload = await requestNarreServer<{
-    projectId?: string;
-    session: NarreSession;
-    messages: unknown[];
-  }>(`/sessions/${encodeURIComponent(sessionId)}`);
-
-  return {
-    ...payload.session,
-    messages: payload.messages,
-    ...(payload.projectId ? { projectId: payload.projectId } : {}),
-  };
+async function getRemoteNarreSession(sessionId: string): Promise<NarreSessionDetail> {
+  return requestNarreServer<NarreSessionDetail>(`/sessions/${encodeURIComponent(sessionId)}`);
 }
 
 async function deleteRemoteNarreSession(sessionId: string): Promise<boolean> {
@@ -216,6 +363,29 @@ function buildOptionsPreview(options: string | null): string[] | undefined {
   return values.slice(0, 5);
 }
 
+function emitNarreStreamEvent(
+  mainWindow: BrowserWindow,
+  event: NarreStreamEvent,
+  context: { projectId?: string; sessionId?: string },
+): void {
+  if (mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
+    return;
+  }
+
+  try {
+    mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
+      ...event,
+      projectId: event.projectId ?? context.projectId,
+      sessionId: event.sessionId ?? context.sessionId,
+    } satisfies NarreStreamEvent);
+  } catch (error) {
+    if ((error as Error).message?.includes('Object has been destroyed')) {
+      return;
+    }
+    throw error;
+  }
+}
+
 function mapArchetypeFields(
   fields: ArchetypeField[],
   archetypeNames: Map<string, string>,
@@ -280,7 +450,7 @@ export function registerNarreIpc(): void {
       // Create empty session file
       const dir = getNarreDir(projectId);
       const sessionPath = join(dir, `session_${session.id}.json`);
-      writeFileSync(sessionPath, JSON.stringify({ messages: [] }, null, 2), 'utf-8');
+      writeFileSync(sessionPath, JSON.stringify(createEmptySessionFile(), null, 2), 'utf-8');
 
       return { success: true, data: session };
     } catch (err) {
@@ -309,10 +479,14 @@ export function registerNarreIpc(): void {
       for (const projectId of projectDirs) {
         const sessionPath = join(baseDir, projectId, `session_${sessionId}.json`);
         if (existsSync(sessionPath)) {
-          const data = JSON.parse(readFileSync(sessionPath, 'utf-8'));
+          const parsed = JSON.parse(readFileSync(sessionPath, 'utf-8')) as unknown;
+          const data = normalizeSessionFile(parsed);
+          if (!isSessionFileV2(parsed)) {
+            writeFileSync(sessionPath, JSON.stringify(data, null, 2), 'utf-8');
+          }
           const index = getSessionsIndex(projectId);
           const sessionMeta = index.sessions.find((s) => s.id === sessionId);
-          return { success: true, data: { ...sessionMeta, ...data } };
+          return { success: true, data: buildSessionDetail(sessionMeta, projectId, data) };
         }
       }
 
@@ -466,6 +640,9 @@ export function registerNarreIpc(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.NARRE_SEND_MESSAGE, async (_e, data: Record<string, unknown>): Promise<IpcResult<null>> => {
+    const traceId = randomUUID();
+    const requestStartedAt = Date.now();
+
     try {
       const { sessionId, projectId, message, mentions } = data as {
         sessionId?: string;
@@ -474,8 +651,19 @@ export function registerNarreIpc(): void {
         mentions?: unknown[];
       };
 
+      console.log(
+        `[narre:bridge] trace=${traceId} stage=request.start session=${sessionId ?? 'new'} ` +
+        `project=${projectId} chars=${message.length} mentions=${mentions?.length ?? 0}`,
+      );
+
+      if (!sessionId || typeof sessionId !== 'string') {
+        console.error(`[narre:bridge] trace=${traceId} stage=request.error reason=missing-session-id`);
+        return { success: false, error: 'sessionId is required for Narre streaming' };
+      }
+
       const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
       if (!mainWindow) {
+        console.error(`[narre:bridge] trace=${traceId} stage=request.error reason=no-main-window`);
         return { success: false, error: 'No main window available' };
       }
 
@@ -537,6 +725,11 @@ export function registerNarreIpc(): void {
         networkTree: mapNetworkTree(networkTree),
       };
 
+      console.log(
+        `[narre:bridge] trace=${traceId} stage=request.metadata.ready project=${projectId} ` +
+        `archetypes=${archetypes.length} relationTypes=${relationTypes.length} typeGroups=${typeGroups.length}`,
+      );
+
       const body = JSON.stringify({ sessionId, projectId, message, mentions, projectMetadata });
       const chatUrl = new URL('/chat', await ensureNarreServerBaseUrl());
 
@@ -547,10 +740,26 @@ export function registerNarreIpc(): void {
           headers: {
             'Content-Type': 'application/json',
             'Content-Length': Buffer.byteLength(body),
+            [NARRE_TRACE_HEADER]: traceId,
           },
         },
         (res) => {
+          let eventCount = 0;
+          let streamEnded = false;
           let buffer = '';
+          console.log(
+            `[narre:bridge] trace=${traceId} stage=response.headers status=${res.statusCode ?? 'unknown'} ` +
+            `session=${sessionId}`,
+          );
+
+          const forwardEvent = (parsed: NarreStreamEvent, source: 'chunk' | 'buffer'): void => {
+            eventCount += 1;
+            console.log(
+              `[narre:bridge] trace=${traceId} stage=sse.recv source=${source} seq=${eventCount} ` +
+              `${summarizeNarreStreamEvent(parsed)}`,
+            );
+            emitNarreStreamEvent(mainWindow, parsed, { projectId, sessionId });
+          };
           res.on('data', (chunk: Buffer) => {
             buffer += chunk.toString();
             const events = buffer.split('\n\n');
@@ -560,54 +769,157 @@ export function registerNarreIpc(): void {
               if (trimmed.startsWith('data: ')) {
                 try {
                   const parsed: NarreStreamEvent = JSON.parse(trimmed.slice(6));
-                  mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, parsed);
-                } catch {
-                  // Skip malformed events
+                  forwardEvent(parsed, 'chunk');
+                } catch (error) {
+                  console.error(
+                    `[narre:bridge] trace=${traceId} stage=sse.parse_error source=chunk ` +
+                    `message=${(error as Error).message}`,
+                  );
                 }
               }
             }
           });
           res.on('end', () => {
+            streamEnded = true;
+            cleanupActiveNarreChatRequest(sessionId, req);
             // Process any remaining buffer
             if (buffer.trim().startsWith('data: ')) {
               try {
                 const parsed: NarreStreamEvent = JSON.parse(buffer.trim().slice(6));
-                mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, parsed);
-              } catch {
-                // Skip
+                forwardEvent(parsed, 'buffer');
+              } catch (error) {
+                console.error(
+                  `[narre:bridge] trace=${traceId} stage=sse.parse_error source=buffer ` +
+                  `message=${(error as Error).message}`,
+                );
               }
             }
             // Don't send a duplicate done event — narre-server already sends one via the stream
+            console.log(
+              `[narre:bridge] trace=${traceId} stage=stream.end events=${eventCount} ` +
+              `elapsedMs=${Date.now() - requestStartedAt}`,
+            );
+          });
+          res.on('close', () => {
+            if (streamEnded) {
+              return;
+            }
+
+            console.warn(
+              `[narre:bridge] trace=${traceId} stage=stream.close events=${eventCount} ` +
+              `elapsedMs=${Date.now() - requestStartedAt}`,
+            );
           });
           res.on('error', (err) => {
-            mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
+            if (cancelledNarreChatRequests.has(req)) {
+              cleanupActiveNarreChatRequest(sessionId, req);
+              return;
+            }
+
+            const activeRequest = activeNarreChatRequests.get(sessionId);
+            if (activeRequest?.request === req && activeRequest.cancelled) {
+              cleanupActiveNarreChatRequest(sessionId, req);
+              return;
+            }
+
+            cleanupActiveNarreChatRequest(sessionId, req);
+            console.error(
+              `[narre:bridge] trace=${traceId} stage=stream.error message=${err.message} ` +
+              `elapsedMs=${Date.now() - requestStartedAt}`,
+            );
+            emitNarreStreamEvent(mainWindow, {
               type: 'error',
               error: err.message,
-            } as NarreStreamEvent);
-            mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
+            }, { projectId, sessionId });
+            emitNarreStreamEvent(mainWindow, {
               type: 'done',
-            } as NarreStreamEvent);
+            }, { projectId, sessionId });
           });
         },
       );
 
       req.on('error', (err) => {
-        console.error('[narre] Narre server connection error:', err.message);
-        mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
+        if (cancelledNarreChatRequests.has(req)) {
+          cleanupActiveNarreChatRequest(sessionId, req);
+          return;
+        }
+
+        const activeRequest = activeNarreChatRequests.get(sessionId);
+        if (activeRequest?.request === req && activeRequest.cancelled) {
+          cleanupActiveNarreChatRequest(sessionId, req);
+          return;
+        }
+
+        cleanupActiveNarreChatRequest(sessionId, req);
+        console.error(
+          `[narre:bridge] trace=${traceId} stage=request.error message=${err.message} ` +
+          `elapsedMs=${Date.now() - requestStartedAt}`,
+        );
+        emitNarreStreamEvent(mainWindow, {
           type: 'error',
           error: `Narre server connection failed: ${err.message}. Check the selected provider auth settings.`,
-        } as NarreStreamEvent);
+        }, { projectId, sessionId });
         // Send done so the UI exits streaming state
-        mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
+        emitNarreStreamEvent(mainWindow, {
           type: 'done',
-        } as NarreStreamEvent);
+        }, { projectId, sessionId });
+      });
+
+      const previousRequest = activeNarreChatRequests.get(sessionId);
+      if (previousRequest && previousRequest.request !== req) {
+        previousRequest.cancelled = true;
+        cancelledNarreChatRequests.add(previousRequest.request);
+        previousRequest.request.destroy();
+      }
+
+      activeNarreChatRequests.set(sessionId, {
+        request: req,
+        projectId,
+        sessionId,
+        mainWindow,
+        cancelled: false,
       });
 
       req.write(body);
       req.end();
+      console.log(
+        `[narre:bridge] trace=${traceId} stage=request.sent bytes=${Buffer.byteLength(body)} ` +
+        `session=${sessionId}`,
+      );
 
       // Return immediately; streaming happens via events
       return { success: true, data: null };
+    } catch (err) {
+      console.error(
+        `[narre:bridge] trace=${traceId} stage=request.setup.error message=${(err as Error).message} ` +
+        `elapsedMs=${Date.now() - requestStartedAt}`,
+      );
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.NARRE_INTERRUPT_MESSAGE, async (_e, data: Record<string, unknown>): Promise<IpcResult<boolean>> => {
+    try {
+      const { sessionId } = data as { sessionId?: string };
+      if (!sessionId || typeof sessionId !== 'string') {
+        return { success: false, error: 'sessionId is required' };
+      }
+
+      const activeRequest = activeNarreChatRequests.get(sessionId);
+      if (!activeRequest) {
+        return { success: true, data: false };
+      }
+
+      activeRequest.cancelled = true;
+      cancelledNarreChatRequests.add(activeRequest.request);
+      cleanupActiveNarreChatRequest(sessionId, activeRequest.request);
+      activeRequest.request.destroy();
+      emitNarreStreamEvent(activeRequest.mainWindow, { type: 'done' }, {
+        projectId: activeRequest.projectId,
+        sessionId: activeRequest.sessionId,
+      });
+
+      return { success: true, data: true };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -687,8 +999,8 @@ export function registerNarreIpc(): void {
               const trimmed = eventStr.trim();
               if (trimmed.startsWith('data: ')) {
                 try {
-                  const parsed = JSON.parse(trimmed.slice(6));
-                  mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, parsed);
+                  const parsed: NarreStreamEvent = JSON.parse(trimmed.slice(6));
+                  emitNarreStreamEvent(mainWindow, parsed, { projectId });
                 } catch { /* skip */ }
               }
             }
@@ -696,18 +1008,19 @@ export function registerNarreIpc(): void {
           res.on('end', () => {
             if (buffer.trim().startsWith('data: ')) {
               try {
-                const parsed = JSON.parse(buffer.trim().slice(6));
-                mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, parsed);
+                const parsed: NarreStreamEvent = JSON.parse(buffer.trim().slice(6));
+                emitNarreStreamEvent(mainWindow, parsed, { projectId });
               } catch { /* skip */ }
             }
           });
         },
       );
       req.on('error', (err) => {
-        mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, {
-          type: 'error', error: err.message,
-        });
-        mainWindow.webContents.send(IPC_CHANNELS.NARRE_STREAM_EVENT, { type: 'done' });
+        emitNarreStreamEvent(mainWindow, {
+          type: 'error',
+          error: err.message,
+        }, { projectId });
+        emitNarreStreamEvent(mainWindow, { type: 'done' }, { projectId });
       });
       req.write(body);
       req.end();

@@ -1,7 +1,7 @@
 import { tool } from '@openai/agents';
 import type { NarreProviderRunContext } from '../../runtime/provider-adapter.js';
 import type { NarreUiBridge } from '../shared/ui-bridge.js';
-import { askToolSchema, confirmToolSchema, proposalToolSchema } from '../shared/ui-schemas.js';
+import { askToolSchema, confirmToolSchema, draftToolSchema } from '../shared/ui-schemas.js';
 
 export function createOpenAIFamilyConversationTools(
   context: NarreProviderRunContext,
@@ -10,16 +10,12 @@ export function createOpenAIFamilyConversationTools(
   return [
     tool({
       name: 'propose',
-      description: 'Present a proposal table to the user for review and inline editing. Use this when suggesting archetypes, relation types, or concepts.',
-      parameters: proposalToolSchema,
+      description: 'Present an editable draft block to the user. Use this when suggesting archetypes, relation types, concepts, or any plan that benefits from inline revision.',
+      parameters: draftToolSchema,
       strict: true,
-      execute: async (args, _runContext, details) => uiBridge.requestProposal(
+      execute: async (args, _runContext, details) => uiBridge.requestDraft(
         context.onCard,
-        {
-          title: args.title,
-          columns: args.columns,
-          rows: args.rows,
-        },
+        args,
         details?.toolCall?.callId,
       ),
     }),

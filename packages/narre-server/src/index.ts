@@ -4,7 +4,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
 import { createRequire } from 'module';
-import type { NarreBehaviorSettings, NarreCodexSettings, NarreMention } from '@netior/shared/types';
+import { randomUUID } from 'crypto';
+import type { NarreBehaviorSettings, NarreCodexSettings, NarreMention, NarreStreamEvent } from '@netior/shared/types';
 import {
   normalizeNarreBehaviorSettings,
   type SystemPromptParams,
@@ -28,6 +29,7 @@ const electronResourcesPath = (process as NodeJS.Process & { resourcesPath?: str
 
 const PORT = parseInt(process.env.PORT ?? '3100', 10);
 const MOC_DATA_DIR = process.env.MOC_DATA_DIR;
+const NARRE_TRACE_HEADER = 'x-netior-trace-id';
 
 if (!MOC_DATA_DIR) {
   console.error('Error: MOC_DATA_DIR environment variable is required');
@@ -36,6 +38,25 @@ if (!MOC_DATA_DIR) {
 
 const narreLogFilePath = initNarreLogging(MOC_DATA_DIR);
 console.log(`[narre] Log file: ${narreLogFilePath}`);
+
+function summarizeStreamEvent(event: NarreStreamEvent): string {
+  switch (event.type) {
+    case 'text':
+      return `type=text chars=${event.content?.length ?? 0}`;
+    case 'tool_start':
+      return `type=tool_start tool=${event.tool ?? 'unknown'}`;
+    case 'tool_end':
+      return `type=tool_end tool=${event.tool ?? 'unknown'}`;
+    case 'card':
+      return `type=card card=${event.card?.type ?? 'unknown'}`;
+    case 'error':
+      return `type=error error=${JSON.stringify(event.error ?? '')}`;
+    case 'done':
+      return `type=done session=${event.sessionId ?? 'unknown'}`;
+    default:
+      return `type=${(event as { type?: string }).type ?? 'unknown'}`;
+  }
+}
 
 // UI tools may block waiting for user interaction, so extend stream close timeout.
 process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT = process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT || '300000';
@@ -152,6 +173,18 @@ app.post('/chat', async (req, res) => {
     mentions?: NarreMention[];
     projectMetadata?: SystemPromptParams;
   };
+  const traceId = req.get(NARRE_TRACE_HEADER) || randomUUID();
+  const requestStartedAt = Date.now();
+  let streamEventCount = 0;
+  let responseCompleted = false;
+
+  const emitEvent = (event: NarreStreamEvent): void => {
+    streamEventCount += 1;
+    console.log(
+      `[narre:server] trace=${traceId} stage=sse.send seq=${streamEventCount} ${summarizeStreamEvent(event)}`,
+    );
+    sendSSEEvent(res, event);
+  };
 
   if (!projectId || !message) {
     res.status(400).json({ error: 'projectId and message are required' });
@@ -164,32 +197,92 @@ app.post('/chat', async (req, res) => {
     return;
   }
 
+  const abortController = new AbortController();
+  const abortRun = (): void => {
+    if (!abortController.signal.aborted) {
+      abortController.abort();
+    }
+  };
+  req.on('aborted', abortRun);
+  res.on('close', abortRun);
+  res.setHeader('X-Netior-Trace-Id', traceId);
   initSSE(res);
+  res.on('close', () => {
+    if (responseCompleted) {
+      return;
+    }
+
+    console.warn(
+      `[narre:server] trace=${traceId} stage=client.closed events=${streamEventCount} ` +
+      `elapsedMs=${Date.now() - requestStartedAt}`,
+    );
+  });
 
   try {
     console.log(
-      `[narre] Chat request provider=${provider.name} project=${projectId} session=${sessionId ?? 'new'} ` +
+      `[narre:server] trace=${traceId} stage=request.accept provider=${provider.name} ` +
+      `project=${projectId} session=${sessionId ?? 'new'} ` +
       `chars=${message.length} mentions=${mentions?.length ?? 0}`,
     );
 
     const result = await runtime.runChat(
-      { sessionId, projectId, message, mentions, projectMetadata },
+      { sessionId, projectId, message, mentions, projectMetadata, traceId },
       {
-        onText: (content) => sendSSEEvent(res, { type: 'text', content }),
-        onToolStart: (tool, toolInput) => sendSSEEvent(res, { type: 'tool_start', tool, toolInput }),
-        onToolEnd: (tool, toolResult) => sendSSEEvent(res, { type: 'tool_end', tool, toolResult }),
-        onCard: (card) => sendSSEEvent(res, { type: 'card', card }),
-        onError: (error) => sendSSEEvent(res, { type: 'error', error }),
+        onText: (content) => {
+          if (!abortController.signal.aborted) {
+            emitEvent({ type: 'text', content });
+          }
+        },
+        onToolStart: (tool, toolInput, toolMetadata) => {
+          if (!abortController.signal.aborted) {
+            emitEvent({ type: 'tool_start', tool, toolInput, toolMetadata });
+          }
+        },
+        onToolEnd: (tool, toolResult, toolMetadata) => {
+          if (!abortController.signal.aborted) {
+            emitEvent({ type: 'tool_end', tool, toolResult, toolMetadata });
+          }
+        },
+        onCard: (card) => {
+          if (!abortController.signal.aborted) {
+            emitEvent({ type: 'card', card });
+          }
+        },
+        onError: (error) => {
+          if (!abortController.signal.aborted) {
+            emitEvent({ type: 'error', error });
+          }
+        },
       },
+      abortController.signal,
     );
-    console.log(`[narre] Chat completed provider=${provider.name} session=${result.sessionId}`);
-    sendSSEEvent(res, { type: 'done', sessionId: result.sessionId });
+    if (abortController.signal.aborted || res.writableEnded) {
+      return;
+    }
+    console.log(
+      `[narre:server] trace=${traceId} stage=request.completed provider=${provider.name} ` +
+      `session=${result.sessionId} events=${streamEventCount} elapsedMs=${Date.now() - requestStartedAt}`,
+    );
+    emitEvent({ type: 'done', sessionId: result.sessionId });
   } catch (error) {
-    console.error('Chat endpoint error:', error);
-    sendSSEEvent(res, { type: 'error', error: (error as Error).message });
-    sendSSEEvent(res, { type: 'done', sessionId });
+    if (abortController.signal.aborted || res.writableEnded) {
+      return;
+    }
+    console.error(
+      `[narre:server] trace=${traceId} stage=request.error ` +
+      `message=${(error as Error).stack ?? (error as Error).message}`,
+    );
+    emitEvent({ type: 'error', error: (error as Error).message });
+    emitEvent({ type: 'done', sessionId });
   } finally {
-    endSSE(res);
+    responseCompleted = true;
+    console.log(
+      `[narre:server] trace=${traceId} stage=response.end events=${streamEventCount} ` +
+      `elapsedMs=${Date.now() - requestStartedAt}`,
+    );
+    if (!res.writableEnded) {
+      endSSE(res);
+    }
   }
 });
 
@@ -214,6 +307,12 @@ function resolveMcpServerPath(): string | null {
     join(currentDir, '../../netior-mcp/dist/index.js'),
     join(currentDir, '../../../netior-mcp/dist/index.cjs'),
     join(currentDir, '../../../netior-mcp/dist/index.js'),
+    join(currentDir, '../../mcp/dist-trace/index.cjs'),
+    join(currentDir, '../../mcp/dist-trace/index.js'),
+    join(currentDir, '../../netior-mcp/dist-trace/index.cjs'),
+    join(currentDir, '../../netior-mcp/dist-trace/index.js'),
+    join(currentDir, '../../../netior-mcp/dist-trace/index.cjs'),
+    join(currentDir, '../../../netior-mcp/dist-trace/index.js'),
     join(process.cwd(), 'packages/netior-mcp/dist/index.cjs'),
     join(process.cwd(), 'packages/netior-mcp/dist/index.js'),
   ];

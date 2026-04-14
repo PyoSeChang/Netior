@@ -2,18 +2,14 @@ import { z } from 'zod';
 
 export const proposalCellTypeSchema = z.enum(['text', 'icon', 'color', 'enum', 'boolean', 'readonly']);
 
-export const proposalToolSchema = z.object({
-  title: z.string().describe('Title for the proposal'),
-  columns: z.array(z.object({
-    key: z.string(),
-    label: z.string(),
-    cellType: proposalCellTypeSchema.describe('text | icon | color | enum | boolean | readonly'),
-    options: z.array(z.string()).optional(),
-  })),
-  rows: z.array(z.object({
-    id: z.string(),
-    values: z.record(z.string(), z.unknown()),
-  })),
+export const draftToolSchema = z.object({
+  title: z.string().optional().describe('Optional title for the draft block'),
+  content: z.string().describe('Editable markdown or plain-text draft shown to the user'),
+  format: z.enum(['markdown']).optional().describe('Draft format. Defaults to markdown'),
+  placeholder: z.string().optional().describe('Optional placeholder when the draft body starts empty'),
+  confirmLabel: z.string().optional().describe('Optional label for the accept button'),
+  feedbackLabel: z.string().optional().describe('Optional label for the feedback button'),
+  feedbackPlaceholder: z.string().optional().describe('Optional placeholder for the feedback field'),
 });
 
 export const askToolSchema = z.object({
@@ -23,6 +19,9 @@ export const askToolSchema = z.object({
     description: z.string().optional(),
   })),
   multiSelect: z.boolean().optional().describe('Allow multiple selections'),
+  allowText: z.boolean().optional().describe('Allow free-form text input alongside selections'),
+  textPlaceholder: z.string().optional().describe('Optional placeholder for the free-form input'),
+  submitLabel: z.string().optional().describe('Optional submit button label'),
 });
 
 export const confirmToolSchema = z.object({
@@ -34,6 +33,6 @@ export const confirmToolSchema = z.object({
   })),
 });
 
-export type ProposalToolArgs = z.infer<typeof proposalToolSchema>;
+export type DraftToolArgs = z.infer<typeof draftToolSchema>;
 export type AskToolArgs = z.infer<typeof askToolSchema>;
 export type ConfirmToolArgs = z.infer<typeof confirmToolSchema>;

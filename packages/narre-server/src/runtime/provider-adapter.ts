@@ -1,4 +1,6 @@
-import type { NarreCard, NarreToolCall } from '@netior/shared/types';
+import type { NarreCard, NarreToolCall, NarreToolMetadata } from '@netior/shared/types';
+
+type MaybePromise = void | Promise<void>;
 
 export interface NarreMcpServerConfig {
   name: string;
@@ -9,17 +11,19 @@ export interface NarreMcpServerConfig {
 }
 
 export interface NarreProviderRunContext {
+  traceId?: string;
   projectId: string;
   projectRootDir?: string | null;
   systemPrompt: string;
   userPrompt: string;
   sessionId: string;
   isResume: boolean;
+  signal?: AbortSignal;
   mcpServerConfigs: NarreMcpServerConfig[];
-  onText: (text: string) => void;
-  onToolStart: (tool: string, input: Record<string, unknown>) => void;
-  onToolEnd: (tool: string, result: string) => void;
-  onCard: (card: NarreCard) => void;
+  onText: (text: string) => MaybePromise;
+  onToolStart: (tool: string, input: Record<string, unknown>, metadata: NarreToolMetadata) => MaybePromise;
+  onToolEnd: (tool: string, result: string, metadata: NarreToolMetadata) => MaybePromise;
+  onCard: (card: NarreCard) => MaybePromise;
 }
 
 export interface NarreProviderRunResult {

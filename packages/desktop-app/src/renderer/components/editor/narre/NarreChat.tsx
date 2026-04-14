@@ -1,21 +1,36 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useSyncExternalStore } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import type { NarreMessage, NarreStreamEvent, NarreToolCall, NarreMention, NarreCard } from '@netior/shared/types';
+import { SLASH_COMMANDS } from '@netior/shared/constants';
+import type { NarreMention, NarreTranscriptBlock } from '@netior/shared/types';
 import { narreService } from '../../../services/narre-service';
 import { useI18n } from '../../../hooks/useI18n';
+import {
+  appendNarreAssistantErrorMessage,
+  appendNarreUserMessage,
+  beginNarreAssistantStream,
+  cancelPendingNarreAssistantTurn,
+  ensureNarreSessionLoaded,
+  getNarreSessionState,
+  getNarreSessionStoreVersion,
+  initNarreSessionStore,
+  prepareNarreAssistantStream,
+  primeNarreSession,
+  promoteNarreDraftSession,
+  setNarreSessionPendingCommand,
+  setNarreSessionInterrupting,
+  setNarreSessionDraft,
+  subscribeNarreSessionStore,
+  type NarreDisplayMessage,
+} from '../../../lib/narre-session-store';
 import { IconButton } from '../../ui/IconButton';
 import { ScrollArea } from '../../ui/ScrollArea';
 import { Spinner } from '../../ui/Spinner';
 import { NarreMessageBubble } from './NarreMessageBubble';
-import { NarreMentionInput } from './NarreMentionInput';
-import { PdfTocInputForm, type PdfTocFormData } from './PdfTocInputForm';
-import { useArchetypeStore } from '../../../stores/archetype-store';
+import { NarreMentionInput, type NarreComposerSubmit } from './NarreMentionInput';
 import { useProjectStore } from '../../../stores/project-store';
+import type { NarrePendingCommandState } from '../../../lib/narre-ui-state';
 import { toAbsolutePath } from '../../../utils/path-utils';
 import { buildIndexMessage } from '../../../utils/pdf-toc-utils';
-import { useConceptStore } from '../../../stores/concept-store';
-import { useRelationTypeStore } from '../../../stores/relation-type-store';
-import { useNetworkStore } from '../../../stores/network-store';
 
 interface NarreChatProps {
   sessionId: string | null;
@@ -24,11 +39,74 @@ interface NarreChatProps {
   onSessionCreated?: (sessionId: string) => void;
 }
 
-function refreshStores(projectId: string): void {
-  useArchetypeStore.getState().loadByProject(projectId);
-  useConceptStore.getState().loadByProject(projectId);
-  useRelationTypeStore.getState().loadByProject(projectId);
-  useNetworkStore.getState().loadNetworks(projectId);
+initNarreSessionStore();
+
+function getSlashCommand(commandName: string): (typeof SLASH_COMMANDS)[number] | null {
+  return SLASH_COMMANDS.find((command) => command.name === commandName) ?? null;
+}
+
+function isPdfMention(mention: NarreMention): boolean {
+  const candidate = mention.path ?? mention.display;
+  return candidate.toLowerCase().endsWith('.pdf');
+}
+
+function parseOverviewPagesText(rawText: string): number[] | undefined {
+  const values = rawText
+    .split(',')
+    .map((value) => parseInt(value.trim(), 10))
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  return values.length > 0 ? values : undefined;
+}
+
+function buildComposerBlockId(prefix = 'composer'): string {
+  return `${prefix}-${crypto.randomUUID()}`;
+}
+
+function buildUserDisplayBlocks(
+  text: string,
+  mentions: NarreMention[],
+  pendingCommand: NarrePendingCommandState | null,
+): NarreTranscriptBlock[] {
+  if (!pendingCommand) {
+    return [
+      {
+        id: buildComposerBlockId('user-text'),
+        type: 'rich_text',
+        text,
+        ...(mentions.length > 0 ? { mentions } : {}),
+      },
+    ];
+  }
+
+  const commandBlock: Extract<NarreTranscriptBlock, { type: 'command' }> = {
+    id: buildComposerBlockId('user-command'),
+    type: 'command',
+    name: pendingCommand.name,
+    label: `/${pendingCommand.name}`,
+    ...(mentions.length > 0 ? { refs: mentions } : {}),
+  };
+
+  if (pendingCommand.name === 'index' && pendingCommand.indexArgs) {
+    commandBlock.args = {
+      startPage: String(pendingCommand.indexArgs.startPage),
+      endPage: String(pendingCommand.indexArgs.endPage),
+      ...(pendingCommand.indexArgs.overviewPagesText
+        ? { overviewPages: pendingCommand.indexArgs.overviewPagesText }
+        : {}),
+    };
+  }
+
+  const blocks: NarreTranscriptBlock[] = [commandBlock];
+  if (text.trim()) {
+    blocks.push({
+      id: buildComposerBlockId('user-text'),
+      type: 'rich_text',
+      text,
+    });
+  }
+
+  return blocks;
 }
 
 export function NarreChat({
@@ -40,132 +118,39 @@ export function NarreChat({
   const { t } = useI18n();
   const currentProject = useProjectStore((s) => s.currentProject);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
-  const [messages, setMessages] = useState<NarreMessage[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
-  const [streamingToolCalls, setStreamingToolCalls] = useState<NarreToolCall[]>([]);
-  const [streamingCards, setStreamingCards] = useState<NarreCard[]>([]);
-  const [sessionTitle, setSessionTitle] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [indexWorkflow, setIndexWorkflow] = useState<{
-    fileMention: NarreMention;
-    pendingMentions: NarreMention[];
-  } | null>(null);
-
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
-  const streamingContentRef = useRef('');
-  const streamingToolCallsRef = useRef<NarreToolCall[]>([]);
-  const streamingCardsRef = useRef<NarreCard[]>([]);
-
-  // Load session data on mount
   useEffect(() => {
-    if (!initialSessionId) return;
-    let cancelled = false;
-    setLoading(true);
-
-    narreService.getSession(initialSessionId).then((data) => {
-      if (cancelled) return;
-      setSessionTitle(data.title || '');
-      // Session data includes messages array
-      const sessionData = data as unknown as { messages?: NarreMessage[]; title?: string };
-      if (sessionData.messages) {
-        setMessages(sessionData.messages);
-      }
-      setLoading(false);
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
-
-    return () => { cancelled = true; };
+    setSessionId(initialSessionId);
   }, [initialSessionId]);
 
-  // Subscribe to stream events
-  useEffect(() => {
-    const cleanup = narreService.onStreamEvent((event: unknown) => {
-      const evt = event as NarreStreamEvent;
-      switch (evt.type) {
-        case 'text':
-          if (evt.content) {
-            streamingContentRef.current += evt.content;
-            setStreamingContent(streamingContentRef.current);
-          }
-          break;
-        case 'tool_start':
-          if (evt.tool) {
-            const newCall: NarreToolCall = {
-              tool: evt.tool,
-              input: evt.toolInput ?? {},
-              status: 'running',
-            };
-            streamingToolCallsRef.current = [...streamingToolCallsRef.current, newCall];
-            setStreamingToolCalls(streamingToolCallsRef.current);
-          }
-          break;
-        case 'tool_end':
-          if (evt.tool) {
-            streamingToolCallsRef.current = streamingToolCallsRef.current.map((tc) =>
-              tc.tool === evt.tool && tc.status === 'running'
-                ? {
-                    ...tc,
-                    status: evt.toolResult?.startsWith('Error') ? 'error' as const : 'success' as const,
-                    result: evt.toolResult,
-                    error: evt.toolResult?.startsWith('Error') ? evt.toolResult : undefined,
-                  }
-                : tc,
-            );
-            setStreamingToolCalls(streamingToolCallsRef.current);
-            // Refresh stores if this was a mutation tool
-            const mutationPrefixes = ['create_', 'update_', 'delete_'];
-            if (mutationPrefixes.some((prefix) => evt.tool!.startsWith(prefix))) {
-              refreshStores(projectId);
-            }
-          }
-          break;
-        case 'card':
-          if (evt.card) {
-            streamingCardsRef.current = [...streamingCardsRef.current, evt.card];
-            setStreamingCards(streamingCardsRef.current);
-          }
-          break;
-        case 'error':
-          streamingContentRef.current += evt.error ? `\n[Error: ${evt.error}]` : '';
-          setStreamingContent(streamingContentRef.current);
-          break;
-        case 'done': {
-          // Finalize: add assistant message, then clear streaming state atomically
-          const finalContent = streamingContentRef.current;
-          const finalCalls = streamingToolCallsRef.current;
-          if (finalContent || finalCalls.length > 0) {
-            const assistantMsg: NarreMessage = {
-              role: 'assistant',
-              content: finalContent,
-              tool_calls: finalCalls.length > 0 ? finalCalls : undefined,
-              timestamp: new Date().toISOString(),
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
-          }
-          streamingContentRef.current = '';
-          streamingToolCallsRef.current = [];
-          streamingCardsRef.current = [];
-          setStreamingContent('');
-          setStreamingToolCalls([]);
-          setStreamingCards([]);
-          setIsStreaming(false);
-          break;
-        }
-      }
-    });
+  useSyncExternalStore(subscribeNarreSessionStore, getNarreSessionStoreVersion);
+  const sessionState = getNarreSessionState(projectId, sessionId);
+  const {
+    messages,
+    isStreaming,
+    streamingBlocks,
+    hasReceivedFirstStreamEvent,
+    isInterrupting,
+    pendingDraftHtml,
+    pendingDraftCommand,
+    pendingUserTimestamp,
+    title: sessionTitle,
+    loading,
+    pendingCommand,
+    draftHtml,
+  } = sessionState;
 
-    return cleanup;
-  }, [projectId]);
+  useEffect(() => {
+    void ensureNarreSessionLoaded(projectId, sessionId).catch(() => {});
+  }, [projectId, sessionId]);
 
   // Auto-scroll logic
   useEffect(() => {
     if (autoScrollRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, streamingContent, streamingToolCalls, streamingCards]);
+  }, [messages, streamingBlocks]);
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -175,120 +160,250 @@ export function NarreChat({
   }, []);
 
   const handleCardRespond = useCallback(async (toolCallId: string, response: unknown) => {
-    if (!sessionId) return;
-    try {
-      await narreService.respondToCard(sessionId, toolCallId, response);
-    } catch {
-      // Error handling — card response failed
+    if (!sessionId) {
+      throw new Error('Missing Narre session');
     }
+
+    await narreService.respondToCard(sessionId, toolCallId, response);
   }, [sessionId]);
 
-  const sendToAgent = useCallback(async (text: string, mentions: NarreMention[]) => {
-    let activeSessionId = sessionId;
+  const buildCommandPreview = useCallback((
+    commandState: NarrePendingCommandState,
+    mentions: NarreMention[],
+  ): string => {
+    const slashCommand = getSlashCommand(commandState.name);
+    const label = slashCommand ? t(slashCommand.description as any) : `/${commandState.name}`;
 
-    // Create session if none exists
+    if (commandState.name !== 'index') {
+      return label;
+    }
+
+    const fileMention = mentions.find((mention) => mention.type === 'file');
+    const detailParts = [
+      fileMention?.display,
+      commandState.indexArgs ? `${commandState.indexArgs.startPage}-${commandState.indexArgs.endPage}` : null,
+      commandState.indexArgs?.overviewPagesText
+        ? t('pdfToc.overviewPages')
+        : null,
+    ].filter((part): part is string => Boolean(part));
+    return detailParts.length > 0 ? `${label}\n${detailParts.join(' - ')}` : label;
+    const preview = detailParts.join(' · ');
+    return detailParts.length > 0 ? `${label}\n${preview}` : label;
+
+    return detailParts.length > 0 ? `${label}\n${detailParts.join(' · ')}` : label;
+  }, [t]);
+
+  const sendToAgent = useCallback(async ({
+    message,
+    mentions,
+    composerHtml,
+    previewContent,
+    userBlocks,
+    pendingCommand: commandState,
+  }: {
+    message: string;
+    mentions: NarreMention[];
+    composerHtml: string;
+    previewContent?: string;
+    userBlocks: NarreTranscriptBlock[];
+    pendingCommand: NarrePendingCommandState | null;
+  }) => {
+    let activeSessionId = sessionId;
+    const nextTitle = (previewContent ?? message).slice(0, 60);
+
     if (!activeSessionId) {
       try {
         const session = await narreService.createSession(projectId);
         activeSessionId = session.id;
+        promoteNarreDraftSession(projectId, session.id, nextTitle);
         setSessionId(session.id);
-        setSessionTitle(text.slice(0, 60));
         onSessionCreated?.(session.id);
       } catch {
-        return;
+        return false;
       }
+    } else {
+      primeNarreSession(projectId, activeSessionId, nextTitle);
     }
 
-    // Add user message to local state
-    const userMsg: NarreMessage = {
+    const userMsg: NarreDisplayMessage = {
       role: 'user',
-      content: text,
-      mentions: mentions.length > 0 ? mentions : undefined,
       timestamp: new Date().toISOString(),
+      blocks: userBlocks,
+      source: 'live',
     };
-    setMessages((prev) => [...prev, userMsg]);
-    setIsStreaming(true);
-    streamingContentRef.current = '';
-    streamingToolCallsRef.current = [];
-    streamingCardsRef.current = [];
-    setStreamingContent('');
-    setStreamingToolCalls([]);
-    setStreamingCards([]);
+    appendNarreUserMessage(projectId, activeSessionId, userMsg);
+    prepareNarreAssistantStream(projectId, activeSessionId, {
+      draftHtml: composerHtml,
+      pendingCommand: commandState,
+      userTimestamp: userMsg.timestamp,
+    });
+    beginNarreAssistantStream(projectId, activeSessionId);
+    setNarreSessionDraft(projectId, sessionId, '');
+    setNarreSessionDraft(projectId, activeSessionId, '');
+    setNarreSessionPendingCommand(projectId, sessionId, null);
+    setNarreSessionPendingCommand(projectId, activeSessionId, null);
     autoScrollRef.current = true;
 
-    // Send to agent server via IPC
     try {
       await narreService.sendMessage({
         sessionId: activeSessionId,
         projectId,
-        message: text,
+        message,
         mentions: mentions.length > 0 ? mentions : undefined,
       });
+      return true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to send Narre message';
-      const errorMsg: NarreMessage = {
-        role: 'assistant',
-        content: `[Error: ${message}]`,
-        timestamp: new Date().toISOString(),
-      };
-      streamingContentRef.current = '';
-      streamingToolCallsRef.current = [];
-      streamingCardsRef.current = [];
-      setStreamingContent('');
-      setStreamingToolCalls([]);
-      setStreamingCards([]);
-      setIsStreaming(false);
-      setMessages((prev) => [...prev, errorMsg]);
+      cancelPendingNarreAssistantTurn(projectId, activeSessionId, {
+        draftHtml: composerHtml,
+        pendingCommand: commandState,
+        userTimestamp: userMsg.timestamp,
+      });
+      appendNarreAssistantErrorMessage(
+        projectId,
+        activeSessionId,
+        error instanceof Error ? error.message : 'Failed to send Narre message',
+      );
+      return false;
     }
   }, [sessionId, projectId, onSessionCreated]);
 
-  const handleSend = useCallback(async (text: string, mentions: NarreMention[]) => {
-    if (!text.trim() || isStreaming) return;
+  const handleSend = useCallback(async ({
+    text,
+    mentions,
+    draftHtml: composerHtml,
+    pendingCommand: commandState,
+  }: NarreComposerSubmit) => {
+    if (isStreaming) {
+      return false;
+    }
 
-    // Intercept /index command: show page range input form
-    if (text.trim().startsWith('/index')) {
-      const fileMention = mentions.find((m) => m.type === 'file');
-      if (!fileMention || !fileMention.id) {
-        // Show error as system-style message
-        const errorMsg: NarreMessage = {
-          role: 'assistant',
-          content: t('pdfToc.noFile'),
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, errorMsg]);
-        return;
+    if (!commandState) {
+      if (!text.trim()) {
+        return false;
       }
-      setIndexWorkflow({ fileMention, pendingMentions: mentions });
+
+      return sendToAgent({
+        message: text,
+        mentions,
+        composerHtml,
+        userBlocks: buildUserDisplayBlocks(text, mentions, null),
+        pendingCommand: null,
+      });
+    }
+
+    if (commandState.name === 'index') {
+      const fileMention = mentions.find((mention) => mention.type === 'file');
+      if (!fileMention || !fileMention.id || !commandState.indexArgs) {
+        return false;
+      }
+
+      if (!isPdfMention(fileMention)) {
+        return false;
+      }
+
+      const absoluteFilePath = toAbsolutePath(
+        currentProject?.root_dir ?? '',
+        fileMention.path ?? fileMention.display,
+      );
+
+      const message = buildIndexMessage(fileMention.display, {
+        startPage: commandState.indexArgs.startPage,
+        endPage: commandState.indexArgs.endPage,
+        overviewPages: parseOverviewPagesText(commandState.indexArgs.overviewPagesText),
+        fileId: fileMention.id,
+        filePath: absoluteFilePath,
+        projectId,
+      });
+
+      return sendToAgent({
+        message,
+        mentions,
+        composerHtml,
+        previewContent: buildCommandPreview(commandState, mentions),
+        userBlocks: buildUserDisplayBlocks(text, mentions, commandState),
+        pendingCommand: commandState,
+      });
+    }
+
+    const normalizedText = text.trim();
+    const preview = buildCommandPreview(commandState, mentions);
+
+    return sendToAgent({
+      message: normalizedText ? `/${commandState.name}\n${normalizedText}` : `/${commandState.name}`,
+      mentions,
+      composerHtml,
+      previewContent: normalizedText ? `${preview}\n${normalizedText}` : preview,
+      userBlocks: buildUserDisplayBlocks(normalizedText, mentions, commandState),
+      pendingCommand: commandState,
+    });
+  }, [buildCommandPreview, currentProject, isStreaming, projectId, sendToAgent]);
+
+  const title = sessionTitle || t('narre.newChat');
+  const sendLocked = isStreaming;
+
+  const handleInterrupt = useCallback(async () => {
+    if (!sessionId || !isStreaming || isInterrupting) {
       return;
     }
 
-    await sendToAgent(text, mentions);
-  }, [isStreaming, sendToAgent, t]);
+    const shouldRestorePendingTurn = !hasReceivedFirstStreamEvent;
 
-  const handleIndexSubmit = useCallback(async (data: PdfTocFormData) => {
-    if (!indexWorkflow) return;
-    const mentions = indexWorkflow.pendingMentions;
+    setNarreSessionInterrupting(projectId, sessionId, true);
 
-    const absoluteFilePath = toAbsolutePath(currentProject?.root_dir ?? '', data.filePath);
+    try {
+      const interrupted = await narreService.interruptMessage(sessionId);
+      if (!interrupted) {
+        setNarreSessionInterrupting(projectId, sessionId, false);
+        return;
+      }
 
-    const message = buildIndexMessage(indexWorkflow.fileMention.display, {
-      startPage: data.startPage,
-      endPage: data.endPage,
-      overviewPages: data.overviewPages,
-      fileId: data.fileId,
-      filePath: absoluteFilePath,
-      projectId,
-    });
+      if (shouldRestorePendingTurn) {
+        cancelPendingNarreAssistantTurn(projectId, sessionId, {
+          draftHtml: pendingDraftHtml,
+          pendingCommand: pendingDraftCommand,
+          userTimestamp: pendingUserTimestamp,
+        });
+      }
+    } catch (error) {
+      setNarreSessionInterrupting(projectId, sessionId, false);
+      appendNarreAssistantErrorMessage(
+        projectId,
+        sessionId,
+        error instanceof Error ? error.message : t('narre.interruptFailed'),
+      );
+    }
+  }, [
+    hasReceivedFirstStreamEvent,
+    isInterrupting,
+    isStreaming,
+    pendingDraftCommand,
+    pendingDraftHtml,
+    pendingUserTimestamp,
+    projectId,
+    sessionId,
+    t,
+  ]);
 
-    setIndexWorkflow(null);
-    await sendToAgent(message, mentions);
-  }, [indexWorkflow, sendToAgent, currentProject, projectId]);
+  useEffect(() => {
+    if (!isStreaming) {
+      return;
+    }
 
-  const handleIndexCancel = useCallback(() => {
-    setIndexWorkflow(null);
-  }, []);
+    const handleWindowKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.repeat || event.defaultPrevented) {
+        return;
+      }
 
-  const title = sessionTitle || t('narre.newChat');
+      event.preventDefault();
+      event.stopPropagation();
+      void handleInterrupt();
+    };
+
+    window.addEventListener('keydown', handleWindowKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleWindowKeyDown, true);
+    };
+  }, [handleInterrupt, isStreaming]);
 
   return (
     <div className="flex h-full flex-col">
@@ -303,7 +418,7 @@ export function NarreChat({
         {isStreaming && (
           <div className="ml-auto flex items-center gap-1.5 text-xs text-muted">
             <Spinner size="sm" />
-            <span>{t('narre.streaming')}</span>
+            <span>{isInterrupting ? t('narre.interrupting') : t('narre.streaming')}</span>
           </div>
         )}
       </div>
@@ -330,29 +445,18 @@ export function NarreChat({
               <NarreMessageBubble
                 key={idx}
                 role={msg.role}
-                content={msg.content}
-                mentions={msg.mentions}
-                toolCalls={msg.tool_calls}
+                blocks={msg.blocks}
+                onCardRespond={handleCardRespond}
+                defaultExpandedInteractiveBlocks={msg.source === 'live' && msg.role === 'assistant' && idx === messages.length - 1}
               />
             ))}
-
-            {/* /index workflow form */}
-            {indexWorkflow && (
-              <PdfTocInputForm
-                fileMention={indexWorkflow.fileMention}
-                onSubmit={handleIndexSubmit}
-                onCancel={handleIndexCancel}
-              />
-            )}
-
             {/* Streaming partial message */}
-            {isStreaming && (streamingContent || streamingToolCalls.length > 0 || streamingCards.length > 0) && (
+            {isStreaming && streamingBlocks.length > 0 && (
               <NarreMessageBubble
                 role="assistant"
-                content={streamingContent}
-                toolCalls={streamingToolCalls}
-                cards={streamingCards}
+                blocks={streamingBlocks}
                 onCardRespond={handleCardRespond}
+                defaultExpandedInteractiveBlocks
                 isStreaming
               />
             )}
@@ -366,8 +470,17 @@ export function NarreChat({
           <NarreMentionInput
             projectId={projectId}
             onSend={handleSend}
-            disabled={isStreaming}
+            disabled={isStreaming && !isInterrupting}
+            sendDisabled={sendLocked}
             placeholder={t('narre.inputPlaceholder')}
+            draftHtml={draftHtml}
+            pendingCommand={pendingCommand}
+            onDraftChange={(nextDraftHtml) => {
+              setNarreSessionDraft(projectId, sessionId, nextDraftHtml);
+            }}
+            onPendingCommandChange={(nextCommand) => {
+              setNarreSessionPendingCommand(projectId, sessionId, nextCommand);
+            }}
           />
         </div>
       </div>
