@@ -325,16 +325,17 @@ export function resolveEventDisplayDay(
 }
 
 function extractCalendarEventRange(node: LayoutRenderNode): CalendarEventRange | null {
-  const startEpochDay = node.metadata.time_value as number | undefined;
+  const startEpochDay = node.metadata.start_at as number | undefined;
   if (startEpochDay == null) return null;
 
-  const endEpochDayRaw = node.metadata.end_time_value as number | undefined;
+  const endEpochDayRaw = node.metadata.end_at as number | undefined;
   const endEpochDay = endEpochDayRaw != null ? Math.max(startEpochDay, endEpochDayRaw) : startEpochDay;
-  const startMinutes = typeof node.metadata.time_value_minutes === 'number' ? node.metadata.time_value_minutes : null;
-  const endMinutes = typeof node.metadata.end_time_value_minutes === 'number' ? node.metadata.end_time_value_minutes : null;
-  const hasStartTime = node.metadata.time_value_has_time === true;
-  const hasEndTime = node.metadata.end_time_value_has_time === true;
-  const hasExplicitTime = hasStartTime || hasEndTime;
+  const startMinutes = typeof node.metadata.start_at_minutes === 'number' ? node.metadata.start_at_minutes : null;
+  const endMinutes = typeof node.metadata.end_at_minutes === 'number' ? node.metadata.end_at_minutes : null;
+  const hasStartTime = node.metadata.start_at_has_time === true;
+  const hasEndTime = node.metadata.end_at_has_time === true;
+  const isAllDay = node.metadata.all_day === true;
+  const hasExplicitTime = !isAllDay && (hasStartTime || hasEndTime);
 
   const startAbsMinute = startEpochDay * 1440 + (hasStartTime ? startMinutes ?? 0 : 0);
   let endAbsMinute: number;
@@ -369,8 +370,8 @@ function buildGridSnapshot(frame: CalendarFrame, nodes: LayoutRenderNode[]): Cal
 
   for (const node of nodes) {
     const displayDay = resolveEventDisplayDay(
-      node.metadata.time_value as number | undefined,
-      node.metadata.end_time_value as number | undefined,
+      node.metadata.start_at as number | undefined,
+      node.metadata.end_at as number | undefined,
       frame,
     );
     if (displayDay == null) continue;
@@ -387,8 +388,8 @@ function buildGridSnapshot(frame: CalendarFrame, nodes: LayoutRenderNode[]): Cal
     if (!cell) continue;
     bucket
       .sort((left, right) => {
-        const leftStart = (left.metadata.time_value as number | undefined) ?? 0;
-        const rightStart = (right.metadata.time_value as number | undefined) ?? 0;
+        const leftStart = (left.metadata.start_at as number | undefined) ?? 0;
+        const rightStart = (right.metadata.start_at as number | undefined) ?? 0;
         if (leftStart !== rightStart) return leftStart - rightStart;
         return left.label.localeCompare(right.label);
       })

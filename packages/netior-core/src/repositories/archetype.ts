@@ -10,11 +10,41 @@ import type {
   ArchetypeFieldUpdate,
 } from '@netior/shared/types';
 
-/** Raw row from SQLite where required is INTEGER (0/1) */
-type ArchetypeFieldRow = Omit<ArchetypeField, 'required'> & { required: number };
+type ArchetypeRow = Omit<Archetype, 'semantic_traits'> & { semantic_traits: string | null };
+type ArchetypeFieldRow = Omit<ArchetypeField, 'required' | 'slot_binding_locked' | 'generated_by_trait'> & {
+  required: number;
+  slot_binding_locked: number;
+  generated_by_trait: number;
+};
+
+function parseSemanticTraits(raw: string | null | undefined): Archetype['semantic_traits'] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item): item is Archetype['semantic_traits'][number] => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function serializeSemanticTraits(traits: Archetype['semantic_traits'] | undefined): string {
+  return JSON.stringify(traits ?? []);
+}
+
+function toArchetype(row: ArchetypeRow): Archetype {
+  return {
+    ...row,
+    semantic_traits: parseSemanticTraits(row.semantic_traits),
+  };
+}
 
 function toField(row: ArchetypeFieldRow): ArchetypeField {
-  return { ...row, required: !!row.required };
+  return {
+    ...row,
+    required: !!row.required,
+    slot_binding_locked: !!row.slot_binding_locked,
+    generated_by_trait: !!row.generated_by_trait,
+  };
 }
 
 /**
@@ -58,8 +88,8 @@ export function createArchetype(data: ArchetypeCreate): Archetype {
   const now = new Date().toISOString();
 
   db.prepare(
-    `INSERT INTO archetypes (id, project_id, group_id, name, description, icon, color, node_shape, file_template, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO archetypes (id, project_id, group_id, name, description, icon, color, node_shape, file_template, semantic_traits, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     data.project_id,
@@ -70,35 +100,39 @@ export function createArchetype(data: ArchetypeCreate): Archetype {
     data.color ?? null,
     data.node_shape ?? null,
     data.file_template ?? null,
+    serializeSemanticTraits(data.semantic_traits),
     now,
     now,
   );
 
   createObject('archetype', 'project', data.project_id, id);
 
-  return db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as Archetype;
+  const row = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as ArchetypeRow;
+  return toArchetype(row);
 }
 
 export function listArchetypes(projectId: string): Archetype[] {
   const db = getDatabase();
-  return db
+  const rows = db
     .prepare('SELECT * FROM archetypes WHERE project_id = ? ORDER BY created_at')
-    .all(projectId) as Archetype[];
+    .all(projectId) as ArchetypeRow[];
+  return rows.map(toArchetype);
 }
 
 export function getArchetype(id: string): Archetype | undefined {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as Archetype | undefined;
+  const row = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as ArchetypeRow | undefined;
+  return row ? toArchetype(row) : undefined;
 }
 
 export function updateArchetype(id: string, data: ArchetypeUpdate): Archetype | undefined {
   const db = getDatabase();
-  const existing = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as Archetype | undefined;
+  const existing = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as ArchetypeRow | undefined;
   if (!existing) return undefined;
 
   const now = new Date().toISOString();
   db.prepare(
-    `UPDATE archetypes SET group_id = ?, name = ?, description = ?, icon = ?, color = ?, node_shape = ?, file_template = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE archetypes SET group_id = ?, name = ?, description = ?, icon = ?, color = ?, node_shape = ?, file_template = ?, semantic_traits = ?, updated_at = ? WHERE id = ?`,
   ).run(
     data.group_id !== undefined ? data.group_id : existing.group_id,
     data.name !== undefined ? data.name : existing.name,
@@ -107,11 +141,13 @@ export function updateArchetype(id: string, data: ArchetypeUpdate): Archetype | 
     data.color !== undefined ? data.color : existing.color,
     data.node_shape !== undefined ? data.node_shape : existing.node_shape,
     data.file_template !== undefined ? data.file_template : existing.file_template,
+    data.semantic_traits !== undefined ? serializeSemanticTraits(data.semantic_traits) : existing.semantic_traits,
     now,
     id,
   );
 
-  return db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as Archetype;
+  const row = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(id) as ArchetypeRow;
+  return toArchetype(row);
 }
 
 export function deleteArchetype(id: string): boolean {
@@ -141,8 +177,8 @@ export function createField(data: ArchetypeFieldCreate): ArchetypeField {
   }
 
   db.prepare(
-    `INSERT INTO archetype_fields (id, archetype_id, name, field_type, options, sort_order, required, default_value, ref_archetype_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO archetype_fields (id, archetype_id, name, field_type, options, sort_order, required, default_value, ref_archetype_id, system_slot, slot_binding_locked, generated_by_trait, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     data.archetype_id,
@@ -153,6 +189,9 @@ export function createField(data: ArchetypeFieldCreate): ArchetypeField {
     data.required ? 1 : 0,
     data.default_value ?? null,
     data.ref_archetype_id ?? null,
+    data.system_slot ?? null,
+    data.slot_binding_locked ? 1 : 0,
+    data.generated_by_trait ? 1 : 0,
     now,
   );
 
@@ -184,7 +223,7 @@ export function updateField(id: string, data: ArchetypeFieldUpdate): ArchetypeFi
   }
 
   db.prepare(
-    `UPDATE archetype_fields SET name = ?, field_type = ?, options = ?, sort_order = ?, required = ?, default_value = ?, ref_archetype_id = ? WHERE id = ?`,
+    `UPDATE archetype_fields SET name = ?, field_type = ?, options = ?, sort_order = ?, required = ?, default_value = ?, ref_archetype_id = ?, system_slot = ?, slot_binding_locked = ?, generated_by_trait = ? WHERE id = ?`,
   ).run(
     data.name !== undefined ? data.name : existing.name,
     newFieldType,
@@ -193,6 +232,9 @@ export function updateField(id: string, data: ArchetypeFieldUpdate): ArchetypeFi
     data.required !== undefined ? (data.required ? 1 : 0) : existing.required,
     data.default_value !== undefined ? data.default_value : existing.default_value,
     newRefId ?? null,
+    data.system_slot !== undefined ? data.system_slot : existing.system_slot,
+    data.slot_binding_locked !== undefined ? (data.slot_binding_locked ? 1 : 0) : existing.slot_binding_locked,
+    data.generated_by_trait !== undefined ? (data.generated_by_trait ? 1 : 0) : existing.generated_by_trait,
     id,
   );
 

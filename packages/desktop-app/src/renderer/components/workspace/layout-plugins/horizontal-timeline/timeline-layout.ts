@@ -15,20 +15,16 @@ export function computeTimelineLayout(input: LayoutComputeInput): LayoutComputeR
   const result: LayoutComputeResult = {};
 
   for (const node of nodes) {
-    const timeValue = node.metadata.time_value as number | undefined; // epoch days
-    const endTimeValue = node.metadata.end_time_value as number | undefined;
-    const role = node.metadata.role as string | undefined;
+    const timeValue = node.metadata.start_at as number | undefined;
+    const endTimeValue = node.metadata.end_at as number | undefined;
 
     if (timeValue == null) {
-      // No time mapping — place at today (origin) so it's visible
       result[node.id] = { x: 0, y: CONTENT_TOP + 60 };
       continue;
     }
 
-    const isPeriod = role === 'period';
+    const isPeriod = endTimeValue != null;
 
-    // X position: epoch days relative to origin, scaled by PIXELS_PER_DAY
-    // Note: zoom is applied by the workspace transform, so we store world coords here
     if (isPeriod && endTimeValue != null) {
       const startX = (timeValue - originDay) * PIXELS_PER_DAY;
       const endX = (endTimeValue - originDay) * PIXELS_PER_DAY;
@@ -42,7 +38,6 @@ export function computeTimelineLayout(input: LayoutComputeInput): LayoutComputeR
       };
     } else {
       const x = (timeValue - originDay) * PIXELS_PER_DAY;
-      // Use saved Y if user adjusted, otherwise auto-place
       const y = node.y > CONTENT_TOP ? node.y : CONTENT_TOP + 60;
 
       result[node.id] = {
@@ -52,9 +47,8 @@ export function computeTimelineLayout(input: LayoutComputeInput): LayoutComputeR
     }
   }
 
-  // Collision detection: stack overlapping occurrence nodes
   const occurrences = nodes.filter(
-    (n) => n.metadata.role !== 'period' && n.metadata.time_value != null && result[n.id],
+    (n) => n.metadata.end_at == null && n.metadata.start_at != null && result[n.id],
   );
   occurrences.sort((a, b) => (result[a.id].x ?? 0) - (result[b.id].x ?? 0));
 

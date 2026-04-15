@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import type { EditorTab } from '@netior/shared/types';
+import type { EditorTab, SystemContract } from '@netior/shared/types';
 import { useNetworkStore } from '../../stores/network-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useEditorStore } from '../../stores/editor-store';
@@ -26,7 +26,7 @@ interface EdgeVisualState {
 
 interface EdgeState {
   relation_type_id: string | null;
-  system_contract: string | null;
+  system_contract: SystemContract | null;
   description: string | null;
   visual: EdgeVisualState;
 }

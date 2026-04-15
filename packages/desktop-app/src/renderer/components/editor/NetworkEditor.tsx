@@ -148,7 +148,6 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
 
   const activePlugin = useMemo(() => getLayout(session.state?.layout_type), [session.state?.layout_type]);
   const layoutConfig = session.state?.layout_config ?? {};
-  const fieldMappings = (layoutConfig.field_mappings ?? {}) as Record<string, Record<string, string>>;
   const getOptionLabel = useCallback((value: string, keyPrefix?: string) => {
     if (!keyPrefix) return value;
     const key = `${keyPrefix}.${value}`;
@@ -165,13 +164,6 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
       ...prev,
       layout_config: { ...prev.layout_config, ...patch },
     }));
-  };
-
-  const updateFieldMapping = (archetypeId: string, key: string, value: string) => {
-    const currentMappings = { ...fieldMappings };
-    if (!currentMappings[archetypeId]) currentMappings[archetypeId] = {};
-    currentMappings[archetypeId] = { ...currentMappings[archetypeId], [key]: value };
-    updateLayoutConfig({ field_mappings: currentMappings });
   };
 
   const browserSections = useMemo(() => {
@@ -787,101 +779,6 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
               </div>
             )}
           </NetworkObjectEditorSection>
-
-          {activePlugin.requiredFields.length > 0 && archetypes.length > 0 && (
-            <NetworkObjectEditorSection title={t('network.fieldMappings')}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-secondary">{t('network.addArchetype') ?? 'Add Archetype...'}</div>
-                <div className="w-56">
-                  <Select
-                    options={[
-                      { value: '', label: t('network.addArchetype') ?? 'Add Archetype...' },
-                      ...archetypes
-                        .filter((a) => !fieldMappings[a.id])
-                        .map((a) => ({ value: a.id, label: a.name })),
-                    ]}
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        updateFieldMapping(e.target.value, 'role', 'occurrence');
-                      }
-                    }}
-                    selectSize="sm"
-                  />
-                </div>
-              </div>
-
-              {Object.keys(fieldMappings).map((archId) => {
-                const arch = archetypes.find((a) => a.id === archId);
-                if (!arch) return null;
-                const archFields = fields[archId] ?? [];
-                const archMapping = fieldMappings[archId] ?? {};
-
-                return (
-                  <div key={archId} className="flex flex-col gap-2 rounded-lg border border-subtle bg-surface-base p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs font-medium text-default">{arch.name}</div>
-                      <button
-                        type="button"
-                        className="text-xs text-secondary hover:text-status-error"
-                        onClick={() => {
-                          const newMappings = { ...fieldMappings };
-                          delete newMappings[archId];
-                          updateLayoutConfig({ field_mappings: newMappings });
-                        }}
-                      >
-                        {t('common.delete')}
-                      </button>
-                    </div>
-                    {activePlugin.requiredFields.map((req) => {
-                      if (req.type === 'enum') {
-                        return (
-                          <div key={req.key} className="flex items-center gap-2">
-                            <span className="w-28 shrink-0 text-xs text-secondary">{t(req.label as never) ?? req.label}</span>
-                            <Select
-                              options={(req.options ?? []).map((o) => ({
-                                value: o,
-                                label: getOptionLabel(o, req.optionLabelKeyPrefix),
-                              }))}
-                              value={archMapping[req.key] ?? (req.default as string) ?? ''}
-                              onChange={(e) => updateFieldMapping(archId, req.key, e.target.value)}
-                              selectSize="sm"
-                            />
-                          </div>
-                        );
-                      }
-                      const reqLabel = t(req.label as never) ?? req.label;
-                      const allowedFieldTypes =
-                        req.type === 'date'
-                          ? ['date', 'datetime']
-                          : req.type === 'number'
-                            ? ['number', 'rating']
-                            : req.type === 'string'
-                              ? ['text', 'textarea', 'url', 'color', 'select', 'radio']
-                              : null;
-                      const fieldOptions = [
-                        { value: '', label: req.required ? `-- ${reqLabel} --` : `(${t('common.none') ?? 'None'})` },
-                        ...archFields
-                          .filter((f) => !allowedFieldTypes || allowedFieldTypes.includes(f.field_type))
-                          .map((f) => ({ value: f.id, label: f.name })),
-                      ];
-                      return (
-                        <div key={req.key} className="flex items-center gap-2">
-                          <span className="w-28 shrink-0 text-xs text-secondary">{t(req.label as never) ?? req.label}</span>
-                          <Select
-                            options={fieldOptions}
-                            value={archMapping[req.key] ?? ''}
-                            onChange={(e) => updateFieldMapping(archId, req.key, e.target.value)}
-                            selectSize="sm"
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </NetworkObjectEditorSection>
-          )}
 
           <NetworkObjectEditorSection title={t('editorShell.metadata' as never)} defaultOpen={false}>
             <NetworkObjectMetadataList

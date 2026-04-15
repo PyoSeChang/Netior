@@ -28,15 +28,15 @@ export const TimelineOverlay: React.FC<LayoutLayerProps> = ({
     const rawBands: Array<{
       id: string; screenX: number; screenWidth: number; label: string;
       startValue: number; endValue: number; duration: number; color?: string;
+      isReadOnlyOccurrence?: boolean;
     }> = [];
 
     for (const node of nodes) {
-      const timeValue = node.metadata.time_value as number | undefined;
-      const endTimeValue = node.metadata.end_time_value as number | undefined;
-      const role = node.metadata.role as string | undefined;
-      const color = node.metadata.color as string | undefined;
+      const timeValue = node.metadata.start_at as number | undefined;
+      const endTimeValue = node.metadata.end_at as number | undefined;
+      const color = node.metadata.display_color as string | undefined;
 
-      if (role !== 'period' || timeValue == null || endTimeValue == null) continue;
+      if (timeValue == null || endTimeValue == null) continue;
 
       const isDragging = nodeDragOffset?.id === node.id;
       let startDay = timeValue;

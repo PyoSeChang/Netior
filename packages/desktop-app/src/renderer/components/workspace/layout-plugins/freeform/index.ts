@@ -5,7 +5,6 @@ export const freeformPlugin: WorkspaceLayoutPlugin = {
   key: 'freeform',
   displayName: 'Freeform',
 
-  requiredFields: [],
   configSchema: [],
   getDefaultConfig: () => ({}),
 

@@ -7,10 +7,12 @@
  */
 
 import React, { useCallback, useMemo } from 'react';
+import { Repeat2 } from 'lucide-react';
 import type { NodeComponentProps } from './types';
 import type { NodeShape } from './types';
 import type { NodeResizeDirection } from './types';
 import { getShapeLayout } from './layouts';
+import { useI18n } from '../../../hooks/useI18n';
 
 // --- Gear clip-path (6-tooth cog) ---
 const GEAR_CLIP_PATH =
@@ -69,8 +71,10 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
   onMouseEnter,
   onMouseLeave,
 }) => {
+  const { t } = useI18n();
   const hasPortalChips = !!portalChips && portalChips.length > 0;
   const portalChipStripHeight = hasPortalChips ? 32 : 0;
+  const isVirtualRecurringOccurrence = metadata?.__virtualOccurrence === true;
   const resizeHandles: Array<{
     direction: NodeResizeDirection;
     cursor: string;
@@ -89,7 +93,7 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
   // --- Event handlers ---
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || !onDragStart) return;
       e.stopPropagation();
       onDragStart(id, e.clientX, e.clientY);
     },
@@ -179,7 +183,7 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
         width,
         height,
         transform: `translate(${x - width / 2}px, ${y - height / 2}px)`,
-        cursor: mode === 'edit' ? 'move' : 'pointer',
+        cursor: mode === 'edit' && onDragStart ? 'move' : 'pointer',
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -190,6 +194,15 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
     >
       {/* Card body */}
       <div className={cardClassName} style={cardStyle}>
+        {isVirtualRecurringOccurrence && (
+          <div
+            className="pointer-events-none absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full border border-default bg-surface-modal px-2 py-0.5 text-[10px] font-medium text-secondary shadow-sm"
+            title={t('common.recurringVirtualHint' as never)}
+          >
+            <Repeat2 size={10} />
+            <span>{t('common.recurringOccurrence' as never)}</span>
+          </div>
+        )}
         <div style={{ height: hasPortalChips ? Math.max(height - portalChipStripHeight, 0) : height }}>
           <Layout
             label={label}

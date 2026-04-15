@@ -1,21 +1,6 @@
 import type React from 'react';
 import type { RenderNode, RenderEdge } from '../types';
 
-// ── Plugin Data Contract ──
-
-/** A field the layout requires from concept properties */
-export interface FieldRequirement {
-  /** Standard key the plugin reads from metadata (e.g., 'time_value') */
-  key: string;
-  type: 'number' | 'string' | 'enum' | 'date';
-  label: string;
-  required: boolean;
-  default?: unknown;
-  /** Enum options (when type='enum') */
-  options?: string[];
-  optionLabelKeyPrefix?: string;
-}
-
 /** A user-configurable layout option */
 export interface ConfigField {
   key: string;
@@ -64,12 +49,28 @@ export interface NodeDropContext {
   newX: number;
   newY: number;
   zoom: number;
+  viewport: { width: number; height: number };
+  viewportState: { zoom: number; panX: number; panY: number };
   config: Record<string, unknown>;
+  nodes: LayoutRenderNode[];
   node: LayoutRenderNode;
 }
 
 export interface NodeDropResult {
   position: { x: number; y: number };
+  propertyUpdates?: Array<{ conceptId: string; fieldId: string; value: string }>;
+}
+
+export interface SpanResizeContext {
+  nodeId: string;
+  edge: 'start' | 'end';
+  dx: number;
+  zoom: number;
+  config: Record<string, unknown>;
+  node: LayoutRenderNode;
+}
+
+export interface SpanResizeResult {
   propertyUpdates?: Array<{ conceptId: string; fieldId: string; value: string }>;
 }
 
@@ -176,8 +177,6 @@ export interface WorkspaceLayoutPlugin {
   key: string;
   displayName: string;
 
-  /** Fields this layout requires from concept properties */
-  requiredFields: FieldRequirement[];
   /** User-configurable options (unit, tick_interval, etc.) */
   configSchema: ConfigField[];
   /** Default layout_config values */
@@ -199,6 +198,9 @@ export interface WorkspaceLayoutPlugin {
   /** Compute node positions */
   computeLayout(input: LayoutComputeInput): LayoutComputeResult;
 
+  /** Project source nodes into layout-specific render nodes */
+  projectNodes?: (input: LayoutComputeInput) => LayoutRenderNode[];
+
   /** Classify nodes into card vs overlay rendering */
   classifyNodes(nodes: LayoutRenderNode[], config: Record<string, unknown>): {
     cardNodes: LayoutRenderNode[];
@@ -212,6 +214,7 @@ export interface WorkspaceLayoutPlugin {
 
   /** Handle node drop — return position + optional property updates */
   onNodeDrop?: (context: NodeDropContext) => NodeDropResult;
+  onSpanResize?: (context: SpanResizeContext) => SpanResizeResult;
 
   /** Hide default control buttons */
   hiddenControls?: Array<'zoom' | 'fit' | 'nav' | 'mode'>;

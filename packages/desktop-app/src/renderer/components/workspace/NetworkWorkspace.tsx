@@ -23,13 +23,14 @@ import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useContextStore } from '../../stores/context-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useNetworkObjectSelectionStore } from '../../stores/network-object-selection-store';
-import type { Archetype } from '@netior/shared/types';
+import type { Archetype, ArchetypeField } from '@netior/shared/types';
 import { useI18n } from '../../hooks/useI18n';
 import type { RenderNode, RenderEdge, RenderPoint, RenderEdgeAnchor } from './types';
 import type { NodeResizeDirection } from './node-components/types';
 import { getLayout } from './layout-plugins/registry';
 import type { LayoutRenderNode } from './layout-plugins/types';
 import { dateToEpochDays, isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
+import { formatTemporalSlotValueForWriteback, getOccurrenceKey, getSourceNodeId } from './layout-plugins/temporal-utils';
 import { useNetworkShortcuts } from './useNetworkShortcuts';
 import { HIERARCHY_PARENT_CONTRACT, isHierarchyParentContract } from '../../lib/hierarchy-contract';
 
@@ -79,47 +80,189 @@ interface ParsedTemporalMetadataValue {
   hasTime: boolean;
 }
 
+interface ParsedDateTimeParts {
+  year: number;
+  month: number;
+  day: number;
+  hour?: number;
+  minute?: number;
+}
+
 const HIERARCHY_ROOT_CHILD_MIN_Y_OFFSET = 112;
 const HIERARCHY_MAGNETIC_THRESHOLD = 28;
 const HIERARCHY_X_MAGNETIC_THRESHOLD = 28;
 const GROUP_COLLAPSED_SIZE = { width: 240, height: 72 };
 const HIERARCHY_COLLAPSED_SIZE = { width: 260, height: 84 };
 
-function parseTemporalMetadataValue(value: string): ParsedTemporalMetadataValue | null {
-  const hasExplicitTime = /[T\s]\d{2}:\d{2}/.test(value);
-  if (!hasExplicitTime) {
-    const epochDay = isoToEpochDays(value);
-    return epochDay == null ? null : { epochDay, hasTime: false };
-  }
+function toEpochDay(year: number, month: number, day: number): number {
+  return Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+}
 
-  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
-  const parsed = new Date(normalized);
-  if (!Number.isNaN(parsed.getTime())) {
+function parseDateOnlyParts(value: string): ParsedDateTimeParts | null {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+}
+
+function parseDateTimeParts(value: string): (ParsedDateTimeParts & { hasExplicitZone: boolean }) | null {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2}(?:\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?$/);
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    hasExplicitZone: !!match[6],
+  };
+}
+
+function extractDateTimePartsInTimeZone(date: Date, timeZone: string): ParsedDateTimeParts | null {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    const parts = formatter.formatToParts(date);
+    const getPart = (type: Intl.DateTimeFormatPartTypes): number | null => {
+      const part = parts.find((item) => item.type === type)?.value;
+      return part ? Number(part) : null;
+    };
+    const year = getPart('year');
+    const month = getPart('month');
+    const day = getPart('day');
+    const hour = getPart('hour');
+    const minute = getPart('minute');
+    if (year == null || month == null || day == null || hour == null || minute == null) {
+      return null;
+    }
+    return { year, month, day, hour, minute };
+  } catch {
+    return null;
+  }
+}
+
+function parseTemporalMetadataValue(value: string, timeZone?: string | null): ParsedTemporalMetadataValue | null {
+  const dateOnly = parseDateOnlyParts(value);
+  if (dateOnly) {
     return {
-      epochDay: dateToEpochDays(parsed),
-      minutesOfDay: parsed.getHours() * 60 + parsed.getMinutes(),
-      hasTime: true,
+      epochDay: toEpochDay(dateOnly.year, dateOnly.month, dateOnly.day),
+      hasTime: false,
     };
   }
 
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
-  if (!match) return null;
+  const dateTimeParts = parseDateTimeParts(value);
+  if (dateTimeParts) {
+    if (!dateTimeParts.hasExplicitZone) {
+      return {
+        epochDay: toEpochDay(dateTimeParts.year, dateTimeParts.month, dateTimeParts.day),
+        minutesOfDay: (dateTimeParts.hour ?? 0) * 60 + (dateTimeParts.minute ?? 0),
+        hasTime: true,
+      };
+    }
 
-  const [, year, month, day, hour, minute] = match;
-  const fallback = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-  );
-  if (Number.isNaN(fallback.getTime())) return null;
+    const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+      if (timeZone) {
+        const zonedParts = extractDateTimePartsInTimeZone(parsed, timeZone);
+        if (zonedParts) {
+          return {
+            epochDay: toEpochDay(zonedParts.year, zonedParts.month, zonedParts.day),
+            minutesOfDay: (zonedParts.hour ?? 0) * 60 + (zonedParts.minute ?? 0),
+            hasTime: true,
+          };
+        }
+      }
+      return {
+        epochDay: dateToEpochDays(parsed),
+        minutesOfDay: parsed.getHours() * 60 + parsed.getMinutes(),
+        hasTime: true,
+      };
+    }
+  }
 
-  return {
-    epochDay: dateToEpochDays(fallback),
-    minutesOfDay: Number(hour) * 60 + Number(minute),
-    hasTime: true,
-  };
+  const fallbackEpochDay = isoToEpochDays(value);
+  return fallbackEpochDay == null ? null : { epochDay: fallbackEpochDay, hasTime: false };
+}
+
+function parseBooleanMetadataValue(value: string): boolean | null {
+  if (value === 'true' || value === '1') return true;
+  if (value === 'false' || value === '0') return false;
+  return null;
+}
+
+function parseNumericMetadataValue(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function applySystemSlotMetadata(
+  metadata: Record<string, unknown>,
+  field: ArchetypeField,
+  rawValue: string,
+  slotRawValues: Partial<Record<string, string>>,
+): void {
+  const slot = field.system_slot;
+  if (!slot) return;
+
+  if (slot === 'all_day') {
+    const parsed = parseBooleanMetadataValue(rawValue);
+    metadata[slot] = parsed ?? rawValue === 'true';
+    return;
+  }
+
+  if (
+    slot === 'start_at'
+    || slot === 'end_at'
+    || slot === 'due_at'
+    || slot === 'recurrence_until'
+    || slot === 'completed_at'
+    || slot === 'approved_at'
+  ) {
+    const temporalValue = parseTemporalMetadataValue(rawValue, slotRawValues.timezone);
+    if (temporalValue) {
+      metadata[slot] = temporalValue.epochDay;
+      if (typeof temporalValue.minutesOfDay === 'number') {
+        metadata[`${slot}_minutes`] = temporalValue.minutesOfDay;
+      }
+      if (temporalValue.hasTime) {
+        metadata[`${slot}_has_time`] = true;
+      }
+      return;
+    }
+  }
+
+  if (
+    field.field_type === 'number'
+    || field.field_type === 'rating'
+    || slot === 'progress_ratio'
+    || slot === 'estimate_value'
+    || slot === 'actual_value'
+    || slot === 'order_index'
+    || slot === 'lat'
+    || slot === 'lng'
+    || slot === 'measure_value'
+    || slot === 'target_value'
+    || slot === 'budget_amount'
+    || slot === 'budget_limit'
+    || slot === 'recurrence_count'
+  ) {
+    const parsed = parseNumericMetadataValue(rawValue);
+    metadata[slot] = parsed ?? rawValue;
+    return;
+  }
+
+  metadata[slot] = rawValue;
 }
 
 function pickInitialNetworkId(
@@ -1040,6 +1183,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     addEdge, removeEdge, saveViewport,
     navigateToChild, navigateBack,
   } = useNetworkStore();
+  const concepts = useConceptStore((s) => s.concepts);
   const { createConcept } = useConceptStore();
   const workspaceMode = useUIStore((state) => state.workspaceMode);
   const { t } = useI18n();
@@ -1228,6 +1372,8 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   }, [viewportMode]);
 
   const archetypes = useArchetypeStore((s) => s.archetypes);
+  const archetypeFieldsById = useArchetypeStore((s) => s.fields);
+  const loadArchetypeFields = useArchetypeStore((s) => s.loadFields);
   const relationTypes = useRelationTypeStore((s) => s.relationTypes);
   const contexts = useContextStore((s) => s.contexts);
   const membersByContext = useContextStore((s) => s.membersByContext);
@@ -1239,6 +1385,12 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const networkNames = useMemo(() => new Map(networks.map((n) => [n.id, n.name])), [networks]);
   const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
   const archetypeNames = useMemo(() => new Map(archetypes.map((archetype) => [archetype.id, archetype.name])), [archetypes]);
+  const isTemporalLayout = layoutType === 'horizontal-timeline' || layoutType === 'calendar';
+  const temporalArchetypeIds = useMemo(() => (
+    archetypes
+      .filter((archetype) => (archetypeFieldsById[archetype.id] ?? []).some((field) => field.system_slot === 'start_at'))
+      .map((archetype) => archetype.id)
+  ), [archetypeFieldsById, archetypes]);
   const relationTypeNames = useMemo(() => new Map(relationTypes.map((relationType) => [relationType.id, relationType.name])), [relationTypes]);
   const contextNames = useMemo(() => new Map(contexts.map((context) => [context.id, context.name])), [contexts]);
   const entryPortalData = useMemo(() => {
@@ -1505,6 +1657,27 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   const [nodeProperties, setNodeProperties] = useState<Record<string, Array<{ field_id: string; value: string | null }>>>({});
   const [propsVersion, setPropsVersion] = useState(0);
 
+  const persistLayoutPropertyUpdates = useCallback(async (
+    propertyUpdates: Array<{ conceptId: string; fieldId: string; value: string }> | undefined,
+  ) => {
+    if (!propertyUpdates || propertyUpdates.length === 0) return;
+
+    const dedupedUpdates = Array.from(
+      propertyUpdates.reduce((map, update) => (
+        map.set(`${update.conceptId}:${update.fieldId}`, update)
+      ), new Map<string, { conceptId: string; fieldId: string; value: string }>())
+        .values(),
+    );
+
+    await Promise.all(
+      dedupedUpdates.map((update) => useConceptStore.getState().upsertProperty({
+        concept_id: update.conceptId,
+        field_id: update.fieldId,
+        value: update.value,
+      })),
+    );
+  }, []);
+
   // Trigger reload when concept store properties change
   useEffect(() => {
     setPropsVersion((v) => v + 1);
@@ -1526,68 +1699,107 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     });
   }, [nodes, layoutType, currentNetwork?.id, propsVersion]);
 
-  // Build LayoutRenderNodes with metadata from field_mappings + concept_properties
-  const fieldMappingsConfig = (layoutConfig.field_mappings ?? {}) as Record<string, Record<string, string>>;
+  useEffect(() => {
+    if (layoutType === 'freeform') return;
+    const archetypeIds = new Set(
+      nodes
+        .map((node) => node.concept?.archetype_id)
+        .filter((value): value is string => !!value),
+    );
+
+    for (const archetypeId of archetypeIds) {
+      if (!archetypeFieldsById[archetypeId]) {
+        void loadArchetypeFields(archetypeId);
+      }
+    }
+  }, [archetypeFieldsById, layoutType, loadArchetypeFields, nodes]);
 
   const layoutRenderNodes = useMemo<LayoutRenderNode[]>(() =>
     visibleRenderNodes.map((n) => {
+      const sourceNode = nodes.find((candidate) => candidate.id === n.id);
       const archetypeId = n.nodeType === 'concept'
-        ? nodes.find((cn) => cn.id === n.id)?.concept?.archetype_id ?? undefined
+        ? sourceNode?.concept?.archetype_id ?? undefined
         : undefined;
-
-      // Build metadata from field_mappings
       const metadata: Record<string, unknown> = {};
-      if (archetypeId && fieldMappingsConfig[archetypeId]) {
-        const mapping = fieldMappingsConfig[archetypeId];
+      const slotFieldIds: Record<string, string> = {};
+      const slotFieldTypes: Record<string, string> = {};
+
+      if (sourceNode?.concept?.color) {
+        metadata.display_color = sourceNode.concept.color;
+      } else if (archetypeId) {
+        const archetype = archetypes.find((item) => item.id === archetypeId);
+        if (archetype?.color) metadata.display_color = archetype.color;
+      }
+
+      if (archetypeId) {
+        const archetypeFields = archetypeFieldsById[archetypeId] ?? [];
         const conceptId = n.conceptId;
         const props = conceptId ? nodeProperties[conceptId] ?? [] : [];
+        const propMap = new Map(props.map((prop) => [prop.field_id, prop.value]));
+        const slotRawValues: Partial<Record<string, string>> = {};
 
-        for (const [metaKey, fieldIdOrValue] of Object.entries(mapping)) {
-          // 'role' is stored directly as a value, not a field_id
-          if (metaKey === 'role') {
-            metadata[metaKey] = fieldIdOrValue;
-            continue;
-          }
-          // Find the property value by field_id
-          const prop = props.find((p) => p.field_id === fieldIdOrValue);
-          if (prop?.value != null) {
-            const temporalValue = parseTemporalMetadataValue(prop.value);
-            if (temporalValue) {
-              metadata[metaKey] = temporalValue.epochDay;
-              if (typeof temporalValue.minutesOfDay === 'number') {
-                metadata[`${metaKey}_minutes`] = temporalValue.minutesOfDay;
-              }
-              if (temporalValue.hasTime) {
-                metadata[`${metaKey}_has_time`] = true;
-              }
-            } else {
-              const num = Number(prop.value);
-              metadata[metaKey] = isNaN(num) ? prop.value : num;
-            }
-          }
+        for (const field of archetypeFields) {
+          if (!field.system_slot) continue;
+          slotFieldTypes[field.system_slot] = field.field_type;
+          slotFieldIds[field.system_slot] = field.id;
+          const rawValue = propMap.get(field.id);
+          if (rawValue == null) continue;
+          slotRawValues[field.system_slot] = rawValue;
         }
+
+        for (const field of archetypeFields) {
+          if (!field.system_slot) continue;
+          const rawValue = propMap.get(field.id);
+          if (rawValue == null) continue;
+          applySystemSlotMetadata(metadata, field, rawValue, slotRawValues);
+        }
+      }
+
+      if (Object.keys(slotFieldIds).length > 0) {
+        metadata.__slotFieldIds = slotFieldIds;
+      }
+      if (Object.keys(slotFieldTypes).length > 0) {
+        metadata.__slotFieldTypes = slotFieldTypes;
+      }
+      if (sourceNode?.concept?.recurrence_source_concept_id) {
+        metadata.__recurrenceSourceConceptId = sourceNode.concept.recurrence_source_concept_id;
+      }
+      if (sourceNode?.concept?.recurrence_occurrence_key) {
+        metadata.__occurrenceKey = sourceNode.concept.recurrence_occurrence_key;
       }
 
       return { ...n, metadata, archetypeId };
     }),
-  [visibleRenderNodes, nodes, fieldMappingsConfig, nodeProperties]);
+  [visibleRenderNodes, nodes, archetypeFieldsById, nodeProperties, archetypes]);
+
+  const projectedLayoutNodes = useMemo<LayoutRenderNode[]>(() => (
+    layoutPlugin.projectNodes
+      ? layoutPlugin.projectNodes({
+        nodes: layoutRenderNodes,
+        edges: renderEdges,
+        viewport: { width: containerSize.width, height: containerSize.height },
+        viewportState: { zoom, panX, panY },
+        config: layoutConfig,
+      })
+      : layoutRenderNodes
+  ), [layoutPlugin, layoutRenderNodes, renderEdges, containerSize.width, containerSize.height, zoom, panX, panY, layoutConfig]);
 
 
   // Compute layout positions (freeform returns same positions, timeline computes from metadata)
   const layoutResult = useMemo(
     () => layoutPlugin.computeLayout({
-      nodes: layoutRenderNodes,
+      nodes: projectedLayoutNodes,
       edges: renderEdges,
       viewport: { width: containerSize.width, height: containerSize.height },
       viewportState: { zoom, panX, panY },
       config: layoutConfig,
     }),
-    [layoutPlugin, layoutRenderNodes, renderEdges, containerSize, zoom, panX, panY, layoutConfig],
+    [layoutPlugin, projectedLayoutNodes, renderEdges, containerSize, zoom, panX, panY, layoutConfig],
   );
 
   // Apply computed positions to nodes
   const positionedNodes = useMemo<LayoutRenderNode[]>(() =>
-    layoutRenderNodes.map((n) => {
+    projectedLayoutNodes.map((n) => {
       const pos = layoutResult[n.id];
       if (!pos) return n;
       return {
@@ -1598,7 +1810,16 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         height: pos.height ?? n.height,
       };
     }),
-  [layoutRenderNodes, layoutResult]);
+  [projectedLayoutNodes, layoutResult]);
+  const positionedNodeById = useMemo(
+    () => new Map(positionedNodes.map((node) => [node.id, node] as const)),
+    [positionedNodes],
+  );
+  const resolveSourceWorkspaceNode = useCallback((renderNodeId: string) => {
+    const renderNode = positionedNodeById.get(renderNodeId);
+    const sourceNodeId = renderNode ? getSourceNodeId(renderNode) : renderNodeId;
+    return nodeById.get(sourceNodeId);
+  }, [nodeById, positionedNodeById]);
 
   // Classify nodes (freeform: all as cardNodes, timeline: period+span ??overlay)
   const { cardNodes } = useMemo(
@@ -1711,7 +1932,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       childHierarchyId === parentHierarchyId &&
       childNode?.node_type !== 'hierarchy';
 
-    let systemContract: string | undefined;
+    let systemContract: 'core:hierarchy_parent' | undefined;
     if (shouldCreateHierarchyParent) {
       systemContract = HIERARCHY_PARENT_CONTRACT;
 
@@ -1903,6 +2124,28 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     }
   }, [archetypeNames, contextNames, navigateToChild, openProject, projects, relationTypeNames, t]);
 
+  const showNodeContextMenu = useCallback((node: NetworkNodeWithObject, x: number, y: number) => {
+    const isConcept = node.object?.object_type === 'concept';
+    const isFile = node.object?.object_type === 'file';
+    const isNetwork = node.object?.object_type === 'network';
+    setContextMenu({
+      x,
+      y,
+      nodeId: node.id,
+      objectType: node.object?.object_type,
+      objectTargetId: node.object?.ref_id,
+      objectTitle: node.concept?.title
+        ?? node.file?.path?.replace(/\\/g, '/').split('/').pop()
+        ?? networkNames.get(node.object?.ref_id ?? '')
+        ?? projectNames.get(node.object?.ref_id ?? '')
+        ?? undefined,
+      conceptId: isConcept ? node.object?.ref_id : undefined,
+      fileId: isFile ? node.object?.ref_id : undefined,
+      filePath: node.file?.path ?? undefined,
+      networkId: isNetwork ? node.object?.ref_id : undefined,
+    });
+  }, [networkNames, projectNames]);
+
   const openEdgeEditor = useCallback((edgeId: string) => {
     const edge = edges.find((candidate) => candidate.id === edgeId);
     if (!edge) return;
@@ -2022,6 +2265,236 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
     return JSON.stringify(nextPosition);
   }, [rawPosMap]);
+
+  const materializeRecurringOccurrence = useCallback(async (
+    renderNodeId: string,
+    options?: {
+      position?: { x: number; y: number; slotIndex?: number | null };
+      propertyUpdates?: Array<{ conceptId: string; fieldId: string; value: string }>;
+    },
+  ): Promise<NetworkNodeWithObject | null> => {
+    const renderNode = positionedNodeById.get(renderNodeId);
+    if (!renderNode) return resolveSourceWorkspaceNode(renderNodeId) ?? null;
+    if (renderNode.metadata.__virtualOccurrence !== true) {
+      return resolveSourceWorkspaceNode(renderNodeId) ?? null;
+    }
+
+    const sourceNode = resolveSourceWorkspaceNode(renderNodeId);
+    const sourceConcept = sourceNode?.concept;
+    if (!currentNetwork || !sourceNode || !sourceConcept || sourceNode.object?.object_type !== 'concept') {
+      return sourceNode ?? null;
+    }
+
+    const occurrenceKey = getOccurrenceKey(renderNode);
+    if (!occurrenceKey) return sourceNode;
+
+    const existingConcept = concepts.find((concept) => (
+      concept.recurrence_source_concept_id === sourceConcept.id
+      && concept.recurrence_occurrence_key === occurrenceKey
+    ));
+
+    let materializedConcept = existingConcept;
+    if (!materializedConcept) {
+      materializedConcept = await createConcept({
+        project_id: sourceConcept.project_id,
+        title: sourceConcept.title,
+        archetype_id: sourceConcept.archetype_id ?? undefined,
+        recurrence_source_concept_id: sourceConcept.id,
+        recurrence_occurrence_key: occurrenceKey,
+        icon: sourceConcept.icon ?? undefined,
+        color: sourceConcept.color ?? undefined,
+        content: sourceConcept.content ?? undefined,
+      });
+    }
+
+    const slotFieldIds = (renderNode.metadata.__slotFieldIds as Record<string, string> | undefined) ?? {};
+    const basePropertyUpdates: Array<{ fieldId: string; value: string }> = [];
+    const pushBaseUpdate = (fieldId: string | undefined, value: string | boolean | null | undefined) => {
+      if (!fieldId || value == null) return;
+      basePropertyUpdates.push({
+        fieldId,
+        value: typeof value === 'boolean' ? String(value) : value,
+      });
+    };
+
+    const startEpochDay = typeof renderNode.metadata.start_at === 'number'
+      ? Number(renderNode.metadata.start_at)
+      : null;
+    const endEpochDay = typeof renderNode.metadata.end_at === 'number'
+      ? Number(renderNode.metadata.end_at)
+      : null;
+    const startHasTime = renderNode.metadata.start_at_has_time === true;
+    const endHasTime = renderNode.metadata.end_at_has_time === true;
+    const startMinutes = typeof renderNode.metadata.start_at_minutes === 'number'
+      ? Number(renderNode.metadata.start_at_minutes)
+      : undefined;
+    const endMinutes = typeof renderNode.metadata.end_at_minutes === 'number'
+      ? Number(renderNode.metadata.end_at_minutes)
+      : undefined;
+
+    if (startEpochDay != null) {
+      pushBaseUpdate(
+        slotFieldIds.start_at,
+        formatTemporalSlotValueForWriteback(
+          renderNode,
+          'start_at',
+          startEpochDay,
+          startHasTime ? startMinutes : undefined,
+          !startHasTime,
+        ),
+      );
+    }
+    if (endEpochDay != null) {
+      pushBaseUpdate(
+        slotFieldIds.end_at,
+        formatTemporalSlotValueForWriteback(
+          renderNode,
+          'end_at',
+          endEpochDay,
+          endHasTime ? endMinutes : undefined,
+          !endHasTime,
+        ),
+      );
+    }
+    if (typeof renderNode.metadata.all_day === 'boolean') {
+      pushBaseUpdate(slotFieldIds.all_day, renderNode.metadata.all_day);
+    }
+
+    const sourceProperties = nodeProperties[sourceConcept.id]
+      ?? conceptStoreProperties[sourceConcept.id]
+      ?? await conceptPropertyService.getByConcept(sourceConcept.id);
+    const recurrenceFieldIds = new Set(
+      [slotFieldIds.recurrence_rule, slotFieldIds.recurrence_until, slotFieldIds.recurrence_count]
+        .filter((value): value is string => !!value),
+    );
+    const nextPropertyValues = new Map<string, string | null>();
+
+    for (const property of sourceProperties) {
+      if (recurrenceFieldIds.has(property.field_id)) continue;
+      nextPropertyValues.set(property.field_id, property.value);
+    }
+
+    for (const update of basePropertyUpdates) {
+      nextPropertyValues.set(update.fieldId, update.value);
+    }
+    for (const update of options?.propertyUpdates ?? []) {
+      nextPropertyValues.set(update.fieldId, update.value);
+    }
+
+    await Promise.all(
+      Array.from(nextPropertyValues.entries()).map(([fieldId, value]) => (
+        useConceptStore.getState().upsertProperty({
+          concept_id: materializedConcept.id,
+          field_id: fieldId,
+          value,
+        })
+      )),
+    );
+
+    const conceptObject = await objectService.getByRef('concept', materializedConcept.id);
+    if (!conceptObject) return null;
+
+    let materializedNode = nodes.find((node) => (
+      node.object?.object_type === 'concept'
+      && node.object.ref_id === materializedConcept.id
+    ));
+
+    if (!materializedNode) {
+      const createdNode = await networkService.node.add({
+        network_id: currentNetwork.id,
+        object_id: conceptObject.id,
+      });
+
+      const parentGroupId = containsParentByChild.get(sourceNode.id) ?? null;
+      if (parentGroupId) {
+        await networkService.edge.create({
+          network_id: currentNetwork.id,
+          source_node_id: parentGroupId,
+          target_node_id: createdNode.id,
+          system_contract: 'core:contains',
+        });
+      }
+
+      const sourceHierarchyParentId = hierarchyParentByChild.get(sourceNode.id) ?? null;
+      const parentGroupNode = parentGroupId ? nodeById.get(parentGroupId) : undefined;
+      if (sourceHierarchyParentId) {
+        await networkService.edge.create({
+          network_id: currentNetwork.id,
+          source_node_id: sourceHierarchyParentId,
+          target_node_id: createdNode.id,
+          system_contract: HIERARCHY_PARENT_CONTRACT,
+        });
+      } else if (parentGroupNode?.node_type === 'hierarchy' && parentGroupId) {
+        await networkService.edge.create({
+          network_id: currentNetwork.id,
+          source_node_id: parentGroupId,
+          target_node_id: createdNode.id,
+          system_contract: HIERARCHY_PARENT_CONTRACT,
+        });
+      }
+
+      materializedNode = {
+        ...createdNode,
+        object: conceptObject,
+        concept: materializedConcept,
+      };
+    }
+
+    if (currentLayout && materializedNode) {
+      const sourceRawPosition = rawPosMap.get(sourceNode.id);
+      const defaultSlotIndex = typeof sourceRawPosition?.slotIndex === 'number'
+        ? sourceRawPosition.slotIndex
+        : null;
+      const nextPosition = options?.position
+        ? serializePositionJson(
+          materializedNode.id,
+          options.position.x,
+          options.position.y,
+          options.position.slotIndex ?? defaultSlotIndex,
+        )
+        : serializePositionJson(
+          materializedNode.id,
+          sourceRawPosition?.x ?? renderNode.x,
+          sourceRawPosition?.y ?? renderNode.y,
+          defaultSlotIndex,
+          typeof sourceRawPosition?.width === 'number' ? sourceRawPosition.width : undefined,
+          typeof sourceRawPosition?.height === 'number' ? sourceRawPosition.height : undefined,
+          sourceRawPosition?.collapsed === true ? true : null,
+        );
+      await layoutService.node.setPosition(currentLayout.id, materializedNode.id, nextPosition);
+    }
+
+    await openNetwork(currentNetwork.id);
+
+    return useNetworkStore.getState().nodes.find((node) => (
+      node.object?.object_type === 'concept'
+      && node.object.ref_id === materializedConcept.id
+    )) ?? materializedNode;
+  }, [
+    conceptStoreProperties,
+    concepts,
+    containsParentByChild,
+    createConcept,
+    currentLayout,
+    currentNetwork,
+    hierarchyParentByChild,
+    nodeById,
+    nodeProperties,
+    nodes,
+    openNetwork,
+    positionedNodeById,
+    rawPosMap,
+    resolveSourceWorkspaceNode,
+    serializePositionJson,
+  ]);
+
+  const resolveRenderableWorkspaceNode = useCallback(async (renderNodeId: string) => {
+    const renderNode = positionedNodeById.get(renderNodeId);
+    if (renderNode?.metadata.__virtualOccurrence === true) {
+      return materializeRecurringOccurrence(renderNodeId);
+    }
+    return resolveSourceWorkspaceNode(renderNodeId) ?? null;
+  }, [materializeRecurringOccurrence, positionedNodeById, resolveSourceWorkspaceNode]);
 
   const findDropTargetContainer = useCallback((nodeId: string, x: number, y: number): RenderNode | null => {
     const candidates = cardRenderNodes
@@ -2394,40 +2867,77 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   }, [rawPosMap, serializePositionJson, setNodePosition]);
 
   const handleNodeDragEnd = useCallback(async (nodeId: string, x: number, y: number) => {
-    if (layoutPlugin.onNodeDrop) {
-      const node = positionedNodes.find((n) => n.id === nodeId);
-      if (node) {
-        const result = layoutPlugin.onNodeDrop({
-          nodeId,
-          newX: x,
-          newY: y,
-          zoom,
-          config: layoutConfig,
-          node,
+    const node = positionedNodes.find((candidate) => candidate.id === nodeId);
+    if (node && layoutPlugin.onNodeDrop) {
+      const result = layoutPlugin.onNodeDrop({
+        nodeId,
+        newX: x,
+        newY: y,
+        zoom,
+        viewport: { width: containerSize.width, height: containerSize.height },
+        viewportState: { zoom, panX, panY },
+        config: layoutConfig,
+        nodes: positionedNodes,
+        node,
+      });
+
+      if (node.metadata.__virtualOccurrence === true) {
+        await materializeRecurringOccurrence(nodeId, {
+          position: { x: result.position.x, y: result.position.y },
+          propertyUpdates: result.propertyUpdates,
         });
-        await setNodePosition(nodeId, JSON.stringify({ x: result.position.x, y: result.position.y }));
-        // TODO: Phase 8 ??save propertyUpdates to concept_properties via service
         return;
       }
+
+      await Promise.all([
+        setNodePosition(nodeId, JSON.stringify({ x: result.position.x, y: result.position.y })),
+        persistLayoutPropertyUpdates(result.propertyUpdates),
+      ]);
+      return;
     }
     await setNodePosition(nodeId, JSON.stringify({ x, y }));
-  }, [setNodePosition, layoutPlugin, positionedNodes, layoutConfig, zoom]);
+  }, [
+    containerSize.height,
+    containerSize.width,
+    layoutConfig,
+    layoutPlugin,
+    materializeRecurringOccurrence,
+    panX,
+    panY,
+    persistLayoutPropertyUpdates,
+    positionedNodes,
+    setNodePosition,
+    zoom,
+  ]);
 
   const handleNodeDragEndWithContainment = useCallback(async (nodeId: string, x: number, y: number) => {
-    if (layoutPlugin.onNodeDrop) {
-      const node = positionedNodes.find((n) => n.id === nodeId);
-      if (node) {
-        const result = layoutPlugin.onNodeDrop({
-          nodeId,
-          newX: x,
-          newY: y,
-          zoom,
-          config: layoutConfig,
-          node,
+    const projectedNode = positionedNodes.find((candidate) => candidate.id === nodeId);
+    if (projectedNode && layoutPlugin.onNodeDrop) {
+      const result = layoutPlugin.onNodeDrop({
+        nodeId,
+        newX: x,
+        newY: y,
+        zoom,
+        viewport: { width: containerSize.width, height: containerSize.height },
+        viewportState: { zoom, panX, panY },
+        config: layoutConfig,
+        nodes: positionedNodes,
+        node: projectedNode,
+      });
+
+      if (projectedNode.metadata.__virtualOccurrence === true) {
+        await materializeRecurringOccurrence(nodeId, {
+          position: { x: result.position.x, y: result.position.y, slotIndex: null },
+          propertyUpdates: result.propertyUpdates,
         });
-        await setNodePosition(nodeId, serializePositionJson(nodeId, result.position.x, result.position.y, null));
         return;
       }
+
+      await Promise.all([
+        setNodePosition(nodeId, serializePositionJson(nodeId, result.position.x, result.position.y, null)),
+        persistLayoutPropertyUpdates(result.propertyUpdates),
+      ]);
+      return;
     }
 
     if (layoutPlugin.key !== 'freeform' || !currentNetwork || !currentLayout) {
@@ -2609,9 +3119,34 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     serializePositionJson,
     setNodePosition,
     setPendingWorldPositionOverrides,
+    materializeRecurringOccurrence,
     worldPosMap,
     zoom,
   ]);
+
+  const handleSpanResizeEnd = useCallback(async (nodeId: string, edge: 'start' | 'end', dx: number) => {
+    if (!layoutPlugin.onSpanResize) return;
+    const node = positionedNodes.find((candidate) => candidate.id === nodeId);
+    if (!node) return;
+
+    const result = layoutPlugin.onSpanResize({
+      nodeId,
+      edge,
+      dx,
+      zoom,
+      config: layoutConfig,
+      node,
+    });
+
+    if (node.metadata.__virtualOccurrence === true) {
+      await materializeRecurringOccurrence(nodeId, {
+        propertyUpdates: result.propertyUpdates,
+      });
+      return;
+    }
+
+    await persistLayoutPropertyUpdates(result.propertyUpdates);
+  }, [layoutConfig, layoutPlugin, materializeRecurringOccurrence, persistLayoutPropertyUpdates, positionedNodes, zoom]);
 
   const handlePanChange = useCallback((newPanX: number, newPanY: number) => {
     setPanX(newPanX);
@@ -2661,7 +3196,14 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     syncSelectionFromNodeIds(nodeIds);
   }, [syncSelectionFromNodeIds]);
 
-  const { dragState, nodeDragOffset, handleWorkspaceMouseDown, handleNodeDragStart } = useInteraction({
+  const {
+    dragState,
+    nodeDragOffset,
+    spanResizeOffset,
+    handleWorkspaceMouseDown,
+    handleNodeDragStart,
+    handleSpanResizeStart,
+  } = useInteraction({
     containerRef: containerRef as React.RefObject<HTMLDivElement>,
     nodes: previewCardRenderNodes,
     zoom,
@@ -2672,6 +3214,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     constraints: interactionConstraints,
     onPanChange: handlePanChange,
     onNodeDragEnd: handleNodeDragEndWithContainment,
+    onSpanResizeEnd: handleSpanResizeEnd,
     onSelectionBox: handleSelectionBox,
     onWorkspaceClick: handleNetworkClick,
     onWheel: handleWheel,
@@ -3012,36 +3555,25 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
           edges={renderEdges}
           config={layoutConfig}
           nodeDragOffset={magneticNodeDragOffset}
+          spanResizeOffset={spanResizeOffset}
+          onSpanResizeStart={handleSpanResizeStart}
           onNodeClick={(id, event) => {
             setSelectedIds(new Set([id]));
+            const sourceNode = resolveSourceWorkspaceNode(id);
+            syncNodeSelection(sourceNode);
           }}
           onNodeDoubleClick={(id) => {
-            const node = nodes.find((n) => n.id === id);
-            if (node) openNodeObject(node);
+            void (async () => {
+              const node = await resolveRenderableWorkspaceNode(id);
+              if (node) openNodeObject(node);
+            })();
           }}
           onContextMenu={(type, x, y, targetId) => {
             if (type === 'node' && targetId) {
-              const node = nodes.find((n) => n.id === targetId);
-              if (node) {
-                const isConcept = node.object?.object_type === 'concept';
-                const isFile = node.object?.object_type === 'file';
-                const isNetwork = node.object?.object_type === 'network';
-                setContextMenu({
-                  x, y,
-                  nodeId: targetId,
-                  objectType: node.object?.object_type,
-                  objectTargetId: node.object?.ref_id,
-                  objectTitle: node.concept?.title
-                    ?? node.file?.path?.replace(/\\/g, '/').split('/').pop()
-                    ?? networkNames.get(node.object?.ref_id ?? '')
-                    ?? projectNames.get(node.object?.ref_id ?? '')
-                    ?? undefined,
-                  conceptId: isConcept ? node.object?.ref_id : undefined,
-                  fileId: isFile ? node.object?.ref_id : undefined,
-                  filePath: node.file?.path ?? undefined,
-                  networkId: isNetwork ? node.object?.ref_id : undefined,
-                });
-              }
+              void (async () => {
+                const node = await resolveRenderableWorkspaceNode(targetId);
+                if (node) showNodeContextMenu(node, x, y);
+              })();
             }
           }}
         />
@@ -3092,8 +3624,9 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
         }}
         onNodeClick={(id) => {
           if (edgeLinkingState) {
-            if (id !== edgeLinkingState.sourceNodeId && currentNetwork) {
-              createHierarchyConnection(edgeLinkingState.sourceNodeId, id).then((edge) => {
+            const sourceNodeId = resolveSourceWorkspaceNode(id)?.id ?? id;
+            if (sourceNodeId !== edgeLinkingState.sourceNodeId && currentNetwork) {
+              createHierarchyConnection(edgeLinkingState.sourceNodeId, sourceNodeId).then((edge) => {
                 if (!edge) return;
                 const srcNode = nodes.find((n) => n.id === edge.source_node_id);
                 const tgtNode = nodes.find((n) => n.id === edge.target_node_id);
@@ -3115,39 +3648,23 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
             setEdgeLinkingState(null);
             return;
           }
-          const node = nodes.find((n) => n.id === id);
+          const node = resolveSourceWorkspaceNode(id);
           setSelectedIds(new Set([id]));
           syncNodeSelection(node);
         }}
         onNodeDoubleClick={(id) => {
-          const node = nodes.find((n) => n.id === id);
-          if (node) openNodeObject(node);
+          void (async () => {
+            const node = await resolveRenderableWorkspaceNode(id);
+            if (node) openNodeObject(node);
+          })();
         }}
         onNodeDragStart={handleNodeDragStart}
         onContextMenu={(type, x, y, targetId) => {
           if (type === 'node' && targetId) {
-            const node = nodes.find((n) => n.id === targetId);
-            if (node) {
-              const isConcept = node.object?.object_type === 'concept';
-              const isFile = node.object?.object_type === 'file';
-              const isNetwork = node.object?.object_type === 'network';
-              setContextMenu({
-                x,
-                y,
-                nodeId: targetId,
-                objectType: node.object?.object_type,
-                objectTargetId: node.object?.ref_id,
-                objectTitle: node.concept?.title
-                  ?? node.file?.path?.replace(/\\/g, '/').split('/').pop()
-                  ?? networkNames.get(node.object?.ref_id ?? '')
-                  ?? projectNames.get(node.object?.ref_id ?? '')
-                  ?? undefined,
-                conceptId: isConcept ? node.object?.ref_id : undefined,
-                fileId: isFile ? node.object?.ref_id : undefined,
-                networkId: isNetwork ? node.object?.ref_id : undefined,
-                filePath: node.file?.path ?? undefined,
-              });
-            }
+            void (async () => {
+              const node = await resolveRenderableWorkspaceNode(targetId);
+              if (node) showNodeContextMenu(node, x, y);
+            })();
           }
         }}
       />
@@ -3245,7 +3762,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
                 slotIndex: typeof localPlacement?.slotIndex === 'number' ? localPlacement.slotIndex : undefined,
                 positionX: localPlacement ? localPlacement.x : worldX,
                 positionY: localPlacement ? localPlacement.y : worldY,
-                allowedArchetypeIds: isTimeline ? Object.keys(fieldMappingsConfig) : undefined,
+                allowedArchetypeIds: isTemporalLayout && temporalArchetypeIds.length > 0 ? temporalArchetypeIds : undefined,
               },
             });
           } : undefined}

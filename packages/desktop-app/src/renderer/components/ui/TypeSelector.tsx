@@ -31,6 +31,10 @@ interface TypeSelectorProps {
   value?: FieldType;
   onChange?: (type: FieldType) => void;
   allowedTypes?: FieldType[];
+  disabled?: boolean;
+  constraintLabel?: string;
+  constraintDescription?: string;
+  allowedTypeLabels?: string[];
 }
 
 interface TypeOption {
@@ -90,7 +94,15 @@ const CATEGORIES: TypeCategory[] = [
 
 const ALL_TYPES = CATEGORIES.flatMap((category) => category.types);
 
-export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange, allowedTypes }) => {
+export const TypeSelector: React.FC<TypeSelectorProps> = ({
+  value,
+  onChange,
+  allowedTypes,
+  disabled = false,
+  constraintLabel,
+  constraintDescription,
+  allowedTypeLabels,
+}) => {
   const { t } = useI18n();
   const fieldComplexityLevel = useSettingsStore((s) => s.fieldComplexityLevel);
   const setShowSettings = useUIStore((s) => s.setShowSettings);
@@ -158,6 +170,7 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange, all
   const hiddenTypeCount = Math.max(0, availableTypes.length - visibleTypes.length);
 
   const handleOpen = () => {
+    if (disabled) return;
     setOpen(!open);
     setSearch('');
     setActiveCategory('all');
@@ -178,19 +191,31 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange, all
     <>
       <div
         ref={triggerRef}
-        className={`flex min-w-[120px] items-center gap-1.5 rounded-lg border border-input bg-input px-2.5 py-1.5 text-sm outline-none transition-all duration-fast hover:border-strong focus:border-accent ${open ? 'border-accent' : ''} cursor-pointer`}
+        className={`flex min-w-[140px] items-start gap-2 rounded-lg border border-input bg-input px-2.5 py-1.5 text-sm outline-none transition-all duration-fast hover:border-strong focus:border-accent ${open ? 'border-accent' : ''} ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
         onClick={handleOpen}
         onKeyDown={handleKeyDown}
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-disabled={disabled}
       >
-        {selected && <selected.icon size={14} />}
-        <span className={`flex-1 text-left ${selected ? 'text-default' : 'text-muted'}`}>
-          {selected ? t(`typeSelector.${selected.i18nKey}` as TranslationKey) : t('typeSelector.type')}
-        </span>
-        <ChevronDown size={12} className={`text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+        {selected && (
+          <div className="mt-0.5 shrink-0">
+            <selected.icon size={14} />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className={`truncate text-left ${selected ? 'text-default' : 'text-muted'}`}>
+            {selected ? t(`typeSelector.${selected.i18nKey}` as TranslationKey) : t('typeSelector.type')}
+          </div>
+          {(constraintLabel || (allowedTypeLabels?.length ?? 0) > 0) && (
+            <div className="mt-0.5 truncate text-[11px] text-secondary">
+              {constraintLabel ?? allowedTypeLabels?.join(', ')}
+            </div>
+          )}
+        </div>
+        <ChevronDown size={12} className={`mt-0.5 shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
       {open && createPortal(
         <div
@@ -253,6 +278,33 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange, all
               />
             </div>
 
+            {(constraintLabel || constraintDescription || (allowedTypeLabels?.length ?? 0) > 0) && (
+              <div className="border-b border-subtle bg-surface-base px-3 py-2">
+                {constraintLabel && (
+                  <div className="text-xs font-medium text-default">
+                    {constraintLabel}
+                  </div>
+                )}
+                {constraintDescription && (
+                  <div className="mt-1 text-[11px] leading-relaxed text-secondary">
+                    {constraintDescription}
+                  </div>
+                )}
+                {(allowedTypeLabels?.length ?? 0) > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {allowedTypeLabels?.map((label) => (
+                      <span
+                        key={label}
+                        className="rounded bg-surface-hover px-2 py-0.5 text-[11px] text-secondary"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="min-h-0 flex-1 overflow-y-auto py-1">
               {displayTypes.length > 0 ? (
                 displayTypes.map((typeOption) => (
@@ -263,6 +315,7 @@ export const TypeSelector: React.FC<TypeSelectorProps> = ({ value, onChange, all
                       typeOption.value === value ? 'bg-accent-muted text-accent' : 'text-default'
                     }`}
                     onClick={() => {
+                      if (disabled) return;
                       onChange?.(typeOption.value);
                       setOpen(false);
                     }}

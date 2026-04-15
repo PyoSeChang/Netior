@@ -4,7 +4,38 @@ import { createObject, deleteObjectByRef } from './objects';
 import type { Concept, ConceptCreate, ConceptUpdate, Archetype, ArchetypeField } from '@netior/shared/types';
 import { renderTemplate, serializeToAgent } from '../services/concept-content-sync';
 
-type ArchetypeFieldRow = Omit<ArchetypeField, 'required'> & { required: number };
+type ArchetypeRow = Omit<Archetype, 'semantic_traits'> & { semantic_traits: string | null };
+type ArchetypeFieldRow = Omit<ArchetypeField, 'required' | 'slot_binding_locked' | 'generated_by_trait'> & {
+  required: number;
+  slot_binding_locked: number;
+  generated_by_trait: number;
+};
+
+function toArchetype(row: ArchetypeRow): Archetype {
+  let semanticTraits: Archetype['semantic_traits'] = [];
+  try {
+    const parsed = row.semantic_traits ? JSON.parse(row.semantic_traits) : [];
+    if (Array.isArray(parsed)) {
+      semanticTraits = parsed.filter((item): item is Archetype['semantic_traits'][number] => typeof item === 'string');
+    }
+  } catch {
+    semanticTraits = [];
+  }
+
+  return {
+    ...row,
+    semantic_traits: semanticTraits,
+  };
+}
+
+function toField(row: ArchetypeFieldRow): ArchetypeField {
+  return {
+    ...row,
+    required: !!row.required,
+    slot_binding_locked: !!row.slot_binding_locked,
+    generated_by_trait: !!row.generated_by_trait,
+  };
+}
 
 export function createConcept(data: ConceptCreate): Concept {
   const db = getDatabase();
@@ -19,15 +50,16 @@ export function createConcept(data: ConceptCreate): Concept {
   let fields: ArchetypeField[] = [];
 
   if (data.archetype_id) {
-    archetype = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(data.archetype_id) as Archetype | null;
-    if (archetype) {
+    const archetypeRow = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(data.archetype_id) as ArchetypeRow | null;
+    archetype = archetypeRow ? toArchetype(archetypeRow) : null;
+    if (archetypeRow && archetype) {
       if (!data.color && archetype.color) color = archetype.color;
       if (!data.icon && archetype.icon) icon = archetype.icon;
 
       // Load fields for template rendering
       const rows = db.prepare('SELECT * FROM archetype_fields WHERE archetype_id = ? ORDER BY sort_order')
         .all(archetype.id) as ArchetypeFieldRow[];
-      fields = rows.map((r) => ({ ...r, required: !!r.required }));
+      fields = rows.map(toField);
 
       // Render file_template as initial content
       if (archetype.file_template && !content) {
@@ -39,9 +71,35 @@ export function createConcept(data: ConceptCreate): Concept {
   }
 
   db.prepare(
-    `INSERT INTO concepts (id, project_id, archetype_id, title, color, icon, content, agent_content, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(id, data.project_id, data.archetype_id ?? null, data.title, color, icon, content, null, now, now);
+    `INSERT INTO concepts (
+      id,
+      project_id,
+      archetype_id,
+      recurrence_source_concept_id,
+      recurrence_occurrence_key,
+      title,
+      color,
+      icon,
+      content,
+      agent_content,
+      created_at,
+      updated_at
+    )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    data.project_id,
+    data.archetype_id ?? null,
+    data.recurrence_source_concept_id ?? null,
+    data.recurrence_occurrence_key ?? null,
+    data.title,
+    color,
+    icon,
+    content,
+    null,
+    now,
+    now,
+  );
 
   // Register object record
   createObject('concept', 'project', data.project_id, id);
@@ -73,9 +131,25 @@ export function updateConcept(id: string, data: ConceptUpdate): Concept | undefi
 
   const now = new Date().toISOString();
   db.prepare(
-    `UPDATE concepts SET archetype_id = ?, title = ?, color = ?, icon = ?, content = ?, agent_content = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE concepts
+     SET archetype_id = ?,
+         recurrence_source_concept_id = ?,
+         recurrence_occurrence_key = ?,
+         title = ?,
+         color = ?,
+         icon = ?,
+         content = ?,
+         agent_content = ?,
+         updated_at = ?
+     WHERE id = ?`,
   ).run(
     data.archetype_id !== undefined ? data.archetype_id : existing.archetype_id,
+    data.recurrence_source_concept_id !== undefined
+      ? data.recurrence_source_concept_id
+      : existing.recurrence_source_concept_id,
+    data.recurrence_occurrence_key !== undefined
+      ? data.recurrence_occurrence_key
+      : existing.recurrence_occurrence_key,
     data.title !== undefined ? data.title : existing.title,
     data.color !== undefined ? data.color : existing.color,
     data.icon !== undefined ? data.icon : existing.icon,

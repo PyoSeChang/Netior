@@ -1,17 +1,23 @@
 import React from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { WorkspaceLayoutPlugin } from '../types';
+import type { LayoutRenderNode, NodeDropContext, NodeDropResult, WorkspaceLayoutPlugin } from '../types';
 import { CalendarBackground } from './CalendarBackground';
 import { CalendarHeaderControls } from './CalendarHeaderControls';
 import {
   CALENDAR_DAY_HOUR_SLOT_HEIGHT,
   clampDayScrollPx,
   createCalendarSnapshot,
+  epochDaysToDate,
+  createCalendarFrame,
   normalizeCalendarView,
   normalizeFocusEpochDay,
   shiftFocusEpochDay,
   todayEpochDays,
 } from './calendar-utils';
+import {
+  formatTemporalSlotValueForWriteback,
+  projectRecurringTemporalNodes,
+} from '../temporal-utils';
 
 function resetViewport(setZoom: (zoom: number) => void, setPanX: (panX: number) => void, setPanY: (panY: number) => void): void {
   setZoom(1);
@@ -29,14 +35,81 @@ function focusNowViewport(setZoom: (zoom: number) => void, setPanX: (panX: numbe
   setPanY(targetScroll);
 }
 
+function getSlotFieldIds(node: LayoutRenderNode): Record<string, string> | undefined {
+  return node.metadata.__slotFieldIds as Record<string, string> | undefined;
+}
+
+function formatSlotValue(
+  node: LayoutRenderNode,
+  slot: 'start_at' | 'end_at',
+  epochDay: number,
+  minutesOfDay?: number,
+  forceDateOnly = false,
+): string {
+  return formatTemporalSlotValueForWriteback(node, slot, epochDay, minutesOfDay, forceDateOnly);
+}
+
+function resolveCalendarDuration(node: LayoutRenderNode): {
+  hasEnd: boolean;
+  startEpochDay: number;
+  endEpochDay: number;
+  startMinutes: number;
+  durationMinutes: number;
+  daySpan: number;
+  isTimed: boolean;
+} | null {
+  const startEpochDay = node.metadata.start_at as number | undefined;
+  if (startEpochDay == null) return null;
+
+  const endEpochDayRaw = node.metadata.end_at as number | undefined;
+  const hasEnd = endEpochDayRaw != null;
+  const endEpochDay = hasEnd ? Math.max(startEpochDay, endEpochDayRaw) : startEpochDay;
+  const startMinutes = typeof node.metadata.start_at_minutes === 'number' ? Number(node.metadata.start_at_minutes) : 0;
+  const endMinutes = typeof node.metadata.end_at_minutes === 'number' ? Number(node.metadata.end_at_minutes) : startMinutes;
+  const isAllDay = node.metadata.all_day === true;
+  const isTimed = !isAllDay && (node.metadata.start_at_has_time === true || node.metadata.end_at_has_time === true);
+
+  if (!isTimed) {
+    return {
+      hasEnd,
+      startEpochDay,
+      endEpochDay,
+      startMinutes: 0,
+      durationMinutes: Math.max(1440, (endEpochDay - startEpochDay + 1) * 1440),
+      daySpan: endEpochDay - startEpochDay,
+      isTimed: false,
+    };
+  }
+
+  const startAbsMinute = startEpochDay * 1440 + startMinutes;
+  let endAbsMinute: number;
+  if (hasEnd) {
+    endAbsMinute = endEpochDay * 1440 + endMinutes;
+  } else {
+    endAbsMinute = startAbsMinute + 60;
+  }
+  if (endAbsMinute <= startAbsMinute) {
+    endAbsMinute = startAbsMinute + 60;
+  }
+
+  return {
+    hasEnd,
+    startEpochDay,
+    endEpochDay,
+    startMinutes,
+    durationMinutes: endAbsMinute - startAbsMinute,
+    daySpan: endEpochDay - startEpochDay,
+    isTimed: true,
+  };
+}
+
+function snapMinutes(minutes: number): number {
+  return Math.max(0, Math.min(1439, Math.round(minutes / 15) * 15));
+}
+
 export const calendarPlugin: WorkspaceLayoutPlugin = {
   key: 'calendar',
   displayName: 'Calendar',
-
-  requiredFields: [
-    { key: 'time_value', type: 'date', label: 'layout.calendar.timeValue', required: true },
-    { key: 'end_time_value', type: 'date', label: 'layout.calendar.endTimeValue', required: false },
-  ],
 
   configSchema: [
     {
@@ -62,13 +135,12 @@ export const calendarPlugin: WorkspaceLayoutPlugin = {
       view: 'month',
       weekStartsOn: 'monday',
       _focusEpochDay: todayEpochDays(),
-      field_mappings: {},
     };
   },
 
   interactionConstraints: {
     panAxis: 'none',
-    nodeDragAxis: 'none',
+    nodeDragAxis: null,
     enableSpanResize: false,
   },
   viewportMode: 'screen',
@@ -81,7 +153,7 @@ export const calendarPlugin: WorkspaceLayoutPlugin = {
       persistViewport: false,
       interactionConstraints: {
         panAxis: 'none',
-        nodeDragAxis: 'none',
+        nodeDragAxis: null,
         enableSpanResize: false,
       },
       viewportReset: {
@@ -106,6 +178,17 @@ export const calendarPlugin: WorkspaceLayoutPlugin = {
       viewport,
       scrollPx: viewportState.panY,
     }).layout;
+  },
+
+  projectNodes({ nodes, viewport, config }) {
+    const frame = createCalendarFrame({
+      view: normalizeCalendarView(config.view),
+      focusEpochDay: normalizeFocusEpochDay(config._focusEpochDay),
+      weekStartsOn: config.weekStartsOn === 'sunday' ? 0 : 1,
+      width: viewport.width,
+      height: viewport.height,
+    });
+    return projectRecurringTemporalNodes(nodes, frame.rangeStart, frame.rangeEnd);
   },
 
   classifyNodes(nodes, config) {
@@ -141,6 +224,142 @@ export const calendarPlugin: WorkspaceLayoutPlugin = {
     });
     const maxScroll = snapshot.temporal?.scrollMax ?? 0;
     setPanY(clampDayScrollPx(panY + delta, maxScroll));
+  },
+
+  onNodeDrop(context: NodeDropContext): NodeDropResult {
+    const snapshot = createCalendarSnapshot({
+      nodes: context.nodes,
+      config: context.config,
+      viewport: context.viewport,
+      scrollPx: context.viewportState.panY,
+    });
+    const slotFieldIds = getSlotFieldIds(context.node);
+    const duration = resolveCalendarDuration(context.node);
+
+    if (!slotFieldIds?.start_at || !context.node.conceptId || !duration) {
+      return { position: { x: Math.round(context.newX), y: Math.round(context.newY) } };
+    }
+
+    const propertyUpdates: Array<{ conceptId: string; fieldId: string; value: string }> = [];
+    const pushUpdate = (fieldId: string | undefined, value: string | boolean) => {
+      if (!fieldId || !context.node.conceptId) return;
+      propertyUpdates.push({
+        conceptId: context.node.conceptId,
+        fieldId,
+        value: typeof value === 'boolean' ? String(value) : value,
+      });
+    };
+
+    if (snapshot.temporal) {
+      const targetColumn = snapshot.temporal.columns.find((column) => (
+        context.newX >= column.x && context.newX <= column.x + column.width
+      )) ?? snapshot.temporal.columns[0];
+
+      if (!targetColumn) {
+        return { position: { x: Math.round(context.newX), y: Math.round(context.newY) } };
+      }
+
+      const contentY = context.newY + snapshot.temporal.scrollPx;
+      const isAllDayDrop = contentY < snapshot.temporal.timelineTop;
+      const allDayFieldId = slotFieldIds.all_day;
+
+      if (isAllDayDrop) {
+        pushUpdate(slotFieldIds.start_at, formatSlotValue(context.node, 'start_at', targetColumn.epochDay, undefined, true));
+        if (duration.hasEnd && slotFieldIds.end_at) {
+          pushUpdate(
+            slotFieldIds.end_at,
+            formatSlotValue(context.node, 'end_at', targetColumn.epochDay + duration.daySpan, undefined, true),
+          );
+        }
+        if (allDayFieldId) {
+          pushUpdate(allDayFieldId, true);
+        }
+      } else {
+        const droppedMinute = snapMinutes(
+          (contentY - snapshot.temporal.timelineTop) / snapshot.temporal.pxPerMinute,
+        );
+        const nextStartAbsMinute = targetColumn.epochDay * 1440 + droppedMinute;
+        const nextStartEpochDay = Math.floor(nextStartAbsMinute / 1440);
+        const nextStartMinute = nextStartAbsMinute % 1440;
+
+        pushUpdate(
+          slotFieldIds.start_at,
+          formatSlotValue(context.node, 'start_at', nextStartEpochDay, nextStartMinute),
+        );
+
+        if (duration.hasEnd && slotFieldIds.end_at) {
+          const nextEndAbsMinute = nextStartAbsMinute + duration.durationMinutes;
+          const nextEndEpochDay = Math.floor(nextEndAbsMinute / 1440);
+          const nextEndMinute = nextEndAbsMinute % 1440;
+          pushUpdate(
+            slotFieldIds.end_at,
+            formatSlotValue(context.node, 'end_at', nextEndEpochDay, nextEndMinute),
+          );
+        }
+
+        if (allDayFieldId) {
+          pushUpdate(allDayFieldId, false);
+        }
+      }
+
+      return {
+        position: { x: Math.round(context.newX), y: Math.round(context.newY) },
+        propertyUpdates: propertyUpdates.length > 0 ? propertyUpdates : undefined,
+      };
+    }
+
+    const targetCell = snapshot.frame.cells.find((cell) => {
+      const left = cell.column * snapshot.frame.cellWidth;
+      const right = left + snapshot.frame.cellWidth;
+      const top = snapshot.frame.bodyTop + cell.row * snapshot.frame.cellHeight;
+      const bottom = top + snapshot.frame.cellHeight;
+      return context.newX >= left && context.newX <= right && context.newY >= top && context.newY <= bottom;
+    });
+
+    if (!targetCell) {
+      return { position: { x: Math.round(context.newX), y: Math.round(context.newY) } };
+    }
+
+    if (duration.isTimed) {
+      const nextStartAbsMinute = targetCell.epochDay * 1440 + duration.startMinutes;
+      const nextStartEpochDay = Math.floor(nextStartAbsMinute / 1440);
+      const nextStartMinute = nextStartAbsMinute % 1440;
+      pushUpdate(
+        slotFieldIds.start_at,
+        formatSlotValue(context.node, 'start_at', nextStartEpochDay, nextStartMinute),
+      );
+      if (duration.hasEnd && slotFieldIds.end_at) {
+        const nextEndAbsMinute = nextStartAbsMinute + duration.durationMinutes;
+        const nextEndEpochDay = Math.floor(nextEndAbsMinute / 1440);
+        const nextEndMinute = nextEndAbsMinute % 1440;
+        pushUpdate(
+          slotFieldIds.end_at,
+          formatSlotValue(context.node, 'end_at', nextEndEpochDay, nextEndMinute),
+        );
+      }
+      if (slotFieldIds.all_day) {
+        pushUpdate(slotFieldIds.all_day, false);
+      }
+    } else {
+      pushUpdate(
+        slotFieldIds.start_at,
+        formatSlotValue(context.node, 'start_at', targetCell.epochDay, undefined, true),
+      );
+      if (duration.hasEnd && slotFieldIds.end_at) {
+        pushUpdate(
+          slotFieldIds.end_at,
+          formatSlotValue(context.node, 'end_at', targetCell.epochDay + duration.daySpan, undefined, true),
+        );
+      }
+      if (slotFieldIds.all_day) {
+        pushUpdate(slotFieldIds.all_day, true);
+      }
+    }
+
+    return {
+      position: { x: Math.round(context.newX), y: Math.round(context.newY) },
+      propertyUpdates: propertyUpdates.length > 0 ? propertyUpdates : undefined,
+    };
   },
 
   controlItems: [

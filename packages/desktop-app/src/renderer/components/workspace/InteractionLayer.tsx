@@ -14,7 +14,7 @@ interface UseInteractionParams {
   constraints: InteractionConstraints;
   onPanChange: (panX: number, panY: number) => void;
   onNodeDragEnd: (nodeId: string, x: number, y: number) => Promise<void>;
-  onSpanResizeEnd?: (nodeId: string, edge: 'start' | 'end', newValue: number) => Promise<void>;
+  onSpanResizeEnd?: (nodeId: string, edge: 'start' | 'end', dx: number) => Promise<void>;
   onSelectionBox: (nodeIds: string[]) => void;
   onWorkspaceClick: () => void;
   onWheel: (e: WheelEvent) => void;
@@ -228,12 +228,7 @@ export function useInteraction({
         const dx = e.clientX - dragState.startX;
 
         if (Math.abs(dx) > 2 && onSpanResizeEnd) {
-          const PIXELS_PER_UNIT = 200;
-          const workspaceDx = dx / zoom;
-          const valueDelta = workspaceDx / PIXELS_PER_UNIT;
-          const newValue = Math.round(dragState.startValue + valueDelta);
-
-          onSpanResizeEnd(dragState.nodeId, dragState.edge, newValue).then(() =>
+          onSpanResizeEnd(dragState.nodeId, dragState.edge, dx).then(() =>
             setSpanResizeOffset(null),
           );
         } else {
