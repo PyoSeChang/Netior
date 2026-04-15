@@ -419,6 +419,7 @@ export function ObjectPanel(): JSX.Element {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [groupDialog, setGroupDialog] = useState<GroupDialogState | null>(null);
   const [inlineGroupCreate, setInlineGroupCreate] = useState<InlineGroupCreateState | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<PanelObjectType>>(() => new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const [selectionAnchorKey, setSelectionAnchorKey] = useState<string | null>(null);
@@ -559,7 +560,11 @@ export function ObjectPanel(): JSX.Element {
     }));
   }, [selectedTypes, search, conceptRows, networkRows, archetypeRows, relationTypeRows, contextRows]);
 
-  const visibleRows = useMemo(() => sections.flatMap((section) => section.rows), [sections]);
+  const hasSearch = search.trim().length > 0;
+  const visibleRows = useMemo(() => sections.flatMap((section) => {
+    if (hasSearch || !collapsedSections.has(section.objectType)) return section.rows;
+    return [];
+  }), [collapsedSections, hasSearch, sections]);
   const rowByKey = useMemo(() => new Map(visibleRows.map((row) => [row.key, row])), [visibleRows]);
   const primaryType = selectedTypes.length === 1 ? selectedTypes[0] : null;
   const canCreateObject = primaryType !== null && !(primaryType === 'context' && !currentNetwork);
@@ -567,7 +572,6 @@ export function ObjectPanel(): JSX.Element {
   const canCreateObjectType = (objectType: PanelObjectType): boolean => (
     objectType !== 'context' || currentNetwork !== null
   );
-  const hasSearch = search.trim().length > 0;
 
   useEffect(() => {
     if (visibleRows.length === 0) {
@@ -658,8 +662,27 @@ export function ObjectPanel(): JSX.Element {
     }
   };
 
+  const expandSection = (objectType: PanelObjectType) => {
+    setCollapsedSections((prev) => {
+      if (!prev.has(objectType)) return prev;
+      const next = new Set(prev);
+      next.delete(objectType);
+      return next;
+    });
+  };
+
+  const toggleSection = (objectType: PanelObjectType) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(objectType)) next.delete(objectType);
+      else next.add(objectType);
+      return next;
+    });
+  };
+
   const handleCreateObject = async (objectType: PanelObjectType | null = primaryType) => {
     if (!currentProject || !objectType || !canCreateObjectType(objectType)) return;
+    expandSection(objectType);
     switch (objectType) {
       case 'concept': {
         const draftId = `draft-${Date.now()}`;
@@ -726,6 +749,7 @@ export function ObjectPanel(): JSX.Element {
   };
 
   const handleCreateGroup = (kind: GroupablePanelObjectType, parentGroupId: string | null = null) => {
+    expandSection(kind);
     setInlineGroupCreate({ kind, parentGroupId, value: '' });
   };
 
@@ -1198,6 +1222,7 @@ export function ObjectPanel(): JSX.Element {
         {sections.map((section) => {
           const sectionDropKey = `section:${section.objectType}`;
           const sectionCanCreateGroup = isGroupableType(section.objectType);
+          const isSectionCollapsed = !hasSearch && collapsedSections.has(section.objectType);
           return (
             <div
               key={section.objectType}
@@ -1211,9 +1236,15 @@ export function ObjectPanel(): JSX.Element {
               onDrop={(event) => { void handleSectionDrop(event, section.objectType); }}
             >
               <div className="flex items-center gap-1 px-2 py-1">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-secondary">
-                  {section.label}
-                </div>
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-1 rounded px-1 py-0.5 text-left text-[11px] font-medium uppercase tracking-wide text-secondary transition-colors hover:bg-surface-hover hover:text-default"
+                  onClick={() => toggleSection(section.objectType)}
+                  aria-expanded={!isSectionCollapsed}
+                >
+                  {isSectionCollapsed ? <ChevronRight size={12} className="shrink-0" /> : <ChevronDown size={12} className="shrink-0" />}
+                  <span className="truncate">{section.label}</span>
+                </button>
                 <div className="flex items-center gap-1">
                   {canCreateObjectType(section.objectType) && (
                     <button
@@ -1237,146 +1268,150 @@ export function ObjectPanel(): JSX.Element {
                   )}
                 </div>
               </div>
-              {inlineGroupCreate && inlineGroupCreate.kind === section.objectType && inlineGroupCreate.parentGroupId === null && (
-                <InlineGroupInput
-                  value={inlineGroupCreate.value}
-                  onChange={(value) => setInlineGroupCreate((prev) => (prev ? { ...prev, value } : prev))}
-                  onSubmit={() => { void submitInlineGroupCreate(); }}
-                  onCancel={() => setInlineGroupCreate(null)}
-                  placeholder={tk('typeGroup.namePlaceholder')}
-                />
-              )}
-              <div className="flex flex-col gap-0.5">
-                {section.rows.map((row) => {
-                  const isSelected = selectedKeys.has(row.key);
-                  const isFocused = focusedKey === row.key;
-                  const isDropTarget = dropTargetKey === row.key;
-                  const rowIsActive = row.item.kind === 'object' ? (row.item.isActive ?? false) : false;
-                  const contextItem = row.item.kind === 'object' && row.item.objectType === 'context' ? row.item : null;
-                  return (
-                    <React.Fragment key={row.key}>
-                      <div
-                        ref={(element) => {
-                          if (element) rowRefs.current.set(row.key, element);
-                          else rowRefs.current.delete(row.key);
-                        }}
-                        className={`group flex items-center gap-2 rounded px-2 py-1.5 transition-colors ${
-                          isSelected
-                            ? 'bg-interactive-selected text-accent'
-                            : rowIsActive
-                              ? 'bg-accent-muted/60 text-accent'
-                              : 'hover:bg-surface-hover'
-                        } ${isFocused && !isSelected ? 'ring-1 ring-border-default' : ''} ${
-                          isDropTarget ? 'bg-accent-muted/70 ring-1 ring-accent' : ''
-                        } ${isGroupableType(row.item.objectType) ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                        style={{ paddingLeft: `${8 + row.depth * 16}px` }}
-                        draggable={isGroupableType(row.item.objectType)}
-                        onDragStart={(event) => handleDragStart(event, row)}
-                        onDragEnd={() => setDropTargetKey(null)}
-                        onDragEnter={(event) => handleRowDragOver(event, row)}
-                        onDragOver={(event) => handleRowDragOver(event, row)}
-                        onDragLeave={(event) => handleDragLeave(event, row.key)}
-                        onDrop={(event) => { void handleRowDrop(event, row); }}
-                        onClick={(event) => {
-                          selectRow(event, row);
-                          if (row.item.kind === 'group' && !(event.metaKey || event.ctrlKey || event.shiftKey)) {
-                            toggleGroup(row.item.id);
-                          }
-                        }}
-                        onDoubleClick={() => {
-                          if (row.item.kind === 'group') {
-                            toggleGroup(row.item.id);
-                            return;
-                          }
-                          void openItem(row.item);
-                        }}
-                        onContextMenu={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          if (!selectedKeys.has(row.key)) {
-                            setSelectedKeys(new Set([row.key]));
-                            setSelectionAnchorKey(row.key);
-                          }
-                          if (row.item.kind === 'object') {
-                            setNetworkObjectSelection({
-                              objectType: row.item.objectType,
-                              id: row.item.id,
-                              title: row.item.title,
-                            });
-                          } else {
-                            setNetworkObjectSelection(null);
-                          }
-                          setFocusedKey(row.key);
-                          setContextMenu({ x: event.clientX, y: event.clientY, row });
-                        }}
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                          {isGroupableType(row.item.objectType) && <GripVertical size={12} className="shrink-0 text-muted opacity-0 group-hover:opacity-100" />}
-                          {renderLeadingVisual(row)}
-                          <div className="min-w-0 flex-1">
-                            <div className={`truncate text-sm ${rowIsActive || isSelected ? 'text-accent' : 'text-default'}`}>
-                              {row.item.title}
-                            </div>
-                            <div className="truncate text-[11px] text-muted">{row.item.subtitle}</div>
-                          </div>
-                        </div>
-                        {contextItem && (
-                          <button
-                            type="button"
-                            className={`rounded p-1 transition-colors ${
-                              contextItem.isActive
-                                ? 'text-accent'
-                                : 'text-muted opacity-0 group-hover:opacity-100 hover:text-default'
-                            }`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setActiveContext(contextItem.isActive ? null : contextItem.id);
+              {!isSectionCollapsed && (
+                <>
+                  {inlineGroupCreate && inlineGroupCreate.kind === section.objectType && inlineGroupCreate.parentGroupId === null && (
+                    <InlineGroupInput
+                      value={inlineGroupCreate.value}
+                      onChange={(value) => setInlineGroupCreate((prev) => (prev ? { ...prev, value } : prev))}
+                      onSubmit={() => { void submitInlineGroupCreate(); }}
+                      onCancel={() => setInlineGroupCreate(null)}
+                      placeholder={tk('typeGroup.namePlaceholder')}
+                    />
+                  )}
+                  <div className="flex flex-col gap-0.5">
+                    {section.rows.map((row) => {
+                      const isSelected = selectedKeys.has(row.key);
+                      const isFocused = focusedKey === row.key;
+                      const isDropTarget = dropTargetKey === row.key;
+                      const rowIsActive = row.item.kind === 'object' ? (row.item.isActive ?? false) : false;
+                      const contextItem = row.item.kind === 'object' && row.item.objectType === 'context' ? row.item : null;
+                      return (
+                        <React.Fragment key={row.key}>
+                          <div
+                            ref={(element) => {
+                              if (element) rowRefs.current.set(row.key, element);
+                              else rowRefs.current.delete(row.key);
                             }}
-                            title={contextItem.isActive ? tk('context.deactivate') : tk('context.activate')}
+                            className={`group flex items-center gap-2 rounded px-2 py-1.5 transition-colors ${
+                              isSelected
+                                ? 'bg-interactive-selected text-accent'
+                                : rowIsActive
+                                  ? 'bg-accent-muted/60 text-accent'
+                                  : 'hover:bg-surface-hover'
+                            } ${isFocused && !isSelected ? 'ring-1 ring-border-default' : ''} ${
+                              isDropTarget ? 'bg-accent-muted/70 ring-1 ring-accent' : ''
+                            } ${isGroupableType(row.item.objectType) ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                            style={{ paddingLeft: `${8 + row.depth * 16}px` }}
+                            draggable={isGroupableType(row.item.objectType)}
+                            onDragStart={(event) => handleDragStart(event, row)}
+                            onDragEnd={() => setDropTargetKey(null)}
+                            onDragEnter={(event) => handleRowDragOver(event, row)}
+                            onDragOver={(event) => handleRowDragOver(event, row)}
+                            onDragLeave={(event) => handleDragLeave(event, row.key)}
+                            onDrop={(event) => { void handleRowDrop(event, row); }}
+                            onClick={(event) => {
+                              selectRow(event, row);
+                              if (row.item.kind === 'group' && !(event.metaKey || event.ctrlKey || event.shiftKey)) {
+                                toggleGroup(row.item.id);
+                              }
+                            }}
+                            onDoubleClick={() => {
+                              if (row.item.kind === 'group') {
+                                toggleGroup(row.item.id);
+                                return;
+                              }
+                              void openItem(row.item);
+                            }}
+                            onContextMenu={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              if (!selectedKeys.has(row.key)) {
+                                setSelectedKeys(new Set([row.key]));
+                                setSelectionAnchorKey(row.key);
+                              }
+                              if (row.item.kind === 'object') {
+                                setNetworkObjectSelection({
+                                  objectType: row.item.objectType,
+                                  id: row.item.id,
+                                  title: row.item.title,
+                                });
+                              } else {
+                                setNetworkObjectSelection(null);
+                              }
+                              setFocusedKey(row.key);
+                              setContextMenu({ x: event.clientX, y: event.clientY, row });
+                            }}
                           >
-                            {contextItem.isActive ? <Eye size={13} /> : <EyeOff size={13} />}
-                          </button>
-                        )}
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              {isGroupableType(row.item.objectType) && <GripVertical size={12} className="shrink-0 text-muted opacity-0 group-hover:opacity-100" />}
+                              {renderLeadingVisual(row)}
+                              <div className="min-w-0 flex-1">
+                                <div className={`truncate text-sm ${rowIsActive || isSelected ? 'text-accent' : 'text-default'}`}>
+                                  {row.item.title}
+                                </div>
+                                <div className="truncate text-[11px] text-muted">{row.item.subtitle}</div>
+                              </div>
+                            </div>
+                            {contextItem && (
+                              <button
+                                type="button"
+                                className={`rounded p-1 transition-colors ${
+                                  contextItem.isActive
+                                    ? 'text-accent'
+                                    : 'text-muted opacity-0 group-hover:opacity-100 hover:text-default'
+                                }`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setActiveContext(contextItem.isActive ? null : contextItem.id);
+                                }}
+                                title={contextItem.isActive ? tk('context.deactivate') : tk('context.activate')}
+                              >
+                                {contextItem.isActive ? <Eye size={13} /> : <EyeOff size={13} />}
+                              </button>
+                            )}
+                          </div>
+                          {inlineGroupCreate
+                            && row.item.kind === 'group'
+                            && inlineGroupCreate.kind === row.item.objectType
+                            && inlineGroupCreate.parentGroupId === row.item.id && (
+                              <InlineGroupInput
+                                value={inlineGroupCreate.value}
+                                onChange={(value) => setInlineGroupCreate((prev) => (prev ? { ...prev, value } : prev))}
+                                onSubmit={() => { void submitInlineGroupCreate(); }}
+                                onCancel={() => setInlineGroupCreate(null)}
+                                placeholder={tk('typeGroup.namePlaceholder')}
+                                depth={row.depth + 1}
+                              />
+                            )}
+                        </React.Fragment>
+                      );
+                    })}
+                    {section.rows.length === 0 && (
+                      <div className="mx-2 rounded border border-dashed border-subtle px-2.5 py-2 text-[11px] text-muted">
+                        {hasSearch && section.totalRows > 0
+                          ? tk('objectPanel.noSearchResults')
+                          : t('common.none' as TranslationKey)}
                       </div>
-                      {inlineGroupCreate
-                        && row.item.kind === 'group'
-                        && inlineGroupCreate.kind === row.item.objectType
-                        && inlineGroupCreate.parentGroupId === row.item.id && (
-                          <InlineGroupInput
-                            value={inlineGroupCreate.value}
-                            onChange={(value) => setInlineGroupCreate((prev) => (prev ? { ...prev, value } : prev))}
-                            onSubmit={() => { void submitInlineGroupCreate(); }}
-                            onCancel={() => setInlineGroupCreate(null)}
-                            placeholder={tk('typeGroup.namePlaceholder')}
-                            depth={row.depth + 1}
-                          />
-                        )}
-                    </React.Fragment>
-                  );
-                })}
-                {section.rows.length === 0 && (
-                  <div className="mx-2 rounded border border-dashed border-subtle px-2.5 py-2 text-[11px] text-muted">
-                    {hasSearch && section.totalRows > 0
-                      ? tk('objectPanel.noSearchResults')
-                      : t('common.none' as TranslationKey)}
+                    )}
                   </div>
-                )}
-              </div>
-              {sectionCanCreateGroup && draggingObjectType === section.objectType && (
-                <div
-                  className={`mx-2 mt-1 rounded border border-dashed px-2 py-1 text-[11px] transition-colors ${
-                    dropTargetKey === sectionDropKey
-                      ? 'border-accent bg-accent-muted text-accent'
-                      : 'border-subtle text-muted'
-                  }`}
-                  onDragEnter={(event) => handleSectionDragOver(event, section.objectType)}
-                  onDragOverCapture={(event) => handleSectionDragOver(event, section.objectType)}
-                  onDragOver={(event) => handleSectionDragOver(event, section.objectType)}
-                  onDragLeave={(event) => handleDragLeave(event, sectionDropKey)}
-                  onDrop={(event) => { void handleSectionDrop(event, section.objectType); }}
-                >
-                  {tk('objectPanel.dropToRoot')}
-                </div>
+                  {sectionCanCreateGroup && draggingObjectType === section.objectType && (
+                    <div
+                      className={`mx-2 mt-1 rounded border border-dashed px-2 py-1 text-[11px] transition-colors ${
+                        dropTargetKey === sectionDropKey
+                          ? 'border-accent bg-accent-muted text-accent'
+                          : 'border-subtle text-muted'
+                      }`}
+                      onDragEnter={(event) => handleSectionDragOver(event, section.objectType)}
+                      onDragOverCapture={(event) => handleSectionDragOver(event, section.objectType)}
+                      onDragOver={(event) => handleSectionDragOver(event, section.objectType)}
+                      onDragLeave={(event) => handleDragLeave(event, sectionDropKey)}
+                      onDrop={(event) => { void handleSectionDrop(event, section.objectType); }}
+                    >
+                      {tk('objectPanel.dropToRoot')}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
