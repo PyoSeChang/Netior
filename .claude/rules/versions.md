@@ -27,9 +27,9 @@ packages:
     impact: local
     contracts: []
   desktop-app:
-    version: "1.1.24"
-    type: patch
-    summary: "하이퍼 터미널 기반과 데스크톱 패키징 정리, 에디터 탭 회귀 수정"
+    version: "1.2.0"
+    type: minor
+    summary: "semantic temporal layout과 calendar workflow, recurring occurrence 실체화를 포함한 일정 기반 편집 체계를 도입"
     impact: local
     contracts: []
   narre-eval:
