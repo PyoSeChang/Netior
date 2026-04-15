@@ -132,7 +132,10 @@ function buildDisplayBlockId(prefix = 'display'): string {
 function cloneCard(card: NarreCard): NarreCard {
   switch (card.type) {
     case 'draft':
-      return { ...card };
+      return {
+        ...card,
+        ...(card.submittedResponse ? { submittedResponse: { ...card.submittedResponse } } : {}),
+      };
     case 'proposal':
       return {
         ...card,
@@ -148,6 +151,9 @@ function cloneCard(card: NarreCard): NarreCard {
       return {
         ...card,
         options: card.options.map((option) => ({ ...option })),
+        ...(card.submittedResponse
+          ? { submittedResponse: { ...card.submittedResponse, selected: [...card.submittedResponse.selected] } }
+          : {}),
       };
     case 'summary':
       return {
@@ -394,6 +400,57 @@ function appendStreamingCard(state: NarreSessionState, card: NarreCard): void {
       card: cloneCard(card),
     },
   ];
+}
+
+function updateCardResponseInBlocks(
+  blocks: NarreTranscriptBlock[],
+  toolCallId: string,
+  response: unknown,
+): boolean {
+  let updated = false;
+
+  for (const block of blocks) {
+    if (block.type !== 'card' || block.card.toolCallId !== toolCallId) {
+      continue;
+    }
+
+    switch (block.card.type) {
+      case 'permission': {
+        const actionKey = response && typeof response === 'object'
+          ? (response as { action?: unknown }).action
+          : undefined;
+        if (typeof actionKey === 'string' && actionKey.length > 0) {
+          block.card.resolvedActionKey = actionKey;
+          updated = true;
+        }
+        break;
+      }
+      case 'draft':
+        if (response && typeof response === 'object') {
+          block.card.submittedResponse = {
+            ...(response as { action: 'confirm' | 'feedback'; content: string; feedback?: string }),
+          };
+          updated = true;
+        }
+        break;
+      case 'interview':
+        if (response && typeof response === 'object') {
+          const candidate = response as { selected?: unknown; text?: unknown };
+          block.card.submittedResponse = {
+            selected: Array.isArray(candidate.selected)
+              ? candidate.selected.filter((value): value is string => typeof value === 'string')
+              : [],
+            ...(typeof candidate.text === 'string' && candidate.text.trim().length > 0 ? { text: candidate.text } : {}),
+          };
+          updated = true;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  return updated;
 }
 
 function finalizeAssistantStream(state: NarreSessionState): void {
@@ -703,6 +760,34 @@ export function setNarreSessionInterrupting(
   }
   state.isInterrupting = isInterrupting;
   notify();
+}
+
+export function updateNarreCardResponse(
+  projectId: string,
+  sessionId: string | null,
+  toolCallId: string,
+  response: unknown,
+): void {
+  const state = ensureSessionState(projectId, sessionId);
+  let updated = updateCardResponseInBlocks(state.streamingBlocks, toolCallId, response);
+
+  if (!updated) {
+    for (let index = state.messages.length - 1; index >= 0; index -= 1) {
+      const message = state.messages[index];
+      if (message.role !== 'assistant') {
+        continue;
+      }
+
+      if (updateCardResponseInBlocks(message.blocks, toolCallId, response)) {
+        updated = true;
+        break;
+      }
+    }
+  }
+
+  if (updated) {
+    notify();
+  }
 }
 
 export function cancelPendingNarreAssistantTurn(

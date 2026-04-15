@@ -1,6 +1,4 @@
-import React, { useState, useCallback } from 'react';
-import { AlertTriangle } from 'lucide-react';
-import { getNarreToolMetadata } from '@netior/shared/constants';
+import React, { useCallback, useMemo, useState } from 'react';
 import type { NarrePermissionCard } from '@netior/shared/types';
 import { useI18n } from '../../../../hooks/useI18n';
 import { Badge } from '../../../ui/Badge';
@@ -9,21 +7,8 @@ import { Button } from '../../../ui/Button';
 interface PermissionCardProps {
   card: NarrePermissionCard;
   onAction: (actionKey: string) => Promise<void> | void;
-}
-
-const TOOL_RE = /tool "([^"]+)"/i;
-
-function formatPermissionMessage(
-  card: NarrePermissionCard,
-  t: ReturnType<typeof useI18n>['t'],
-): string {
-  const match = card.message.match(TOOL_RE);
-  if (!match) {
-    return card.message;
-  }
-
-  const toolLabel = getNarreToolMetadata(match[1]).displayName;
-  return t('narre.card.permissionRequest' as never, { tool: toolLabel } as never);
+  submittedResponse?: unknown;
+  compact?: boolean;
 }
 
 function formatPermissionActionLabel(
@@ -31,68 +16,145 @@ function formatPermissionActionLabel(
   t: ReturnType<typeof useI18n>['t'],
 ): string {
   switch (action.key.toLowerCase()) {
+    case 'accept_project':
+    case 'allow_project':
+    case 'always_allow_project':
+      return t('narre.card.permissionAllowProject' as never);
     case 'approve':
     case 'allow':
     case 'confirm':
-      return t('narre.card.permissionConfirm');
+    case 'accept':
+      return t('narre.card.permissionAllow' as never);
     case 'decline':
     case 'deny':
     case 'cancel':
-      return t('narre.card.permissionCancel');
+      return t('narre.card.permissionDecline' as never);
     default:
       return action.label;
+  }
+}
+
+function formatPermissionDecisionLabel(
+  actionKey: string,
+  t: ReturnType<typeof useI18n>['t'],
+): string {
+  switch (actionKey.toLowerCase()) {
+    case 'accept_project':
+    case 'allow_project':
+    case 'always_allow_project':
+      return t('narre.card.permissionAllowedProject' as never);
+    case 'approve':
+    case 'allow':
+    case 'confirm':
+    case 'accept':
+      return t('narre.card.permissionAllowed' as never);
+    case 'decline':
+    case 'deny':
+    case 'cancel':
+      return t('narre.card.permissionDeclined' as never);
+    default:
+      return actionKey;
+  }
+}
+
+function getPermissionDecisionVariant(actionKey: string | null): 'success' | 'error' | 'default' {
+  if (!actionKey) {
+    return 'default';
+  }
+
+  switch (actionKey.toLowerCase()) {
+    case 'accept_project':
+    case 'allow_project':
+    case 'always_allow_project':
+    case 'approve':
+    case 'allow':
+    case 'confirm':
+    case 'accept':
+      return 'success';
+    case 'decline':
+    case 'deny':
+    case 'cancel':
+      return 'error';
+    default:
+      return 'default';
   }
 }
 
 export function PermissionCard({
   card,
   onAction,
+  submittedResponse,
+  compact = false,
 }: PermissionCardProps): JSX.Element {
   const { t } = useI18n();
   const [status, setStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
+  const [submittedActionKey, setSubmittedActionKey] = useState<string | null>(null);
+
+  const resolvedActionKey = useMemo(() => {
+    if (submittedActionKey) {
+      return submittedActionKey;
+    }
+
+    if (typeof card.resolvedActionKey === 'string' && card.resolvedActionKey.length > 0) {
+      return card.resolvedActionKey;
+    }
+
+    if (!submittedResponse || typeof submittedResponse !== 'object') {
+      return null;
+    }
+
+    const candidate = submittedResponse as { action?: unknown };
+    return typeof candidate.action === 'string' ? candidate.action : null;
+  }, [card.resolvedActionKey, submittedActionKey, submittedResponse]);
+
+  const isSubmitted = status === 'submitted' || resolvedActionKey !== null;
 
   const handleAction = useCallback(async (actionKey: string) => {
-    if (status === 'submitting' || status === 'submitted') {
+    if (status === 'submitting' || isSubmitted) {
       return;
     }
 
     setStatus('submitting');
     try {
       await onAction(actionKey);
+      setSubmittedActionKey(actionKey);
       setStatus('submitted');
     } catch {
       setStatus('error');
     }
-  }, [onAction, status]);
+  }, [isSubmitted, onAction, status]);
+
+  const submittedActionLabel = resolvedActionKey
+    ? formatPermissionDecisionLabel(resolvedActionKey, t)
+    : null;
+  const submittedActionVariant = getPermissionDecisionVariant(resolvedActionKey);
 
   return (
-    <div className="mt-2 rounded-lg border border-subtle bg-surface-card p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2">
-          <AlertTriangle
-            size={16}
-            className="shrink-0 mt-0.5 text-status-warning"
-          />
-          <p className="text-xs text-default">{formatPermissionMessage(card, t)}</p>
+    <div className={compact ? 'pt-0.5' : 'px-3 py-3'}>
+      {isSubmitted ? (
+        <div className="flex items-center gap-2">
+          {submittedActionLabel && (
+            <Badge variant={submittedActionVariant}>
+              {submittedActionLabel}
+            </Badge>
+          )}
         </div>
-        {status === 'submitting' && <Badge variant="warning">{t('narre.card.submitting')}</Badge>}
-        {status === 'submitted' && <Badge variant="success">{t('narre.card.submitted')}</Badge>}
-        {status === 'error' && <Badge variant="error">{t('narre.card.submitFailed')}</Badge>}
-      </div>
-
-      <div className="flex justify-end gap-2 mt-3">
-        {card.actions.map((action) => (
-          <Button
-            key={action.key}
-            variant={action.variant === 'danger' ? 'danger' : 'primary'}
-            size="sm"
-            disabled={status === 'submitting' || status === 'submitted'}
-            onClick={() => { void handleAction(action.key); }}
-          >
-            {formatPermissionActionLabel(action, t)}
-          </Button>
-        ))}
-      </div>
+      ) : (
+        <div className={`flex flex-wrap items-center gap-1.5 ${compact ? 'justify-start' : 'justify-end'}`}>
+          {status === 'error' && <Badge variant="error">{t('narre.card.submitFailed')}</Badge>}
+          {card.actions.map((action) => (
+            <Button
+              key={action.key}
+              variant={action.variant === 'danger' ? 'danger' : 'primary'}
+              size="sm"
+              disabled={status === 'submitting'}
+              onClick={() => { void handleAction(action.key); }}
+            >
+              {formatPermissionActionLabel(action, t)}
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

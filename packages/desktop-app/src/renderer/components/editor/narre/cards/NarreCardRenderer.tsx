@@ -9,11 +9,13 @@ import { SummaryCard } from './SummaryCard';
 interface NarreCardRendererProps {
   card: NarreCard;
   onRespond: (toolCallId: string, response: unknown) => Promise<void> | void;
+  submittedResponse?: unknown;
 }
 
 export function NarreCardRenderer({
   card,
   onRespond,
+  submittedResponse,
 }: NarreCardRendererProps): JSX.Element {
   switch (card.type) {
     case 'draft': {
@@ -24,6 +26,7 @@ export function NarreCardRenderer({
         <DraftCard
           card={card}
           onRespond={handleDraftResponse}
+          embedded
         />
       );
     }
@@ -47,14 +50,18 @@ export function NarreCardRenderer({
         return onRespond(card.toolCallId, { action: actionKey });
       };
       return (
-        <PermissionCard card={card} onAction={handlePermissionAction} />
+        <PermissionCard
+          card={card}
+          onAction={handlePermissionAction}
+          submittedResponse={submittedResponse}
+        />
       );
     }
     case 'interview': {
       const handleInterviewSelect = (response: NarreInterviewResponse) => {
         return onRespond(card.toolCallId, response);
       };
-      return <InterviewCard card={card} onSelect={handleInterviewSelect} />;
+      return <InterviewCard card={card} onSelect={handleInterviewSelect} embedded />;
     }
     case 'summary':
       return <SummaryCard card={card} />;

@@ -8,6 +8,7 @@ import { TextArea } from '../../../ui/TextArea';
 interface DraftCardProps {
   card: NarreDraftCard;
   onRespond: (response: NarreDraftResponse) => Promise<void> | void;
+  embedded?: boolean;
 }
 
 function normalizeDraftContent(value: string): string {
@@ -17,20 +18,33 @@ function normalizeDraftContent(value: string): string {
 export function DraftCard({
   card,
   onRespond,
+  embedded = false,
 }: DraftCardProps): JSX.Element {
   const { t } = useI18n();
   const editorRef = useRef<HTMLDivElement>(null);
-  const [content, setContent] = useState(card.content);
-  const [feedback, setFeedback] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
+  const submittedResponse = card.submittedResponse;
+  const [content, setContent] = useState(submittedResponse?.content ?? card.content);
+  const [feedback, setFeedback] = useState(submittedResponse?.feedback ?? '');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>(
+    submittedResponse ? 'submitted' : 'idle',
+  );
+  const isSubmitted = status === 'submitted' || Boolean(submittedResponse);
 
   useEffect(() => {
-    setContent(card.content);
-  }, [card.content]);
+    setContent(submittedResponse?.content ?? card.content);
+  }, [card.content, submittedResponse]);
+
+  useEffect(() => {
+    setFeedback(submittedResponse?.feedback ?? '');
+  }, [submittedResponse]);
+
+  useEffect(() => {
+    setStatus(submittedResponse ? 'submitted' : 'idle');
+  }, [submittedResponse]);
 
   useEffect(() => {
     const el = editorRef.current;
-    if (!el) {
+    if (!el || isSubmitted) {
       return;
     }
 
@@ -39,19 +53,19 @@ export function DraftCard({
     }
 
     el.innerText = content;
-  }, [content]);
+  }, [content, isSubmitted]);
 
   const handleEditorInput = useCallback(() => {
     const el = editorRef.current;
-    if (!el) {
+    if (!el || isSubmitted) {
       return;
     }
 
     setContent(normalizeDraftContent(el.innerText || ''));
-  }, []);
+  }, [isSubmitted]);
 
   const handleConfirm = useCallback(async () => {
-    if (status === 'submitting' || status === 'submitted') {
+    if (status === 'submitting' || isSubmitted) {
       return;
     }
 
@@ -65,10 +79,10 @@ export function DraftCard({
     } catch {
       setStatus('error');
     }
-  }, [content, onRespond, status]);
+  }, [content, isSubmitted, onRespond, status]);
 
   const handleFeedback = useCallback(async () => {
-    if (status === 'submitting' || status === 'submitted') {
+    if (status === 'submitting' || isSubmitted) {
       return;
     }
 
@@ -83,15 +97,15 @@ export function DraftCard({
     } catch {
       setStatus('error');
     }
-  }, [content, feedback, onRespond, status]);
+  }, [content, feedback, isSubmitted, onRespond, status]);
 
   const feedbackDisabled = status === 'submitting'
-    || status === 'submitted'
+    || isSubmitted
     || (content.trim() === card.content.trim() && feedback.trim().length === 0);
 
   return (
-    <div className="mt-2 rounded-lg border border-subtle bg-surface-card p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
+    <div className={embedded ? 'space-y-3' : 'mt-2 rounded-lg border border-subtle bg-surface-card p-3'}>
+      <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           {card.title ? (
             <h4 className="truncate text-xs font-semibold text-default">
@@ -101,54 +115,69 @@ export function DraftCard({
           <Badge>{card.format ?? 'markdown'}</Badge>
         </div>
         {status === 'submitting' && <Badge variant="warning">{t('narre.card.submitting')}</Badge>}
-        {status === 'submitted' && <Badge variant="success">{t('narre.card.submitted')}</Badge>}
+        {isSubmitted && <Badge variant="success">{t('narre.card.submitted')}</Badge>}
         {status === 'error' && <Badge variant="error">{t('narre.card.submitFailed')}</Badge>}
       </div>
 
-      <div className="relative">
-        <div
-          ref={editorRef}
-          contentEditable={status !== 'submitted'}
-          role="textbox"
-          className="min-h-[140px] whitespace-pre-wrap rounded-lg border border-input bg-input px-3 py-2 text-sm text-default outline-none transition-all hover:border-strong focus:border-accent"
-          onInput={handleEditorInput}
-          suppressContentEditableWarning
-        />
-        {content.trim().length === 0 && (
-          <div className="pointer-events-none absolute left-3 top-2 text-sm text-muted">
-            {card.placeholder ?? t('narre.card.draftPlaceholder')}
+      {isSubmitted ? (
+        <div className="space-y-2">
+          <div className="whitespace-pre-wrap rounded-lg border border-subtle bg-surface-base px-3 py-2 text-sm text-default">
+            {content.trim().length > 0 ? content : card.content}
           </div>
-        )}
-      </div>
+          {feedback.trim().length > 0 && (
+            <div className="rounded-lg border border-subtle bg-surface-base px-3 py-2">
+              <div className="mb-1 text-[11px] text-muted">{card.feedbackLabel ?? t('narre.card.draftFeedback')}</div>
+              <div className="whitespace-pre-wrap text-sm text-secondary">{feedback}</div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="relative">
+            <div
+              ref={editorRef}
+              contentEditable
+              role="textbox"
+              className="min-h-[140px] whitespace-pre-wrap rounded-lg border border-input bg-input px-3 py-2 text-sm text-default outline-none transition-all hover:border-strong focus:border-accent"
+              onInput={handleEditorInput}
+              suppressContentEditableWarning
+            />
+            {content.trim().length === 0 && (
+              <div className="pointer-events-none absolute left-3 top-2 text-sm text-muted">
+                {card.placeholder ?? t('narre.card.draftPlaceholder')}
+              </div>
+            )}
+          </div>
 
-      <div className="mt-2">
-        <TextArea
-          value={feedback}
-          onChange={(event) => setFeedback(event.target.value)}
-          placeholder={card.feedbackPlaceholder ?? t('narre.card.draftFeedbackPlaceholder')}
-          disabled={status === 'submitted'}
-          rows={3}
-        />
-      </div>
+          <div>
+            <TextArea
+              value={feedback}
+              onChange={(event) => setFeedback(event.target.value)}
+              placeholder={card.feedbackPlaceholder ?? t('narre.card.draftFeedbackPlaceholder')}
+              rows={3}
+            />
+          </div>
 
-      <div className="mt-3 flex justify-end gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={feedbackDisabled}
-          onClick={() => { void handleFeedback(); }}
-        >
-          {card.feedbackLabel ?? t('narre.card.draftFeedback')}
-        </Button>
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={status === 'submitting' || status === 'submitted' || content.trim().length === 0}
-          onClick={() => { void handleConfirm(); }}
-        >
-          {card.confirmLabel ?? t('narre.card.draftConfirm')}
-        </Button>
-      </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={feedbackDisabled}
+              onClick={() => { void handleFeedback(); }}
+            >
+              {card.feedbackLabel ?? t('narre.card.draftFeedback')}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={status === 'submitting' || content.trim().length === 0}
+              onClick={() => { void handleConfirm(); }}
+            >
+              {card.confirmLabel ?? t('narre.card.draftConfirm')}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

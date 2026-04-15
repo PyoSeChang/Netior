@@ -1,7 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback, useSyncExternalStore } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { SLASH_COMMANDS } from '@netior/shared/constants';
-import type { NarreMention, NarreTranscriptBlock } from '@netior/shared/types';
+import type {
+  NarreCard,
+  NarreMention,
+  NarreTranscriptBlock,
+} from '@netior/shared/types';
 import { narreService } from '../../../services/narre-service';
 import { useI18n } from '../../../hooks/useI18n';
 import {
@@ -19,6 +23,7 @@ import {
   setNarreSessionPendingCommand,
   setNarreSessionInterrupting,
   setNarreSessionDraft,
+  updateNarreCardResponse,
   subscribeNarreSessionStore,
   type NarreDisplayMessage,
 } from '../../../lib/narre-session-store';
@@ -26,7 +31,8 @@ import { IconButton } from '../../ui/IconButton';
 import { ScrollArea } from '../../ui/ScrollArea';
 import { Spinner } from '../../ui/Spinner';
 import { NarreMessageBubble } from './NarreMessageBubble';
-import { NarreMentionInput, type NarreComposerSubmit } from './NarreMentionInput';
+import type { NarreComposerSubmit } from './NarreMentionInput';
+import { NarreInputSwitcher, type NarreInteractivePrompt } from './NarreInputSwitcher';
 import { useProjectStore } from '../../../stores/project-store';
 import type { NarrePendingCommandState } from '../../../lib/narre-ui-state';
 import { toAbsolutePath } from '../../../utils/path-utils';
@@ -109,6 +115,48 @@ function buildUserDisplayBlocks(
   return blocks;
 }
 
+function isResolvedInteractiveCard(card: NarreCard): boolean {
+  switch (card.type) {
+    case 'permission':
+      return typeof card.resolvedActionKey === 'string' && card.resolvedActionKey.length > 0;
+    case 'draft':
+      return Boolean(card.submittedResponse);
+    case 'interview':
+      return Boolean(card.submittedResponse);
+    default:
+      return true;
+  }
+}
+
+function toInteractivePrompt(card: NarreCard): NarreInteractivePrompt | null {
+  switch (card.type) {
+    case 'permission':
+      return isResolvedInteractiveCard(card) ? null : { kind: 'permission', card };
+    case 'draft':
+      return isResolvedInteractiveCard(card) ? null : { kind: 'draft', card };
+    case 'interview':
+      return isResolvedInteractiveCard(card) ? null : { kind: 'interview', card };
+    default:
+      return null;
+  }
+}
+
+function findActiveInteractivePrompt(blocks: NarreTranscriptBlock[]): NarreInteractivePrompt | null {
+  for (let index = blocks.length - 1; index >= 0; index -= 1) {
+    const block = blocks[index];
+    if (block.type !== 'card') {
+      continue;
+    }
+
+    const prompt = toInteractivePrompt(block.card);
+    if (prompt) {
+      return prompt;
+    }
+  }
+
+  return null;
+}
+
 export function NarreChat({
   sessionId: initialSessionId,
   projectId,
@@ -140,6 +188,26 @@ export function NarreChat({
     pendingCommand,
     draftHtml,
   } = sessionState;
+  const activePrompt = (() => {
+    const streamingPrompt = findActiveInteractivePrompt(streamingBlocks);
+    if (streamingPrompt) {
+      return streamingPrompt;
+    }
+
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message.role !== 'assistant') {
+        continue;
+      }
+
+      const prompt = findActiveInteractivePrompt(message.blocks);
+      if (prompt) {
+        return prompt;
+      }
+    }
+
+    return null;
+  })();
 
   useEffect(() => {
     void ensureNarreSessionLoaded(projectId, sessionId).catch(() => {});
@@ -165,7 +233,8 @@ export function NarreChat({
     }
 
     await narreService.respondToCard(sessionId, toolCallId, response);
-  }, [sessionId]);
+    updateNarreCardResponse(projectId, sessionId, toolCallId, response);
+  }, [projectId, sessionId]);
 
   const buildCommandPreview = useCallback((
     commandState: NarrePendingCommandState,
@@ -447,7 +516,7 @@ export function NarreChat({
                 role={msg.role}
                 blocks={msg.blocks}
                 onCardRespond={handleCardRespond}
-                defaultExpandedInteractiveBlocks={msg.source === 'live' && msg.role === 'assistant' && idx === messages.length - 1}
+                defaultExpandedInteractiveBlocks={!activePrompt && msg.source === 'live' && msg.role === 'assistant' && idx === messages.length - 1}
               />
             ))}
             {/* Streaming partial message */}
@@ -456,7 +525,7 @@ export function NarreChat({
                 role="assistant"
                 blocks={streamingBlocks}
                 onCardRespond={handleCardRespond}
-                defaultExpandedInteractiveBlocks
+                defaultExpandedInteractiveBlocks={!activePrompt}
                 isStreaming
               />
             )}
@@ -466,23 +535,23 @@ export function NarreChat({
 
       {/* Input area */}
       <div className="border-t border-subtle p-3">
-        <div className="flex items-end gap-2">
-          <NarreMentionInput
-            projectId={projectId}
-            onSend={handleSend}
-            disabled={isStreaming && !isInterrupting}
-            sendDisabled={sendLocked}
-            placeholder={t('narre.inputPlaceholder')}
-            draftHtml={draftHtml}
-            pendingCommand={pendingCommand}
-            onDraftChange={(nextDraftHtml) => {
-              setNarreSessionDraft(projectId, sessionId, nextDraftHtml);
-            }}
-            onPendingCommandChange={(nextCommand) => {
-              setNarreSessionPendingCommand(projectId, sessionId, nextCommand);
-            }}
-          />
-        </div>
+        <NarreInputSwitcher
+          projectId={projectId}
+          onSend={handleSend}
+          disabled={isStreaming && !isInterrupting}
+          sendDisabled={sendLocked}
+          placeholder={t('narre.inputPlaceholder')}
+          draftHtml={draftHtml}
+          pendingCommand={pendingCommand}
+          activePrompt={activePrompt}
+          onPromptRespond={handleCardRespond}
+          onDraftChange={(nextDraftHtml) => {
+            setNarreSessionDraft(projectId, sessionId, nextDraftHtml);
+          }}
+          onPendingCommandChange={(nextCommand) => {
+            setNarreSessionPendingCommand(projectId, sessionId, nextCommand);
+          }}
+        />
       </div>
     </div>
   );

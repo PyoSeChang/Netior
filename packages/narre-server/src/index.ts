@@ -133,8 +133,8 @@ app.delete('/sessions/:id', async (req, res) => {
   }
 });
 
-app.post('/chat/respond', (req, res) => {
-  const { toolCallId, response } = req.body;
+app.post('/chat/respond', async (req, res) => {
+  const { sessionId, toolCallId, response } = req.body;
   if (!toolCallId) {
     res.status(400).json({ error: 'toolCallId required' });
     return;
@@ -144,6 +144,11 @@ app.post('/chat/respond', (req, res) => {
     res.status(404).json({ error: 'No pending UI call' });
     return;
   }
+
+  if (typeof sessionId === 'string') {
+    await sessionStore.updateCardResponseById(sessionId, toolCallId, response);
+  }
+
   res.json({ ok: true });
 });
 

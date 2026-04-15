@@ -298,6 +298,72 @@ export class SessionStore {
     await this.writeIndex(projectId, index);
   }
 
+  async updateCardResponse(
+    sessionId: string,
+    projectId: string,
+    toolCallId: string,
+    response: unknown,
+  ): Promise<boolean> {
+    const file = await this.readSessionFile(projectId, sessionId) ?? createEmptySessionFile();
+    let updated = false;
+
+    for (const turn of file.transcript.turns) {
+      for (const block of turn.blocks) {
+        if (
+          block.type === 'card'
+          && block.card.toolCallId === toolCallId
+        ) {
+          switch (block.card.type) {
+            case 'permission': {
+              const actionKey = response && typeof response === 'object'
+                ? (response as { action?: unknown }).action
+                : undefined;
+              if (typeof actionKey === 'string' && actionKey.length > 0) {
+                block.card.resolvedActionKey = actionKey;
+                updated = true;
+              }
+              break;
+            }
+            case 'draft':
+              if (response && typeof response === 'object') {
+                block.card.submittedResponse = response as typeof block.card.submittedResponse;
+                updated = true;
+              }
+              break;
+            case 'interview':
+              if (response && typeof response === 'object') {
+                block.card.submittedResponse = response as typeof block.card.submittedResponse;
+                updated = true;
+              }
+              break;
+            default:
+              break;
+          }
+        }
+      }
+    }
+
+    if (!updated) {
+      return false;
+    }
+
+    await this.writeSessionFile(projectId, sessionId, file);
+    return true;
+  }
+
+  async updateCardResponseById(
+    sessionId: string,
+    toolCallId: string,
+    response: unknown,
+  ): Promise<boolean> {
+    const session = await this.getSessionById(sessionId);
+    if (!session?.projectId) {
+      return false;
+    }
+
+    return this.updateCardResponse(sessionId, session.projectId, toolCallId, response);
+  }
+
   async appendMessage(sessionId: string, projectId: string, message: NarreMessage): Promise<void> {
     await this.appendTurn(sessionId, projectId, legacyMessageToTurn(message));
   }

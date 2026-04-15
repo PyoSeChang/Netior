@@ -1,12 +1,14 @@
 import type {
   NetiorMcpToolSpec,
+  NarreToolApprovalMode,
   NarreToolCategory,
   NarreToolKind,
   NarreToolMetadata,
 } from '../types/index.js';
 
-type NetiorMcpToolSpecEntry = Omit<NetiorMcpToolSpec, 'key' | 'isMutation'> & {
+type NetiorMcpToolSpecEntry = Omit<NetiorMcpToolSpec, 'key' | 'isMutation' | 'approvalMode'> & {
   isMutation?: boolean;
+  approvalMode?: NarreToolApprovalMode;
 };
 
 export const NETIOR_MCP_TOOL_SPECS = {
@@ -337,28 +339,41 @@ function inferToolKind(toolName: string): NarreToolKind {
 }
 
 function buildToolSpec(toolName: string, entry: NetiorMcpToolSpecEntry): NetiorMcpToolSpec {
+  const isMutation = entry.isMutation ?? entry.kind === 'mutation';
   return {
     key: toolName,
     ...(entry.displayName ? { displayName: entry.displayName } : {}),
     description: entry.description,
     category: entry.category,
     kind: entry.kind,
-    isMutation: entry.isMutation ?? entry.kind === 'mutation',
+    isMutation,
+    approvalMode: entry.approvalMode ?? (isMutation ? 'prompt' : 'auto'),
   };
 }
 
+export function normalizeNetiorToolName(toolName: string): string {
+  const trimmed = toolName.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  const lastSegment = trimmed.split('.').at(-1) ?? trimmed;
+  return lastSegment.trim();
+}
+
 export function hasNetiorMcpToolSpec(toolName: string): toolName is NetiorMcpToolKey {
-  return Object.prototype.hasOwnProperty.call(NETIOR_MCP_TOOL_SPECS, toolName);
+  return Object.prototype.hasOwnProperty.call(NETIOR_MCP_TOOL_SPECS, normalizeNetiorToolName(toolName));
 }
 
 export function getNetiorMcpToolSpec(toolName: NetiorMcpToolKey): NetiorMcpToolSpec;
 export function getNetiorMcpToolSpec(toolName: string): NetiorMcpToolSpec | null;
 export function getNetiorMcpToolSpec(toolName: string): NetiorMcpToolSpec | null {
-  if (!hasNetiorMcpToolSpec(toolName)) {
+  const normalizedToolName = normalizeNetiorToolName(toolName);
+  if (!hasNetiorMcpToolSpec(normalizedToolName)) {
     return null;
   }
 
-  return buildToolSpec(toolName, NETIOR_MCP_TOOL_SPECS[toolName]);
+  return buildToolSpec(normalizedToolName, NETIOR_MCP_TOOL_SPECS[normalizedToolName]);
 }
 
 export function listNetiorMcpToolSpecs(): NetiorMcpToolSpec[] {
@@ -366,7 +381,8 @@ export function listNetiorMcpToolSpecs(): NetiorMcpToolSpec[] {
 }
 
 export function getNarreToolMetadata(toolName: string): NarreToolMetadata {
-  const spec = getNetiorMcpToolSpec(toolName);
+  const normalizedToolName = normalizeNetiorToolName(toolName);
+  const spec = getNetiorMcpToolSpec(normalizedToolName);
   if (spec) {
     return {
       displayName: spec.displayName ?? humanizeToolName(spec.key),
@@ -374,14 +390,16 @@ export function getNarreToolMetadata(toolName: string): NarreToolMetadata {
       category: spec.category,
       kind: spec.kind,
       isMutation: spec.isMutation,
+      approvalMode: spec.approvalMode,
     };
   }
 
-  const kind = inferToolKind(toolName);
+  const kind = inferToolKind(normalizedToolName);
   return {
-    displayName: humanizeToolName(toolName),
-    category: inferToolCategory(toolName),
+    displayName: humanizeToolName(normalizedToolName),
+    category: inferToolCategory(normalizedToolName),
     kind,
     isMutation: kind === 'mutation',
+    approvalMode: kind === 'mutation' ? 'prompt' : 'auto',
   };
 }

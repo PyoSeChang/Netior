@@ -927,12 +927,13 @@ export function registerNarreIpc(): void {
 
   ipcMain.handle(IPC_CHANNELS.NARRE_RESPOND_CARD, async (_e, data: Record<string, unknown>): Promise<IpcResult<null>> => {
     try {
-      const { toolCallId, response } = data as {
+      const { sessionId, toolCallId, response } = data as {
+        sessionId?: string;
         toolCallId: string;
         response: unknown;
       };
 
-      const body = JSON.stringify({ toolCallId, response });
+      const body = JSON.stringify({ sessionId, toolCallId, response });
       const respondUrl = new URL('/chat/respond', await ensureNarreServerBaseUrl());
 
       return new Promise((resolve) => {

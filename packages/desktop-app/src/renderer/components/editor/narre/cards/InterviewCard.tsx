@@ -1,50 +1,59 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Check } from 'lucide-react';
 import type { NarreInterviewCard, NarreInterviewResponse } from '@netior/shared/types';
 import { useI18n } from '../../../../hooks/useI18n';
 import { Badge } from '../../../ui/Badge';
 import { Button } from '../../../ui/Button';
-import { Checkbox } from '../../../ui/Checkbox';
 import { TextArea } from '../../../ui/TextArea';
 
 interface InterviewCardProps {
   card: NarreInterviewCard;
   onSelect: (response: NarreInterviewResponse) => Promise<void> | void;
+  embedded?: boolean;
 }
 
 export function InterviewCard({
   card,
   onSelect,
+  embedded = false,
 }: InterviewCardProps): JSX.Element {
   const { t } = useI18n();
-  const [selected, setSelected] = useState<string[]>([]);
-  const [text, setText] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
+  const submittedResponse = card.submittedResponse;
+  const [selected, setSelected] = useState<string[]>(submittedResponse?.selected ?? []);
+  const [text, setText] = useState(submittedResponse?.text ?? '');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>(
+    submittedResponse ? 'submitted' : 'idle',
+  );
+  const isSubmitted = status === 'submitted' || Boolean(submittedResponse);
+  const isLocked = isSubmitted || status === 'submitting';
+
+  useEffect(() => {
+    setSelected(submittedResponse?.selected ?? []);
+    setText(submittedResponse?.text ?? '');
+    setStatus(submittedResponse ? 'submitted' : 'idle');
+  }, [submittedResponse]);
 
   const handleToggle = useCallback(
     (value: string) => {
-      if (status === 'submitted' || status === 'submitting') {
+      if (isLocked) {
         return;
       }
       if (status === 'error') {
         setStatus('idle');
       }
       setSelected((prev) => {
-        if (card.multiSelect) {
-          return prev.includes(value)
-            ? prev.filter((v) => v !== value)
-            : [...prev, value];
-        }
-        // Single select: replace
-        return prev.includes(value) ? [] : [value];
+        return prev.includes(value)
+          ? prev.filter((v) => v !== value)
+          : [...prev, value];
       });
     },
-    [card.multiSelect, status],
+    [isLocked, status],
   );
 
   const canSubmit = selected.length > 0 || text.trim().length > 0;
 
   const handleSubmit = useCallback(async () => {
-    if (!canSubmit || status === 'submitted' || status === 'submitting') {
+    if (!canSubmit || isLocked) {
       return;
     }
 
@@ -58,58 +67,52 @@ export function InterviewCard({
     } catch {
       setStatus('error');
     }
-  }, [canSubmit, onSelect, selected, status, text]);
+  }, [canSubmit, isLocked, onSelect, selected, text]);
 
   return (
-    <div className="mt-2 rounded-lg border border-subtle bg-surface-card p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-default">
-          {card.question}
-        </p>
-        {status === 'submitting' && <Badge variant="warning">{t('narre.card.submitting')}</Badge>}
-        {status === 'submitted' && <Badge variant="success">{t('narre.card.submitted')}</Badge>}
-        {status === 'error' && <Badge variant="error">{t('narre.card.submitFailed')}</Badge>}
-      </div>
-
+    <div className={embedded ? 'space-y-3' : 'space-y-3 px-3 py-3'}>
       <div className="flex flex-col gap-2.5">
         {card.options.map((opt) => {
           const optionValue = opt.label;
           const isSelected = selected.includes(optionValue);
           return (
-            <div
+            <button
               key={optionValue}
+              type="button"
               className={[
-                'flex items-start gap-2 rounded-lg border px-2.5 py-2 transition-colors',
+                'flex w-full items-start gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors',
                 isSelected
                   ? 'border-accent bg-accent-muted/40'
                   : 'border-subtle bg-surface-base hover:bg-surface-hover',
-                status === 'submitted' ? 'opacity-80' : '',
+                isLocked ? 'opacity-80' : '',
               ].join(' ')}
+              disabled={isLocked}
+              aria-pressed={isSelected}
+              onClick={() => handleToggle(optionValue)}
             >
-              <Checkbox
-                checked={isSelected}
-                onChange={() => handleToggle(optionValue)}
-                disabled={status === 'submitted' || status === 'submitting'}
-                label=""
-              />
-              <button
-                type="button"
-                className="min-w-0 flex-1 text-left"
-                disabled={status === 'submitted' || status === 'submitting'}
-                onClick={() => handleToggle(optionValue)}
+              <span
+                className={[
+                  'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+                  isSelected
+                    ? 'border-accent bg-accent text-on-accent'
+                    : 'border-subtle bg-surface-base text-muted',
+                ].join(' ')}
               >
-                <div className="text-xs font-medium text-default">{opt.label}</div>
+                {isSelected && <Check size={11} strokeWidth={3} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium text-default">{opt.label}</span>
                 {opt.description && (
-                  <div className="mt-0.5 text-xs text-muted">{opt.description}</div>
+                  <span className="mt-0.5 block text-xs text-muted">{opt.description}</span>
                 )}
-              </button>
-            </div>
+              </span>
+            </button>
           );
         })}
       </div>
 
-      {(card.allowText ?? true) && (
-        <div className="mt-3">
+      {(card.allowText ?? true) && !isSubmitted && (
+        <div>
           <TextArea
             value={text}
             onChange={(event) => {
@@ -119,25 +122,36 @@ export function InterviewCard({
               }
             }}
             placeholder={card.textPlaceholder ?? t('narre.card.interviewPlaceholder')}
-            disabled={status === 'submitted' || status === 'submitting'}
+            disabled={isLocked}
             className="min-h-[72px] text-xs"
           />
         </div>
       )}
 
-      <div className="mt-3 flex justify-end">
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={!canSubmit || status === 'submitted' || status === 'submitting'}
-          onClick={() => { void handleSubmit(); }}
-        >
-          {status === 'submitting'
-            ? t('narre.card.submitting')
-            : status === 'submitted'
-              ? t('narre.card.submitted')
+      {isSubmitted && text.trim().length > 0 && (
+        <div className="rounded-lg border border-subtle bg-surface-base px-3 py-2">
+          <div className="whitespace-pre-wrap text-sm text-secondary">{text}</div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          {status === 'submitting' && <Badge variant="warning">{t('narre.card.submitting')}</Badge>}
+          {isSubmitted && <Badge variant="success">{t('narre.card.submitted')}</Badge>}
+          {status === 'error' && <Badge variant="error">{t('narre.card.submitFailed')}</Badge>}
+        </div>
+        {!isSubmitted && (
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={!canSubmit || isLocked}
+            onClick={() => { void handleSubmit(); }}
+          >
+            {status === 'submitting'
+              ? t('narre.card.submitting')
               : (card.submitLabel ?? t('narre.card.interviewSubmit'))}
-        </Button>
+          </Button>
+        )}
       </div>
     </div>
   );

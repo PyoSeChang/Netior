@@ -722,6 +722,7 @@ export type NarreToolCategory =
   | 'analysis';
 
 export type NarreToolKind = 'query' | 'mutation' | 'analysis';
+export type NarreToolApprovalMode = 'auto' | 'prompt';
 
 export interface NetiorMcpToolSpec {
   key: string;
@@ -730,6 +731,7 @@ export interface NetiorMcpToolSpec {
   category: NarreToolCategory;
   kind: NarreToolKind;
   isMutation: boolean;
+  approvalMode: NarreToolApprovalMode;
 }
 
 export interface NarreToolMetadata {
@@ -738,6 +740,7 @@ export interface NarreToolMetadata {
   category: NarreToolCategory;
   kind: NarreToolKind;
   isMutation: boolean;
+  approvalMode: NarreToolApprovalMode;
 }
 
 export type NarreActorProvider = 'narre' | 'claude' | 'openai' | 'codex' | 'custom';
@@ -921,12 +924,14 @@ export interface NarreDraftCard {
   confirmLabel?: string;
   feedbackLabel?: string;
   feedbackPlaceholder?: string;
+  submittedResponse?: NarreDraftResponse;
 }
 
 export interface NarrePermissionCard {
   type: 'permission';
   toolCallId: string;
   message: string;
+  resolvedActionKey?: string;
   actions: Array<{ key: string; label: string; variant?: 'danger' | 'default' }>;
 }
 
@@ -939,6 +944,7 @@ export interface NarreInterviewCard {
   allowText?: boolean;
   textPlaceholder?: string;
   submitLabel?: string;
+  submittedResponse?: NarreInterviewResponse;
 }
 
 export interface NarreInterviewResponse {

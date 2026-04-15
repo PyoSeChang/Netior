@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { createServer } from 'net';
 import { getNarreToolMetadata } from '@netior/shared/constants';
 import type { NarreCodexSettings, NarreToolCall } from '@netior/shared/types';
+import { ApprovalStore } from '../../approval-store.js';
 import type { NarreMcpServerConfig } from '../../runtime/provider-adapter.js';
 import { CodexThreadStore } from '../codex-thread-store.js';
 import { askToolSchema, confirmToolSchema, draftToolSchema } from '../shared/ui-schemas.js';
@@ -124,7 +125,7 @@ export class CodexTransport implements OpenAIFamilyTransport {
     const traceId = context.traceId ?? 'no-trace';
     const threadStore = new CodexThreadStore(this.options.dataDir, context.projectId, context.sessionId);
     const runtimeSettings = normalizeCodexRuntimeSettings(this.options.runtimeSettings);
-    const client = new CodexAppServerClient(context, runtimeSettings);
+    const client = new CodexAppServerClient(context, runtimeSettings, new ApprovalStore(this.options.dataDir));
     const trackedToolCalls = new Map<string, NarreToolCall>();
     let assistantText = '';
     const abortHandler = (): void => {
@@ -262,6 +263,7 @@ class CodexAppServerClient {
   constructor(
     private readonly context: OpenAIFamilyTransportRunContext,
     private readonly runtimeSettings: NarreCodexSettings,
+    private readonly approvalStore: ApprovalStore,
   ) {}
 
   private getTracePrefix(): string {
@@ -635,7 +637,9 @@ class CodexAppServerClient {
     const serverName = typeof payload.serverName === 'string' ? payload.serverName : 'unknown';
     const mode = payload.mode === 'url' ? 'url' : 'form';
     const message = typeof payload.message === 'string' ? payload.message : 'MCP server requires user input.';
+    const requestedSchema = payload.requestedSchema;
     const toolCallId = `mcp-elicitation:${request.id}`;
+    const requestedToolName = extractRequestedMcpToolName(message);
 
     console.log(
       `[narre:codex] ${this.getTracePrefix()} MCP elicitation server=${serverName} mode=${mode} ` +
@@ -669,12 +673,32 @@ class CodexAppServerClient {
       return;
     }
 
+    if (serverName === 'netior' && requestedToolName) {
+      const metadata = getNarreToolMetadata(requestedToolName);
+      const alwaysAllowed = await this.approvalStore.isToolAllowed(this.context.projectId, requestedToolName);
+
+      if (metadata.approvalMode === 'auto' || alwaysAllowed) {
+        this.sendMessage({
+          id: request.id,
+          result: {
+            action: 'accept',
+            content: buildDefaultElicitationContent(requestedSchema),
+            _meta: null,
+          },
+        });
+        return;
+      }
+    }
+
     const responseText = await this.context.uiBridge.requestPermission(
       this.context.onCard,
       {
         message,
         actions: [
           { key: 'accept', label: 'Approve' },
+          ...(serverName === 'netior' && requestedToolName
+            ? [{ key: 'accept_project', label: 'Always allow in this project' as const }]
+            : []),
           { key: 'decline', label: 'Decline', variant: 'danger' },
         ],
       },
@@ -682,8 +706,12 @@ class CodexAppServerClient {
     );
 
     const response = safeParseJson(responseText);
-    const approved = isActionResponse(response) && response.action === 'accept';
-    const requestedSchema = payload.requestedSchema;
+    const action = isActionResponse(response) ? response.action : null;
+    const approved = action === 'accept' || action === 'accept_project';
+
+    if (approved && action === 'accept_project' && serverName === 'netior' && requestedToolName) {
+      await this.approvalStore.allowTool(this.context.projectId, requestedToolName);
+    }
 
     this.sendMessage({
       id: request.id,
@@ -847,6 +875,11 @@ function safeParseJson(value: string): unknown {
 
 function isActionResponse(value: unknown): value is { action?: string } {
   return Boolean(value && typeof value === 'object' && 'action' in value);
+}
+
+function extractRequestedMcpToolName(message: string): string | null {
+  const match = message.match(/tool ["'`]([^"'`]+)["'`]/i);
+  return match?.[1]?.trim() || null;
 }
 
 function buildDefaultElicitationContent(schema: unknown): unknown {

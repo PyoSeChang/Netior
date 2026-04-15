@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { getNarreToolMetadata } from '@netior/shared/constants';
+import { getNarreToolMetadata, normalizeNetiorToolName } from '@netior/shared/constants';
 import type { NarreCard, NarreToolCall, NarreTranscriptBlock } from '@netior/shared/types';
 import { useI18n } from '../../../hooks/useI18n';
 import { Badge } from '../../ui/Badge';
-import { NarreToolLog } from './NarreToolLog';
+import { NarreToolLog, type NarreToolLogItem } from './NarreToolLog';
 import { NarreMarkdown } from './NarreMarkdown';
+import { getLocalizedToolLabel } from './narre-tool-presenter-localized';
 import { NarreCardRenderer } from './cards/NarreCardRenderer';
 
 interface NarreMessageBubbleProps {
@@ -65,6 +66,7 @@ function renderAssistantContent(content: string): JSX.Element {
 
 function formatPermissionSummary(
   message: string,
+  locale: string,
   t: ReturnType<typeof useI18n>['t'],
 ): string {
   const toolMatch = message.match(PERMISSION_TOOL_RE);
@@ -72,18 +74,22 @@ function formatPermissionSummary(
     return message;
   }
 
-  const toolLabel = getNarreToolMetadata(toolMatch[1]).displayName;
+  const toolLabel = getLocalizedToolLabel(
+    toolMatch[1],
+    locale,
+    getNarreToolMetadata(toolMatch[1]).displayName,
+  );
   return t('narre.card.permissionRequest' as never, { tool: toolLabel } as never);
 }
 
-function getCardSummary(card: NarreCard, t: ReturnType<typeof useI18n>['t']): string {
+function getCardSummary(card: NarreCard, locale: string, t: ReturnType<typeof useI18n>['t']): string {
   switch (card.type) {
     case 'draft':
       return card.title || 'Draft';
     case 'proposal':
       return card.title;
     case 'permission':
-      return formatPermissionSummary(card.message, t);
+      return formatPermissionSummary(card.message, locale, t);
     case 'interview':
       return card.question;
     case 'summary':
@@ -92,6 +98,31 @@ function getCardSummary(card: NarreCard, t: ReturnType<typeof useI18n>['t']): st
       return 'Card';
   }
 }
+
+function isInteractiveCard(card: NarreCard): boolean {
+  return card.type === 'permission' || card.type === 'draft' || card.type === 'interview';
+}
+
+function isResolvedInteractiveCard(card: NarreCard): boolean {
+  switch (card.type) {
+    case 'permission':
+      return typeof card.resolvedActionKey === 'string' && card.resolvedActionKey.length > 0;
+    case 'draft':
+      return Boolean(card.submittedResponse);
+    case 'interview':
+      return Boolean(card.submittedResponse);
+    default:
+      return false;
+  }
+}
+
+type AssistantRenderSegment =
+  | { type: 'block'; block: Exclude<NarreTranscriptBlock, { type: 'tool' }> }
+  | {
+    type: 'tool_cluster';
+    id: string;
+    items: NarreToolLogItem[];
+  };
 
 function toToolCall(block: Extract<NarreTranscriptBlock, { type: 'tool' }>): NarreToolCall {
   return {
@@ -104,28 +135,149 @@ function toToolCall(block: Extract<NarreTranscriptBlock, { type: 'tool' }>): Nar
   };
 }
 
+function extractPermissionToolName(card: Extract<NarreCard, { type: 'permission' }>): string | null {
+  const match = card.message.match(PERMISSION_TOOL_RE);
+  return match?.[1] ? normalizeNetiorToolName(match[1]) : null;
+}
+
+function buildAssistantRenderSegments(
+  blocks: NarreTranscriptBlock[],
+  locale: string,
+  t: ReturnType<typeof useI18n>['t'],
+): AssistantRenderSegment[] {
+  const segments: AssistantRenderSegment[] = [];
+  const clusterStarts = new Map<number, AssistantRenderSegment>();
+  const clusterMembers = new Set<number>();
+  let clusterIndex = 0;
+  let activeCluster:
+    | {
+      startIndex: number;
+      items: NarreToolLogItem[];
+      memberIndices: number[];
+    }
+    | null = null;
+
+  const flushCluster = (): void => {
+    if (!activeCluster) {
+      return;
+    }
+
+    clusterStarts.set(activeCluster.startIndex, {
+      type: 'tool_cluster',
+      id: `tool-cluster-${clusterIndex += 1}`,
+      items: activeCluster.items,
+    });
+    activeCluster.memberIndices.forEach((index) => clusterMembers.add(index));
+    activeCluster = null;
+  };
+
+  blocks.forEach((block, index) => {
+    if (block.type === 'tool') {
+      if (!activeCluster) {
+        activeCluster = {
+          startIndex: index,
+          items: [],
+          memberIndices: [],
+        };
+      }
+
+      activeCluster.items.push({ kind: 'tool', id: block.id, call: toToolCall(block) });
+      activeCluster.memberIndices.push(index);
+      return;
+    }
+
+    if (block.type === 'card' && block.card.type === 'permission') {
+      if (!activeCluster) {
+        activeCluster = {
+          startIndex: index,
+          items: [],
+          memberIndices: [],
+        };
+      }
+
+      const summary = getCardSummary(block.card, locale, t);
+      const permissionToolName = extractPermissionToolName(block.card);
+      const matchingToolItem = permissionToolName
+        ? [...activeCluster.items]
+          .reverse()
+          .find((item): item is Extract<NarreToolLogItem, { kind: 'tool' }> =>
+            item.kind === 'tool'
+            && normalizeNetiorToolName(item.call.tool) === permissionToolName
+            && !item.permission,
+          )
+        : null;
+
+      if (matchingToolItem) {
+        matchingToolItem.permission = {
+          card: block.card,
+          summary,
+        };
+      } else {
+        activeCluster.items.push({
+          kind: 'permission',
+          id: block.id,
+          card: block.card,
+          summary,
+        });
+      }
+      activeCluster.memberIndices.push(index);
+      return;
+    }
+
+    if (block.type === 'card' || block.type === 'draft') {
+      flushCluster();
+    }
+  });
+
+  flushCluster();
+
+  blocks.forEach((block, index) => {
+    const cluster = clusterStarts.get(index);
+    if (cluster) {
+      segments.push(cluster);
+    }
+
+    if (clusterMembers.has(index)) {
+      return;
+    }
+
+    segments.push({ type: 'block', block });
+  });
+
+  return segments;
+}
+
 function NarreCardBlock({
   card,
   onCardRespond,
   defaultExpanded,
   forceCollapseKey,
+  locale,
   t,
 }: {
   card: NarreCard;
   onCardRespond?: (toolCallId: string, response: unknown) => Promise<void> | void;
   defaultExpanded: boolean;
   forceCollapseKey: string;
+  locale: string;
   t: ReturnType<typeof useI18n>['t'];
 }): JSX.Element {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const cardResolved = isResolvedInteractiveCard(card);
+  const [expanded, setExpanded] = useState(defaultExpanded && !cardResolved);
   const [resolved, setResolved] = useState(false);
 
   useEffect(() => {
+    if (cardResolved) {
+      setExpanded(false);
+      setResolved(true);
+      return;
+    }
+
     setExpanded(defaultExpanded);
     if (defaultExpanded) {
       setResolved(false);
     }
-  }, [defaultExpanded, forceCollapseKey]);
+  }, [cardResolved, defaultExpanded, forceCollapseKey]);
 
   const handleRespond = useCallback(async (toolCallId: string, response: unknown) => {
     if (!onCardRespond) {
@@ -137,36 +289,31 @@ function NarreCardBlock({
     setExpanded(false);
   }, [onCardRespond]);
 
-  if (expanded && onCardRespond) {
-    return (
-      <div className="mt-2">
-        <div className="mb-1 flex justify-end">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted transition-colors hover:bg-surface-hover hover:text-secondary"
-            onClick={() => setExpanded(false)}
-          >
-            <ChevronDown size={12} />
-            <span>{t('narre.card.collapse' as never)}</span>
-          </button>
-        </div>
-        <NarreCardRenderer card={card} onRespond={handleRespond} />
-      </div>
-    );
-  }
-
   return (
     <div className="mt-2 overflow-hidden rounded-lg border border-subtle bg-surface-base">
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-secondary transition-colors hover:bg-surface-hover disabled:cursor-default disabled:opacity-70"
-        disabled={resolved}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-secondary transition-colors hover:bg-surface-hover"
         onClick={() => setExpanded((prev) => !prev)}
       >
         {expanded ? <ChevronDown size={12} className="shrink-0" /> : <ChevronRight size={12} className="shrink-0" />}
-        <span className="truncate">{getCardSummary(card, t)}</span>
-        {resolved && <Badge variant="success" className="ml-auto">{t('narre.card.submitted')}</Badge>}
+        <span className="truncate">{getCardSummary(card, locale, t)}</span>
+        {resolved && card.type !== 'permission' && <Badge variant="success" className="ml-auto">{t('narre.card.submitted')}</Badge>}
       </button>
+      {expanded && (
+        <div className="border-t border-subtle">
+          {!onCardRespond && isInteractiveCard(card) ? (
+            <div className="px-3 py-2 text-xs text-muted">
+              {t('narre.card.replyInInput')}
+            </div>
+          ) : (
+            <NarreCardRenderer
+              card={card}
+              onRespond={handleRespond}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -178,12 +325,11 @@ export function NarreMessageBubble({
   defaultExpandedInteractiveBlocks = false,
   isStreaming = false,
 }: NarreMessageBubbleProps): JSX.Element {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const isUser = role === 'user';
-  const contentBlocks = blocks.filter((block) => block.type !== 'tool');
-  const toolCalls = blocks
-    .filter((block): block is Extract<NarreTranscriptBlock, { type: 'tool' }> => block.type === 'tool')
-    .map(toToolCall);
+  const segments = isUser
+    ? blocks.map((block) => ({ type: 'block', block } as AssistantRenderSegment))
+    : buildAssistantRenderSegments(blocks, locale, t);
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -199,7 +345,24 @@ export function NarreMessageBubble({
           <div className="text-xs text-muted animate-pulse">...</div>
         )}
 
-        {contentBlocks.map((block, index) => {
+        {segments.map((segment, index) => {
+          if (segment.type === 'tool_cluster') {
+            return (
+              <div
+                key={`${segment.id}:${defaultExpandedInteractiveBlocks ? 'open' : 'closed'}`}
+                className={index > 0 ? 'mt-2' : ''}
+              >
+                <NarreToolLog
+                  items={segment.items}
+                  defaultExpanded={defaultExpandedInteractiveBlocks || isStreaming}
+                  onPermissionRespond={onCardRespond}
+                />
+              </div>
+            );
+          }
+
+          const { block } = segment;
+
           switch (block.type) {
             case 'rich_text':
               return (
@@ -249,15 +412,6 @@ export function NarreMessageBubble({
                   <NarreMarkdown content={block.content} />
                 </div>
               );
-            case 'tool':
-              return (
-                <div
-                  key={`${block.id}:${defaultExpandedInteractiveBlocks ? 'open' : 'closed'}`}
-                  className={index > 0 ? 'mt-2' : ''}
-                >
-                  <NarreToolLog calls={[toToolCall(block)]} defaultExpanded={defaultExpandedInteractiveBlocks || isStreaming} />
-                </div>
-              );
             case 'card':
               return (
                 <NarreCardBlock
@@ -266,6 +420,7 @@ export function NarreMessageBubble({
                   onCardRespond={onCardRespond}
                   defaultExpanded={defaultExpandedInteractiveBlocks || isStreaming}
                   forceCollapseKey={`${defaultExpandedInteractiveBlocks ? 'open' : 'closed'}:${isStreaming ? 'streaming' : 'restored'}`}
+                  locale={locale}
                   t={t}
                 />
               );
@@ -273,12 +428,6 @@ export function NarreMessageBubble({
               return null;
           }
         })}
-
-        {toolCalls.length > 0 && (
-          <div className={contentBlocks.length > 0 ? 'mt-2' : ''}>
-            <NarreToolLog calls={toolCalls} defaultExpanded={defaultExpandedInteractiveBlocks || isStreaming} />
-          </div>
-        )}
       </div>
     </div>
   );
