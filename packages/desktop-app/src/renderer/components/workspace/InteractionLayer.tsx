@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { RenderNode } from './types';
 import type { WorkspaceMode } from '../../stores/ui-store';
-import type { InteractionConstraints } from './layout-plugins/types';
+import type { InteractionConstraints, LayoutViewportMode } from './layout-plugins/types';
 
 interface UseInteractionParams {
   containerRef: React.RefObject<HTMLDivElement>;
@@ -9,11 +9,12 @@ interface UseInteractionParams {
   zoom: number;
   panX: number;
   panY: number;
+  viewportMode: LayoutViewportMode;
   mode: WorkspaceMode;
   constraints: InteractionConstraints;
   onPanChange: (panX: number, panY: number) => void;
   onNodeDragEnd: (nodeId: string, x: number, y: number) => Promise<void>;
-  onSpanResizeEnd?: (nodeId: string, edge: 'start' | 'end', newValue: number) => Promise<void>;
+  onSpanResizeEnd?: (nodeId: string, edge: 'start' | 'end', dx: number) => Promise<void>;
   onSelectionBox: (nodeIds: string[]) => void;
   onWorkspaceClick: () => void;
   onWheel: (e: WheelEvent) => void;
@@ -61,6 +62,7 @@ export function useInteraction({
   zoom,
   panX,
   panY,
+  viewportMode,
   mode,
   constraints,
   onPanChange,
@@ -77,6 +79,26 @@ export function useInteraction({
   const [spanResizeOffset, setSpanResizeOffset] = useState<{ id: string; edge: 'start' | 'end'; dx: number } | null>(
     null,
   );
+
+  const toNodeDelta = useCallback((dx: number, dy: number) => {
+    if (viewportMode === 'screen') {
+      return { dx, dy };
+    }
+    if (viewportMode === 'timeline') {
+      return { dx: dx / zoom, dy };
+    }
+    return { dx: dx / zoom, dy: dy / zoom };
+  }, [viewportMode, zoom]);
+
+  const getNodeScreenPosition = useCallback((node: RenderNode) => {
+    if (viewportMode === 'screen') {
+      return { x: node.x, y: node.y };
+    }
+    if (viewportMode === 'timeline') {
+      return { x: node.x * zoom + panX, y: node.y + panY };
+    }
+    return { x: node.x * zoom + panX, y: node.y * zoom + panY };
+  }, [panX, panY, viewportMode, zoom]);
 
   // --- Workspace mouse down: pan or selection ---
   const handleWorkspaceMouseDown = useCallback(
@@ -161,14 +183,14 @@ export function useInteraction({
       if (dragState.type === 'pan') {
         const rawDx = e.clientX - dragState.startX;
         const rawDy = e.clientY - dragState.startY;
-        const dx = constraints.panAxis === 'y' ? 0 : rawDx;
-        const dy = constraints.panAxis === 'x' ? 0 : rawDy;
+        const dx = constraints.panAxis === 'y' || constraints.panAxis === 'none' ? 0 : rawDx;
+        const dy = constraints.panAxis === 'x' || constraints.panAxis === 'none' ? 0 : rawDy;
         onPanChange(dragState.originPanX + dx, dragState.originPanY + dy);
       } else if (dragState.type === 'node') {
         const rawDx = e.clientX - dragState.startX;
         const rawDy = e.clientY - dragState.startY;
-        const dx = constraints.nodeDragAxis === 'y' ? 0 : rawDx;
-        const dy = constraints.nodeDragAxis === 'x' ? 0 : rawDy;
+        const dx = constraints.nodeDragAxis === 'y' || constraints.nodeDragAxis === 'none' ? 0 : rawDx;
+        const dy = constraints.nodeDragAxis === 'x' || constraints.nodeDragAxis === 'none' ? 0 : rawDy;
         setNodeDragOffset({ id: dragState.nodeId, dx, dy });
       } else if (dragState.type === 'span-resize') {
         const dx = e.clientX - dragState.startX;
@@ -192,25 +214,21 @@ export function useInteraction({
       if (dragState.type === 'node') {
         const rawDx = e.clientX - dragState.startX;
         const rawDy = e.clientY - dragState.startY;
-        const dx = constraints.nodeDragAxis === 'y' ? 0 : rawDx;
-        const dy = constraints.nodeDragAxis === 'x' ? 0 : rawDy;
+        const dx = constraints.nodeDragAxis === 'y' || constraints.nodeDragAxis === 'none' ? 0 : rawDx;
+        const dy = constraints.nodeDragAxis === 'x' || constraints.nodeDragAxis === 'none' ? 0 : rawDy;
 
         setNodeDragOffset(null);
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-          const newX = dragState.nodeStartX + dx / zoom;
-          const newY = dragState.nodeStartY + dy / zoom;
+          const nodeDelta = toNodeDelta(dx, dy);
+          const newX = dragState.nodeStartX + nodeDelta.dx;
+          const newY = dragState.nodeStartY + nodeDelta.dy;
           onNodeDragEnd(dragState.nodeId, Math.round(newX), Math.round(newY));
         }
       } else if (dragState.type === 'span-resize') {
         const dx = e.clientX - dragState.startX;
 
         if (Math.abs(dx) > 2 && onSpanResizeEnd) {
-          const PIXELS_PER_UNIT = 200;
-          const workspaceDx = dx / zoom;
-          const valueDelta = workspaceDx / PIXELS_PER_UNIT;
-          const newValue = Math.round(dragState.startValue + valueDelta);
-
-          onSpanResizeEnd(dragState.nodeId, dragState.edge, newValue).then(() =>
+          onSpanResizeEnd(dragState.nodeId, dragState.edge, dx).then(() =>
             setSpanResizeOffset(null),
           );
         } else {
@@ -225,8 +243,7 @@ export function useInteraction({
           const maxY = Math.max(dragState.startY, dragState.currentY);
 
           const selected = nodes.filter((node) => {
-            const screenX = node.x * zoom + panX;
-            const screenY = node.y * zoom + panY;
+            const { x: screenX, y: screenY } = getNodeScreenPosition(node);
             return screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY;
           });
 
@@ -257,13 +274,17 @@ export function useInteraction({
     zoom,
     panX,
     panY,
+    viewportMode,
     nodes,
     constraints,
     containerRef,
     onPanChange,
     onNodeDragEnd,
+    onSpanResizeEnd,
     onSelectionBox,
     onWorkspaceClick,
+    toNodeDelta,
+    getNodeScreenPosition,
   ]);
 
   // --- Wheel zoom ---

@@ -1,6 +1,7 @@
 import React from 'react';
 import { EdgeRouteLine } from './EdgeRouteLine';
 import type { RenderNode, RenderEdge, RenderEdgeAnchor, RenderPoint } from './types';
+import type { LayoutViewportMode } from './layout-plugins/types';
 
 interface EdgeLayerProps {
   edges: RenderEdge[];
@@ -8,6 +9,7 @@ interface EdgeLayerProps {
   zoom: number;
   panX: number;
   panY: number;
+  viewportMode?: LayoutViewportMode;
   zIndex?: number;
   renderHitArea?: boolean;
   renderVisibleStroke?: boolean;
@@ -29,6 +31,7 @@ export const EdgeLayer: React.FC<EdgeLayerProps> = ({
   zoom,
   panX,
   panY,
+  viewportMode = 'world',
   zIndex = 1,
   renderHitArea = true,
   renderVisibleStroke = true,
@@ -39,15 +42,19 @@ export const EdgeLayer: React.FC<EdgeLayerProps> = ({
 }) => {
   const HIERARCHY_ROOT_TOP_OFFSET = 8;
   const HIERARCHY_ROOT_BOTTOM_OFFSET = 64;
+  const isTimeline = viewportMode === 'timeline';
+  const isScreen = viewportMode === 'screen';
 
   // Build node position map (with drag offset)
   const nodePositionMap = new Map<string, RenderNode>();
   for (const node of nodes) {
     if (nodeDragOffset && (nodeDragOffset.id === node.id || dragFollowerIds?.has(node.id))) {
+      const offsetX = isScreen ? nodeDragOffset.dx : nodeDragOffset.dx / zoom;
+      const offsetY = isTimeline || isScreen ? nodeDragOffset.dy : nodeDragOffset.dy / zoom;
       nodePositionMap.set(node.id, {
         ...node,
-        x: node.x + nodeDragOffset.dx / zoom,
-        y: node.y + nodeDragOffset.dy / zoom,
+        x: node.x + offsetX,
+        y: node.y + offsetY,
       });
     } else {
       nodePositionMap.set(node.id, node);
@@ -170,7 +177,13 @@ export const EdgeLayer: React.FC<EdgeLayerProps> = ({
       }}
     >
       <g
-        transform={`translate(${panX}, ${panY}) scale(${zoom})`}
+        transform={
+          viewportMode === 'world'
+            ? `translate(${panX}, ${panY}) scale(${zoom})`
+            : viewportMode === 'timeline'
+              ? `translate(${panX}, ${panY}) scale(${zoom}, 1)`
+              : undefined
+        }
         style={{ pointerEvents: 'auto' }}
       >
         {edges.map((edge) => {

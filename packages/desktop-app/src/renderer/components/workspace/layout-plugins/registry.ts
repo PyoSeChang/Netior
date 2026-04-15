@@ -1,4 +1,5 @@
 import type { WorkspaceLayoutPlugin } from './types';
+import { calendarPlugin } from './calendar';
 import { freeformPlugin } from './freeform';
 import { horizontalTimelinePlugin } from './horizontal-timeline';
 
@@ -20,3 +21,4 @@ export function listLayouts(): WorkspaceLayoutPlugin[] {
 // Register built-in plugins
 registerLayout(freeformPlugin);
 registerLayout(horizontalTimelinePlugin);
+registerLayout(calendarPlugin);

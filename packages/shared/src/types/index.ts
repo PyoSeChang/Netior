@@ -28,6 +28,8 @@ export interface Concept {
   id: string;
   project_id: string;
   archetype_id: string | null;
+  recurrence_source_concept_id: string | null;
+  recurrence_occurrence_key: string | null;
   title: string;
   color: string | null;
   icon: string | null;
@@ -41,6 +43,8 @@ export interface ConceptCreate {
   project_id: string;
   title: string;
   archetype_id?: string;
+  recurrence_source_concept_id?: string | null;
+  recurrence_occurrence_key?: string | null;
   color?: string;
   icon?: string;
   content?: string;
@@ -50,6 +54,8 @@ export interface ConceptCreate {
 export interface ConceptUpdate {
   title?: string;
   archetype_id?: string | null;
+  recurrence_source_concept_id?: string | null;
+  recurrence_occurrence_key?: string | null;
   color?: string | null;
   icon?: string | null;
   content?: string | null;
@@ -242,6 +248,88 @@ export interface EdgeUpdate {
 }
 
 // ============================================
+// System Semantics
+// ============================================
+
+export type SemanticCategoryKey =
+  | 'time'
+  | 'workflow'
+  | 'structure'
+  | 'knowledge'
+  | 'space'
+  | 'quant'
+  | 'governance';
+
+export type SemanticTraitKey =
+  | 'temporal'
+  | 'dueable'
+  | 'recurring'
+  | 'statusful'
+  | 'assignable'
+  | 'prioritizable'
+  | 'progressable'
+  | 'estimable'
+  | 'hierarchical'
+  | 'ordered'
+  | 'taggable'
+  | 'categorizable'
+  | 'sourceable'
+  | 'attachable'
+  | 'versioned'
+  | 'locatable'
+  | 'measurable'
+  | 'budgeted'
+  | 'ownable'
+  | 'approvable';
+
+export type SystemSlotKey =
+  | 'start_at'
+  | 'end_at'
+  | 'all_day'
+  | 'timezone'
+  | 'due_at'
+  | 'recurrence_rule'
+  | 'recurrence_until'
+  | 'recurrence_count'
+  | 'status'
+  | 'status_changed_at'
+  | 'assignee_refs'
+  | 'primary_assignee_ref'
+  | 'priority'
+  | 'progress_ratio'
+  | 'completed_at'
+  | 'estimate_value'
+  | 'estimate_unit'
+  | 'actual_value'
+  | 'parent_ref'
+  | 'order_index'
+  | 'tag_keys'
+  | 'category_key'
+  | 'source_url'
+  | 'source_ref'
+  | 'citation'
+  | 'attachment_refs'
+  | 'version'
+  | 'revision'
+  | 'supersedes_ref'
+  | 'place_ref'
+  | 'address'
+  | 'lat'
+  | 'lng'
+  | 'measure_value'
+  | 'measure_unit'
+  | 'target_value'
+  | 'budget_amount'
+  | 'budget_currency'
+  | 'budget_limit'
+  | 'owner_ref'
+  | 'approval_state'
+  | 'approved_by_ref'
+  | 'approved_at';
+
+export type SlotContractLevel = 'strict' | 'constrained' | 'loose';
+
+// ============================================
 // Layout
 // ============================================
 
@@ -387,6 +475,7 @@ export interface Archetype {
   color: string | null;
   node_shape: string | null;
   file_template: string | null;
+  semantic_traits: SemanticTraitKey[];
   created_at: string;
   updated_at: string;
 }
@@ -400,6 +489,7 @@ export interface ArchetypeCreate {
   color?: string;
   node_shape?: string;
   file_template?: string;
+  semantic_traits?: SemanticTraitKey[];
 }
 
 export interface ArchetypeUpdate {
@@ -410,6 +500,7 @@ export interface ArchetypeUpdate {
   color?: string | null;
   node_shape?: string | null;
   file_template?: string | null;
+  semantic_traits?: SemanticTraitKey[];
 }
 
 // ============================================
@@ -444,6 +535,9 @@ export interface ArchetypeField {
   required: boolean;
   default_value: string | null;
   ref_archetype_id: string | null;
+  system_slot: SystemSlotKey | null;
+  slot_binding_locked: boolean;
+  generated_by_trait: boolean;
   created_at: string;
 }
 
@@ -456,6 +550,9 @@ export interface ArchetypeFieldCreate {
   required?: boolean;
   default_value?: string;
   ref_archetype_id?: string;
+  system_slot?: SystemSlotKey | null;
+  slot_binding_locked?: boolean;
+  generated_by_trait?: boolean;
 }
 
 export interface ArchetypeFieldUpdate {
@@ -466,6 +563,9 @@ export interface ArchetypeFieldUpdate {
   required?: boolean;
   default_value?: string | null;
   ref_archetype_id?: string | null;
+  system_slot?: SystemSlotKey | null;
+  slot_binding_locked?: boolean;
+  generated_by_trait?: boolean;
 }
 
 // ============================================

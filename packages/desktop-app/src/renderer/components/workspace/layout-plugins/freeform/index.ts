@@ -5,7 +5,6 @@ export const freeformPlugin: WorkspaceLayoutPlugin = {
   key: 'freeform',
   displayName: 'Freeform',
 
-  requiredFields: [],
   configSchema: [],
   getDefaultConfig: () => ({}),
 
@@ -14,6 +13,9 @@ export const freeformPlugin: WorkspaceLayoutPlugin = {
     nodeDragAxis: null,
     enableSpanResize: false,
   },
+  viewportMode: 'world',
+  wheelBehavior: 'freeform',
+  persistViewport: true,
 
   computeLayout({ nodes }) {
     const result: Record<string, { x: number; y: number }> = {};

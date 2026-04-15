@@ -1,28 +1,31 @@
 import React from 'react';
 import { CalendarDays } from 'lucide-react';
-import type { WorkspaceLayoutPlugin, LayoutRenderNode, NodeDropContext, NodeDropResult } from '../types';
+import type {
+  WorkspaceLayoutPlugin,
+  LayoutRenderNode,
+  NodeDropContext,
+  NodeDropResult,
+  SpanResizeContext,
+  SpanResizeResult,
+} from '../types';
 import { TimelineBackground } from './TimelineBackground';
 import { TimelineOverlay } from './TimelineOverlay';
 import { computeTimelineLayout } from './timeline-layout';
-import { PIXELS_PER_DAY, todayEpochDays, epochDaysToDate } from './scale-utils';
+import { PIXELS_PER_DAY, todayEpochDays } from './scale-utils';
+import {
+  formatTemporalSlotValueForWriteback,
+  projectRecurringTemporalNodes,
+} from '../temporal-utils';
 
 export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
   key: 'horizontal-timeline',
   displayName: 'Gantt Chart',
-
-  requiredFields: [
-    { key: 'time_value', type: 'date' as 'number', label: 'layout.timeline.timeValue', required: true },
-    { key: 'end_time_value', type: 'date' as 'number', label: 'layout.timeline.endTimeValue', required: false },
-    { key: 'role', type: 'enum', label: 'layout.timeline.role', required: true, default: 'occurrence', options: ['period', 'occurrence'] },
-    { key: 'color', type: 'string', label: 'layout.timeline.color', required: false },
-  ],
 
   configSchema: [],
 
   getDefaultConfig() {
     return {
       _originDay: todayEpochDays(),
-      field_mappings: {},
     };
   },
 
@@ -31,26 +34,41 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
     nodeDragAxis: null, // nodes can be dragged both X (time) and Y (lane)
     enableSpanResize: true,
   },
+  viewportMode: 'timeline',
+  wheelBehavior: 'timeline',
+  persistViewport: false,
+  getViewportReset({ viewport }) {
+    return {
+      zoom: 1,
+      panX: viewport.width / 2,
+      panY: 0,
+    };
+  },
 
   computeLayout: computeTimelineLayout,
+
+  projectNodes({ nodes, viewport, viewportState, config }) {
+    const originDay = (config._originDay as number) ?? todayEpochDays();
+    const pxPerDay = Math.max(PIXELS_PER_DAY * viewportState.zoom, 0.0001);
+    const rangeStart = Math.floor(originDay + (-viewportState.panX) / pxPerDay) - 2;
+    const rangeEnd = Math.ceil(originDay + (viewport.width - viewportState.panX) / pxPerDay) + 2;
+    return projectRecurringTemporalNodes(nodes, rangeStart, rangeEnd);
+  },
 
   classifyNodes(nodes: LayoutRenderNode[]) {
     const cardNodes: LayoutRenderNode[] = [];
     const overlayNodes: LayoutRenderNode[] = [];
 
     for (const node of nodes) {
-      const timeValue = node.metadata.time_value as number | undefined;
-      const role = node.metadata.role as string | undefined;
-      const endTimeValue = node.metadata.end_time_value as number | undefined;
+      const timeValue = node.metadata.start_at as number | undefined;
+      const endTimeValue = node.metadata.end_at as number | undefined;
 
       // Hide nodes without time data on timeline
       if (timeValue == null) continue;
 
-      // Period with both dates → overlay band
-      if (role === 'period' && endTimeValue != null) {
+      if (endTimeValue != null) {
         overlayNodes.push(node);
       } else {
-        // Occurrence → card node
         cardNodes.push(node);
       }
     }
@@ -68,35 +86,42 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
       key: 'go-to-today',
       icon: React.createElement(CalendarDays, { size: 14 }),
       label: '오늘로 이동',
-      onClick: ({ setZoom, setPanX }) => {
+      onClick: ({ setZoom, setPanX, setPanY }) => {
         setZoom(1);
         setPanX(window.innerWidth / 2);
+        setPanY(0);
       },
     },
   ],
 
   onNodeDrop(context: NodeDropContext): NodeDropResult {
     const { newX, newY, node, config, zoom } = context;
-    const fieldMappings = config.field_mappings as Record<string, Record<string, string>> | undefined;
-    const archetypeId = node.archetypeId;
     const originDay = (config._originDay as number) ?? todayEpochDays();
 
     // InteractionLayer applies dy/zoom, but timeline Y has no zoom.
     // Reverse: actualDy = (newY - node.y) * zoom, then actualY = node.y + actualDy
     const correctedY = node.y + (newY - node.y) * zoom;
 
-    // Reverse-calculate: workspace X -> epoch days -> ISO date
+    // Reverse-calculate: workspace X -> epoch days -> ISO date/datetime
     const epochDay = Math.round(originDay + newX / PIXELS_PER_DAY);
-    const date = epochDaysToDate(epochDay);
-    const isoDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
 
+    const slotFieldIds = node.metadata.__slotFieldIds as Record<string, string> | undefined;
+    const startFieldId = slotFieldIds?.start_at;
+    const allDayFieldId = slotFieldIds?.all_day;
     const propertyUpdates: Array<{ conceptId: string; fieldId: string; value: string }> = [];
 
-    if (archetypeId && fieldMappings?.[archetypeId]?.time_value && node.conceptId) {
+    if (startFieldId && node.conceptId) {
       propertyUpdates.push({
         conceptId: node.conceptId,
-        fieldId: fieldMappings[archetypeId].time_value,
-        value: isoDate,
+        fieldId: startFieldId,
+        value: formatTemporalSlotValue(node, 'start_at', epochDay),
+      });
+    }
+    if (allDayFieldId && node.conceptId) {
+      propertyUpdates.push({
+        conceptId: node.conceptId,
+        fieldId: allDayFieldId,
+        value: String(node.metadata.all_day === true),
       });
     }
 
@@ -105,4 +130,53 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
       propertyUpdates: propertyUpdates.length > 0 ? propertyUpdates : undefined,
     };
   },
+
+  onSpanResize(context: SpanResizeContext): SpanResizeResult {
+    const { dx, edge, node, zoom } = context;
+    const slotFieldIds = node.metadata.__slotFieldIds as Record<string, string> | undefined;
+    const propertyUpdates: Array<{ conceptId: string; fieldId: string; value: string }> = [];
+    if (!node.conceptId || !slotFieldIds) return {};
+
+    const pxPerDay = PIXELS_PER_DAY * zoom;
+    if (pxPerDay === 0) return {};
+
+    const deltaDays = Math.round(dx / pxPerDay);
+    const startDay = node.metadata.start_at as number | undefined;
+    const endDay = node.metadata.end_at as number | undefined;
+    if (startDay == null || endDay == null) return {};
+
+    if (edge === 'start' && slotFieldIds.start_at) {
+      const nextStartDay = Math.min(startDay + deltaDays, endDay);
+      propertyUpdates.push({
+        conceptId: node.conceptId,
+        fieldId: slotFieldIds.start_at,
+        value: formatTemporalSlotValue(node, 'start_at', nextStartDay),
+      });
+    }
+
+    if (edge === 'end' && slotFieldIds.end_at) {
+      const nextEndDay = Math.max(endDay + deltaDays, startDay);
+      propertyUpdates.push({
+        conceptId: node.conceptId,
+        fieldId: slotFieldIds.end_at,
+        value: formatTemporalSlotValue(node, 'end_at', nextEndDay),
+      });
+    }
+
+    return {
+      propertyUpdates: propertyUpdates.length > 0 ? propertyUpdates : undefined,
+    };
+  },
 };
+
+function formatTemporalSlotValue(
+  node: LayoutRenderNode,
+  slot: 'start_at' | 'end_at',
+  epochDay: number,
+): string {
+  const hasTime = node.metadata[`${slot}_has_time`] === true;
+  const minutes = typeof node.metadata[`${slot}_minutes`] === 'number'
+    ? Number(node.metadata[`${slot}_minutes`])
+    : undefined;
+  return formatTemporalSlotValueForWriteback(node, slot, epochDay, hasTime ? minutes : undefined, !hasTime);
+}

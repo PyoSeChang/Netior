@@ -57,7 +57,7 @@ export interface NodeComponentProps {
   // Callbacks
   onClick: (id: string, event: React.MouseEvent) => void;
   onDoubleClick: (id: string) => void;
-  onDragStart: (id: string, startX: number, startY: number) => void;
+  onDragStart?: (id: string, startX: number, startY: number) => void;
   onContextMenu?: (type: 'workspace' | 'node' | 'edge', x: number, y: number, targetId?: string) => void;
   onMouseEnter?: (e: React.MouseEvent) => void;
   onMouseLeave?: () => void;

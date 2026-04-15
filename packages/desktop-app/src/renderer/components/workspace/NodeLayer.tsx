@@ -3,6 +3,7 @@ import type { RenderNode } from './types';
 import type { WorkspaceMode } from '../../stores/ui-store';
 import { NodeCardDefault } from './node-components/NodeCardDefault';
 import type { NodeResizeDirection, NodeShape } from './node-components/types';
+import type { LayoutViewportMode } from './layout-plugins/types';
 
 interface NodeLayerProps {
   nodes: RenderNode[];
@@ -12,8 +13,7 @@ interface NodeLayerProps {
   zoom: number;
   panX: number;
   panY: number;
-  /** Timeline mode: zoom only affects X position, nodes render at fixed size */
-  timelineMode?: boolean;
+  viewportMode?: LayoutViewportMode;
   nodeDragOffset: { id: string; dx: number; dy: number } | null;
   dragFollowerIds?: Set<string>;
   onNodeClick: (id: string, event: React.MouseEvent) => void;
@@ -35,7 +35,7 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   zoom,
   panX,
   panY,
-  timelineMode,
+  viewportMode = 'world',
   nodeDragOffset,
   dragFollowerIds,
   onNodeClick,
@@ -48,6 +48,8 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   onNodeMouseEnter,
   onNodeMouseLeave,
 }) => {
+  const isTimeline = viewportMode === 'timeline';
+  const isScreen = viewportMode === 'screen';
   const orderedNodes = useMemo(
     () => [...nodes].sort((a, b) => (b.isContainer ? 1 : 0) - (a.isContainer ? 1 : 0)),
     [nodes],
@@ -58,9 +60,12 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
     let y = node.y;
 
     if (nodeDragOffset && (nodeDragOffset.id === node.id || dragFollowerIds?.has(node.id))) {
-      if (timelineMode) {
-        // In timeline, dx is screen pixels, convert to workspace X delta
+      if (isTimeline) {
+        // Timeline scales only the X axis.
         x += nodeDragOffset.dx / zoom;
+        y += nodeDragOffset.dy;
+      } else if (isScreen) {
+        x += nodeDragOffset.dx;
         y += nodeDragOffset.dy;
       } else {
         x += nodeDragOffset.dx / zoom;
@@ -68,17 +73,20 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
       }
     }
 
-    if (timelineMode) {
+    if (isTimeline) {
       // Timeline: X uses zoom, Y is direct screen offset
       return { x: x * zoom + panX, y: y + panY };
+    }
+
+    if (isScreen) {
+      return { x, y };
     }
 
     return { x, y };
   };
 
-  // Timeline: no container transform, positions are screen coords
-  // Freeform: container transform with scale(zoom)
-  const containerStyle = timelineMode
+  // Screen-based layouts manage their own framing and render in absolute coordinates.
+  const containerStyle = viewportMode !== 'world'
     ? { position: 'absolute' as const, left: 0, top: 0, zIndex: 2 }
     : { position: 'absolute' as const, left: 0, top: 0, zIndex: 2, transformOrigin: '0 0', transform: `translate(${panX}px, ${panY}px) scale(${zoom})` };
 
@@ -103,7 +111,7 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
               width={node.width}
               height={node.height}
               metadata={node.metadata}
-              resizable={!!onNodeResizeStart && !timelineMode && !!node.isContainer}
+              resizable={!!onNodeResizeStart && viewportMode === 'world' && !!node.isContainer}
               onResizeStart={onNodeResizeStart}
               collapsed={node.isCollapsed}
               onToggleCollapse={onNodeToggleCollapse}

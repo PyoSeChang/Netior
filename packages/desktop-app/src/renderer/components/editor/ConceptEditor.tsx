@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import type { EditorTab, Network, NetworkNode, NetworkNodeUpdate, NodeType } from '@netior/shared/types';
+import { getSystemSlotLabelKey } from '@netior/shared/constants';
 import { conceptPropertyService, networkService, objectService } from '../../services';
 import { useConceptStore } from '../../stores/concept-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
@@ -43,13 +44,6 @@ interface ConceptNodeOccurrence {
 
 const isDraftTab = (tab: EditorTab) => tab.targetId.startsWith('draft-');
 
-const nodeTypeOptions: Array<{ value: NodeType; label: string }> = [
-  { value: 'basic', label: 'Basic' },
-  { value: 'portal', label: 'Portal' },
-  { value: 'group', label: 'Group' },
-  { value: 'hierarchy', label: 'Hierarchy' },
-];
-
 function resolvePreferredNodeId(
   occurrences: ConceptNodeOccurrence[],
   preferredNodeId?: string,
@@ -67,15 +61,62 @@ function resolvePreferredNodeId(
   return occurrences[0]?.node.id ?? '';
 }
 
+function isDateOnlyValue(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function formatDateOnly(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatLocalDateTime(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function subtractOccurrenceBoundary(value: string, isAllDay: boolean): string | null {
+  if (isAllDay || isDateOnlyValue(value)) {
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return null;
+    parsed.setDate(parsed.getDate() - 1);
+    return formatDateOnly(parsed);
+  }
+
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setMinutes(parsed.getMinutes() - 1);
+
+  if (/[zZ]|[+-]\d{2}:\d{2}$/.test(normalized)) {
+    return parsed.toISOString().slice(0, 16) + 'Z';
+  }
+
+  return formatLocalDateTime(parsed);
+}
+
 export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
   const { t } = useI18n();
   const isDraft = isDraftTab(tab);
   const currentProject = useProjectStore((s) => s.currentProject);
   const concepts = useConceptStore((s) => s.concepts);
-  const { createConcept, updateConcept, loadByProject, upsertProperty } = useConceptStore();
+  const {
+    createConcept,
+    updateConcept,
+    loadByProject,
+    upsertProperty,
+    deleteProperty: deleteConceptProperty,
+  } = useConceptStore();
   const archetypes = useArchetypeStore((s) => s.archetypes);
   const fields = useArchetypeStore((s) => s.fields);
   const loadFields = useArchetypeStore((s) => s.loadFields);
+  const createField = useArchetypeStore((s) => s.createField);
   const networks = useNetworkStore((s) => s.networks);
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
   const { addNode, openNetwork, loadNetworks, updateNode, setNodePosition } = useNetworkStore();
@@ -86,6 +127,80 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
   const [isSavingNode, setIsSavingNode] = useState(false);
 
   const concept = isDraft ? undefined : concepts.find((c) => c.id === tab.targetId);
+  const nodeTypeOptions = useMemo<Array<{ value: NodeType; label: string }>>(() => ([
+    { value: 'basic', label: t('concept.nodeRoleOptions.basic' as never) },
+    { value: 'portal', label: t('concept.nodeRoleOptions.portal' as never) },
+    { value: 'group', label: t('concept.nodeRoleOptions.group' as never) },
+    { value: 'hierarchy', label: t('concept.nodeRoleOptions.hierarchy' as never) },
+  ]), [t]);
+
+  const syncConceptProperties = useCallback(async (
+    conceptId: string,
+    nextProperties: Record<string, string | null>,
+  ) => {
+    const existingProperties = await conceptPropertyService.getByConcept(conceptId);
+    const nextPropertyMap = new Map(Object.entries(nextProperties));
+
+    await Promise.all(
+      existingProperties
+        .filter((property) => !nextPropertyMap.has(property.field_id) || nextPropertyMap.get(property.field_id) == null)
+        .map((property) => deleteConceptProperty(property.id, conceptId)),
+    );
+
+    await Promise.all(
+      Object.entries(nextProperties)
+        .filter(([, value]) => value != null)
+        .map(([fieldId, value]) => upsertProperty({ concept_id: conceptId, field_id: fieldId, value })),
+    );
+  }, [deleteConceptProperty, upsertProperty]);
+
+  const maybePromoteOccurrenceToSeries = useCallback(async (
+    conceptId: string,
+    state: ConceptEditorState,
+  ) => {
+    const liveConcept = useConceptStore.getState().concepts.find((item) => item.id === conceptId);
+    if (!liveConcept?.recurrence_source_concept_id || !state.archetypeId) return;
+
+    const activeFields = useArchetypeStore.getState().fields[state.archetypeId] ?? [];
+    const recurrenceRuleField = activeFields.find((field) => field.system_slot === 'recurrence_rule');
+    const startAtField = activeFields.find((field) => field.system_slot === 'start_at');
+    const allDayField = activeFields.find((field) => field.system_slot === 'all_day');
+
+    const recurrenceRule = recurrenceRuleField ? state.properties[recurrenceRuleField.id]?.trim() : '';
+    const startAtValue = startAtField ? state.properties[startAtField.id] : null;
+    const isAllDay = allDayField ? state.properties[allDayField.id] === 'true' : false;
+
+    if (!recurrenceRule || !startAtValue) return;
+
+    let recurrenceUntilField = activeFields.find((field) => field.system_slot === 'recurrence_until');
+    if (!recurrenceUntilField) {
+      recurrenceUntilField = await createField({
+        archetype_id: state.archetypeId,
+        name: t(getSystemSlotLabelKey('recurrence_until') as never),
+        field_type: startAtField?.field_type === 'datetime' && !isAllDay ? 'datetime' : 'date',
+        sort_order: activeFields.length,
+        required: false,
+        system_slot: 'recurrence_until',
+        slot_binding_locked: true,
+        generated_by_trait: true,
+      });
+    }
+
+    const previousBoundary = subtractOccurrenceBoundary(startAtValue, isAllDay);
+    if (!previousBoundary) return;
+
+    await upsertProperty({
+      concept_id: liveConcept.recurrence_source_concept_id,
+      field_id: recurrenceUntilField.id,
+      value: previousBoundary,
+    });
+
+    await updateConcept(conceptId, {
+      recurrence_source_concept_id: null,
+      recurrence_occurrence_key: null,
+    });
+  }, [createField, t, updateConcept, upsertProperty]);
+
   useEffect(() => {
     if (!isDraft && !concept && currentProject) {
       loadByProject(currentProject.id);
@@ -131,11 +246,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
             color: state.color || undefined,
             content: state.content || undefined,
           });
-          for (const [fieldId, value] of Object.entries(state.properties)) {
-            if (value != null) {
-              await upsertProperty({ concept_id: newConcept.id, field_id: fieldId, value });
-            }
-          }
+          await syncConceptProperties(newConcept.id, state.properties);
           if (draft?.networkId) {
             const conceptObj = await objectService.getByRef('concept', newConcept.id);
             if (conceptObj) {
@@ -193,9 +304,8 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
             color: state.color,
             content: state.content,
           });
-          for (const [fieldId, value] of Object.entries(state.properties)) {
-            await upsertProperty({ concept_id: conceptId, field_id: fieldId, value });
-          }
+          await syncConceptProperties(conceptId, state.properties);
+          await maybePromoteOccurrenceToSeries(conceptId, state);
           useEditorStore.getState().updateTitle(tab.id, state.title);
         },
     deps: isDraft ? [] : [tab.targetId, concept?.archetype_id],
@@ -441,7 +551,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                         </div>
 
                         <div className="flex flex-col gap-1">
-                          <label className="text-xs font-medium text-secondary">{t('concept.nodeType' as never)}</label>
+                          <label className="text-xs font-medium text-secondary">{t('concept.nodeRole' as never)}</label>
                           <Select
                             options={nodeTypeOptions}
                             value={selectedNodeOccurrence.node.node_type}
@@ -449,6 +559,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                             selectSize="sm"
                             disabled={isSavingNode}
                           />
+                          <div className="text-[11px] text-muted">{t('concept.nodeRoleHint' as never)}</div>
                         </div>
 
                         <div className="flex flex-col gap-1">

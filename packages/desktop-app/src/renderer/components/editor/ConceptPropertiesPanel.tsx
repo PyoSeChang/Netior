@@ -1,8 +1,15 @@
 import React, { useEffect, useMemo } from 'react';
-import type { ArchetypeField } from '@netior/shared/types';
+import type { TranslationKey } from '@netior/shared/i18n';
+import type { ArchetypeField, FieldType } from '@netior/shared/types';
+import {
+  getSystemSlotDefinition,
+  getSystemSlotDescriptionKey,
+  getSystemSlotLabelKey,
+} from '@netior/shared/constants';
 import { useArchetypeStore } from '../../stores/archetype-store';
 import { useConceptStore } from '../../stores/concept-store';
 import { useProjectStore } from '../../stores/project-store';
+import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
 import { TextArea } from '../ui/TextArea';
 import { NumberInput } from '../ui/NumberInput';
@@ -52,6 +59,59 @@ function parseNestedPropertyValue(value: string | null): Record<string, string |
   }
 }
 
+const FIELD_TYPE_LABEL_KEYS: Record<FieldType, TranslationKey> = {
+  text: 'typeSelector.text',
+  textarea: 'typeSelector.textarea',
+  number: 'typeSelector.number',
+  boolean: 'typeSelector.boolean',
+  date: 'typeSelector.dateType',
+  datetime: 'typeSelector.datetime',
+  select: 'typeSelector.select',
+  'multi-select': 'typeSelector.multi-select',
+  radio: 'typeSelector.radio',
+  relation: 'typeSelector.relation',
+  archetype_ref: 'typeSelector.archetype_ref',
+  file: 'typeSelector.file',
+  url: 'typeSelector.url',
+  color: 'typeSelector.color',
+  rating: 'typeSelector.rating',
+  tags: 'typeSelector.tags',
+};
+
+function getSlotValidationMessage(
+  field: ArchetypeField,
+  value: string | null,
+  t: (...args: any[]) => string,
+): string | null {
+  if (!field.system_slot || !value) return null;
+
+  switch (field.system_slot) {
+    case 'progress_ratio': {
+      const numericValue = Number(value);
+      if (!Number.isFinite(numericValue) || numericValue < 0 || numericValue > 1) {
+        return t('concept.slotValidation.progressRatioRange' as never);
+      }
+      return null;
+    }
+    case 'lat': {
+      const numericValue = Number(value);
+      if (!Number.isFinite(numericValue) || numericValue < -90 || numericValue > 90) {
+        return t('concept.slotValidation.latitudeRange' as never);
+      }
+      return null;
+    }
+    case 'lng': {
+      const numericValue = Number(value);
+      if (!Number.isFinite(numericValue) || numericValue < -180 || numericValue > 180) {
+        return t('concept.slotValidation.longitudeRange' as never);
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
 export function ConceptPropertiesPanel({ archetypeId, properties, onChange }: ConceptPropertiesPanelProps): JSX.Element {
   const fields = useArchetypeStore((s) => s.fields[archetypeId] ?? []);
   const loadFields = useArchetypeStore((s) => s.loadFields);
@@ -85,6 +145,11 @@ interface FieldInputProps {
 export function FieldInput({ field, value, onChange }: FieldInputProps): JSX.Element {
   const { t } = useI18n();
   const choices = useFieldChoiceOptions(field);
+  const slotDefinition = field.system_slot ? getSystemSlotDefinition(field.system_slot) : undefined;
+  const validationMessage = getSlotValidationMessage(field, value, t);
+  const allowedTypeLabels = useMemo(() => (
+    slotDefinition?.allowedFieldTypes.map((fieldType) => t(FIELD_TYPE_LABEL_KEYS[fieldType])) ?? []
+  ), [slotDefinition, t]);
 
   const label = (
     <label className="text-xs font-medium text-muted">
@@ -93,66 +158,84 @@ export function FieldInput({ field, value, onChange }: FieldInputProps): JSX.Ele
     </label>
   );
 
+  const fieldMeta = (
+    <FieldMeta
+      slotLabel={field.system_slot ? t(getSystemSlotLabelKey(field.system_slot) as never) : undefined}
+      slotDescription={field.system_slot ? t(getSystemSlotDescriptionKey(field.system_slot) as never) : undefined}
+      contractLevel={slotDefinition?.contractLevel}
+      allowedTypeLabels={allowedTypeLabels}
+      validationMessage={validationMessage}
+    />
+  );
+
   switch (field.field_type) {
     case 'text':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <Input
             inputSize="sm"
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value || null)}
           />
+          {fieldMeta}
         </div>
       );
     case 'textarea':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <TextArea
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value || null)}
             rows={3}
           />
+          {fieldMeta}
         </div>
       );
     case 'number':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <NumberInput
             value={value ? Number(value) : 0}
             onChange={(val) => onChange(String(val))}
           />
+          {fieldMeta}
         </div>
       );
     case 'boolean':
       return (
-        <div className="flex items-center gap-2 py-0.5">
-          <Toggle
-            checked={value === 'true'}
-            onChange={(checked) => onChange(String(checked))}
-            label={field.name}
-          />
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 py-0.5">
+            <Toggle
+              checked={value === 'true'}
+              onChange={(checked) => onChange(String(checked))}
+              label={field.name}
+            />
+          </div>
+          {fieldMeta}
         </div>
       );
     case 'date':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <DatePicker value={value ?? ''} onChange={(v) => onChange(v || null)} />
+          {fieldMeta}
         </div>
       );
     case 'datetime':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <DatePicker value={value ?? ''} onChange={(v) => onChange(v || null)} includeTime />
+          {fieldMeta}
         </div>
       );
     case 'select':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <Select
             options={choices}
@@ -161,40 +244,44 @@ export function FieldInput({ field, value, onChange }: FieldInputProps): JSX.Ele
             selectSize="sm"
             placeholder="Select..."
           />
+          {fieldMeta}
         </div>
       );
     case 'multi-select': {
       const arr = parseArrayValue(value);
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <MultiSelect
             options={choices}
             value={arr}
             onChange={(v) => onChange(v.length > 0 ? JSON.stringify(v) : null)}
           />
+          {fieldMeta}
         </div>
       );
     }
     case 'radio':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <RadioGroup
             options={choices}
             value={value ?? undefined}
             onChange={(v) => onChange(v || null)}
           />
+          {fieldMeta}
         </div>
       );
     case 'relation':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <RelationPicker
             value={value ?? undefined}
             onChange={(v) => onChange(v)}
           />
+          {fieldMeta}
         </div>
       );
     case 'archetype_ref':
@@ -209,64 +296,118 @@ export function FieldInput({ field, value, onChange }: FieldInputProps): JSX.Ele
       );
     case 'file':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <FilePicker
             value={value ?? undefined}
             onChange={(v) => onChange(v || null)}
           />
+          {fieldMeta}
         </div>
       );
     case 'url':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <LinkInput
             value={value ?? undefined}
             onChange={(v) => onChange(v || null)}
           />
+          {fieldMeta}
         </div>
       );
     case 'color':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <ColorPicker
             value={value ?? undefined}
             onChange={(v) => onChange(v)}
           />
+          {fieldMeta}
         </div>
       );
     case 'rating':
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <Rating
             value={value ? Number(value) : 0}
             onChange={(v) => onChange(String(v))}
           />
+          {fieldMeta}
         </div>
       );
     case 'tags': {
       const tags = parseArrayValue(value);
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <TagInput
             value={tags}
             onChange={(v) => onChange(v.length > 0 ? JSON.stringify(v) : null)}
           />
+          {fieldMeta}
         </div>
       );
     }
     default:
       return (
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           {label}
           <Input inputSize="sm" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)} />
+          {fieldMeta}
         </div>
       );
   }
+}
+
+interface FieldMetaProps {
+  slotLabel?: string;
+  slotDescription?: string;
+  contractLevel?: 'strict' | 'constrained' | 'loose';
+  allowedTypeLabels: string[];
+  validationMessage: string | null;
+}
+
+function FieldMeta({
+  slotLabel,
+  slotDescription,
+  contractLevel,
+  allowedTypeLabels,
+  validationMessage,
+}: FieldMetaProps): JSX.Element | null {
+  const { t } = useI18n();
+
+  if (!slotLabel && !validationMessage) return null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      {slotLabel && (
+        <div className="flex flex-wrap items-center gap-1">
+          <Badge variant="accent">{`${t('concept.semanticSlot' as never)}: ${slotLabel}`}</Badge>
+          {contractLevel && (
+            <Badge variant={contractLevel === 'strict' ? 'accent' : 'default'}>
+              {t(`concept.slotContract.${contractLevel}` as never)}
+            </Badge>
+          )}
+        </div>
+      )}
+      {slotLabel && allowedTypeLabels.length > 0 && (
+        <div className="text-[11px] text-muted">
+          {`${t('concept.allowedFieldTypes' as never)}: ${allowedTypeLabels.join(', ')}`}
+        </div>
+      )}
+      {slotDescription && (
+        <div className="text-[11px] leading-relaxed text-secondary">
+          {slotDescription}
+        </div>
+      )}
+      {validationMessage && (
+        <div className="text-[11px] text-status-warning">{validationMessage}</div>
+      )}
+    </div>
+  );
 }
 
 interface EmbeddedArchetypePropertiesInputProps {
@@ -284,6 +425,7 @@ function EmbeddedArchetypePropertiesInput({
   missingTargetMessage,
   emptyMessage,
 }: EmbeddedArchetypePropertiesInputProps): JSX.Element {
+  const { t } = useI18n();
   const nestedFields = useArchetypeStore((state) => (
     field.ref_archetype_id ? state.fields[field.ref_archetype_id] ?? [] : []
   ));
@@ -327,6 +469,15 @@ function EmbeddedArchetypePropertiesInput({
   return (
     <div className="flex flex-col gap-1.5">
       {label}
+      <FieldMeta
+        slotLabel={field.system_slot ? t(getSystemSlotLabelKey(field.system_slot) as never) : undefined}
+        slotDescription={field.system_slot ? t(getSystemSlotDescriptionKey(field.system_slot) as never) : undefined}
+        contractLevel={field.system_slot ? getSystemSlotDefinition(field.system_slot)?.contractLevel : undefined}
+        allowedTypeLabels={field.system_slot
+          ? (getSystemSlotDefinition(field.system_slot)?.allowedFieldTypes ?? []).map((fieldType) => t(FIELD_TYPE_LABEL_KEYS[fieldType]))
+          : []}
+        validationMessage={getSlotValidationMessage(field, value, t)}
+      />
       <div className="rounded-xl border border-subtle bg-surface-base p-3">
         {nestedFields.length === 0 ? (
           <div className="text-xs text-muted">{emptyMessage}</div>
