@@ -154,6 +154,46 @@ function buildTerminalOptions(
   };
 }
 
+export function getViewportCellHeight(term: TerminalRawXterm): number | null {
+  const directHeight = term.dimensions?.css?.cell?.height ?? term._core?._renderService?.dimensions?.actualCellHeight;
+  if (directHeight && Number.isFinite(directHeight)) {
+    return directHeight;
+  }
+
+  const firstRow = term.element?.querySelector<HTMLElement>('.xterm-rows > div');
+  const fallbackHeight = firstRow?.getBoundingClientRect().height;
+  if (fallbackHeight && Number.isFinite(fallbackHeight)) {
+    return fallbackHeight;
+  }
+
+  const screen = term.element?.querySelector<HTMLElement>('.xterm-screen');
+  const screenHeight = screen?.getBoundingClientRect().height;
+  if (screenHeight && term.rows) {
+    return screenHeight / term.rows;
+  }
+
+  return null;
+}
+
+export function syncViewportScrollPosition(term: Terminal): void {
+  const rawTerm = term as unknown as TerminalRawXterm;
+  const viewport = rawTerm.element?.querySelector<HTMLElement>('.xterm-viewport');
+  if (!viewport) return;
+
+  const cellHeight = getViewportCellHeight(rawTerm);
+  if (!cellHeight) return;
+
+  const viewportY = rawTerm.buffer.active.viewportY;
+  term.scrollToLine(viewportY);
+
+  const targetScrollTop = Math.max(0, Math.round(viewportY * cellHeight));
+  if (Math.abs(viewport.scrollTop - targetScrollTop) <= 1) {
+    return;
+  }
+
+  viewport.scrollTop = targetScrollTop;
+}
+
 class ForkedHyperSearchController implements TerminalSearchController {
   findResult: TerminalFindResult | undefined;
 
@@ -210,6 +250,7 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
   private termOptions: ITerminalOptions;
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: number | null = null;
+  private viewportSyncFrame: number | null = null;
   private renderAddonsLoaded = false;
 
   constructor(props: ForkedHyperTermProps) {
@@ -295,6 +336,10 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
   }
 
   componentWillUnmount(): void {
+    if (this.viewportSyncFrame != null) {
+      window.cancelAnimationFrame(this.viewportSyncFrame);
+      this.viewportSyncFrame = null;
+    }
     if (this.resizeTimeout != null) {
       window.clearTimeout(this.resizeTimeout);
       this.resizeTimeout = null;
@@ -315,6 +360,7 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
   fitResize(): void {
     if (!this.props.isTermVisible) return;
     this.fitAddon.fit();
+    this.scheduleViewportSync();
   }
 
   write(data: string | Uint8Array): void {
@@ -419,6 +465,25 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
       }, 500);
     });
     this.resizeObserver.observe(this.termWrapperRef);
+  }
+
+  private scheduleViewportSync(): void {
+    if (this.viewportSyncFrame != null) {
+      window.cancelAnimationFrame(this.viewportSyncFrame);
+    }
+
+    let remainingPasses = 2;
+    const runSync = (): void => {
+      this.viewportSyncFrame = null;
+      syncViewportScrollPosition(this.term);
+
+      remainingPasses -= 1;
+      if (remainingPasses > 0 && this.props.isTermVisible) {
+        this.viewportSyncFrame = window.requestAnimationFrame(runSync);
+      }
+    };
+
+    this.viewportSyncFrame = window.requestAnimationFrame(runSync);
   }
 
   private markInteractiveElements(): void {
