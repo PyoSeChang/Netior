@@ -13,6 +13,7 @@ import { registerProjectTools } from './project-tools.js';
 import { registerTypeGroupTools } from './type-group-tools.js';
 import { registerFilesystemTools } from './filesystem-tools.js';
 import { registerPdfTools } from './pdf-tools.js';
+import { registerModuleTools } from './module-tools.js';
 
 export function registerAllTools(server: McpServer): void {
   registerArchetypeTools(server);
@@ -27,6 +28,7 @@ export function registerAllTools(server: McpServer): void {
   registerNetworkNodeTools(server);
   registerEdgeTools(server);
   registerProjectTools(server);
+  registerModuleTools(server);
   registerFilesystemTools(server);
   registerPdfTools(server);
 }

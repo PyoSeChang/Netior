@@ -823,6 +823,8 @@ export type NarreToolCategory =
 
 export type NarreToolKind = 'query' | 'mutation' | 'analysis';
 export type NarreToolApprovalMode = 'auto' | 'prompt';
+export type NetiorMcpToolProfile = 'core' | 'discovery' | 'onboarding-skill' | 'index-skill';
+export type NetiorMcpToolScope = 'app' | 'project' | 'network' | 'object' | 'file' | 'mixed';
 
 export interface NetiorMcpToolSpec {
   key: string;
@@ -832,6 +834,9 @@ export interface NetiorMcpToolSpec {
   kind: NarreToolKind;
   isMutation: boolean;
   approvalMode: NarreToolApprovalMode;
+  profiles?: readonly NetiorMcpToolProfile[];
+  scope?: NetiorMcpToolScope;
+  defaultProjectBinding?: boolean;
 }
 
 export interface NarreToolMetadata {
@@ -841,6 +846,9 @@ export interface NarreToolMetadata {
   kind: NarreToolKind;
   isMutation: boolean;
   approvalMode: NarreToolApprovalMode;
+  profiles?: readonly NetiorMcpToolProfile[];
+  scope?: NetiorMcpToolScope;
+  defaultProjectBinding?: boolean;
 }
 
 export type NarreActorProvider = 'narre' | 'claude' | 'openai' | 'codex' | 'custom';
@@ -976,6 +984,7 @@ export interface CommandArg {
 }
 
 export type CommandType = 'conversation' | 'system';
+export type NarrePromptSkillKey = 'onboarding' | 'index';
 
 export interface SlashCommand {
   name: string;
@@ -984,6 +993,7 @@ export interface SlashCommand {
   args?: CommandArg[];
   hint?: string;
   requiredMentionTypes?: NarreMention['type'][];
+  promptSkillKey?: NarrePromptSkillKey;
 }
 
 // ============================================

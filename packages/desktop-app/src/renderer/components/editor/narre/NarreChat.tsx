@@ -381,7 +381,6 @@ export function NarreChat({
         overviewPages: parseOverviewPagesText(commandState.indexArgs.overviewPagesText),
         fileId: fileMention.id,
         filePath: absoluteFilePath,
-        projectId,
       });
 
       return sendToAgent({

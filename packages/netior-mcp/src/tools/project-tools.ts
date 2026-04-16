@@ -13,7 +13,7 @@ import {
   getConceptsByProject,
   listNetworks,
 } from '../netior-service-client.js';
-import { registerNetiorTool } from './shared-tool-registry.js';
+import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
 
 function buildTypeGroupPathMap(groups: TypeGroup[]): Map<string, string> {
   const byId = new Map(groups.map((group) => [group.id, group]));
@@ -109,13 +109,14 @@ export function registerProjectTools(server: McpServer): void {
   registerNetiorTool(
     server,
     'get_project_summary',
-    { project_id: z.string().describe('The project ID') },
+    { project_id: projectIdSchema() },
     async ({ project_id }) => {
       try {
-        const project = await getProjectById(project_id);
+        const targetProjectId = resolveProjectId(project_id);
+        const project = await getProjectById(targetProjectId);
         if (!project) {
           return {
-            content: [{ type: 'text' as const, text: `Error: Project not found: ${project_id}` }],
+            content: [{ type: 'text' as const, text: `Error: Project not found: ${targetProjectId}` }],
             isError: true,
           };
         }
@@ -131,15 +132,15 @@ export function registerProjectTools(server: McpServer): void {
           projectRootNetwork,
           networkTree,
         ] = await Promise.all([
-          listArchetypes(project_id),
-          listRelationTypes(project_id),
-          getConceptsByProject(project_id),
-          listNetworks(project_id),
-          listTypeGroups(project_id, 'archetype'),
-          listTypeGroups(project_id, 'relation_type'),
+          listArchetypes(targetProjectId),
+          listRelationTypes(targetProjectId),
+          getConceptsByProject(targetProjectId),
+          listNetworks(targetProjectId),
+          listTypeGroups(targetProjectId, 'archetype'),
+          listTypeGroups(targetProjectId, 'relation_type'),
           getAppRootNetwork(),
-          getProjectRootNetwork(project_id),
-          getNetworkTree(project_id),
+          getProjectRootNetwork(targetProjectId),
+          getNetworkTree(targetProjectId),
         ]);
         const archetypeNameMap = new Map<string, string>(archetypes.map((archetype) => [archetype.id, archetype.name]));
         const archetypeFieldsById = new Map<string, ArchetypeField[]>(

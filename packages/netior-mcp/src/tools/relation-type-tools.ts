@@ -8,16 +8,16 @@ import {
 } from '../netior-service-client.js';
 import type { LineStyle } from '@netior/shared/types';
 import { emitChange } from '../events.js';
-import { registerNetiorTool } from './shared-tool-registry.js';
+import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
 
 export function registerRelationTypeTools(server: McpServer): void {
   registerNetiorTool(
     server,
     'list_relation_types',
-    { project_id: z.string().describe('The project ID') },
+    { project_id: projectIdSchema() },
     async ({ project_id }) => {
       try {
-        const result = await listRelationTypes(project_id);
+        const result = await listRelationTypes(resolveProjectId(project_id));
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -34,7 +34,7 @@ export function registerRelationTypeTools(server: McpServer): void {
     server,
     'create_relation_type',
     {
-      project_id: z.string().describe('The project ID'),
+      project_id: projectIdSchema(),
       name: z.string().describe('Relation type name'),
       directed: z.boolean().optional().describe('Whether the relation is directed (has arrow)'),
       line_style: z.enum(['solid', 'dashed', 'dotted']).optional().describe('Line style: solid, dashed, or dotted'),
@@ -44,7 +44,7 @@ export function registerRelationTypeTools(server: McpServer): void {
     async ({ project_id, name, directed, line_style, color, description }) => {
       try {
         const result = await createRelationType({
-          project_id,
+          project_id: resolveProjectId(project_id),
           name,
           directed,
           line_style,

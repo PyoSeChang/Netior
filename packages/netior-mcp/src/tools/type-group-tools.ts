@@ -7,7 +7,13 @@ import {
   updateTypeGroup,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
-import { registerNetiorTool } from './shared-tool-registry.js';
+import {
+  projectIdOrNullSchema,
+  projectIdSchema,
+  registerNetiorTool,
+  resolveNullableProjectId,
+  resolveProjectId,
+} from './shared-tool-registry.js';
 
 const typeGroupKindSchema = z.enum(['archetype', 'relation_type']);
 
@@ -16,12 +22,12 @@ export function registerTypeGroupTools(server: McpServer): void {
     server,
     'list_type_groups',
     {
-      project_id: z.string().describe('The project ID'),
+      project_id: projectIdSchema(),
       kind: typeGroupKindSchema.describe('Whether to list archetype groups or relation type groups'),
     },
     async ({ project_id, kind }) => {
       try {
-        const result = await listTypeGroups(project_id, kind);
+        const result = await listTypeGroups(resolveProjectId(project_id), kind);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -40,7 +46,7 @@ export function registerTypeGroupTools(server: McpServer): void {
     {
       kind: typeGroupKindSchema.describe('The type-group kind'),
       name: z.string().describe('Group name'),
-      project_id: z.string().nullable().optional().describe('Project ID or null for app-level scope'),
+      project_id: projectIdOrNullSchema('Project ID or null for app-level scope'),
       scope: z.string().optional().describe('Optional explicit scope'),
       parent_group_id: z.string().optional().describe('Parent group ID'),
       sort_order: z.number().optional().describe('Group order index'),
@@ -50,7 +56,7 @@ export function registerTypeGroupTools(server: McpServer): void {
         const result = await createTypeGroup({
           kind,
           name,
-          project_id: project_id ?? null,
+          project_id: resolveNullableProjectId(project_id),
           scope,
           parent_group_id,
           sort_order,

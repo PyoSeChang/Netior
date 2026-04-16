@@ -12,19 +12,25 @@ import {
   updateNetwork,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
-import { registerNetiorTool } from './shared-tool-registry.js';
+import {
+  projectIdOrNullSchema,
+  projectIdSchema,
+  registerNetiorTool,
+  resolveNullableProjectId,
+  resolveProjectId,
+} from './shared-tool-registry.js';
 
 export function registerNetworkTools(server: McpServer): void {
   registerNetiorTool(
     server,
     'list_networks',
     {
-      project_id: z.string().describe('The project ID'),
+      project_id: projectIdSchema(),
       root_only: z.boolean().optional().describe('Whether to return only root-level networks'),
     },
     async ({ project_id, root_only }) => {
       try {
-        const result = await listNetworks(project_id, root_only);
+        const result = await listNetworks(resolveProjectId(project_id), root_only);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -42,7 +48,7 @@ export function registerNetworkTools(server: McpServer): void {
     'create_network',
     {
       name: z.string().describe('Network name'),
-      project_id: z.string().nullable().optional().describe('Project ID or null for app scope'),
+      project_id: projectIdOrNullSchema('Project ID or null for app scope'),
       scope: z.string().optional().describe('Optional network scope'),
       parent_network_id: z.string().optional().describe('Parent network ID'),
     },
@@ -50,7 +56,7 @@ export function registerNetworkTools(server: McpServer): void {
       try {
         const result = await createNetwork({
           name,
-          project_id: project_id ?? null,
+          project_id: resolveNullableProjectId(project_id),
           scope,
           parent_network_id,
         });
@@ -175,10 +181,10 @@ export function registerNetworkTools(server: McpServer): void {
   registerNetiorTool(
     server,
     'get_project_root_network',
-    { project_id: z.string().describe('The project ID') },
+    { project_id: projectIdSchema() },
     async ({ project_id }) => {
       try {
-        const result = await getProjectRootNetwork(project_id);
+        const result = await getProjectRootNetwork(resolveProjectId(project_id));
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -194,10 +200,10 @@ export function registerNetworkTools(server: McpServer): void {
   registerNetiorTool(
     server,
     'get_network_tree',
-    { project_id: z.string().describe('The project ID') },
+    { project_id: projectIdSchema() },
     async ({ project_id }) => {
       try {
-        const result = await getNetworkTree(project_id);
+        const result = await getNetworkTree(resolveProjectId(project_id));
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };

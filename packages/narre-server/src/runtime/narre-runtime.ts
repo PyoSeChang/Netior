@@ -11,8 +11,6 @@ import type {
   NarreTranscriptBlock,
   NarreTranscriptTurn,
 } from '@netior/shared/types';
-import { buildOnboardingPrompt } from '../prompts/onboarding-v2.js';
-import { buildIndexTocPrompt } from '../prompts/index-toc.js';
 import {
   buildSystemPrompt,
   DEFAULT_NARRE_BEHAVIOR_SETTINGS,
@@ -21,11 +19,8 @@ import {
 import { parseCommand } from '../command-router.js';
 import { SessionStore } from '../session-store.js';
 import type { NarreMcpServerConfig, NarreProviderAdapter } from './provider-adapter.js';
-
-const commandPromptBuilders: Record<string, (params: SystemPromptParams, behavior: NarreBehaviorSettings) => string> = {
-  onboarding: buildOnboardingPrompt,
-  index: buildIndexTocPrompt,
-};
+import { loadPromptSkill } from '../prompt-skills/registry.js';
+import type { NarrePromptSkillDefinition } from '../prompt-skills/types.js';
 
 export interface NarreRuntimeChatRequest {
   traceId?: string;
@@ -83,22 +78,29 @@ export class NarreRuntime {
     const resolvedSessionId = activeSessionId;
 
     const metadata = request.projectMetadata ?? {
+      projectId: request.projectId,
       projectName: request.projectId,
       projectRootDir: null,
       archetypes: [],
       relationTypes: [],
     };
     const behaviorSettings = this.config.behaviorSettings ?? DEFAULT_NARRE_BEHAVIOR_SETTINGS;
-    const promptBuilder = parsedCommand?.command.name
-      ? commandPromptBuilders[parsedCommand.command.name]
-      : undefined;
-    const systemPrompt = promptBuilder
-      ? promptBuilder(metadata, behaviorSettings)
+    const promptSkill = parsedCommand?.command.type === 'conversation'
+      ? await loadPromptSkill(parsedCommand.command.promptSkillKey)
+      : null;
+    const skillPrompt = promptSkill
+      ? promptSkill.buildPrompt({ params: metadata, behavior: behaviorSettings, projectId: request.projectId })
+      : '';
+    const systemPrompt = skillPrompt
+      ? `${buildSystemPrompt(metadata, behaviorSettings)}\n\n${skillPrompt}`
       : buildSystemPrompt(metadata, behaviorSettings);
+    const normalizedCommandArgs = parsedCommand?.command.type === 'conversation'
+      ? promptSkill?.normalizeArgs?.(request.message, parsedCommand) ?? parsedCommand.args
+      : undefined;
 
     const processedMessage = this.buildPromptMessage(request.message, request.mentions);
 
-    const userTurn = buildUserTurn(request.message, request.mentions, parsedCommand);
+    const userTurn = buildUserTurn(request.message, request.mentions, parsedCommand, normalizedCommandArgs);
     await this.config.sessionStore.appendTurn(resolvedSessionId, request.projectId, userTurn);
 
     const mcpServerPath = this.config.resolveMcpServerPath();
@@ -111,7 +113,7 @@ export class NarreRuntime {
     const sessionData = await this.config.sessionStore.getSession(resolvedSessionId, request.projectId);
     const historyTurns = sessionData?.transcript?.turns ?? [];
     const isResume = historyTurns.length > 1;
-    const mcpServerConfigs = this.buildMcpServerConfigs(mcpServerPath);
+    const mcpServerConfigs = this.buildMcpServerConfigs(mcpServerPath, request.projectId, promptSkill);
     console.log(
       `[narre:runtime] trace=${traceId} stage=run.start session=${resolvedSessionId} ` +
       `project=${request.projectId} resume=${isResume ? 'yes' : 'no'} mentions=${request.mentions?.length ?? 0}`,
@@ -329,25 +331,37 @@ export class NarreRuntime {
     return { sessionId: resolvedSessionId };
   }
 
-  private buildMcpServerConfigs(mcpServerPath: string): NarreMcpServerConfig[] {
+  private buildMcpServerConfigs(
+    mcpServerPath: string,
+    projectId: string,
+    promptSkill: NarrePromptSkillDefinition | null,
+  ): NarreMcpServerConfig[] {
     const runningInsideElectronNode = Boolean(process.versions.electron) || process.env.ELECTRON_RUN_AS_NODE === '1';
     const mcpCommand = process.execPath;
-    const mcpEnv: Record<string, string> = {
+    const baseEnv: Record<string, string> = {
       NETIOR_SERVICE_URL: process.env.NETIOR_SERVICE_URL ?? `http://127.0.0.1:${process.env.NETIOR_SERVICE_PORT ?? '3201'}`,
+      NETIOR_MCP_DEFAULT_PROJECT_ID: projectId,
     };
 
     if (runningInsideElectronNode) {
-      mcpEnv.ELECTRON_RUN_AS_NODE = '1';
+      baseEnv.ELECTRON_RUN_AS_NODE = '1';
     }
 
-    return [
-      {
-        name: 'netior',
-        command: mcpCommand,
-        args: [mcpServerPath],
-        env: mcpEnv,
+    const profiles = Array.from(new Set([
+      'core',
+      ...(promptSkill?.additionalToolProfiles ?? []),
+    ]));
+
+    return profiles.map((profile) => ({
+      name: profile === 'core' ? 'netior-core' : `netior-${profile}`,
+      command: mcpCommand,
+      args: [mcpServerPath],
+      env: {
+        ...baseEnv,
+        NETIOR_MCP_TOOL_PROFILE: profile,
       },
-    ];
+      required: true,
+    }));
   }
 
   private buildPromptMessage(message: string, mentions?: NarreMention[]): string {
@@ -390,46 +404,16 @@ function resolveActorProvider(name: string): NarreActorProvider {
   }
 }
 
-function extractIndexCommandArgs(message: string): Record<string, string> {
-  const match = message.match(/\[toc_params\]([\s\S]*?)\[\/toc_params\]/);
-  if (!match) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(match[1]) as Partial<{
-      startPage: number;
-      endPage: number;
-      overviewPages: number[];
-    }>;
-
-    const args: Record<string, string> = {};
-    if (typeof parsed.startPage === 'number') {
-      args.startPage = String(parsed.startPage);
-    }
-    if (typeof parsed.endPage === 'number') {
-      args.endPage = String(parsed.endPage);
-    }
-    if (Array.isArray(parsed.overviewPages) && parsed.overviewPages.length > 0) {
-      args.overviewPages = parsed.overviewPages.join(', ');
-    }
-    return args;
-  } catch {
-    return {};
-  }
-}
-
 function buildUserTurn(
   message: string,
   mentions: NarreMention[] | undefined,
   parsedCommand: ReturnType<typeof parseCommand>,
+  commandArgs?: Record<string, string>,
 ): NarreTranscriptTurn {
   const blocks: NarreTranscriptBlock[] = [];
 
   if (parsedCommand?.command.type === 'conversation') {
-    const args = parsedCommand.command.name === 'index'
-      ? { ...parsedCommand.args, ...extractIndexCommandArgs(message) }
-      : parsedCommand.args;
+    const args = commandArgs ?? parsedCommand.args;
 
     blocks.push({
       id: buildBlockId(),

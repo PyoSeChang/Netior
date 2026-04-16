@@ -1,5 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { SEMANTIC_TRAIT_DEFINITIONS } from '@netior/shared/constants';
+import type { SemanticTraitKey } from '@netior/shared/types';
 import {
   listArchetypes,
   createArchetype,
@@ -7,16 +9,22 @@ import {
   deleteArchetype,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
-import { registerNetiorTool } from './shared-tool-registry.js';
+import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
+
+const semanticTraitKeys = new Set(SEMANTIC_TRAIT_DEFINITIONS.map((definition) => definition.key));
+const semanticTraitsSchema = z.array(z.string()).refine(
+  (values) => values.every((value) => semanticTraitKeys.has(value as never)),
+  'Invalid semantic trait key',
+);
 
 export function registerArchetypeTools(server: McpServer): void {
   registerNetiorTool(
     server,
     'list_archetypes',
-    { project_id: z.string().describe('The project ID') },
+    { project_id: projectIdSchema() },
     async ({ project_id }) => {
       try {
-        const result = await listArchetypes(project_id);
+        const result = await listArchetypes(resolveProjectId(project_id));
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -33,22 +41,28 @@ export function registerArchetypeTools(server: McpServer): void {
     server,
     'create_archetype',
     {
-      project_id: z.string().describe('The project ID'),
+      project_id: projectIdSchema(),
+      group_id: z.string().nullable().optional().describe('Optional archetype group ID or null'),
       name: z.string().describe('Archetype name'),
       icon: z.string().optional().describe('Icon identifier'),
       color: z.string().optional().describe('Color value'),
       node_shape: z.string().optional().describe('Node shape for network rendering'),
       description: z.string().optional().describe('Archetype description'),
+      file_template: z.string().nullable().optional().describe('Optional file template for new concepts'),
+      semantic_traits: semanticTraitsSchema.optional().describe('Optional semantic trait keys'),
     },
-    async ({ project_id, name, icon, color, node_shape, description }) => {
+    async ({ project_id, group_id, name, icon, color, node_shape, description, file_template, semantic_traits }) => {
       try {
         const result = await createArchetype({
-          project_id,
+          project_id: resolveProjectId(project_id),
+          group_id,
           name,
           icon,
           color,
           node_shape,
           description,
+          file_template: file_template ?? undefined,
+          semantic_traits: semantic_traits as SemanticTraitKey[] | undefined,
         });
         emitChange({ type: 'archetype', action: 'create', id: result.id });
         return {
@@ -68,20 +82,26 @@ export function registerArchetypeTools(server: McpServer): void {
     'update_archetype',
     {
       archetype_id: z.string().describe('The archetype ID to update'),
+      group_id: z.string().nullable().optional().describe('New group ID or null'),
       name: z.string().optional().describe('New name'),
       icon: z.string().optional().describe('New icon identifier'),
       color: z.string().optional().describe('New color value'),
       node_shape: z.string().optional().describe('New node shape'),
       description: z.string().optional().describe('New description'),
+      file_template: z.string().nullable().optional().describe('New file template or null'),
+      semantic_traits: semanticTraitsSchema.optional().describe('New semantic trait keys'),
     },
-    async ({ archetype_id, name, icon, color, node_shape, description }) => {
+    async ({ archetype_id, group_id, name, icon, color, node_shape, description, file_template, semantic_traits }) => {
       try {
         const result = await updateArchetype(archetype_id, {
+          group_id,
           name,
           icon,
           color,
           node_shape,
           description,
+          file_template,
+          semantic_traits: semantic_traits as SemanticTraitKey[] | undefined,
         });
         if (!result) {
           return {

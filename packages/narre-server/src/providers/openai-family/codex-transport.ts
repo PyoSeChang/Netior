@@ -853,7 +853,7 @@ function buildMcpServerConfig(mcpServerConfigs: NarreMcpServerConfig[]): Record<
       ...(config.cwd ? { cwd: config.cwd } : {}),
       ...(config.env ? { env: config.env } : {}),
       enabled: true,
-      required: config.name === 'netior',
+      required: config.required ?? false,
       startup_timeout_sec: 20,
     },
   ]);

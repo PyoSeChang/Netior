@@ -8,6 +8,7 @@ export interface NarreMcpServerConfig {
   args?: string[];
   env?: Record<string, string>;
   cwd?: string;
+  required?: boolean;
 }
 
 export interface NarreProviderRunContext {

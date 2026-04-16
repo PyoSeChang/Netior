@@ -10,7 +10,6 @@ export interface TocParams {
   overviewPages?: number[];
   fileId: string;
   filePath: string;
-  projectId: string;
 }
 
 /**

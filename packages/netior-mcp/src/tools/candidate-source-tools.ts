@@ -6,7 +6,7 @@ import {
   listArchetypeFields,
   searchConcepts,
 } from '../netior-service-client.js';
-import { registerNetiorTool } from './shared-tool-registry.js';
+import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
 
 function parseInlineOptions(options: string | null): string[] {
   if (!options) {
@@ -28,7 +28,7 @@ export function registerCandidateSourceTools(server: McpServer): void {
     server,
     'get_field_candidates',
     {
-      project_id: z.string().describe('The project ID'),
+      project_id: projectIdSchema(),
       archetype_id: z.string().describe('The archetype that owns the field'),
       field_id: z.string().describe('The field contract ID'),
       query: z.string().optional().describe('Optional search query for candidate concepts'),
@@ -36,6 +36,7 @@ export function registerCandidateSourceTools(server: McpServer): void {
     },
     async ({ project_id, archetype_id, field_id, query, max_results }) => {
       try {
+        const targetProjectId = resolveProjectId(project_id);
         const fields = await listArchetypeFields(archetype_id);
         const field = findField(fields, field_id);
 
@@ -50,8 +51,8 @@ export function registerCandidateSourceTools(server: McpServer): void {
 
         if (field.ref_archetype_id) {
           const concepts = query
-            ? await searchConcepts(project_id, query)
-            : await getConceptsByProject(project_id);
+            ? await searchConcepts(targetProjectId, query)
+            : await getConceptsByProject(targetProjectId);
           const filtered = concepts
             .filter((concept) => concept.archetype_id === field.ref_archetype_id)
             .slice(0, limit)

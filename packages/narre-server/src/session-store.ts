@@ -311,6 +311,7 @@ export class SessionStore {
       for (const block of turn.blocks) {
         if (
           block.type === 'card'
+          && 'toolCallId' in block.card
           && block.card.toolCallId === toolCallId
         ) {
           switch (block.card.type) {

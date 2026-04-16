@@ -4,21 +4,26 @@ export interface SystemPromptArchetypeFieldSummary {
   name: string;
   field_type: string;
   required?: boolean;
+  system_slot?: string | null;
+  generated_by_trait?: boolean;
   ref_archetype_name?: string | null;
   option_source_archetype_name?: string | null;
   options_preview?: string[] | null;
 }
 
 export interface SystemPromptArchetypeSummary {
+  id: string;
   name: string;
   icon?: string | null;
   color?: string | null;
   node_shape?: string | null;
   description?: string | null;
+  semantic_traits?: string[];
   fields?: SystemPromptArchetypeFieldSummary[];
 }
 
 export interface SystemPromptRelationTypeSummary {
+  id: string;
   name: string;
   directed: boolean;
   line_style: string;
@@ -27,6 +32,7 @@ export interface SystemPromptRelationTypeSummary {
 }
 
 export interface SystemPromptTypeGroupSummary {
+  id: string;
   kind: 'archetype' | 'relation_type';
   path: string;
 }
@@ -43,6 +49,7 @@ export interface SystemPromptNetworkTreeSummary {
 }
 
 export interface SystemPromptParams {
+  projectId: string;
   projectName: string;
   projectRootDir?: string | null;
   archetypes: SystemPromptArchetypeSummary[];
@@ -98,9 +105,42 @@ export function buildBehaviorGuidanceSection(behavior: NarreBehaviorSettings): s
   ].join('\n');
 }
 
+const SEARCHABLE_FIELD_TYPES = new Set([
+  'text',
+  'textarea',
+  'number',
+  'boolean',
+  'date',
+  'datetime',
+  'select',
+  'multi-select',
+  'radio',
+  'relation',
+  'url',
+  'rating',
+  'tags',
+  'archetype_ref',
+]);
+
+function isRelationalField(field: SystemPromptArchetypeFieldSummary): boolean {
+  return field.field_type === 'relation' || field.field_type === 'archetype_ref' || !!field.ref_archetype_name;
+}
+
+function isSearchableField(field: SystemPromptArchetypeFieldSummary): boolean {
+  return !!field.system_slot || SEARCHABLE_FIELD_TYPES.has(field.field_type);
+}
+
 function formatFieldSummary(field: SystemPromptArchetypeFieldSummary): string {
   const facets: string[] = [field.field_type];
   facets.push(field.required ? 'required' : 'optional');
+
+  if (field.system_slot) {
+    facets.push(`slot=${field.system_slot}`);
+  }
+
+  if (field.generated_by_trait) {
+    facets.push('trait-generated');
+  }
 
   if (field.ref_archetype_name) {
     facets.push(`target=${field.ref_archetype_name}`);
@@ -121,24 +161,62 @@ function buildArchetypeList(archetypes: SystemPromptArchetypeSummary[]): string 
   }
 
   return archetypes.map((archetype) => {
-    const details = [
+    const fields = archetype.fields ?? [];
+    const propertyFields = fields.filter((field) => !isRelationalField(field));
+    const relationalFields = fields.filter((field) => isRelationalField(field));
+    const searchSurface = Array.from(new Set([
+      'concept_title',
+      ...fields
+        .filter((field) => isSearchableField(field))
+        .map((field) => field.system_slot ?? field.name),
+    ]));
+
+    const profile = [
       `icon=${archetype.icon ?? 'none'}`,
       `color=${archetype.color ?? 'none'}`,
       `shape=${archetype.node_shape ?? 'default'}`,
-    ];
-    if (archetype.description) {
-      details.push(`description=${archetype.description}`);
-    }
+      ...(archetype.description ? [`description=${archetype.description}`] : []),
+    ].join(', ');
+    const overflow = fields.length > 10 ? `\n- more_fields=+${fields.length - 10}` : '';
 
-    const fields = archetype.fields ?? [];
-    if (fields.length === 0) {
-      return `- ${archetype.name}: ${details.join(', ')}; fields=(none yet)`;
-    }
+    return [
+      `### ${archetype.name} [id=${archetype.id}]`,
+      `- profile=${profile}`,
+      `- traits=${archetype.semantic_traits && archetype.semantic_traits.length > 0 ? archetype.semantic_traits.join('|') : '(none)'}`,
+      `- properties=${propertyFields.length > 0 ? propertyFields.slice(0, 6).map(formatFieldSummary).join('; ') : '(none yet)'}`,
+      `- archetype_relations=${relationalFields.length > 0 ? relationalFields.slice(0, 6).map(formatFieldSummary).join('; ') : '(none yet)'}`,
+      `- search_surface=${searchSurface.join(', ')}`,
+      overflow,
+    ].filter(Boolean).join('\n');
+  }).join('\n\n');
+}
 
-    const fieldPreview = fields.slice(0, 6).map(formatFieldSummary).join('; ');
-    const overflow = fields.length > 6 ? `; +${fields.length - 6} more fields` : '';
-    return `- ${archetype.name}: ${details.join(', ')}; fields=${fieldPreview}${overflow}`;
-  }).join('\n');
+function buildRelationalSchemaSection(archetypes: SystemPromptArchetypeSummary[]): string {
+  const lines: string[] = [];
+
+  for (const archetype of archetypes) {
+    for (const field of archetype.fields ?? []) {
+      if (!isRelationalField(field)) {
+        continue;
+      }
+
+      const facets = [
+        `type=${field.field_type}`,
+        field.required ? 'required' : 'optional',
+        ...(field.system_slot ? [`slot=${field.system_slot}`] : []),
+        ...(field.generated_by_trait ? ['trait-generated'] : []),
+      ];
+      lines.push(
+        `- ${archetype.name}.${field.name} -> ${field.ref_archetype_name ?? 'untyped'} [${facets.join(', ')}]`,
+      );
+    }
+  }
+
+  if (lines.length === 0) {
+    return '- (none modeled yet)';
+  }
+
+  return lines.join('\n');
 }
 
 function buildRelationTypeList(relationTypes: SystemPromptRelationTypeSummary[]): string {
@@ -155,7 +233,7 @@ function buildRelationTypeList(relationTypes: SystemPromptRelationTypeSummary[])
     if (relationType.description) {
       details.push(`description=${relationType.description}`);
     }
-    return `- ${relationType.name}: ${details.join(', ')}`;
+    return `- ${relationType.name} [id=${relationType.id}]: ${details.join(', ')}`;
   }).join('\n');
 }
 
@@ -165,7 +243,7 @@ function buildTypeGroupSection(typeGroups: SystemPromptTypeGroupSummary[] | unde
   }
 
   return typeGroups
-    .map((group) => `- ${group.kind}: ${group.path}`)
+    .map((group) => `- ${group.kind} [id=${group.id}]: ${group.path}`)
     .join('\n');
 }
 
@@ -183,7 +261,7 @@ function collectNetworkTreeLines(
     if (lines.length >= maxLines) {
       return;
     }
-    lines.push(`${'  '.repeat(depth)}- ${node.name}`);
+    lines.push(`${'  '.repeat(depth)}- ${node.name} [id=${node.id}]`);
     collectNetworkTreeLines(node.children, depth + 1, lines, maxLines);
   }
 }
@@ -194,8 +272,8 @@ function buildNetworkContextSection(
   networkTree: SystemPromptNetworkTreeSummary[] | undefined,
 ): string {
   const lines: string[] = [
-    `- app_root=${appRootNetwork?.name ?? 'none'}`,
-    `- project_root=${projectRootNetwork?.name ?? 'none'}`,
+    `- app_root=${appRootNetwork ? `${appRootNetwork.name} [id=${appRootNetwork.id}]` : 'none'}`,
+    `- project_root=${projectRootNetwork ? `${projectRootNetwork.name} [id=${projectRootNetwork.id}]` : 'none'}`,
   ];
 
   const treeLines: string[] = [];
@@ -217,6 +295,7 @@ export function buildSystemPrompt(
   behavior: NarreBehaviorSettings = DEFAULT_NARRE_BEHAVIOR_SETTINGS,
 ): string {
   const {
+    projectId,
     projectName,
     projectRootDir,
     archetypes,
@@ -228,18 +307,29 @@ export function buildSystemPrompt(
   } = params;
 
   const archetypeList = buildArchetypeList(archetypes);
+  const relationalSchema = buildRelationalSchemaSection(archetypes);
   const relationTypeList = buildRelationTypeList(relationTypes);
   const typeGroupList = buildTypeGroupSection(typeGroups);
   const networkContext = buildNetworkContextSection(appRootNetwork, projectRootNetwork, networkTree);
 
   return `You are Narre, the AI assistant for Netior (Map of Concepts).
-You help users organize concepts in their project.
+You help users model and organize a Netior project graph.
 
-## Current Project: ${projectName}
-${projectRootDir ? `Project root directory: ${projectRootDir}` : 'Project root directory: (unknown)'}
+## Current Execution
+- current_project_id=${projectId}
+- current_project_name=${projectName}
+- current_project_root=${projectRootDir ?? '(unknown)'}
 
-## Archetypes (${archetypes.length})
+The active project is already fixed for this run. Do not search for which project to use unless the user explicitly asks for cross-project work.
+
+## Project Schema Digest
+Use this schema digest as the primary search surface before calling tools.
+
+## Archetype Search Surfaces (${archetypes.length})
 ${archetypeList}
+
+## Archetype Relation Map
+${relationalSchema}
 
 ## Relation Types (${relationTypes.length})
 ${relationTypeList}
@@ -250,19 +340,23 @@ ${typeGroupList}
 ## Network Context
 ${networkContext}
 
-## Interpretation Model
-- Start from the user's internal expectation, not from Netior implementation vocabulary.
-- First decide whether the request is about schema, instance data, graph relations, organization, or network/view structure.
-- For schema work, distinguish three common cases:
-  - scalar field: simple property like name, level, price, description
-  - typed archetype reference: one archetype structurally has another archetype
-  - instance-backed choice: a field chooses from real concepts/objects instead of fixed inline options
-- Use natural-language defaults:
-  - "A has B", "A has a B sheet/profile" -> typed archetype reference candidate
-  - "choose among B", "equip B", "pick from registered B" -> instance-backed choice candidate
-  - "belongs to", "references", "connects to" -> graph edge candidate
-  - "group these types", "folder-like organization" -> type-group candidate
-  - "show under", "root hierarchy", "separate network" -> network/view candidate
+## Search Strategy
+- Start from the archetype schema digest in this prompt: traits, property contracts, archetype relations, relation types, and network hierarchy.
+- Before searching concepts, infer these three things first:
+  1. likely target archetype
+  2. likely filter properties or system slots
+  3. whether another archetype must be resolved first through a typed reference
+- Treat archetype relations like an ORM map:
+  - if Task.owner -> Person exists, resolve Person first when the user searches by owner
+  - if Document.supersedes -> Document exists, use that field contract before inventing a graph edge search
+- Distinguish these layers:
+  - object or schema change
+  - concept instance search or mutation
+  - node placement or network structure change
+  - layout/view change
+  - type organization change
+- Use relation types for graph-edge meaning.
+- Use archetype field contracts for concept property filtering, typed references, and schema-level relations.
 - Ask a short confirmation only when the structural meaning can materially diverge:
   - field vs edge
   - inline enum vs instance-backed choice
@@ -270,14 +364,26 @@ ${networkContext}
   - required vs optional
   - merge/split/refactor/migration that may change existing data
 
+## Tool Policy
+- Stable project schema, archetype search surfaces, and network hierarchy index are already in this prompt. Do not broad-search for them again unless the live state may have diverged.
+- Prefer this decision order:
+  1. mentioned object
+  2. prompt digest
+  3. targeted lookup
+  4. broad discovery
+- Use tools for live state, IDs that are still missing, membership, current values, ambiguity resolution, candidate sets, and destructive-change verification.
+- Do not re-fetch archetype lists, relation type lists, type groups, or network hierarchy just because those tools exist.
+- Do not search for the active project ID. It is already fixed as '${projectId}'.
+- When a tool supports default project binding, you may omit 'project_id' and use the current project by default.
+- Prefer one precise inspection over multiple exploratory searches.
+
 ## Guidelines
 - When the project has no types defined, proactively suggest an initialization based on the project topic. Ask what domain the project covers and propose a type system.
 - Always confirm before destructive operations (delete, bulk modify).
 - When deleting an entity with dependent data, warn about cascading effects.
 - Respond in the same language the user uses.
 - Be concise and action-oriented.
-- Use the available tools to query and modify data. Concept lists should be fetched via the list_concepts tool rather than being memorized.
-- Use project/schema discovery tools before making high-impact modeling changes.
+- Before searching or mutating concepts, identify the target archetype and likely search fields from the schema digest first.
 - For field-level schema work, inspect archetype field contracts and concept properties before changing relationship structure.
 - Before assigning reference or choice values, inspect the candidate set instead of guessing from memory.
 - Use graph primitives when the user is talking about network structure, navigation hierarchy, node placement, or independent object-to-object relations in the graph.

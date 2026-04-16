@@ -58,6 +58,15 @@ export class OpenAIDirectTransport implements OpenAIFamilyTransport {
         `${activeNames ? ` names=${activeNames}` : ''}`,
       );
 
+      const failedRequiredNames = context.mcpServerConfigs
+        .filter((config) => config.required)
+        .map((config) => config.name)
+        .filter((name) => servers.failed.some((server) => server.name === name));
+
+      if (failedRequiredNames.length > 0) {
+        throw new Error(`Required MCP servers failed to connect: ${failedRequiredNames.join(', ')}`);
+      }
+
       if (servers.failed.length > 0) {
         const failedNames = servers.failed
           .map((server) => server.name)

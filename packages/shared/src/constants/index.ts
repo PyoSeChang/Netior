@@ -18,12 +18,14 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
     description: 'narre.command.onboarding',
     type: 'conversation',
     hint: 'narre.command.onboardingHint',
+    promptSkillKey: 'onboarding',
   },
   {
     name: 'index',
     description: 'narre.command.index',
     type: 'conversation',
     hint: 'narre.command.indexHint',
+    promptSkillKey: 'index',
     args: [
       {
         name: 'startPage',

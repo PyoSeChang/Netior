@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerAllTools } from './tools/index.js';
 import { getNetiorServiceUrl } from './netior-service-client.js';
+import { getActiveNetiorMcpToolProfile } from './tools/shared-tool-registry.js';
 
 // MCP stdio transport requires stdout to stay protocol-only.
 console.log = (...args: unknown[]) => {
@@ -23,7 +24,11 @@ async function main(): Promise<void> {
   // Create stdio transport and connect
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[netior-mcp] Using netior-service at ${getNetiorServiceUrl()}`);
+  console.error(
+    `[netior-mcp] profile=${getActiveNetiorMcpToolProfile()} ` +
+    `defaultProject=${process.env.NETIOR_MCP_DEFAULT_PROJECT_ID ?? '(none)'} ` +
+    `service=${getNetiorServiceUrl()}`,
+  );
 
   // Graceful shutdown
   const shutdown = (): void => {

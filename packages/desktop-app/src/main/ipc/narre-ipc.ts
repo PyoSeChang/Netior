@@ -324,9 +324,10 @@ function buildTypeGroupPathMap(groups: TypeGroup[]): Map<string, string> {
   return cache;
 }
 
-function mapTypeGroups(groups: TypeGroup[]): Array<{ kind: 'archetype' | 'relation_type'; path: string }> {
+function mapTypeGroups(groups: TypeGroup[]): Array<{ id: string; kind: 'archetype' | 'relation_type'; path: string }> {
   const pathMap = buildTypeGroupPathMap(groups);
   return groups.map((group) => ({
+    id: group.id,
     kind: group.kind,
     path: pathMap.get(group.id) ?? group.name,
   }));
@@ -393,6 +394,8 @@ function mapArchetypeFields(
   name: string;
   field_type: string;
   required: boolean;
+  system_slot?: string;
+  generated_by_trait?: boolean;
   ref_archetype_name?: string;
   options_preview?: string[];
 }> {
@@ -403,6 +406,8 @@ function mapArchetypeFields(
       name: field.name,
       field_type: field.field_type,
       required: field.required,
+      ...(field.system_slot ? { system_slot: field.system_slot } : {}),
+      ...(field.generated_by_trait ? { generated_by_trait: true } : {}),
       ...(field.ref_archetype_id
         ? { ref_archetype_name: archetypeNames.get(field.ref_archetype_id) ?? field.ref_archetype_id }
         : {}),
@@ -698,17 +703,21 @@ export function registerNarreIpc(): void {
       const typeGroups = mapTypeGroups([...archetypeGroups, ...relationTypeGroups]);
 
       const projectMetadata = {
+        projectId,
         projectName: project?.name ?? projectId,
         projectRootDir: project?.root_dir ?? null,
         archetypes: archetypes.map((archetype) => ({
+          id: archetype.id,
           name: archetype.name,
           icon: archetype.icon,
           color: archetype.color,
           node_shape: archetype.node_shape,
           description: archetype.description,
+          semantic_traits: archetype.semantic_traits,
           fields: mapArchetypeFields(archetypeFieldsById.get(archetype.id) ?? [], archetypeNameMap),
         })),
         relationTypes: relationTypes.map((relationType) => ({
+          id: relationType.id,
           name: relationType.name,
           directed: relationType.directed,
           line_style: relationType.line_style,
