@@ -320,6 +320,13 @@
     "title": "제목",
     "titlePlaceholder": "Concept 제목",
     "icon": "아이콘 (이모지)",
+    "visual": "시각",
+    "visualHint": "이 Concept의 노드 시각은 여기 한 곳에서만 설정합니다.",
+    "selectProfileImage": "로컬 프로필 이미지를 선택하세요...",
+    "visualModeOptions": {
+      "icon": "아이콘",
+      "image": "프로필 이미지"
+    },
     "color": "색상",
     "editTitleHint": "더블 클릭하여 제목 편집",
     "noFiles": "이 개념에 연결된 파일이 없습니다",
@@ -379,6 +386,7 @@
     "nodeSortValueDisabled": "정렬 종류를 먼저 선택하세요.",
     "nodeMetadata": "노드 메타데이터",
     "saveNodeMetadata": "노드 메타데이터 저장",
+    "invalidNodeMetadata": "노드 메타데이터는 올바른 JSON이어야 합니다.",
     "semanticSlot": "시스템 슬롯",
     "allowedFieldTypes": "허용 필드 타입",
     "slotContract": {

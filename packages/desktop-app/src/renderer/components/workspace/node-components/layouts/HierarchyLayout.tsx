@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { resolveIcon } from '../../../../utils/icon-resolver';
+import { NodeVisual } from '../NodeVisual';
 import type { ShapeLayoutProps } from '../types';
 
 export const HierarchyLayout: React.FC<ShapeLayoutProps> = ({
@@ -20,7 +20,7 @@ export const HierarchyLayout: React.FC<ShapeLayoutProps> = ({
       <div className="mx-auto flex w-full max-w-[220px] flex-col gap-1 rounded-md border border-default bg-surface-card px-3 py-2 shadow-sm">
         <div className="flex w-full min-w-0 items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="shrink-0 text-[16px] leading-none text-accent">{resolveIcon(icon, 16)}</span>
+            <NodeVisual icon={icon} metadata={metadata} size={16} imageSize={28} className="shrink-0 text-[16px] leading-none text-accent" />
             <span className="truncate text-sm font-medium text-default">{label}</span>
           </div>
           {canToggleCollapse && onToggleCollapse && (

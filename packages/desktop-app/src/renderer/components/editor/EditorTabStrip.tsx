@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useSyncExternalStore } from 'react';
-import { X, Terminal, Shapes, Link, Layout, Sparkles, Box, FileText, FolderOpen, RefreshCw } from 'lucide-react';
+import { X, Terminal, Shapes, Link, Layout, Sparkles, FileText, FolderOpen, RefreshCw } from 'lucide-react';
 import type { EditorTab } from '@netior/shared/types';
 import { setTabDragData, isTabDrag, getTabDragDataAsync, clearTabDragData, flushTabDragData } from '../../hooks/useTabDrag';
 import { getFileOpenDragData, isFileOpenDrag } from '../../hooks/useFileOpenDrag';
@@ -21,6 +21,8 @@ import { fsService } from '../../services';
 import { replaceDraftCache } from '../../hooks/useEditorSession';
 import { setKnownFileTabSignature } from '../../lib/file-tab-stale-registry';
 import { useI18n } from '../../hooks/useI18n';
+import { useConceptStore } from '../../stores/concept-store';
+import { NodeVisual } from '../workspace/node-components/NodeVisual';
 
 interface EditorTabStripProps {
   tabs: EditorTab[];
@@ -51,6 +53,11 @@ function useAgentState(targetId: string) {
 
 function TabIcon({ tab }: { tab: EditorTab }): JSX.Element {
   const agentState = useAgentState(tab.targetId);
+  const conceptIcon = useConceptStore((s) => (
+    tab.type === 'concept' && !tab.targetId.startsWith('draft-')
+      ? s.concepts.find((concept) => concept.id === tab.targetId)?.icon ?? null
+      : null
+  ));
 
   switch (tab.type) {
     case 'file': {
@@ -66,7 +73,7 @@ function TabIcon({ tab }: { tab: EditorTab }): JSX.Element {
       }
       return <Terminal size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'concept':
-      return <Box size={ICON_SIZE} style={{ flexShrink: 0 }} />;
+      return <NodeVisual icon={conceptIcon ?? 'box'} size={ICON_SIZE} imageSize={16} className="shrink-0" />;
     case 'archetype':
       return <Shapes size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'relationType':

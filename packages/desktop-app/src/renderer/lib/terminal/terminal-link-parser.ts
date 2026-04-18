@@ -173,7 +173,7 @@ export function extractFileLinks(text: string): Array<FileLink & { start: number
 export function extractUrl(text: string, col: number): UrlLink | null {
   const links = extractUrls(text);
   for (const link of links) {
-    if (col >= link.start && col <= link.end) {
+    if (col >= link.start && col < link.end) {
       return { url: link.url };
     }
   }
@@ -186,7 +186,7 @@ export function extractUrl(text: string, col: number): UrlLink | null {
 export function extractFileLink(text: string, col: number): FileLink | null {
   const links = extractFileLinks(text);
   for (const link of links) {
-    if (col >= link.start && col <= link.end) {
+    if (col >= link.start && col < link.end) {
       return { path: link.path, line: link.line, col: link.col };
     }
   }

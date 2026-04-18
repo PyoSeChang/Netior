@@ -22,8 +22,9 @@ export interface TerminalSearchController {
 }
 
 export interface TerminalBufferLine {
-  translateToString(trimRight?: boolean): string;
+  translateToString(trimRight?: boolean, startColumn?: number, endColumn?: number): string;
   isWrapped?: boolean;
+  getCell?(x: number): { getWidth(): number } | undefined;
 }
 
 export interface TerminalRawXterm {

@@ -35,6 +35,7 @@ import { Checkbox } from '../ui/Checkbox';
 import { Input } from '../ui/Input';
 import { getIconComponent } from '../ui/lucide-utils';
 import { TypeGroupModal } from './TypeGroupModal';
+import { NodeVisual } from '../workspace/node-components/NodeVisual';
 
 type PanelObjectType = 'concept' | 'network' | 'archetype' | 'relation_type' | 'context';
 type GroupablePanelObjectType = Extract<PanelObjectType, 'archetype' | 'relation_type'>;
@@ -477,6 +478,7 @@ export function ObjectPanel(): JSX.Element {
           ? (archetypes.find((archetype) => archetype.id === concept.archetype_id)?.name ?? 'Concept')
           : 'Concept',
         color: concept.color,
+        iconName: concept.icon,
       },
     }))
   ), [concepts, archetypes]);
@@ -1090,6 +1092,9 @@ export function ObjectPanel(): JSX.Element {
           <FolderTree size={14} className="shrink-0 text-secondary" />
         </>
       );
+    }
+    if (row.item.objectType === 'concept' && row.item.iconName) {
+      return <NodeVisual icon={row.item.iconName} size={14} imageSize={18} className="shrink-0" />;
     }
     if (row.item.objectType === 'archetype' && row.item.iconName) {
       const Icon = getIconComponent(row.item.iconName);

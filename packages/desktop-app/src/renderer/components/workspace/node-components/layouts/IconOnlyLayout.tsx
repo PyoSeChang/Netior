@@ -1,9 +1,9 @@
 import React from 'react';
-import { resolveIcon } from '../../../../utils/icon-resolver';
+import { NodeVisual } from '../NodeVisual';
 import type { ShapeLayoutProps } from '../types';
 
-export const IconOnlyLayout: React.FC<ShapeLayoutProps> = ({ icon }) => (
+export const IconOnlyLayout: React.FC<ShapeLayoutProps> = ({ icon, metadata }) => (
   <div className="w-full h-full flex items-center justify-center">
-    <span className="text-[24px] leading-none">{resolveIcon(icon)}</span>
+    <NodeVisual icon={icon} metadata={metadata} size={24} className="text-[24px] leading-none" />
   </div>
 );

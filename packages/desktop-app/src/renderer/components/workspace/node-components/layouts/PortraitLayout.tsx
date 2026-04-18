@@ -1,5 +1,5 @@
 import React from 'react';
-import { resolveIcon } from '../../../../utils/icon-resolver';
+import { NodeVisual } from '../NodeVisual';
 import type { ShapeLayoutProps } from '../types';
 
 /** Content nodes — vertical: icon + label + semanticTypeLabel + updatedAt */
@@ -8,11 +8,12 @@ export const PortraitLayout: React.FC<ShapeLayoutProps> = ({
   label,
   semanticTypeLabel,
   updatedAt,
+  metadata,
 }) => (
   <div className="w-full h-full flex flex-col items-center justify-center gap-2 py-3 px-3">
-    <span className="text-[24px] leading-none">{resolveIcon(icon)}</span>
-    <div className="flex flex-col items-center gap-0.5 min-w-0 overflow-hidden">
-      <span className="text-sm font-medium text-default whitespace-nowrap overflow-hidden text-ellipsis text-center">
+    <NodeVisual icon={icon} metadata={metadata} size={24} className="text-[24px] leading-none" />
+    <div className="flex flex-col items-center gap-0.5 min-w-0">
+      <span className="w-full text-center text-sm font-medium text-default whitespace-nowrap">
         {label}
       </span>
       <span className="text-xs text-secondary whitespace-nowrap overflow-hidden text-ellipsis text-center">

@@ -102,6 +102,9 @@ interface EditorStore {
 
 const FLOAT_STAGGER = 30;
 const DEFAULT_FLOAT_RECT = { x: 120, y: 80, width: 600, height: 450 };
+const MIN_FLOAT_WIDTH = 300;
+const MIN_FLOAT_HEIGHT = 200;
+const FLOAT_VIEWPORT_MARGIN = 16;
 
 let floatSaveTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
@@ -126,6 +129,41 @@ function debouncedSavePrefs(targetId: string, data: Record<string, unknown>) {
     });
     delete floatSaveTimers[targetId];
   }, 300);
+}
+
+function sanitizeFloatDimension(value: number | undefined, fallback: number, min: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.max(min, value);
+}
+
+function sanitizeFloatCoordinate(value: number | undefined, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return value;
+}
+
+function normalizeFloatRect(rect: EditorTab['floatRect']): EditorTab['floatRect'] {
+  const width = sanitizeFloatDimension(rect.width, DEFAULT_FLOAT_RECT.width, MIN_FLOAT_WIDTH);
+  const height = sanitizeFloatDimension(rect.height, DEFAULT_FLOAT_RECT.height, MIN_FLOAT_HEIGHT);
+  const fallbackX = sanitizeFloatCoordinate(rect.x, DEFAULT_FLOAT_RECT.x);
+  const fallbackY = sanitizeFloatCoordinate(rect.y, DEFAULT_FLOAT_RECT.y);
+
+  if (typeof window === 'undefined') {
+    return { x: fallbackX, y: fallbackY, width, height };
+  }
+
+  const viewportWidth = Math.max(window.innerWidth, width + FLOAT_VIEWPORT_MARGIN * 2);
+  const viewportHeight = Math.max(window.innerHeight, height + FLOAT_VIEWPORT_MARGIN * 2);
+  const minX = FLOAT_VIEWPORT_MARGIN;
+  const minY = FLOAT_VIEWPORT_MARGIN;
+  const maxX = Math.max(minX, viewportWidth - width - FLOAT_VIEWPORT_MARGIN);
+  const maxY = Math.max(minY, viewportHeight - height - FLOAT_VIEWPORT_MARGIN);
+
+  return {
+    x: Math.min(Math.max(fallbackX, minX), maxX),
+    y: Math.min(Math.max(fallbackY, minY), maxY),
+    width,
+    height,
+  };
 }
 
 function makeTabId(type: EditorTabType, targetId: string): string {
@@ -456,7 +494,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           ...layoutUpdate,
           ...layoutFocusUpdate,
           activeTabId: tabId,
-          tabs: tabs.map((t) => (t.id === tabId ? { ...t, ...contextPatch, isMinimized: false } : t)),
+          tabs: tabs.map((t) => {
+            if (t.id !== tabId) return t;
+            const nextFloatRect = t.viewMode === 'float' ? normalizeFloatRect(t.floatRect) : t.floatRect;
+            return { ...t, ...contextPatch, floatRect: nextFloatRect, isMinimized: false };
+          }),
         });
       } else {
         // Activate in detached host
@@ -465,7 +507,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
             ...s.hosts,
             [resolvedHostId]: { ...s.hosts[resolvedHostId], activeTabId: tabId },
           },
-          tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, ...contextPatch, isMinimized: false } : t)),
+          tabs: s.tabs.map((t) => {
+            if (t.id !== tabId) return t;
+            const nextFloatRect = t.viewMode === 'float' ? normalizeFloatRect(t.floatRect) : t.floatRect;
+            return { ...t, ...contextPatch, floatRect: nextFloatRect, isMinimized: false };
+          }),
         }));
       }
       return;
@@ -510,12 +556,12 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       title,
       hostId: resolvedHostId,
       viewMode: resolvedMode,
-      floatRect: {
+      floatRect: normalizeFloatRect({
         x: prefs?.float_x ?? DEFAULT_FLOAT_RECT.x + stagger,
         y: prefs?.float_y ?? DEFAULT_FLOAT_RECT.y + stagger,
         width: prefs?.float_width ?? DEFAULT_FLOAT_RECT.width,
         height: prefs?.float_height ?? DEFAULT_FLOAT_RECT.height,
-      },
+      }),
       isMinimized: false,
       sideSplitRatio: prefs?.side_split_ratio ?? sideSplitRatio ?? 0.5,
       isDirty: isDirty ?? !!draftData,
@@ -721,7 +767,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       set((s) => ({
         ...layoutUpdate,
         activeTabId: s.activeTabId === tabId ? (layoutUpdate.fallbackTabId ?? null) : s.activeTabId,
-        tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, viewMode: 'float' } : t)),
+        tabs: s.tabs.map((t) => (
+          t.id === tabId ? { ...t, viewMode: 'float', floatRect: normalizeFloatRect(t.floatRect) } : t
+        )),
       }));
       if (oldTab.type === 'concept') debouncedSavePrefs(oldTab.targetId, { view_mode: mode });
       return;
@@ -871,7 +919,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   updateFloatRect: (tabId, rect) => {
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        t.id === tabId ? { ...t, floatRect: { ...t.floatRect, ...rect } } : t,
+        t.id === tabId ? { ...t, floatRect: normalizeFloatRect({ ...t.floatRect, ...rect }) } : t,
       ),
     }));
     const tab = get().tabs.find((t) => t.id === tabId);

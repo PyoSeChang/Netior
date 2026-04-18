@@ -68,6 +68,28 @@ interface TerminalLinkUnderlineSegment {
   width: number;
 }
 
+interface TerminalLogicalLineCellRange {
+  startCol: number;
+  endColExclusive: number;
+  textStart: number;
+  textEnd: number;
+}
+
+interface TerminalLogicalLineRow {
+  bufferLineNumber: number;
+  text: string;
+  textStart: number;
+  textEnd: number;
+  cellTextStarts: number[];
+  cellRanges: TerminalLogicalLineCellRange[];
+}
+
+interface TerminalLogicalLineSnapshot {
+  text: string;
+  startLineNumber: number;
+  rows: TerminalLogicalLineRow[];
+}
+
 interface TerminalActionOverlayPosition {
   key: string;
   left: number;
@@ -507,22 +529,68 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
 
       const xt = instance.getRawXterm();
       if (xt) {
-        const getLogicalLine = (bufferLineNumber: number): { text: string; startLineNumber: number } => {
+        const getLogicalLine = (bufferLineNumber: number): TerminalLogicalLineSnapshot => {
           const startBufferIndex = bufferLineNumber - 1;
+          const cols = xt.cols ?? 120;
           let logicalStartIndex = startBufferIndex;
           while (logicalStartIndex > 0 && xt.buffer.active.getLine(logicalStartIndex)?.isWrapped) {
             logicalStartIndex--;
           }
 
           let text = '';
+          const rows: TerminalLogicalLineRow[] = [];
           for (let index = logicalStartIndex; index < xt.buffer.active.length; index++) {
             const line = xt.buffer.active.getLine(index);
             if (!line) break;
             if (index > logicalStartIndex && !line.isWrapped) break;
-            text += line.translateToString(true);
+            const rowText = line.translateToString(true, 0, cols);
+            const rowTextStart = text.length;
+            const cellTextStarts = Array.from({ length: cols }, () => rowText.length);
+            const cellRanges: TerminalLogicalLineCellRange[] = [];
+            let rowTextOffset = 0;
+
+            for (let col = 0; col < cols; col++) {
+              const width = Math.max(0, line.getCell?.(col)?.getWidth() ?? 1);
+              if (width === 0) {
+                cellTextStarts[col] = col > 0 ? cellTextStarts[col - 1] : 0;
+                continue;
+              }
+
+              const endColExclusive = Math.min(cols, col + width);
+              const textStart = Math.min(rowTextOffset, rowText.length);
+              for (let coveredCol = col; coveredCol < endColExclusive; coveredCol++) {
+                cellTextStarts[coveredCol] = textStart;
+              }
+
+              if (textStart >= rowText.length) {
+                continue;
+              }
+
+              const cellText = line.translateToString(false, col, endColExclusive);
+              const textEnd = Math.min(rowText.length, textStart + cellText.length);
+              if (textEnd > textStart) {
+                cellRanges.push({
+                  startCol: col,
+                  endColExclusive,
+                  textStart: rowTextStart + textStart,
+                  textEnd: rowTextStart + textEnd,
+                });
+              }
+              rowTextOffset = textEnd;
+            }
+
+            rows.push({
+              bufferLineNumber: index + 1,
+              text: rowText,
+              textStart: rowTextStart,
+              textEnd: rowTextStart + rowText.length,
+              cellTextStarts,
+              cellRanges,
+            });
+            text += rowText;
           }
 
-          return { text, startLineNumber: logicalStartIndex + 1 };
+          return { text, startLineNumber: logicalStartIndex + 1, rows };
         };
 
         const getMouseBufferCell = (): { x: number; y: number } | null => {
@@ -532,9 +600,11 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
           if (!mouse || !screen || !cellSize) return null;
 
           const rect = screen.getBoundingClientRect();
-          const viewportX = Math.floor((mouse.x - rect.left) / cellSize.width) + 1;
+          const cols = xt.cols ?? 120;
+          const rows = xt.rows ?? 0;
+          const viewportX = clamp(Math.floor((mouse.x - rect.left) / cellSize.width) + 1, 1, cols);
           const viewportY = Math.floor((mouse.y - rect.top) / cellSize.height);
-          if (viewportX < 1 || viewportY < 0) return null;
+          if (viewportY < 0 || viewportY >= rows) return null;
           return {
             x: viewportX,
             y: xt.buffer.active.viewportY + viewportY + 1,
@@ -545,33 +615,40 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
         const setUnderlineForLogicalRange = (
           start: number,
           endExclusive: number,
-          startLineNumber: number,
+          logicalLine: TerminalLogicalLineSnapshot,
         ): void => {
           if (!modifierDownRef.current) return;
           const screen = xt.element?.querySelector<HTMLElement>('.xterm-screen');
           const cellSize = getXtermCellSize(xt);
-          const cols = xt.cols ?? 120;
           if (!screen || !cellSize) return;
 
           const screenRect = screen.getBoundingClientRect();
-          const endInclusive = Math.max(start, endExclusive - 1);
-          const startRow = Math.floor(start / cols);
-          const endRow = Math.floor(endInclusive / cols);
           const viewportStartY = xt.buffer.active.viewportY + 1;
+          const viewportRowCount = xt.rows ?? 0;
           const segments: TerminalLinkUnderlineSegment[] = [];
 
-          for (let row = startRow; row <= endRow; row++) {
-            const bufferLineNumber = startLineNumber + row;
-            const viewportRow = bufferLineNumber - viewportStartY;
-            if (viewportRow < 0) continue;
-            const startCol = row === startRow ? start % cols : 0;
-            const endColInclusive = row === endRow ? endInclusive % cols : cols - 1;
-            if (endColInclusive < startCol) continue;
+          for (const row of logicalLine.rows) {
+            if (row.textEnd <= start || row.textStart >= endExclusive) {
+              continue;
+            }
+
+            const matchingRanges = row.cellRanges.filter((range) => range.textEnd > start && range.textStart < endExclusive);
+            if (matchingRanges.length === 0) {
+              continue;
+            }
+
+            const viewportRow = row.bufferLineNumber - viewportStartY;
+            if (viewportRow < 0 || viewportRow >= viewportRowCount) {
+              continue;
+            }
+
+            const firstRange = matchingRanges[0];
+            const lastRange = matchingRanges[matchingRanges.length - 1];
 
             segments.push({
-              x: screenRect.left + startCol * cellSize.width,
+              x: screenRect.left + firstRange.startCol * cellSize.width,
               y: screenRect.top + (viewportRow + 1) * cellSize.height - 2,
-              width: (endColInclusive - startCol + 1) * cellSize.width,
+              width: (lastRange.endColExclusive - firstRange.startCol) * cellSize.width,
             });
           }
 
@@ -581,16 +658,23 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
         const readHoveredLinkTarget = (): TerminalTextTarget | null => {
           const mouseCell = getMouseBufferCell();
           const mouse = lastMousePositionRef.current;
-          const cols = xt.cols ?? 120;
           if (!mouseCell || !mouse) {
             hoveredLinkTargetRef.current = null;
             return null;
           }
 
-          const { text, startLineNumber } = getLogicalLine(mouseCell.y);
-          const col = ((mouseCell.y - startLineNumber) * cols) + mouseCell.x - 1;
-          const urlCandidate = extractUrls(text).find((link) => col >= link.start && col <= link.end);
-          const fileCandidate = extractFileLinks(text).find((link) => col >= link.start && col <= link.end);
+          const logicalLine = getLogicalLine(mouseCell.y);
+          const row = logicalLine.rows.find((value) => value.bufferLineNumber === mouseCell.y);
+          if (!row) {
+            hoveredLinkTargetRef.current = null;
+            setLinkUnderlineSegments([]);
+            return null;
+          }
+
+          const cellIndex = clamp(mouseCell.x - 1, 0, Math.max(0, row.cellTextStarts.length - 1));
+          const col = row.textStart + (row.cellTextStarts[cellIndex] ?? row.text.length);
+          const urlCandidate = extractUrls(logicalLine.text).find((link) => col >= link.start && col < link.end);
+          const fileCandidate = extractFileLinks(logicalLine.text).find((link) => col >= link.start && col < link.end);
           const linkStart = urlCandidate?.start ?? fileCandidate?.start;
           const linkEnd = urlCandidate?.end ?? fileCandidate?.end;
           const link: TerminalTextLink = {
@@ -607,7 +691,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
           }
 
           const target: TerminalTextTarget = {
-            text,
+            text: logicalLine.text,
             col,
             x: mouse.x,
             y: mouse.y,
@@ -616,7 +700,7 @@ export function TerminalEditor({ tab }: TerminalEditorProps): JSX.Element {
             linkEnd,
           };
           hoveredLinkTargetRef.current = target;
-          setUnderlineForLogicalRange(linkStart, linkEnd, startLineNumber);
+          setUnderlineForLogicalRange(linkStart, linkEnd, logicalLine);
           return target;
         };
         readHoveredLinkTargetRef.current = readHoveredLinkTarget;

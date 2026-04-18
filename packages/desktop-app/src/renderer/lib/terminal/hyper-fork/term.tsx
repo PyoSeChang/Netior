@@ -251,6 +251,8 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
   private resizeObserver: ResizeObserver | null = null;
   private resizeTimeout: number | null = null;
   private viewportSyncFrame: number | null = null;
+  private viewportSyncTimeout: number | null = null;
+  private pendingOffscreenWrite = false;
   private renderAddonsLoaded = false;
 
   constructor(props: ForkedHyperTermProps) {
@@ -311,6 +313,7 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
   componentDidUpdate(prevProps: ForkedHyperTermProps): void {
     const nextOptions = buildTerminalOptions(this.props.appearance, this.props.launchConfig);
     const changedOptions = getChangedTerminalOptions(this.termOptions, nextOptions);
+    const becameVisible = this.props.isTermVisible && !prevProps.isTermVisible;
     const fontMetricsChanged =
       this.props.appearance.fontSize !== prevProps.appearance.fontSize
       || this.props.appearance.fontFamily !== prevProps.appearance.fontFamily
@@ -326,8 +329,11 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
       this.applyPadding();
     }
 
-    if ((this.props.isTermVisible && !prevProps.isTermVisible) || fontMetricsChanged) {
+    if (this.props.isTermVisible && (becameVisible || fontMetricsChanged)) {
       this.fitResize();
+      this.refreshViewport();
+      this.scheduleViewportSync();
+      this.pendingOffscreenWrite = false;
     }
 
     if (this.props.isTermActive && !prevProps.isTermActive) {
@@ -339,6 +345,10 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
     if (this.viewportSyncFrame != null) {
       window.cancelAnimationFrame(this.viewportSyncFrame);
       this.viewportSyncFrame = null;
+    }
+    if (this.viewportSyncTimeout != null) {
+      window.clearTimeout(this.viewportSyncTimeout);
+      this.viewportSyncTimeout = null;
     }
     if (this.resizeTimeout != null) {
       window.clearTimeout(this.resizeTimeout);
@@ -364,7 +374,22 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
   }
 
   write(data: string | Uint8Array): void {
-    this.term.write(data);
+    if (!this.props.isTermVisible) {
+      this.pendingOffscreenWrite = true;
+    }
+
+    this.term.write(data, () => {
+      if (!this.props.isTermVisible) {
+        return;
+      }
+
+      if (this.pendingOffscreenWrite) {
+        this.refreshViewport();
+        this.pendingOffscreenWrite = false;
+      }
+
+      this.scheduleViewportSync();
+    });
   }
 
   scrollUpPage(): void {
@@ -471,8 +496,11 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
     if (this.viewportSyncFrame != null) {
       window.cancelAnimationFrame(this.viewportSyncFrame);
     }
+    if (this.viewportSyncTimeout != null) {
+      window.clearTimeout(this.viewportSyncTimeout);
+    }
 
-    let remainingPasses = 2;
+    let remainingPasses = 4;
     const runSync = (): void => {
       this.viewportSyncFrame = null;
       syncViewportScrollPosition(this.term);
@@ -484,6 +512,16 @@ export class ForkedHyperTerm extends React.PureComponent<ForkedHyperTermProps> i
     };
 
     this.viewportSyncFrame = window.requestAnimationFrame(runSync);
+    this.viewportSyncTimeout = window.setTimeout(() => {
+      this.viewportSyncTimeout = null;
+      if (!this.props.isTermVisible) return;
+      syncViewportScrollPosition(this.term);
+    }, 80);
+  }
+
+  private refreshViewport(): void {
+    if (!this.props.isTermVisible || this.term.rows <= 0) return;
+    this.term.refresh(0, this.term.rows - 1);
   }
 
   private markInteractiveElements(): void {

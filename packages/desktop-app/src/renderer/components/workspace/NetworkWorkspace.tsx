@@ -27,13 +27,13 @@ import type { Archetype, ArchetypeField } from '@netior/shared/types';
 import { useI18n } from '../../hooks/useI18n';
 import type { RenderNode, RenderEdge, RenderPoint, RenderEdgeAnchor } from './types';
 import type { NodeResizeDirection } from './node-components/types';
+import { getAutoNodeWidth } from './node-components/node-visual-utils';
 import { getLayout } from './layout-plugins/registry';
 import type { LayoutRenderNode } from './layout-plugins/types';
 import { dateToEpochDays, isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
 import { formatTemporalSlotValueForWriteback, getOccurrenceKey, getSourceNodeId } from './layout-plugins/temporal-utils';
 import { useNetworkShortcuts } from './useNetworkShortcuts';
 import { HIERARCHY_PARENT_CONTRACT, isHierarchyParentContract } from '../../lib/hierarchy-contract';
-import { parseNodeMetadataObject } from '../../lib/node-config';
 
 interface NetworkWorkspaceProps {
   projectId: string | null;
@@ -379,6 +379,20 @@ function getDefaultNodeDimensions(node: NetworkNodeWithObject): { width: number;
   };
 }
 
+function parseNodeMetadataRecord(metadata: string | null | undefined): Record<string, unknown> | undefined {
+  if (!metadata) return undefined;
+
+  try {
+    const parsed = JSON.parse(metadata) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return undefined;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
 function getNodeDimensions(
   nodeId: string,
   nodeById: Map<string, NetworkNodeWithObject>,
@@ -713,20 +727,24 @@ function toRenderNodes(
     const isCollapsed = isContainer && isCollapsedPosition(pos);
     const portalChips = portalChipsBySource.get(n.id) ?? [];
     const portalChipStripHeight = getPortalChipStripHeight(portalChips.length);
+    const parsedMetadata = parseNodeMetadataRecord(n.metadata);
     if (objectType === 'concept' && n.concept) {
       const arch = n.concept.archetype_id ? archMap.get(n.concept.archetype_id) : undefined;
+      const label = n.concept.title;
+      const icon = n.concept.icon || arch?.icon || 'pin';
+      const baseWidth = isPortal ? 180 : isHierarchy ? 380 : isGroup ? 360 : 160;
       return {
         id: n.id,
         x: pos?.x ?? 0,
         y: pos?.y ?? 0,
-        label: n.concept.title,
-        icon: n.concept.icon || arch?.icon || 'pin',
+        label,
+        icon,
         shape: isPortal ? 'dashed' : isHierarchy ? 'hierarchy' : isGroup ? 'group' : arch?.node_shape ?? undefined,
         semanticType: arch?.name || 'concept',
         semanticTypeLabel: isPortal ? 'Concept Portal' : isHierarchy ? 'Concept Hierarchy' : isGroup ? 'Concept Group' : arch?.name || 'Concept',
         width: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.width : GROUP_COLLAPSED_SIZE.width)
-          : pos?.width ?? (isPortal ? 180 : isHierarchy ? 380 : isGroup ? 360 : 160),
+          : pos?.width ?? getAutoNodeWidth({ label, icon, baseWidth, metadata: parsedMetadata, isContainer }),
         height: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
           : (pos?.height ?? (isPortal ? 68 : isHierarchy ? 240 : isGroup ? 220 : 60)) + portalChipStripHeight,
@@ -740,18 +758,21 @@ function toRenderNodes(
         isContainer,
         isCollapsed,
         portalChips,
+        metadata: parsedMetadata,
       };
     }
     if (objectType === 'file' && n.file) {
       const isFile = n.file.type === 'file';
       const filePath = n.file.path;
       const fileName = filePath?.replace(/\\/g, '/').split('/').pop() || '?';
+      const icon = isFile ? `file:${fileName}` : `folder:${fileName}`;
+      const baseWidth = isHierarchy ? 300 : isGroup ? 280 : 140;
       return {
         id: n.id,
         x: pos?.x ?? 0,
         y: pos?.y ?? 0,
         label: fileName,
-        icon: isFile ? `file:${fileName}` : `folder:${fileName}`,
+        icon,
         semanticType: isFile ? 'file' : 'directory',
         semanticTypeLabel: isPortal
           ? 'File Portal'
@@ -763,7 +784,7 @@ function toRenderNodes(
         shape: isHierarchy ? 'hierarchy' : isGroup ? 'group' : undefined,
         width: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.width : GROUP_COLLAPSED_SIZE.width)
-          : pos?.width ?? (isHierarchy ? 300 : isGroup ? 280 : 140),
+          : pos?.width ?? getAutoNodeWidth({ label: fileName, icon, baseWidth, metadata: parsedMetadata, isContainer }),
         height: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
           : pos?.height ?? (isHierarchy ? 220 : isGroup ? 180 : 50),
@@ -778,23 +799,27 @@ function toRenderNodes(
         portalChips,
         fileId: n.object?.ref_id ?? undefined,
         filePath: filePath ?? undefined,
+        metadata: parsedMetadata,
       };
     }
     if (objectType === 'network') {
       const refId = n.object?.ref_id;
       const networkName = refId ? networkNames.get(refId) : undefined;
+      const label = networkName ?? 'Network';
+      const icon = 'globe';
+      const baseWidth = isPortal ? 180 : isHierarchy ? 340 : isGroup ? 320 : 160;
       return {
         id: n.id,
         x: pos?.x ?? 0,
         y: pos?.y ?? 0,
-        label: networkName ?? 'Network',
-        icon: 'globe',
+        label,
+        icon,
         shape: isPortal ? 'dashed' as string | undefined : isHierarchy ? 'hierarchy' as string | undefined : isGroup ? 'group' as string | undefined : 'rectangle' as string | undefined,
         semanticType: 'network',
         semanticTypeLabel: isPortal ? 'Network Portal' : isHierarchy ? 'Network Hierarchy' : isGroup ? 'Network Group' : 'Network',
         width: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.width : GROUP_COLLAPSED_SIZE.width)
-          : pos?.width ?? (isPortal ? 180 : isHierarchy ? 340 : isGroup ? 320 : 160),
+          : pos?.width ?? getAutoNodeWidth({ label, icon, baseWidth, metadata: parsedMetadata, isContainer }),
         height: isCollapsed
           ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
           : pos?.height ?? (isPortal ? 68 : isHierarchy ? 220 : isGroup ? 200 : 60),
@@ -808,6 +833,7 @@ function toRenderNodes(
         isCollapsed,
         portalChips,
         networkId: refId ?? undefined,
+        metadata: parsedMetadata,
       };
     }
     const genericObject = getGenericObjectPresentation(
@@ -819,6 +845,7 @@ function toRenderNodes(
       relationTypeNames,
       contextNames,
     );
+    const baseWidth = isHierarchy ? 340 : isGroup ? 320 : objectType === 'project' ? 180 : 140;
 
     return {
       id: n.id,
@@ -833,7 +860,13 @@ function toRenderNodes(
       shape: isPortal ? 'dashed' as string | undefined : isHierarchy ? 'hierarchy' as string | undefined : isGroup ? 'group' as string | undefined : undefined,
       width: isCollapsed
         ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.width : GROUP_COLLAPSED_SIZE.width)
-        : pos?.width ?? (isHierarchy ? 340 : isGroup ? 320 : objectType === 'project' ? 180 : 140),
+        : pos?.width ?? getAutoNodeWidth({
+          label: genericObject.label,
+          icon: genericObject.icon,
+          baseWidth,
+          metadata: parsedMetadata,
+          isContainer,
+        }),
       height: isCollapsed
         ? (isHierarchy ? HIERARCHY_COLLAPSED_SIZE.height : GROUP_COLLAPSED_SIZE.height)
         : pos?.height ?? (isHierarchy ? 220 : isGroup ? 200 : objectType === 'project' ? 64 : 50),
@@ -846,6 +879,7 @@ function toRenderNodes(
       isContainer,
       isCollapsed,
       portalChips,
+      metadata: parsedMetadata,
     };
   });
 }
@@ -1767,8 +1801,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       const archetypeId = n.nodeType === 'concept'
         ? sourceNode?.concept?.archetype_id ?? undefined
         : undefined;
-      const sourceMetadata = parseNodeMetadataObject(sourceNode?.metadata);
-      const metadata: Record<string, unknown> = sourceMetadata ? { ...sourceMetadata } : {};
+      const metadata: Record<string, unknown> = { ...(n.metadata ?? {}) };
       const slotFieldIds: Record<string, string> = {};
       const slotFieldTypes: Record<string, string> = {};
       const conceptId = n.conceptId;
