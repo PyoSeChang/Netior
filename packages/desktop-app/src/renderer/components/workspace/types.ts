@@ -26,6 +26,7 @@ export interface RenderNode {
   isHierarchy?: boolean;
   isContainer?: boolean;
   isCollapsed?: boolean;
+  containmentDepth?: number;
   portalChips?: PortalChip[];
   metadata?: Record<string, unknown>;
   fileId?: string;

@@ -174,6 +174,48 @@ export type NetworkObjectType =
   | 'file' | 'module' | 'folder';
 
 export type NodeType = 'basic' | 'portal' | 'group' | 'hierarchy';
+export type NodeConfigKind = 'freeform' | 'grid' | 'list';
+export type NodeSortDirection = 'asc' | 'desc';
+export type NodeSortEmptyPlacement = 'first' | 'last';
+
+export type NodeSortConfig =
+  | {
+      kind: 'system_slot';
+      slot: SystemSlotKey;
+      direction?: NodeSortDirection;
+      emptyPlacement?: NodeSortEmptyPlacement;
+    }
+  | {
+      kind: 'property';
+      fieldId: string;
+      direction?: NodeSortDirection;
+      emptyPlacement?: NodeSortEmptyPlacement;
+    };
+
+export interface NodeFreeformConfig {
+  kind: 'freeform';
+}
+
+export interface NodeGridConfig {
+  kind: 'grid';
+  columns?: number;
+  gapX?: number;
+  gapY?: number;
+  padding?: number;
+  itemWidth?: number;
+  itemHeight?: number;
+  sort?: NodeSortConfig | null;
+}
+
+export interface NodeListConfig {
+  kind: 'list';
+  gap?: number;
+  padding?: number;
+  itemHeight?: number;
+  sort?: NodeSortConfig | null;
+}
+
+export type NodeConfig = NodeFreeformConfig | NodeGridConfig | NodeListConfig;
 
 export interface ObjectRecord {
   id: string;
@@ -823,7 +865,7 @@ export type NarreToolCategory =
 
 export type NarreToolKind = 'query' | 'mutation' | 'analysis';
 export type NarreToolApprovalMode = 'auto' | 'prompt';
-export type NetiorMcpToolProfile = 'core' | 'discovery' | 'onboarding-skill' | 'index-skill';
+export type NetiorMcpToolProfile = 'core' | 'discovery' | 'bootstrap-skill' | 'index-skill';
 export type NetiorMcpToolScope = 'app' | 'project' | 'network' | 'object' | 'file' | 'mixed';
 
 export interface NetiorMcpToolSpec {
@@ -984,7 +1026,7 @@ export interface CommandArg {
 }
 
 export type CommandType = 'conversation' | 'system';
-export type NarrePromptSkillKey = 'onboarding' | 'index';
+export type NarrePromptSkillKey = 'bootstrap' | 'index';
 
 export interface SlashCommand {
   name: string;

@@ -339,6 +339,44 @@
       "group": "그룹",
       "hierarchy": "계층"
     },
+    "nodeConfig": "노드 설정",
+    "nodeConfigHint": "이 노드의 배치와 정렬 방식을 설정합니다.",
+    "nodeConfigHierarchyHint": "계층 노드는 구조 규칙을 우선 사용합니다. 현재 collection 배치는 그룹 노드에 적용됩니다.",
+    "nodeConfigInvalidMetadataHint": "노드 메타데이터 JSON이 올바르지 않아 typed config를 편집할 수 없습니다.",
+    "nodeConfigKindOptions": {
+      "collection": "컬렉션"
+    },
+    "nodeLayoutKind": "배치 종류",
+    "nodeLayoutKindOptions": {
+      "freeform": "자유 배치",
+      "grid": "그리드",
+      "list": "리스트"
+    },
+    "nodeConfigColumns": "열 수",
+    "nodeConfigPadding": "패딩",
+    "nodeConfigGap": "간격",
+    "nodeConfigGapX": "가로 간격",
+    "nodeConfigGapY": "세로 간격",
+    "nodeConfigItemWidth": "항목 너비",
+    "nodeConfigItemHeight": "항목 높이",
+    "nodeSortKind": "정렬 종류",
+    "nodeSortKindOptions": {
+      "system_slot": "시스템 슬롯",
+      "property": "속성"
+    },
+    "nodeSortValue": "정렬 기준",
+    "nodeSortDirection": "정렬 방향",
+    "nodeSortDirectionOptions": {
+      "asc": "오름차순",
+      "desc": "내림차순"
+    },
+    "nodeSortEmptyPlacement": "빈 값 위치",
+    "nodeSortEmptyOptions": {
+      "first": "앞",
+      "last": "뒤"
+    },
+    "nodeSortNoPropertyOptions": "정렬에 사용할 속성이 없습니다.",
+    "nodeSortValueDisabled": "정렬 종류를 먼저 선택하세요.",
     "nodeMetadata": "노드 메타데이터",
     "saveNodeMetadata": "노드 메타데이터 저장",
     "semanticSlot": "시스템 슬롯",
@@ -1115,8 +1153,8 @@
     "mentionFile": "파일",
     "mentionSearch": "검색...",
     "command": {
-      "onboarding": "프로젝트 타입 체계 구축",
-      "onboardingHint": "프로젝트 타입 체계를 잡는 가이드형 대화를 시작합니다.",
+      "bootstrap": "프로젝트 부트스트랩",
+      "bootstrapHint": "도메인 설명을 바탕으로 초기 네트워크, 타입, 스타터 그래프를 구성합니다.",
       "index": "PDF 목차 인덱싱",
       "indexHint": "전송 전에 PDF 파일 멘션 1개가 필요합니다.",
       "unknownCommand": "알 수 없는 커맨드입니다: {name}"

@@ -33,6 +33,7 @@ import { dateToEpochDays, isoToEpochDays } from './layout-plugins/horizontal-tim
 import { formatTemporalSlotValueForWriteback, getOccurrenceKey, getSourceNodeId } from './layout-plugins/temporal-utils';
 import { useNetworkShortcuts } from './useNetworkShortcuts';
 import { HIERARCHY_PARENT_CONTRACT, isHierarchyParentContract } from '../../lib/hierarchy-contract';
+import { parseNodeMetadataObject } from '../../lib/node-config';
 
 interface NetworkWorkspaceProps {
   projectId: string | null;
@@ -91,7 +92,7 @@ interface ParsedDateTimeParts {
 const HIERARCHY_ROOT_CHILD_MIN_Y_OFFSET = 112;
 const HIERARCHY_MAGNETIC_THRESHOLD = 28;
 const HIERARCHY_X_MAGNETIC_THRESHOLD = 28;
-const GROUP_COLLAPSED_SIZE = { width: 240, height: 72 };
+const GROUP_COLLAPSED_SIZE = { width: 240, height: 80 };
 const HIERARCHY_COLLAPSED_SIZE = { width: 260, height: 84 };
 
 function toEpochDay(year: number, month: number, day: number): number {
@@ -972,6 +973,33 @@ function isPointInsideExpandedNodeBounds(node: RenderNode, x: number, y: number,
   );
 }
 
+function getNodeBoundsAtPosition(
+  node: Pick<RenderNode, 'width' | 'height'>,
+  x: number,
+  y: number,
+): { left: number; top: number; right: number; bottom: number } {
+  const width = node.width ?? 160;
+  const height = node.height ?? 60;
+
+  return {
+    left: x - width / 2,
+    top: y - height / 2,
+    right: x + width / 2,
+    bottom: y + height / 2,
+  };
+}
+
+function getBoundsOverlapRatio(
+  subjectBounds: { left: number; top: number; right: number; bottom: number },
+  containerBounds: { left: number; top: number; right: number; bottom: number },
+): number {
+  const overlapWidth = Math.max(0, Math.min(subjectBounds.right, containerBounds.right) - Math.max(subjectBounds.left, containerBounds.left));
+  const overlapHeight = Math.max(0, Math.min(subjectBounds.bottom, containerBounds.bottom) - Math.max(subjectBounds.top, containerBounds.top));
+  const subjectArea = Math.max(1, (subjectBounds.right - subjectBounds.left) * (subjectBounds.bottom - subjectBounds.top));
+
+  return (overlapWidth * overlapHeight) / subjectArea;
+}
+
 function wouldCreateContainmentCycle(
   nodeId: string,
   candidateGroupId: string,
@@ -992,6 +1020,18 @@ function isDescendantOf(nodeId: string, ancestorId: string, containsParentByChil
     current = containsParentByChild.get(current);
   }
   return false;
+}
+
+function getContainmentDepth(nodeId: string, containsParentByChild: Map<string, string>): number {
+  let depth = 0;
+  let current = containsParentByChild.get(nodeId);
+
+  while (current) {
+    depth += 1;
+    current = containsParentByChild.get(current);
+  }
+
+  return depth;
 }
 
 function buildChildrenByParentMap(containsParentByChild: Map<string, string>): Map<string, string[]> {
@@ -1545,8 +1585,12 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
                 childCount: directChildCountByParent.get(node.id) ?? 0,
                 portalCount: node.portalChips?.length ?? 0,
               },
+              containmentDepth: getContainmentDepth(node.id, containsParentByChild),
             }
-          : node
+          : {
+              ...node,
+              containmentDepth: getContainmentDepth(node.id, containsParentByChild),
+            }
       ));
 
       if (!isContextFiltering) return baseNodes;
@@ -1565,6 +1609,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     relationTypeNames,
     contextNames,
     entryPortalData,
+    containsParentByChild,
     directChildCountByParent,
     isContextFiltering,
     activeContextObjectIds,
@@ -1684,9 +1729,12 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   }, [conceptStoreProperties]);
 
   useEffect(() => {
-    if (layoutType === 'freeform' || !currentNetwork) return;
+    if (!currentNetwork) return;
     const conceptIds = nodes.filter((n) => n.object?.object_type === 'concept').map((n) => n.object!.ref_id);
-    if (conceptIds.length === 0) return;
+    if (conceptIds.length === 0) {
+      setNodeProperties({});
+      return;
+    }
 
     Promise.all(
       conceptIds.map((cid) =>
@@ -1700,7 +1748,6 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
   }, [nodes, layoutType, currentNetwork?.id, propsVersion]);
 
   useEffect(() => {
-    if (layoutType === 'freeform') return;
     const archetypeIds = new Set(
       nodes
         .map((node) => node.concept?.archetype_id)
@@ -1720,9 +1767,13 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       const archetypeId = n.nodeType === 'concept'
         ? sourceNode?.concept?.archetype_id ?? undefined
         : undefined;
-      const metadata: Record<string, unknown> = {};
+      const sourceMetadata = parseNodeMetadataObject(sourceNode?.metadata);
+      const metadata: Record<string, unknown> = sourceMetadata ? { ...sourceMetadata } : {};
       const slotFieldIds: Record<string, string> = {};
       const slotFieldTypes: Record<string, string> = {};
+      const conceptId = n.conceptId;
+      const props = conceptId ? nodeProperties[conceptId] ?? [] : [];
+      const propMap = new Map(props.map((prop) => [prop.field_id, prop.value]));
 
       if (sourceNode?.concept?.color) {
         metadata.display_color = sourceNode.concept.color;
@@ -1733,9 +1784,6 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
       if (archetypeId) {
         const archetypeFields = archetypeFieldsById[archetypeId] ?? [];
-        const conceptId = n.conceptId;
-        const props = conceptId ? nodeProperties[conceptId] ?? [] : [];
-        const propMap = new Map(props.map((prop) => [prop.field_id, prop.value]));
         const slotRawValues: Partial<Record<string, string>> = {};
 
         for (const field of archetypeFields) {
@@ -1760,6 +1808,9 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
       }
       if (Object.keys(slotFieldTypes).length > 0) {
         metadata.__slotFieldTypes = slotFieldTypes;
+      }
+      if (propMap.size > 0) {
+        metadata.__fieldValues = Object.fromEntries(propMap);
       }
       if (sourceNode?.concept?.recurrence_source_concept_id) {
         metadata.__recurrenceSourceConceptId = sourceNode.concept.recurrence_source_concept_id;
@@ -2496,12 +2547,23 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     return resolveSourceWorkspaceNode(renderNodeId) ?? null;
   }, [materializeRecurringOccurrence, positionedNodeById, resolveSourceWorkspaceNode]);
 
-  const findDropTargetContainer = useCallback((nodeId: string, x: number, y: number): RenderNode | null => {
+  const findDropTargetContainer = useCallback((
+    nodeId: string,
+    x: number,
+    y: number,
+    draggedNode?: Pick<RenderNode, 'width' | 'height'>,
+  ): RenderNode | null => {
+    const draggedBounds = draggedNode ? getNodeBoundsAtPosition(draggedNode, x, y) : null;
     const candidates = cardRenderNodes
       .filter((node) => node.isContainer && node.id !== nodeId)
       .filter((node) => !node.isCollapsed)
       .filter((node) => !wouldCreateContainmentCycle(nodeId, node.id, containsParentByChild))
-      .filter((node) => isPointInsideNodeBounds(node, x, y))
+      .filter((node) => {
+        if (!draggedBounds) return isPointInsideNodeBounds(node, x, y);
+
+        const containerBounds = getNodeBoundsAtPosition(node, node.x, node.y);
+        return getBoundsOverlapRatio(draggedBounds, containerBounds) >= 0.5;
+      })
       .sort((left, right) => {
         const leftArea = (left.width ?? 160) * (left.height ?? 60);
         const rightArea = (right.width ?? 160) * (right.height ?? 60);
@@ -2959,7 +3021,8 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     const currentHierarchyContainerId = getHierarchyContainerIdForNode(nodeId, containsParentByChild, allHierarchyContainerIds);
     const currentHierarchyParentId = hierarchyParentByChild.get(nodeId) ?? null;
     const movedSubtreeIds = new Set(collectSubtreeIds([nodeId]));
-    const nextParentGroup = findDropTargetContainer(nodeId, x, y);
+    const draggedRenderNode = previewCardRenderNodes.find((candidate) => candidate.id === nodeId);
+    const nextParentGroup = findDropTargetContainer(nodeId, x, y, draggedRenderNode);
     const nextParentGroupId = nextParentGroup?.id ?? null;
     const nextHierarchyContainerId = nextParentGroup?.isHierarchy
       ? nextParentGroup.id
@@ -3114,6 +3177,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
     nodeById,
     openNetwork,
     positionedNodes,
+    previewCardRenderNodes,
     rawPosMap,
     resolveHierarchyDropParentId,
     serializePositionJson,
@@ -3228,7 +3292,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
     const currentWorldX = draggedNode.x + nodeDragOffset.dx / zoom;
     const currentWorldY = draggedNode.y + nodeDragOffset.dy / zoom;
-    const targetContainer = findDropTargetContainer(draggedNode.id, currentWorldX, currentWorldY);
+    const targetContainer = findDropTargetContainer(draggedNode.id, currentWorldX, currentWorldY, draggedNode);
     if (!targetContainer?.isHierarchy) return nodeDragOffset;
 
     const effectiveParentNodeId = resolveHierarchyDropParentId(draggedNode.id, targetContainer, currentWorldX, currentWorldY);
@@ -3278,7 +3342,7 @@ export function NetworkWorkspace({ projectId }: NetworkWorkspaceProps): JSX.Elem
 
     const currentWorldX = draggedNode.x + nodeDragOffset.dx / zoom;
     const currentWorldY = draggedNode.y + nodeDragOffset.dy / zoom;
-    const targetContainer = findDropTargetContainer(draggedNode.id, currentWorldX, currentWorldY);
+    const targetContainer = findDropTargetContainer(draggedNode.id, currentWorldX, currentWorldY, draggedNode);
     if (!targetContainer?.isHierarchy) return null;
 
     const explicitParentNode = findHierarchyParentDropTarget(draggedNode.id, targetContainer.id, currentWorldX, currentWorldY);

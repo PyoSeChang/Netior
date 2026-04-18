@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import type { EditorTab, Network, NetworkNode, NetworkNodeUpdate, NodeType } from '@netior/shared/types';
-import { getSystemSlotLabelKey } from '@netior/shared/constants';
+import type {
+  EditorTab,
+  NodeConfig,
+  NodeSortConfig,
+  NodeType,
+  SystemSlotKey,
+} from '@netior/shared/types';
+import { SYSTEM_SLOT_DEFINITIONS, getSystemSlotLabelKey } from '@netior/shared/constants';
 import { conceptPropertyService, networkService, objectService } from '../../services';
+import type { NetworkFullData } from '../../services/network-service';
 import { useConceptStore } from '../../stores/concept-store';
 import { useArchetypeStore } from '../../stores/archetype-store';
 import { useEditorStore } from '../../stores/editor-store';
@@ -11,6 +18,7 @@ import { useEditorSession } from '../../hooks/useEditorSession';
 import { ScrollArea } from '../ui/ScrollArea';
 import { Select } from '../ui/Select';
 import { Input } from '../ui/Input';
+import { NumberInput } from '../ui/NumberInput';
 import { TextArea } from '../ui/TextArea';
 import { Button } from '../ui/Button';
 import { ConceptPropertiesPanel, FieldInput } from './ConceptPropertiesPanel';
@@ -18,6 +26,13 @@ import { ConceptBodyEditor } from './ConceptBodyEditor';
 import { ConceptAgentView } from './ConceptAgentView';
 import { useI18n } from '../../hooks/useI18n';
 import { HIERARCHY_PARENT_CONTRACT } from '../../lib/hierarchy-contract';
+import {
+  createDefaultNodeConfig,
+  extractNodeConfig,
+  parseNodeMetadataObject,
+  stringifyNodeMetadataObject,
+  upsertNodeConfigMetadata,
+} from '../../lib/node-config';
 import {
   NetworkObjectEditorShell,
   NetworkObjectEditorSection,
@@ -35,30 +50,98 @@ interface ConceptEditorState {
   color: string | null;
   content: string | null;
   properties: Record<string, string | null>;
+  nodeOccurrences: ConceptNodeOccurrenceDraft[];
 }
 
-interface ConceptNodeOccurrence {
-  network: Network;
-  node: NetworkNode;
+interface ConceptNodeOccurrenceDraft {
+  nodeId: string;
+  networkId: string;
+  networkName: string;
+  nodeType: NodeType;
+  metadata: string;
 }
+
+type OccurrenceNetworkData = Pick<NetworkFullData, 'nodes' | 'edges'>;
 
 const isDraftTab = (tab: EditorTab) => tab.targetId.startsWith('draft-');
 
+function createNodeConfigDraft(kind: NodeConfig['kind'], previousSort?: NodeSortConfig | null): NodeConfig {
+  const base = createDefaultNodeConfig(kind);
+  if (base.kind === 'freeform') return base;
+  return { ...base, sort: previousSort ?? null };
+}
+
+function createSortConfigDraft(kind: NodeSortConfig['kind'], fallbackFieldId?: string): NodeSortConfig | null {
+  if (kind === 'system_slot') {
+    return {
+      kind: 'system_slot',
+      slot: 'order_index',
+      direction: 'asc',
+      emptyPlacement: 'last',
+    };
+  }
+
+  if (kind === 'property' && fallbackFieldId) {
+    return {
+      kind: 'property',
+      fieldId: fallbackFieldId,
+      direction: 'asc',
+      emptyPlacement: 'last',
+    };
+  }
+
+  return null;
+}
+
+function isSortableNodeConfig(nodeConfig: NodeConfig | null | undefined): nodeConfig is Extract<NodeConfig, { kind: 'grid' | 'list' }> {
+  return !!nodeConfig && nodeConfig.kind !== 'freeform';
+}
+
 function resolvePreferredNodeId(
-  occurrences: ConceptNodeOccurrence[],
+  occurrences: ConceptNodeOccurrenceDraft[],
   preferredNodeId?: string,
   preferredNetworkId?: string,
 ): string {
-  if (preferredNodeId && occurrences.some((item) => item.node.id === preferredNodeId)) {
+  if (preferredNodeId && occurrences.some((item) => item.nodeId === preferredNodeId)) {
     return preferredNodeId;
   }
 
   if (preferredNetworkId) {
-    const nodeInNetwork = occurrences.find((item) => item.network.id === preferredNetworkId);
-    if (nodeInNetwork) return nodeInNetwork.node.id;
+    const nodeInNetwork = occurrences.find((item) => item.networkId === preferredNetworkId);
+    if (nodeInNetwork) return nodeInNetwork.nodeId;
   }
 
-  return occurrences[0]?.node.id ?? '';
+  return occurrences[0]?.nodeId ?? '';
+}
+
+async function loadConceptNodeOccurrences(
+  projectId: string,
+  conceptId: string,
+): Promise<Pick<ConceptEditorState, 'nodeOccurrences'>> {
+  const networks = await networkService.list(projectId);
+  const items = await Promise.all(networks.map(async (network) => ({
+    network,
+    full: await networkService.getFull(network.id),
+  })));
+
+  const nodeOccurrences = items.flatMap(({ network, full }) => (
+    full?.nodes
+      .filter((node) => node.object?.object_type === 'concept' && node.object.ref_id === conceptId)
+      .map((node) => {
+        const parsedMetadata = parseNodeMetadataObject(node.metadata);
+        return {
+          nodeId: node.id,
+          networkId: network.id,
+          networkName: network.name,
+          nodeType: node.node_type,
+          metadata: parsedMetadata ? stringifyNodeMetadataObject(parsedMetadata) : (node.metadata ?? ''),
+        } satisfies ConceptNodeOccurrenceDraft;
+      }) ?? []
+  ));
+
+  return {
+    nodeOccurrences,
+  };
 }
 
 function isDateOnlyValue(value: string): boolean {
@@ -117,14 +200,12 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
   const fields = useArchetypeStore((s) => s.fields);
   const loadFields = useArchetypeStore((s) => s.loadFields);
   const createField = useArchetypeStore((s) => s.createField);
-  const networks = useNetworkStore((s) => s.networks);
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
-  const { addNode, openNetwork, loadNetworks, updateNode, setNodePosition } = useNetworkStore();
-  const [nodeOccurrences, setNodeOccurrences] = useState<ConceptNodeOccurrence[]>([]);
+  const currentNetworkNodes = useNetworkStore((s) => s.nodes);
+  const currentNetworkEdges = useNetworkStore((s) => s.edges);
+  const { addNode, openNetwork, setNodePosition } = useNetworkStore();
   const [selectedNodeId, setSelectedNodeId] = useState('');
-  const [nodeMetadataDraft, setNodeMetadataDraft] = useState('');
-  const [isLoadingNodeOccurrences, setIsLoadingNodeOccurrences] = useState(false);
-  const [isSavingNode, setIsSavingNode] = useState(false);
+  const [selectedOccurrenceNetworkData, setSelectedOccurrenceNetworkData] = useState<OccurrenceNetworkData | null>(null);
 
   const concept = isDraft ? undefined : concepts.find((c) => c.id === tab.targetId);
   const nodeTypeOptions = useMemo<Array<{ value: NodeType; label: string }>>(() => ([
@@ -217,6 +298,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           color: null,
           content: null,
           properties: {},
+          nodeOccurrences: [],
         })
       : async () => {
           const c = useConceptStore.getState().concepts.find((cc) => cc.id === tab.targetId);
@@ -225,6 +307,9 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           for (const p of props) {
             propsMap[p.field_id] = p.value;
           }
+          const occurrenceState = currentProject
+            ? await loadConceptNodeOccurrences(currentProject.id, tab.targetId)
+            : { nodeOccurrences: [] };
           return {
             title: c?.title ?? '',
             archetypeId: c?.archetype_id ?? null,
@@ -232,6 +317,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
             color: c?.color ?? null,
             content: c?.content ?? null,
             properties: propsMap,
+            nodeOccurrences: occurrenceState.nodeOccurrences,
           };
         },
     save: isDraft
@@ -306,9 +392,24 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           });
           await syncConceptProperties(conceptId, state.properties);
           await maybePromoteOccurrenceToSeries(conceptId, state);
+          await Promise.all(state.nodeOccurrences.map(async (occurrence) => {
+            const nextMetadata = occurrence.metadata.trim() ? occurrence.metadata : null;
+            if (currentNetwork?.id === occurrence.networkId) {
+              await useNetworkStore.getState().updateNode(occurrence.nodeId, {
+                node_type: occurrence.nodeType,
+                metadata: nextMetadata,
+              });
+              return;
+            }
+
+            await networkService.node.update(occurrence.nodeId, {
+              node_type: occurrence.nodeType,
+              metadata: nextMetadata,
+            });
+          }));
           useEditorStore.getState().updateTitle(tab.id, state.title);
         },
-    deps: isDraft ? [] : [tab.targetId, concept?.archetype_id],
+    deps: isDraft ? [] : [tab.targetId, concept?.archetype_id, currentProject?.id],
   });
 
   const currentArchetypeId = session.state?.archetypeId;
@@ -348,91 +449,187 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
 
   const archetypeFields = currentArchetypeId ? (fields[currentArchetypeId] ?? []) : [];
 
-  useEffect(() => {
-    if (!currentProject || isDraft || networks.length > 0) return;
-    loadNetworks(currentProject.id);
-  }, [currentProject, isDraft, loadNetworks, networks.length]);
-
-  useEffect(() => {
-    if (!currentProject || isDraft || networks.length === 0) {
-      setNodeOccurrences([]);
-      return;
-    }
-
-    let ignore = false;
-    setIsLoadingNodeOccurrences(true);
-
-    Promise.all(networks.map(async (network) => ({
-      network,
-      full: await networkService.getFull(network.id),
-    })))
-      .then((items) => {
-        if (ignore) return;
-        const occurrences = items.flatMap(({ network, full }) => (
-          full?.nodes
-            .filter((node) => node.object?.object_type === 'concept' && node.object.ref_id === tab.targetId)
-            .map((node) => ({ network, node })) ?? []
-        ));
-        setNodeOccurrences(occurrences);
-      })
-      .finally(() => {
-        if (!ignore) setIsLoadingNodeOccurrences(false);
-      });
-
-    return () => { ignore = true; };
-  }, [currentProject, isDraft, networks, tab.targetId]);
+  const nodeOccurrences = session.state?.nodeOccurrences ?? [];
+  const selectedNodeOccurrence = useMemo(
+    () => nodeOccurrences.find((item) => item.nodeId === selectedNodeId),
+    [nodeOccurrences, selectedNodeId],
+  );
 
   useEffect(() => {
     setSelectedNodeId((current) => {
-      if (current && nodeOccurrences.some((item) => item.node.id === current)) return current;
+      if (current && nodeOccurrences.some((item) => item.nodeId === current)) return current;
       return resolvePreferredNodeId(nodeOccurrences, tab.nodeId, tab.networkId);
     });
   }, [nodeOccurrences, tab.networkId, tab.nodeId]);
 
   useEffect(() => {
-    const preferred = resolvePreferredNodeId(nodeOccurrences, tab.nodeId, tab.networkId);
-    if (preferred) setSelectedNodeId(preferred);
-  }, [tab.networkId, tab.nodeId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!selectedNodeOccurrence) {
+      setSelectedOccurrenceNetworkData(null);
+      return;
+    }
 
-  const selectedNodeOccurrence = useMemo(
-    () => nodeOccurrences.find((item) => item.node.id === selectedNodeId),
-    [nodeOccurrences, selectedNodeId],
+    if (currentNetwork?.id === selectedNodeOccurrence.networkId) {
+      setSelectedOccurrenceNetworkData({
+        nodes: currentNetworkNodes,
+        edges: currentNetworkEdges,
+      });
+      return;
+    }
+
+    let ignore = false;
+    networkService.getFull(selectedNodeOccurrence.networkId).then((full) => {
+      if (ignore) return;
+      setSelectedOccurrenceNetworkData(full ? { nodes: full.nodes, edges: full.edges } : null);
+    });
+    return () => { ignore = true; };
+  }, [currentNetwork?.id, currentNetworkEdges, currentNetworkNodes, selectedNodeOccurrence]);
+
+  const selectedNodeMetadataDraft = selectedNodeOccurrence?.metadata ?? '';
+  const parsedNodeMetadataDraft = useMemo(
+    () => parseNodeMetadataObject(selectedNodeMetadataDraft),
+    [selectedNodeMetadataDraft],
   );
 
+  const selectedNodeConfig = useMemo(
+    () => extractNodeConfig(parsedNodeMetadataDraft),
+    [parsedNodeMetadataDraft],
+  );
+
+  const isGroupNodeOccurrence = selectedNodeOccurrence?.nodeType === 'group';
+
+  const directChildIds = useMemo(() => {
+    if (!selectedOccurrenceNetworkData || !selectedNodeOccurrence) return new Set<string>();
+    return new Set(
+      selectedOccurrenceNetworkData.edges
+        .filter((edge) => edge.system_contract === 'core:contains' && edge.source_node_id === selectedNodeOccurrence.nodeId)
+        .map((edge) => edge.target_node_id),
+    );
+  }, [selectedOccurrenceNetworkData, selectedNodeOccurrence]);
+
+  const sortableConceptNodes = useMemo(() => {
+    if (!selectedOccurrenceNetworkData) return [];
+
+    const directConceptNodes = selectedOccurrenceNetworkData.nodes.filter((node) => (
+      directChildIds.has(node.id)
+      && node.object?.object_type === 'concept'
+      && !!node.concept?.archetype_id
+    ));
+
+    if (directConceptNodes.length > 0) {
+      return directConceptNodes;
+    }
+
+    return selectedOccurrenceNetworkData.nodes.filter((node) => (
+      node.object?.object_type === 'concept'
+      && !!node.concept?.archetype_id
+    ));
+  }, [directChildIds, selectedOccurrenceNetworkData]);
+
+  const sortableArchetypeIds = useMemo(() => (
+    Array.from(new Set(
+      sortableConceptNodes
+        .map((node) => node.concept?.archetype_id)
+        .filter((value): value is string => !!value),
+    ))
+  ), [sortableConceptNodes]);
+
   useEffect(() => {
-    setNodeMetadataDraft(selectedNodeOccurrence?.node.metadata ?? '');
-  }, [selectedNodeOccurrence?.node.id, selectedNodeOccurrence?.node.metadata]);
+    for (const archetypeId of sortableArchetypeIds) {
+      if (!fields[archetypeId]) {
+        void loadFields(archetypeId);
+      }
+    }
+  }, [fields, loadFields, sortableArchetypeIds]);
+
+  const systemSlotSortOptions = useMemo(() => (
+    SYSTEM_SLOT_DEFINITIONS.map((definition) => ({
+      value: definition.key,
+      label: t(getSystemSlotLabelKey(definition.key) as never),
+    }))
+  ), [t]);
+
+  const propertySortOptions = useMemo(() => {
+    const deduped = new Map<string, { value: string; label: string }>();
+
+    for (const archetypeId of sortableArchetypeIds) {
+      const archetype = archetypes.find((item) => item.id === archetypeId);
+      for (const field of fields[archetypeId] ?? []) {
+        deduped.set(field.id, {
+          value: field.id,
+          label: archetype ? `${field.name} - ${archetype.name}` : field.name,
+        });
+      }
+    }
+
+    return Array.from(deduped.values()).sort((left, right) => left.label.localeCompare(right.label));
+  }, [archetypes, fields, sortableArchetypeIds]);
+
+  const canEditNodeConfig = !!selectedNodeOccurrence && parsedNodeMetadataDraft !== null;
+
+  const updateSelectedOccurrenceDraft = useCallback((
+    updater: (occurrence: ConceptNodeOccurrenceDraft) => ConceptNodeOccurrenceDraft,
+  ) => {
+    if (!selectedNodeOccurrence) return;
+    session.setState((prev) => ({
+      ...prev,
+      nodeOccurrences: prev.nodeOccurrences.map((occurrence) => (
+        occurrence.nodeId === selectedNodeOccurrence.nodeId ? updater(occurrence) : occurrence
+      )),
+    }));
+  }, [selectedNodeOccurrence, session]);
+
+  const updateSelectedOccurrenceMetadata = useCallback((metadata: string) => {
+    updateSelectedOccurrenceDraft((occurrence) => ({ ...occurrence, metadata }));
+  }, [updateSelectedOccurrenceDraft]);
+
+  const updateSelectedOccurrenceNodeConfig = useCallback((nodeConfig: NodeConfig | null) => {
+    const parsed = parseNodeMetadataObject(selectedNodeMetadataDraft);
+    if (parsed === null) return;
+    updateSelectedOccurrenceMetadata(stringifyNodeMetadataObject(upsertNodeConfigMetadata(parsed, nodeConfig)));
+  }, [selectedNodeMetadataDraft, updateSelectedOccurrenceMetadata]);
+
+  const updateStructuredNodeConfigDraft = useCallback((updater: (config: NodeConfig) => NodeConfig) => {
+    if (!selectedNodeConfig) return;
+    updateSelectedOccurrenceNodeConfig(updater(selectedNodeConfig));
+  }, [selectedNodeConfig, updateSelectedOccurrenceNodeConfig]);
 
   const nodeOccurrenceOptions = useMemo(() => nodeOccurrences.map((item) => {
-    const sameNetworkCount = nodeOccurrences.filter((candidate) => candidate.network.id === item.network.id).length;
+    const sameNetworkCount = nodeOccurrences.filter((candidate) => candidate.networkId === item.networkId).length;
     const occurrenceIndex = nodeOccurrences
-      .filter((candidate) => candidate.network.id === item.network.id)
-      .findIndex((candidate) => candidate.node.id === item.node.id);
+      .filter((candidate) => candidate.networkId === item.networkId)
+      .findIndex((candidate) => candidate.nodeId === item.nodeId);
     const suffix = sameNetworkCount > 1 ? ` / node ${occurrenceIndex + 1}` : '';
     return {
-      value: item.node.id,
-      label: `${item.network.name}${suffix}`,
+      value: item.nodeId,
+      label: `${item.networkName}${suffix}`,
     };
   }), [nodeOccurrences]);
 
-  const updateSelectedNetworkNode = async (data: NetworkNodeUpdate) => {
-    if (!selectedNodeOccurrence) return;
-    setIsSavingNode(true);
-    try {
-      const updated = currentNetwork?.id === selectedNodeOccurrence.network.id
-        ? await updateNode(selectedNodeOccurrence.node.id, data)
-        : await networkService.node.update(selectedNodeOccurrence.node.id, data);
-      setNodeOccurrences((items) => items.map((item) => (
-        item.node.id === updated.id ? { ...item, node: { ...item.node, ...updated } } : item
-      )));
-    } finally {
-      setIsSavingNode(false);
-    }
-  };
+  const nodeLayoutOptions = useMemo(() => ([
+    { value: '', label: t('common.none') ?? 'None' },
+    { value: 'freeform', label: t('concept.nodeLayoutKindOptions.freeform' as never) },
+    { value: 'grid', label: t('concept.nodeLayoutKindOptions.grid' as never) },
+    { value: 'list', label: t('concept.nodeLayoutKindOptions.list' as never) },
+  ]), [t]);
 
-  const saveNodeMetadata = async () => {
-    await updateSelectedNetworkNode({ metadata: nodeMetadataDraft.trim() ? nodeMetadataDraft : null });
-  };
+  const sortKindOptions = useMemo(() => ([
+    { value: '', label: t('common.none') ?? 'None' },
+    { value: 'system_slot', label: t('concept.nodeSortKindOptions.system_slot' as never) },
+    { value: 'property', label: t('concept.nodeSortKindOptions.property' as never) },
+  ]), [t]);
+
+  const sortDirectionOptions = useMemo(() => ([
+    { value: 'asc', label: t('concept.nodeSortDirectionOptions.asc' as never) },
+    { value: 'desc', label: t('concept.nodeSortDirectionOptions.desc' as never) },
+  ]), [t]);
+
+  const emptyPlacementOptions = useMemo(() => ([
+    { value: 'last', label: t('concept.nodeSortEmptyOptions.last' as never) },
+    { value: 'first', label: t('concept.nodeSortEmptyOptions.first' as never) },
+  ]), [t]);
+
+  const sortableNodeConfig = isSortableNodeConfig(selectedNodeConfig) ? selectedNodeConfig : null;
+  const sortableNodeSortConfig = sortableNodeConfig?.sort ?? null;
 
   if (!isDraft && !concept) {
     return (
@@ -516,9 +713,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
 
             {!isDraft && (
               <NetworkObjectEditorSection title={t('concept.networkPlacement' as never)}>
-                {isLoadingNodeOccurrences && nodeOccurrences.length === 0 ? (
-                  <div className="text-xs text-muted">{t('common.loading')}</div>
-                ) : nodeOccurrences.length === 0 ? (
+                {nodeOccurrences.length === 0 ? (
                   <div className="rounded-lg border border-subtle bg-surface-base px-3 py-2 text-xs text-muted">
                     {t('concept.noNetworkPlacement' as never)}
                   </div>
@@ -541,12 +736,12 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                             type="button"
                             variant="secondary"
                             size="sm"
-                            onClick={() => openNetwork(selectedNodeOccurrence.network.id)}
+                            onClick={() => openNetwork(selectedNodeOccurrence.networkId)}
                           >
                             {t('network.switchNetwork')}
                           </Button>
                           <div className="min-w-0 rounded-lg border border-subtle bg-surface-base px-3 py-1.5 text-xs text-muted">
-                            <div className="truncate">{selectedNodeOccurrence.node.id}</div>
+                            <div className="truncate">{selectedNodeOccurrence.nodeId}</div>
                           </div>
                         </div>
 
@@ -554,34 +749,310 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                           <label className="text-xs font-medium text-secondary">{t('concept.nodeRole' as never)}</label>
                           <Select
                             options={nodeTypeOptions}
-                            value={selectedNodeOccurrence.node.node_type}
-                            onChange={(e) => updateSelectedNetworkNode({ node_type: e.target.value as NodeType })}
+                            value={selectedNodeOccurrence.nodeType}
+                            onChange={(e) => updateSelectedOccurrenceDraft((occurrence) => ({
+                              ...occurrence,
+                              nodeType: e.target.value as NodeType,
+                            }))}
                             selectSize="sm"
-                            disabled={isSavingNode}
                           />
                           <div className="text-[11px] text-muted">{t('concept.nodeRoleHint' as never)}</div>
                         </div>
 
+                        {isGroupNodeOccurrence && (
+                          <div className="flex flex-col gap-2 rounded-lg border border-subtle bg-surface-base px-3 py-3">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs font-medium text-secondary">{t('concept.nodeLayoutKind' as never)}</label>
+                              <Select
+                                options={nodeLayoutOptions}
+                                value={selectedNodeConfig?.kind ?? ''}
+                                onChange={(e) => {
+                                  if (!e.target.value) {
+                                    updateSelectedOccurrenceNodeConfig(null);
+                                    return;
+                                  }
+
+                                  const previousSort = isSortableNodeConfig(selectedNodeConfig)
+                                    ? selectedNodeConfig.sort ?? null
+                                    : null;
+
+                                  updateSelectedOccurrenceNodeConfig(
+                                    createNodeConfigDraft(e.target.value as NodeConfig['kind'], previousSort),
+                                  );
+                                }}
+                                selectSize="sm"
+                                disabled={!canEditNodeConfig}
+                              />
+                              <div className="text-[11px] text-muted">{t('concept.nodeConfigHint' as never)}</div>
+                            </div>
+
+                            {selectedNodeConfig?.kind === 'grid' && (
+                              <>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigColumns' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.columns ?? 2}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'grid'
+                                          ? { ...config, columns: Math.max(1, Math.floor(value)) }
+                                          : config
+                                      ))}
+                                      min={1}
+                                      step={1}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigPadding' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.padding ?? 24}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'grid'
+                                          ? { ...config, padding: Math.max(0, value) }
+                                          : config
+                                      ))}
+                                      min={0}
+                                      step={4}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigGapX' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.gapX ?? 16}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'grid'
+                                          ? { ...config, gapX: Math.max(0, value) }
+                                          : config
+                                      ))}
+                                      min={0}
+                                      step={4}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigGapY' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.gapY ?? 16}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'grid'
+                                          ? { ...config, gapY: Math.max(0, value) }
+                                          : config
+                                      ))}
+                                      min={0}
+                                      step={4}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigItemWidth' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.itemWidth ?? 160}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'grid'
+                                          ? { ...config, itemWidth: Math.max(48, value) }
+                                          : config
+                                      ))}
+                                      min={48}
+                                      step={4}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigItemHeight' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.itemHeight ?? 60}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'grid'
+                                          ? { ...config, itemHeight: Math.max(40, value) }
+                                          : config
+                                      ))}
+                                      min={40}
+                                      step={4}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {selectedNodeConfig?.kind === 'list' && (
+                              <>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigPadding' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.padding ?? 24}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'list'
+                                          ? { ...config, padding: Math.max(0, value) }
+                                          : config
+                                      ))}
+                                      min={0}
+                                      step={4}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigGap' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.gap ?? 12}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'list'
+                                          ? { ...config, gap: Math.max(0, value) }
+                                          : config
+                                      ))}
+                                      min={0}
+                                      step={4}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-secondary">{t('concept.nodeConfigItemHeight' as never)}</label>
+                                    <NumberInput
+                                      value={selectedNodeConfig.itemHeight ?? 60}
+                                      onChange={(value) => updateStructuredNodeConfigDraft((config) => (
+                                        config.kind === 'list'
+                                          ? { ...config, itemHeight: Math.max(40, value) }
+                                          : config
+                                      ))}
+                                      min={40}
+                                      step={4}
+                                      inputSize="sm"
+                                    />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {sortableNodeConfig && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-xs font-medium text-secondary">{t('concept.nodeSortKind' as never)}</label>
+                                  <Select
+                                    options={sortKindOptions}
+                                    value={sortableNodeSortConfig?.kind ?? ''}
+                                    onChange={(e) => {
+                                      if (!e.target.value) {
+                                        updateStructuredNodeConfigDraft((config) => (
+                                          isSortableNodeConfig(config) ? { ...config, sort: null } : config
+                                        ));
+                                        return;
+                                      }
+
+                                      updateStructuredNodeConfigDraft((config) => (
+                                        isSortableNodeConfig(config)
+                                          ? {
+                                              ...config,
+                                              sort: createSortConfigDraft(
+                                                e.target.value as NodeSortConfig['kind'],
+                                                propertySortOptions[0]?.value,
+                                              ),
+                                            }
+                                          : config
+                                      ));
+                                    }}
+                                    selectSize="sm"
+                                    disabled={!canEditNodeConfig}
+                                  />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-xs font-medium text-secondary">{t('concept.nodeSortValue' as never)}</label>
+                                  {sortableNodeSortConfig?.kind === 'system_slot' ? (
+                                    <Select
+                                      options={systemSlotSortOptions}
+                                      value={sortableNodeSortConfig.slot}
+                                      onChange={(e) => updateStructuredNodeConfigDraft((config) => (
+                                        isSortableNodeConfig(config) && config.sort?.kind === 'system_slot'
+                                          ? { ...config, sort: { ...config.sort, slot: e.target.value as SystemSlotKey } }
+                                          : config
+                                      ))}
+                                      selectSize="sm"
+                                      searchable
+                                      disabled={!canEditNodeConfig}
+                                    />
+                                  ) : sortableNodeSortConfig?.kind === 'property' ? (
+                                    <Select
+                                      options={propertySortOptions}
+                                      value={sortableNodeSortConfig.fieldId}
+                                      onChange={(e) => updateStructuredNodeConfigDraft((config) => (
+                                        isSortableNodeConfig(config) && config.sort?.kind === 'property'
+                                          ? { ...config, sort: { ...config.sort, fieldId: e.target.value } }
+                                          : config
+                                      ))}
+                                      selectSize="sm"
+                                      searchable
+                                      emptyMessage={t('concept.nodeSortNoPropertyOptions' as never)}
+                                      disabled={!canEditNodeConfig || propertySortOptions.length === 0}
+                                    />
+                                  ) : (
+                                    <Input
+                                      value=""
+                                      readOnly
+                                      inputSize="sm"
+                                      placeholder={t('concept.nodeSortValueDisabled' as never)}
+                                    />
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-xs font-medium text-secondary">{t('concept.nodeSortDirection' as never)}</label>
+                                  <Select
+                                    options={sortDirectionOptions}
+                                    value={sortableNodeSortConfig?.direction ?? 'asc'}
+                                    onChange={(e) => updateStructuredNodeConfigDraft((config) => (
+                                      isSortableNodeConfig(config) && config.sort
+                                        ? { ...config, sort: { ...config.sort, direction: e.target.value as 'asc' | 'desc' } }
+                                        : config
+                                    ))}
+                                    selectSize="sm"
+                                    disabled={!sortableNodeSortConfig || !canEditNodeConfig}
+                                  />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-xs font-medium text-secondary">{t('concept.nodeSortEmptyPlacement' as never)}</label>
+                                  <Select
+                                    options={emptyPlacementOptions}
+                                    value={sortableNodeSortConfig?.emptyPlacement ?? 'last'}
+                                    onChange={(e) => updateStructuredNodeConfigDraft((config) => (
+                                      isSortableNodeConfig(config) && config.sort
+                                        ? { ...config, sort: { ...config.sort, emptyPlacement: e.target.value as 'first' | 'last' } }
+                                        : config
+                                    ))}
+                                    selectSize="sm"
+                                    disabled={!sortableNodeSortConfig || !canEditNodeConfig}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {!canEditNodeConfig && (
+                              <div className="text-[11px] text-muted">
+                                {t('concept.nodeConfigInvalidMetadataHint' as never)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div className="flex flex-col gap-1">
                           <label className="text-xs font-medium text-secondary">{t('concept.nodeMetadata' as never)}</label>
                           <TextArea
-                            value={nodeMetadataDraft}
-                            onChange={(e) => setNodeMetadataDraft(e.target.value)}
+                            value={selectedNodeMetadataDraft}
+                            onChange={(e) => updateSelectedOccurrenceMetadata(e.target.value)}
                             rows={4}
                             placeholder='{"label":"local note"}'
                             className="font-mono text-xs"
                           />
-                          <div className="flex justify-end">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              isLoading={isSavingNode}
-                              onClick={saveNodeMetadata}
-                            >
-                              {t('concept.saveNodeMetadata' as never)}
-                            </Button>
-                          </div>
                         </div>
                       </>
                     )}

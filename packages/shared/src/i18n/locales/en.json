@@ -339,6 +339,44 @@
       "group": "Group",
       "hierarchy": "Hierarchy"
     },
+    "nodeConfig": "Node Config",
+    "nodeConfigHint": "Configure how this node arranges and sorts its children.",
+    "nodeConfigHierarchyHint": "Hierarchy nodes still follow structural rules first. The current collection layout applies to group nodes.",
+    "nodeConfigInvalidMetadataHint": "Node metadata JSON is invalid, so the typed config editor is disabled.",
+    "nodeConfigKindOptions": {
+      "collection": "Collection"
+    },
+    "nodeLayoutKind": "Layout Kind",
+    "nodeLayoutKindOptions": {
+      "freeform": "Freeform",
+      "grid": "Grid",
+      "list": "List"
+    },
+    "nodeConfigColumns": "Columns",
+    "nodeConfigPadding": "Padding",
+    "nodeConfigGap": "Gap",
+    "nodeConfigGapX": "Gap X",
+    "nodeConfigGapY": "Gap Y",
+    "nodeConfigItemWidth": "Item Width",
+    "nodeConfigItemHeight": "Item Height",
+    "nodeSortKind": "Sort Kind",
+    "nodeSortKindOptions": {
+      "system_slot": "System Slot",
+      "property": "Property"
+    },
+    "nodeSortValue": "Sort Field",
+    "nodeSortDirection": "Sort Direction",
+    "nodeSortDirectionOptions": {
+      "asc": "Ascending",
+      "desc": "Descending"
+    },
+    "nodeSortEmptyPlacement": "Empty Values",
+    "nodeSortEmptyOptions": {
+      "first": "First",
+      "last": "Last"
+    },
+    "nodeSortNoPropertyOptions": "No properties are available for sorting.",
+    "nodeSortValueDisabled": "Choose a sort kind first.",
     "nodeMetadata": "Node Metadata",
     "saveNodeMetadata": "Save Node Metadata",
     "semanticSlot": "Semantic Slot",
@@ -1115,8 +1153,8 @@
     "mentionFile": "File",
     "mentionSearch": "Search...",
     "command": {
-      "onboarding": "Build project type system",
-      "onboardingHint": "Starts a guided setup flow for the project's type system.",
+      "bootstrap": "Bootstrap project workspace",
+      "bootstrapHint": "Infers initial networks, schema, and starter graph from the user's domain description.",
       "index": "PDF table of contents indexing",
       "indexHint": "Requires one PDF file mention before sending.",
       "unknownCommand": "Unknown command: {name}"

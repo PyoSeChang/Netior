@@ -51,7 +51,22 @@ export const NodeLayer: React.FC<NodeLayerProps> = ({
   const isTimeline = viewportMode === 'timeline';
   const isScreen = viewportMode === 'screen';
   const orderedNodes = useMemo(
-    () => [...nodes].sort((a, b) => (b.isContainer ? 1 : 0) - (a.isContainer ? 1 : 0)),
+    () => nodes
+      .map((node, index) => ({ node, index }))
+      .sort((left, right) => {
+        const leftContainer = left.node.isContainer ? 1 : 0;
+        const rightContainer = right.node.isContainer ? 1 : 0;
+        const containerOrder = rightContainer - leftContainer;
+        if (containerOrder !== 0) return containerOrder;
+
+        if (leftContainer && rightContainer) {
+          const depthOrder = (left.node.containmentDepth ?? 0) - (right.node.containmentDepth ?? 0);
+          if (depthOrder !== 0) return depthOrder;
+        }
+
+        return left.index - right.index;
+      })
+      .map(({ node }) => node),
     [nodes],
   );
 

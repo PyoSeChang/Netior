@@ -131,33 +131,37 @@ export const NodeCardDefault: React.FC<NodeComponentProps> = ({
 
   const cardClassName = useMemo(() => {
     const parts = [
-      isContainerShape ? 'bg-transparent shadow-none' : 'bg-surface-card shadow-sm',
+      isContainerShape
+        ? (collapsed ? 'bg-surface-card shadow-sm' : 'bg-transparent shadow-none')
+        : 'bg-surface-card shadow-sm',
       'transition-[border-color,box-shadow] duration-fast',
-      isContainerShape ? 'select-none overflow-visible' : 'select-none overflow-hidden',
+      isContainerShape
+        ? (collapsed ? 'select-none overflow-hidden' : 'select-none overflow-visible')
+        : 'select-none overflow-hidden',
     ];
 
     if (isGear) {
       // gear uses clip-path, no border
     } else {
       if (isContainerShape && collapsed) {
-        parts.push('border border-transparent');
+        parts.push(shape === 'group' ? 'border-2 border-default' : 'border border-default');
       } else if (shape === 'hierarchy') {
         parts.push('border-2 border-strong');
       } else {
         parts.push(shape === 'group' ? 'border-2 border-strong' : 'border border-subtle');
       }
-      if (isContainerShape && !collapsed) {
-        parts.push('hover:border-strong');
+      if (isContainerShape) {
+        parts.push(collapsed ? 'hover:border-strong hover:shadow-md' : 'hover:border-strong');
       } else if (!isContainerShape) {
         parts.push('hover:border-default hover:shadow-md');
       }
       parts.push(outlineClass);
     }
 
-    if (selected && !(isContainerShape && collapsed)) {
+    if (selected) {
       parts.push(isContainerShape ? 'border-accent shadow-[0_0_0_1px_var(--accent)]' : 'border-accent shadow-[0_0_0_2px_var(--accent-muted)]');
     }
-    if (highlighted && !(isContainerShape && collapsed)) {
+    if (highlighted) {
       parts.push('border-status-warning shadow-[0_0_0_2px_color-mix(in_srgb,var(--status-warning)_30%,transparent)]');
     }
 
