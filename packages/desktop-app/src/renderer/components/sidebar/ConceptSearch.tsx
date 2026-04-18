@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import { useConceptStore } from '../../stores/concept-store';
 import { useI18n } from '../../hooks/useI18n';
+import { NodeVisual } from '../workspace/node-components/NodeVisual';
 
 export function ConceptSearch(): JSX.Element {
   const { t } = useI18n();
@@ -27,13 +28,13 @@ export function ConceptSearch(): JSX.Element {
         {filtered.length === 0 ? (
           <span className="px-1 py-2 text-xs text-muted">{t('common.noResults')}</span>
         ) : (
-          filtered.map((c) => (
+          filtered.map((concept) => (
             <div
-              key={c.id}
-              className="rounded px-2 py-1 text-xs text-secondary hover:bg-surface-hover hover:text-default"
+              key={concept.id}
+              className="flex items-center gap-2 rounded px-2 py-1 text-xs text-secondary hover:bg-surface-hover hover:text-default"
             >
-              <span>{c.icon || '📌'}</span>{' '}
-              <span>{c.title}</span>
+              <NodeVisual icon={concept.icon ?? 'box'} size={14} imageSize={18} className="shrink-0" />
+              <span className="truncate">{concept.title}</span>
             </div>
           ))
         )}

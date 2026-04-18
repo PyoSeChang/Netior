@@ -36,7 +36,9 @@ export async function openFolderDialog(): Promise<string | null> {
   return result ? (result as string[])[0] : null;
 }
 
-export async function openFileDialog(filters?: { name: string; extensions: string[] }[]): Promise<string | null> {
+export async function openFileDialog(
+  filters?: ReadonlyArray<{ name: string; extensions: readonly string[] }>,
+): Promise<string | null> {
   const result = unwrapIpc(await window.electron.fs.openDialog({
     properties: ['openFile'],
     filters,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { resolveIcon } from '../../../../utils/icon-resolver';
+import { NodeVisual } from '../NodeVisual';
 import type { ShapeLayoutProps } from '../types';
 
 export const GroupLayout: React.FC<ShapeLayoutProps> = ({
@@ -19,7 +19,7 @@ export const GroupLayout: React.FC<ShapeLayoutProps> = ({
     <div className="flex h-full w-full flex-col items-start justify-start gap-1 px-3 py-2">
       <div className="flex w-full min-w-0 items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-[16px] leading-none text-secondary">{resolveIcon(icon, 16)}</span>
+          <NodeVisual icon={icon} metadata={metadata} size={16} imageSize={28} className="shrink-0 text-[16px] leading-none text-secondary" />
           <span className="truncate text-sm font-medium text-default">{label}</span>
         </div>
         {canToggleCollapse && onToggleCollapse && (

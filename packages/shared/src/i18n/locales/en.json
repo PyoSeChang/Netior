@@ -320,6 +320,13 @@
     "title": "Title",
     "titlePlaceholder": "Concept title",
     "icon": "Icon (Emoji)",
+    "visual": "Visual",
+    "visualHint": "Set this concept's node visual here as the single source of truth.",
+    "selectProfileImage": "Choose a local profile image...",
+    "visualModeOptions": {
+      "icon": "Icon",
+      "image": "Profile Image"
+    },
     "color": "Color",
     "editTitleHint": "Double-click to edit title",
     "noFiles": "No files linked to this concept",
@@ -341,6 +348,7 @@
     },
     "nodeMetadata": "Node Metadata",
     "saveNodeMetadata": "Save Node Metadata",
+    "invalidNodeMetadata": "Node metadata must be valid JSON.",
     "semanticSlot": "Semantic Slot",
     "allowedFieldTypes": "Allowed field types",
     "slotContract": {

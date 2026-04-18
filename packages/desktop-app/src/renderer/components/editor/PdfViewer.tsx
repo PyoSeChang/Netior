@@ -12,7 +12,7 @@ import { useViewState } from '../../hooks/useViewState';
 import { Tooltip } from '../ui/Tooltip';
 import { PdfTocSidebar } from './pdf/PdfTocSidebar';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf-worker-polyfilled.ts', import.meta.url).toString();
 
 const PDF_OPTIONS = {
   wasmUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/wasm/`,

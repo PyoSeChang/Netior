@@ -10,14 +10,20 @@ import { useNetworkStore } from '../../stores/network-store';
 import { useEditorSession } from '../../hooks/useEditorSession';
 import { ScrollArea } from '../ui/ScrollArea';
 import { Select } from '../ui/Select';
+import { RadioGroup } from '../ui/RadioGroup';
 import { Input } from '../ui/Input';
 import { TextArea } from '../ui/TextArea';
 import { Button } from '../ui/Button';
+import { FilePicker } from '../ui/FilePicker';
+import { IconSelector } from '../ui/IconSelector';
+import { showToast } from '../ui/Toast';
 import { ConceptPropertiesPanel, FieldInput } from './ConceptPropertiesPanel';
 import { ConceptBodyEditor } from './ConceptBodyEditor';
 import { ConceptAgentView } from './ConceptAgentView';
 import { useI18n } from '../../hooks/useI18n';
 import { HIERARCHY_PARENT_CONTRACT } from '../../lib/hierarchy-contract';
+import { isImageSourceValue } from '../workspace/node-components/node-visual-utils';
+import { NodeVisual } from '../workspace/node-components/NodeVisual';
 import {
   NetworkObjectEditorShell,
   NetworkObjectEditorSection,
@@ -42,7 +48,22 @@ interface ConceptNodeOccurrence {
   node: NetworkNode;
 }
 
+const DEPRECATED_NODE_IMAGE_METADATA_KEYS = [
+  'imageUrl',
+  'image_url',
+  'avatarUrl',
+  'avatar_url',
+  'profileImageUrl',
+  'profile_image_url',
+] as const;
+
+const IMAGE_FILE_FILTERS = [
+  { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] },
+] as const;
+
 const isDraftTab = (tab: EditorTab) => tab.targetId.startsWith('draft-');
+
+type VisualMode = 'icon' | 'image';
 
 function resolvePreferredNodeId(
   occurrences: ConceptNodeOccurrence[],
@@ -59,6 +80,38 @@ function resolvePreferredNodeId(
   }
 
   return occurrences[0]?.node.id ?? '';
+}
+
+function tryParseMetadataObject(value: string | null | undefined): Record<string, unknown> | null {
+  if (!value || !value.trim()) return {};
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function stringifyMetadataObject(metadata: Record<string, unknown>): string {
+  return Object.keys(metadata).length > 0 ? JSON.stringify(metadata, null, 2) : '';
+}
+
+function stripLegacyNodeImageMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...metadata };
+
+  for (const key of DEPRECATED_NODE_IMAGE_METADATA_KEYS) {
+    delete next[key];
+  }
+
+  return next;
+}
+
+function resolveVisualMode(value: string | null | undefined): VisualMode {
+  return isImageSourceValue(value) ? 'image' : 'icon';
 }
 
 function isDateOnlyValue(value: string): boolean {
@@ -123,6 +176,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
   const [nodeOccurrences, setNodeOccurrences] = useState<ConceptNodeOccurrence[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState('');
   const [nodeMetadataDraft, setNodeMetadataDraft] = useState('');
+  const [conceptVisualMode, setConceptVisualMode] = useState<VisualMode>('icon');
   const [isLoadingNodeOccurrences, setIsLoadingNodeOccurrences] = useState(false);
   const [isSavingNode, setIsSavingNode] = useState(false);
 
@@ -132,6 +186,10 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     { value: 'portal', label: t('concept.nodeRoleOptions.portal' as never) },
     { value: 'group', label: t('concept.nodeRoleOptions.group' as never) },
     { value: 'hierarchy', label: t('concept.nodeRoleOptions.hierarchy' as never) },
+  ]), [t]);
+  const conceptVisualModeOptions = useMemo(() => ([
+    { value: 'icon', label: t('concept.visualModeOptions.icon' as never) },
+    { value: 'image', label: t('concept.visualModeOptions.image' as never) },
   ]), [t]);
 
   const syncConceptProperties = useCallback(async (
@@ -311,6 +369,11 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     deps: isDraft ? [] : [tab.targetId, concept?.archetype_id],
   });
 
+  useEffect(() => {
+    if (session.isLoading) return;
+    setConceptVisualMode(resolveVisualMode(session.state?.icon));
+  }, [concept?.id, isDraft, session.isLoading, tab.id]);
+
   const currentArchetypeId = session.state?.archetypeId;
   useEffect(() => {
     if (currentArchetypeId && !fields[currentArchetypeId]) {
@@ -400,7 +463,12 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
   );
 
   useEffect(() => {
-    setNodeMetadataDraft(selectedNodeOccurrence?.node.metadata ?? '');
+    const parsed = tryParseMetadataObject(selectedNodeOccurrence?.node.metadata);
+    setNodeMetadataDraft(
+      parsed
+        ? stringifyMetadataObject(stripLegacyNodeImageMetadata(parsed))
+        : (selectedNodeOccurrence?.node.metadata ?? ''),
+    );
   }, [selectedNodeOccurrence?.node.id, selectedNodeOccurrence?.node.metadata]);
 
   const nodeOccurrenceOptions = useMemo(() => nodeOccurrences.map((item) => {
@@ -430,8 +498,26 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     }
   };
 
+  const handleConceptVisualModeChange = useCallback((mode: VisualMode) => {
+    setConceptVisualMode(mode);
+    session.setState((prev) => {
+      const currentIcon = prev.icon ?? '';
+      const currentMode = resolveVisualMode(currentIcon);
+      return currentMode === mode ? prev : { ...prev, icon: null };
+    });
+  }, [session]);
+
   const saveNodeMetadata = async () => {
-    await updateSelectedNetworkNode({ metadata: nodeMetadataDraft.trim() ? nodeMetadataDraft : null });
+    const parsed = tryParseMetadataObject(nodeMetadataDraft);
+    if (parsed === null) {
+      showToast('error', t('concept.invalidNodeMetadata' as never));
+      return;
+    }
+
+    const nextMetadata = stripLegacyNodeImageMetadata(parsed);
+    const nextDraft = stringifyMetadataObject(nextMetadata);
+    setNodeMetadataDraft(nextDraft);
+    await updateSelectedNetworkNode({ metadata: nextDraft || null });
   };
 
   if (!isDraft && !concept) {
@@ -456,7 +542,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           title={session.state.title || tab.title || t('concept.defaultTitle')}
           subtitle={isDraft ? t('concept.create') : t('editorShell.networkObject' as never)}
           description={session.state.archetypeId ? archetypes.find((a) => a.id === session.state.archetypeId)?.name ?? null : null}
-          showHeader={false}
+          leadingVisual={<NodeVisual icon={session.state.icon ?? 'box'} size={24} imageSize={56} className="shrink-0" />}
         >
           <NetworkObjectEditorSection title={t('editorShell.overview' as never)}>
               <Input
@@ -469,6 +555,33 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                 inputSize={isDraft ? undefined : 'sm'}
                 autoFocus={isDraft}
               />
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-secondary">{t('concept.visual' as never)}</label>
+                <div className="flex flex-col gap-2">
+                  <RadioGroup
+                    options={conceptVisualModeOptions}
+                    value={conceptVisualMode}
+                    onChange={(value) => handleConceptVisualModeChange(value as VisualMode)}
+                    orientation="horizontal"
+                  />
+                  {conceptVisualMode === 'icon' ? (
+                    <IconSelector
+                      value={!isImageSourceValue(session.state.icon) ? (session.state.icon ?? undefined) : undefined}
+                      onChange={(name) => update({ icon: name || null })}
+                      placeholder={t('iconSelector.selectIcon')}
+                    />
+                  ) : (
+                    <FilePicker
+                      value={isImageSourceValue(session.state.icon) ? session.state.icon ?? '' : ''}
+                      onChange={(path) => update({ icon: path || null })}
+                      placeholder={t('concept.selectProfileImage' as never)}
+                      filters={[...IMAGE_FILE_FILTERS]}
+                    />
+                  )}
+                </div>
+                <div className="mt-1 text-[11px] text-muted">{t('concept.visualHint' as never)}</div>
+              </div>
 
               {archetypes.length > 0 && (
                 <div>
