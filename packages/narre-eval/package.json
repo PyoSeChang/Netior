@@ -8,6 +8,8 @@
     "build": "tsup",
     "eval": "node dist/cli.js",
     "eval:dev": "tsx src/cli.ts",
+    "tui": "node dist/tui.js",
+    "tui:dev": "tsx src/tui.ts",
     "clean": "rimraf dist",
     "typecheck": "tsc --noEmit"
   },

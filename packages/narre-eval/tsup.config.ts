@@ -3,6 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     cli: 'src/cli.ts',
+    tui: 'src/tui.ts',
   },
   format: ['esm'],
   dts: false,
