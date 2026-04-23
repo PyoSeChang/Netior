@@ -4,6 +4,7 @@ import http from 'http';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import type {
+  AgentDefinition,
   IpcResult,
   NarreMessage,
   NarreSessionDetail,
@@ -13,8 +14,11 @@ import type {
   NarreStreamEvent,
   NarreToolCall,
   NarreTranscript,
+  SkillDefinition,
+  SupervisorAgentSessionSnapshot,
+  SupervisorEvent,
 } from '@netior/shared/types';
-import { IPC_CHANNELS } from '@netior/shared/constants';
+import { BUILT_IN_SKILLS, IPC_CHANNELS } from '@netior/shared/constants';
 import {
   listRemoteArchetypes,
   listRemoteFilesByProject,
@@ -274,6 +278,28 @@ async function listRemoteNarreSessions(projectId: string): Promise<NarreSession[
   return requestNarreServer<NarreSession[]>(`/sessions?projectId=${encodeURIComponent(projectId)}`);
 }
 
+async function listRemoteNarreSkills(projectId: string): Promise<SkillDefinition[]> {
+  return requestNarreServer<SkillDefinition[]>(`/skills?projectId=${encodeURIComponent(projectId)}`);
+}
+
+async function listRemoteSupervisorAgents(projectId?: string | null): Promise<AgentDefinition[]> {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+  return requestNarreServer<AgentDefinition[]>(`/supervisor/agents${query}`);
+}
+
+async function listRemoteSupervisorSkills(projectId: string): Promise<SkillDefinition[]> {
+  return requestNarreServer<SkillDefinition[]>(`/supervisor/skills?projectId=${encodeURIComponent(projectId)}`);
+}
+
+async function listRemoteSupervisorSessions(): Promise<SupervisorAgentSessionSnapshot[]> {
+  return requestNarreServer<SupervisorAgentSessionSnapshot[]>('/supervisor/sessions');
+}
+
+async function listRemoteSupervisorEvents(afterSeq?: number | null): Promise<SupervisorEvent[]> {
+  const query = typeof afterSeq === 'number' ? `?afterSeq=${encodeURIComponent(String(afterSeq))}` : '';
+  return requestNarreServer<SupervisorEvent[]>(`/supervisor/events${query}`);
+}
+
 async function createRemoteNarreSession(projectId: string): Promise<NarreSession> {
   return requestNarreServer<NarreSession>('/sessions', {
     method: 'POST',
@@ -331,6 +357,59 @@ export function registerNarreIpc(): void {
       return { success: false, error: (err as Error).message };
     }
   });
+
+  ipcMain.handle(IPC_CHANNELS.NARRE_LIST_SKILLS, async (_e, projectId: string): Promise<IpcResult<SkillDefinition[]>> => {
+    try {
+      return { success: true, data: await listRemoteNarreSkills(projectId) };
+    } catch (err) {
+      console.warn(`[narre:bridge] failed to list skills, using built-ins: ${(err as Error).message}`);
+      return { success: true, data: [...BUILT_IN_SKILLS] };
+    }
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.NARRE_SUPERVISOR_LIST_AGENTS,
+    async (_e, projectId?: string | null): Promise<IpcResult<AgentDefinition[]>> => {
+      try {
+        return { success: true, data: await listRemoteSupervisorAgents(projectId) };
+      } catch (err) {
+        return { success: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.NARRE_SUPERVISOR_LIST_SKILLS,
+    async (_e, projectId: string): Promise<IpcResult<SkillDefinition[]>> => {
+      try {
+        return { success: true, data: await listRemoteSupervisorSkills(projectId) };
+      } catch (err) {
+        return { success: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.NARRE_SUPERVISOR_LIST_SESSIONS,
+    async (): Promise<IpcResult<SupervisorAgentSessionSnapshot[]>> => {
+      try {
+        return { success: true, data: await listRemoteSupervisorSessions() };
+      } catch (err) {
+        return { success: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.NARRE_SUPERVISOR_LIST_EVENTS,
+    async (_e, afterSeq?: number | null): Promise<IpcResult<SupervisorEvent[]>> => {
+      try {
+        return { success: true, data: await listRemoteSupervisorEvents(afterSeq) };
+      } catch (err) {
+        return { success: false, error: (err as Error).message };
+      }
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.NARRE_CREATE_SESSION, async (_e, projectId: string): Promise<IpcResult<NarreSession>> => {
     try {
@@ -801,73 +880,6 @@ export function registerNarreIpc(): void {
         req.write(body);
         req.end();
       });
-    } catch (err) {
-      return { success: false, error: (err as Error).message };
-    }
-  });
-
-  ipcMain.handle(IPC_CHANNELS.NARRE_EXECUTE_COMMAND, async (_e, data: Record<string, unknown>): Promise<IpcResult<null>> => {
-    try {
-      const { projectId, command, args } = data as {
-        projectId: string;
-        command: string;
-        args?: Record<string, string>;
-      };
-
-      const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
-      if (!mainWindow) {
-        return { success: false, error: 'No main window available' };
-      }
-
-      const body = JSON.stringify({ projectId, command, args });
-      const commandUrl = new URL('/command', await ensureNarreServerBaseUrl());
-
-      const req = http.request(
-        commandUrl,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(body),
-          },
-        },
-        (res) => {
-          let buffer = '';
-          res.on('data', (chunk: Buffer) => {
-            buffer += chunk.toString();
-            const events = buffer.split('\n\n');
-            buffer = events.pop() || '';
-            for (const eventStr of events) {
-              const trimmed = eventStr.trim();
-              if (trimmed.startsWith('data: ')) {
-                try {
-                  const parsed: NarreStreamEvent = JSON.parse(trimmed.slice(6));
-                  emitNarreStreamEvent(mainWindow, parsed, { projectId });
-                } catch { /* skip */ }
-              }
-            }
-          });
-          res.on('end', () => {
-            if (buffer.trim().startsWith('data: ')) {
-              try {
-                const parsed: NarreStreamEvent = JSON.parse(buffer.trim().slice(6));
-                emitNarreStreamEvent(mainWindow, parsed, { projectId });
-              } catch { /* skip */ }
-            }
-          });
-        },
-      );
-      req.on('error', (err) => {
-        emitNarreStreamEvent(mainWindow, {
-          type: 'error',
-          error: err.message,
-        }, { projectId });
-        emitNarreStreamEvent(mainWindow, { type: 'done' }, { projectId });
-      });
-      req.write(body);
-      req.end();
-
-      return { success: true, data: null };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }

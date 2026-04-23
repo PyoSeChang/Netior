@@ -1,5 +1,5 @@
 import React from 'react';
-import { Waypoints, FolderTree, Boxes, Settings, Terminal, Sparkles } from 'lucide-react';
+import { Waypoints, FolderTree, Boxes, Settings, Terminal, Sparkles, Bot } from 'lucide-react';
 import { useUIStore } from '../../stores/ui-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
@@ -56,7 +56,7 @@ export function ActivityBar(): JSX.Element {
         })}
       </div>
 
-      {/* Bottom: narre + terminal + settings */}
+      {/* Bottom: narre + agents + terminal + settings */}
       {currentProject && (
         <>
           <Tooltip content={t('narre.title')} position="right">
@@ -85,6 +85,20 @@ export function ActivityBar(): JSX.Element {
           </Tooltip>
         </>
       )}
+      <Tooltip content="Agents" position="right">
+        <button
+          className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"
+          onClick={() => {
+            useEditorStore.getState().openTab({
+              type: 'agent',
+              targetId: currentProject?.id ?? 'global',
+              title: 'Agents',
+            });
+          }}
+        >
+          <Bot size={18} />
+        </button>
+      </Tooltip>
       <Tooltip content="Settings" position="right">
         <button
           className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-surface-hover hover:text-default"

@@ -1,27 +1,28 @@
 import type {
   NarreCard,
-  NarreCommandBlock,
+  NarreLegacyCommandBlock,
   NarreMention,
   NarreSessionDetail,
+  NarreSkillInvocationBlock,
   NarreToolBlock,
   NarreStreamEvent,
   NarreTranscriptBlock,
   NarreTranscriptTurn,
 } from '@netior/shared/types';
-import { SLASH_COMMANDS } from '@netior/shared/constants';
+import { SLASH_TRIGGER_SKILLS } from '@netior/shared/constants';
 import { narreService } from '../services/narre-service';
 import { useArchetypeStore } from '../stores/archetype-store';
 import { useConceptStore } from '../stores/concept-store';
 import { useNetworkStore } from '../stores/network-store';
 import { useRelationTypeStore } from '../stores/relation-type-store';
 import {
-  getNarreProjectPendingCommand,
+  getNarreProjectPendingSkillInvocation,
   getNarreProjectDraft,
-  moveNarreProjectPendingCommand,
+  moveNarreProjectPendingSkillInvocation,
   moveNarreProjectDraft,
-  setNarreProjectPendingCommand,
+  setNarreProjectPendingSkillInvocation,
   setNarreProjectDraft,
-  type NarrePendingCommandState,
+  type NarrePendingSkillInvocationState,
 } from './narre-ui-state';
 
 export interface NarreDisplayMessage {
@@ -44,8 +45,8 @@ export interface NarreSessionState {
   hasReceivedFirstStreamEvent: boolean;
   isInterrupting: boolean;
   pendingDraftHtml: string;
-  pendingCommand: NarrePendingCommandState | null;
-  pendingDraftCommand: NarrePendingCommandState | null;
+  pendingSkillInvocation: NarrePendingSkillInvocationState | null;
+  pendingDraftSkillInvocation: NarrePendingSkillInvocationState | null;
   pendingUserTimestamp: string | null;
   draftHtml: string;
 }
@@ -88,8 +89,8 @@ function createEmptySessionState(projectId: string, sessionId: string | null): N
     hasReceivedFirstStreamEvent: false,
     isInterrupting: false,
     pendingDraftHtml: '',
-    pendingCommand: getNarreProjectPendingCommand(projectId, sessionId),
-    pendingDraftCommand: null,
+    pendingSkillInvocation: getNarreProjectPendingSkillInvocation(projectId, sessionId),
+    pendingDraftSkillInvocation: null,
     pendingUserTimestamp: null,
     draftHtml: getNarreProjectDraft(projectId, sessionId),
   };
@@ -105,14 +106,14 @@ function ensureSessionState(projectId: string, sessionId: string | null): NarreS
   return state;
 }
 
-function humanizeSlashCommandName(commandName: string): string {
-  switch (commandName) {
+function humanizeSlashSkillName(skillName: string): string {
+  switch (skillName) {
     case 'index':
       return 'PDF TOC Indexing';
     case 'bootstrap':
       return 'Project Bootstrap';
     default:
-      return commandName
+      return skillName
         .split(/[-_]/g)
         .filter(Boolean)
         .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
@@ -120,8 +121,8 @@ function humanizeSlashCommandName(commandName: string): string {
   }
 }
 
-function findSlashCommand(commandName: string) {
-  return SLASH_COMMANDS.find((command) => command.name === commandName) ?? null;
+function findSlashSkill(skillName: string) {
+  return SLASH_TRIGGER_SKILLS.find((skill) => skill.name === skillName) ?? null;
 }
 
 function buildDisplayBlockId(prefix = 'display'): string {
@@ -172,6 +173,7 @@ function cloneTranscriptBlock(block: NarreTranscriptBlock): NarreTranscriptBlock
         ...block,
         ...(block.mentions?.length ? { mentions: block.mentions.map((mention) => ({ ...mention })) } : {}),
       };
+    case 'skill':
     case 'command':
       return {
         ...block,
@@ -235,9 +237,9 @@ function createErrorMessage(error: string): NarreDisplayMessage {
   };
 }
 
-function formatCommandBlockContent(block: NarreCommandBlock): string {
-  const slashCommand = findSlashCommand(block.name);
-  const baseLabel = slashCommand ? humanizeSlashCommandName(slashCommand.name) : humanizeSlashCommandName(block.name);
+function formatSkillInvocationBlockContent(block: NarreSkillInvocationBlock | NarreLegacyCommandBlock): string {
+  const slashSkill = findSlashSkill(block.name);
+  const baseLabel = slashSkill ? humanizeSlashSkillName(slashSkill.name) : humanizeSlashSkillName(block.name);
 
   if (block.name === 'index') {
     const fileRef = block.refs?.find((ref) => ref.type === 'file');
@@ -466,7 +468,7 @@ function finalizeAssistantStream(state: NarreSessionState): void {
   state.hasReceivedFirstStreamEvent = false;
   state.isInterrupting = false;
   state.pendingDraftHtml = '';
-  state.pendingDraftCommand = null;
+  state.pendingDraftSkillInvocation = null;
   state.pendingUserTimestamp = null;
   state.streamingBlocks = [];
   state.streamingTimestamp = null;
@@ -640,14 +642,14 @@ export function promoteNarreDraftSession(
     if (!target.draftHtml && source.draftHtml) {
       target.draftHtml = source.draftHtml;
     }
-    if (!target.pendingCommand && source.pendingCommand) {
-      target.pendingCommand = source.pendingCommand;
+    if (!target.pendingSkillInvocation && source.pendingSkillInvocation) {
+      target.pendingSkillInvocation = source.pendingSkillInvocation;
     }
     sessions.delete(sourceKey);
   }
 
   moveNarreProjectDraft(projectId, null, sessionId);
-  moveNarreProjectPendingCommand(projectId, null, sessionId);
+  moveNarreProjectPendingSkillInvocation(projectId, null, sessionId);
 
   if (title && !target.title) {
     target.title = title;
@@ -693,13 +695,13 @@ export function prepareNarreAssistantStream(
   sessionId: string | null,
   options: {
     draftHtml: string;
-    pendingCommand: NarrePendingCommandState | null;
+    pendingSkillInvocation: NarrePendingSkillInvocationState | null;
     userTimestamp: string;
   },
 ): void {
   const state = ensureSessionState(projectId, sessionId);
   state.pendingDraftHtml = options.draftHtml;
-  state.pendingDraftCommand = options.pendingCommand;
+  state.pendingDraftSkillInvocation = options.pendingSkillInvocation;
   state.pendingUserTimestamp = options.userTimestamp;
   notify();
 }
@@ -717,7 +719,7 @@ export function appendNarreAssistantErrorMessage(
   state.hasReceivedFirstStreamEvent = false;
   state.isInterrupting = false;
   state.pendingDraftHtml = '';
-  state.pendingDraftCommand = null;
+  state.pendingDraftSkillInvocation = null;
   state.pendingUserTimestamp = null;
   state.loading = false;
   state.hasLoaded = true;
@@ -738,14 +740,14 @@ export function setNarreSessionDraft(
   notify();
 }
 
-export function setNarreSessionPendingCommand(
+export function setNarreSessionPendingSkillInvocation(
   projectId: string,
   sessionId: string | null,
-  pendingCommand: NarrePendingCommandState | null,
+  pendingSkillInvocation: NarrePendingSkillInvocationState | null,
 ): void {
   const state = ensureSessionState(projectId, sessionId);
-  state.pendingCommand = pendingCommand;
-  setNarreProjectPendingCommand(projectId, sessionId, pendingCommand);
+  state.pendingSkillInvocation = pendingSkillInvocation;
+  setNarreProjectPendingSkillInvocation(projectId, sessionId, pendingSkillInvocation);
   notify();
 }
 
@@ -795,7 +797,7 @@ export function cancelPendingNarreAssistantTurn(
   sessionId: string | null,
   options: {
     draftHtml: string;
-    pendingCommand: NarrePendingCommandState | null;
+    pendingSkillInvocation: NarrePendingSkillInvocationState | null;
     userTimestamp: string | null;
   },
 ): void {
@@ -811,15 +813,15 @@ export function cancelPendingNarreAssistantTurn(
 
   state.draftHtml = options.draftHtml;
   setNarreProjectDraft(projectId, sessionId, options.draftHtml);
-  state.pendingCommand = options.pendingCommand;
-  setNarreProjectPendingCommand(projectId, sessionId, options.pendingCommand);
+  state.pendingSkillInvocation = options.pendingSkillInvocation;
+  setNarreProjectPendingSkillInvocation(projectId, sessionId, options.pendingSkillInvocation);
   state.isStreaming = false;
   state.streamingBlocks = [];
   state.streamingTimestamp = null;
   state.hasReceivedFirstStreamEvent = false;
   state.isInterrupting = false;
   state.pendingDraftHtml = '';
-  state.pendingDraftCommand = null;
+  state.pendingDraftSkillInvocation = null;
   state.pendingUserTimestamp = null;
   state.loading = false;
   state.hasLoaded = true;

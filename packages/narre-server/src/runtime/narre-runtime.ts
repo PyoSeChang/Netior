@@ -10,6 +10,8 @@ import type {
   NarreToolBlock,
   NarreTranscriptBlock,
   NarreTranscriptTurn,
+  SkillDefinition,
+  SkillInvocation,
 } from '@netior/shared/types';
 import {
   buildSystemPrompt,
@@ -17,14 +19,16 @@ import {
   type SystemPromptParams,
 } from '../system-prompt.js';
 import { buildProjectPromptMetadata } from '../project-prompt-metadata.js';
-import { parseCommand } from '../command-router.js';
+import { parseSkillInvocation } from '../skill-invocation-router.js';
 import { SessionStore } from '../session-store.js';
 import type { NarreMcpServerConfig, NarreProviderAdapter } from './provider-adapter.js';
-import { loadPromptSkill } from '../prompt-skills/registry.js';
+import { loadAvailableSkills } from '../skills/registry.js';
 import type {
-  NarrePromptSkillContext,
-  NarrePromptSkillDefinition,
-} from '../prompt-skills/types.js';
+  NarreSkillContext,
+  NarreSkillDefinition,
+} from '../skills/types.js';
+import type { SupervisorRegistry } from '../supervisor/supervisor-registry.js';
+import { buildNarreSupervisorSessionId } from '../supervisor/supervisor-registry.js';
 
 export interface NarreRuntimeChatRequest {
   traceId?: string;
@@ -47,6 +51,11 @@ export interface NarreRuntimeConfig {
   provider: NarreProviderAdapter;
   resolveMcpServerPath: () => string | null;
   resolvePromptMetadata?: (projectId: string) => Promise<SystemPromptParams>;
+  resolveProjectRootDir?: (projectId: string) => Promise<string | null>;
+  sharedUserDataRootDir?: string | null;
+  globalUserAgentId?: string | null;
+  projectUserAgentId?: string | null;
+  supervisor?: SupervisorRegistry;
   behaviorSettings?: NarreBehaviorSettings;
 }
 
@@ -57,6 +66,20 @@ export class NarreRuntime {
     return this.config.provider.resolveUiCall(toolCallId, response);
   }
 
+  async listSkills(projectId: string): Promise<SkillDefinition[]> {
+    const projectRootDir = this.config.resolveProjectRootDir
+      ? await this.config.resolveProjectRootDir(projectId)
+      : (await (this.config.resolvePromptMetadata ?? buildProjectPromptMetadata)(projectId)).projectRootDir ?? null;
+    const availableSkills = await loadAvailableSkills({
+      projectRootDir,
+      sharedUserDataRootDir: this.config.sharedUserDataRootDir ?? null,
+      projectAgentId: this.config.projectUserAgentId ?? null,
+      globalAgentId: this.config.globalUserAgentId ?? null,
+    });
+
+    return availableSkills.map(toPublicSkillDefinition);
+  }
+
   async runChat(
     request: NarreRuntimeChatRequest,
     events: NarreRuntimeEvents,
@@ -64,12 +87,7 @@ export class NarreRuntime {
   ): Promise<{ sessionId: string }> {
     const traceId = request.traceId ?? 'no-trace';
     const runStartedAt = Date.now();
-    const parsedCommand = parseCommand(request.message);
     const isAborted = (): boolean => signal?.aborted === true;
-
-    if (parsedCommand && parsedCommand.command.type === 'system') {
-      throw new Error('Use /command endpoint for system commands');
-    }
 
     let activeSessionId = request.sessionId;
     if (!activeSessionId) {
@@ -85,33 +103,56 @@ export class NarreRuntime {
 
     const metadata = await (this.config.resolvePromptMetadata ?? buildProjectPromptMetadata)(request.projectId);
     const behaviorSettings = this.config.behaviorSettings ?? DEFAULT_NARRE_BEHAVIOR_SETTINGS;
-    const promptSkill = parsedCommand?.command.type === 'conversation'
-      ? await loadPromptSkill(parsedCommand.command.promptSkillKey)
+    const availableSkills = await loadAvailableSkills({
+      projectRootDir: metadata.projectRootDir ?? null,
+      sharedUserDataRootDir: this.config.sharedUserDataRootDir ?? null,
+      projectAgentId: this.config.projectUserAgentId ?? null,
+      globalAgentId: this.config.globalUserAgentId ?? null,
+    });
+    const parsedSkillInvocation = parseSkillInvocation(request.message, availableSkills);
+    const activeSkill: NarreSkillDefinition | null = parsedSkillInvocation
+      ? parsedSkillInvocation.skill as NarreSkillDefinition
       : null;
-    const promptSkillContext: NarrePromptSkillContext = {
+    const skillContext: NarreSkillContext = {
       params: metadata,
       behavior: behaviorSettings,
       projectId: request.projectId,
       historyTurns,
     };
-    const skillPrompt = promptSkill
-      ? promptSkill.buildPrompt(promptSkillContext)
+    const skillPrompt = activeSkill
+      ? activeSkill.buildPrompt(skillContext)
       : '';
     const systemPrompt = skillPrompt
       ? `${buildSystemPrompt(metadata, behaviorSettings)}\n\n${skillPrompt}`
       : buildSystemPrompt(metadata, behaviorSettings);
-    const normalizedCommandArgs = parsedCommand?.command.type === 'conversation'
-      ? promptSkill?.normalizeArgs?.(request.message, parsedCommand) ?? parsedCommand.args
+    const normalizedSkillArgs = parsedSkillInvocation
+      ? activeSkill?.normalizeArgs?.(request.message, parsedSkillInvocation.invocation) ?? parsedSkillInvocation.invocation.args
       : undefined;
+    const supervisorSessionId = buildNarreSupervisorSessionId(resolvedSessionId);
+    this.config.supervisor?.registerNarreSession({
+      narreSessionId: resolvedSessionId,
+      projectId: request.projectId,
+      title: sessionData?.title ?? request.message.slice(0, 60),
+      status: 'working',
+      skillId: activeSkill?.id ?? null,
+      metadata: {
+        provider: this.config.provider.name,
+        traceId,
+      },
+    });
 
     const processedMessage = this.buildPromptMessage(request.message, request.mentions);
 
-    const userTurn = buildUserTurn(request.message, request.mentions, parsedCommand, normalizedCommandArgs);
+    const userTurn = buildUserTurn(request.message, request.mentions, parsedSkillInvocation?.invocation ?? null, normalizedSkillArgs);
     await this.config.sessionStore.appendTurn(resolvedSessionId, request.projectId, userTurn);
 
     const mcpServerPath = this.config.resolveMcpServerPath();
     if (!mcpServerPath) {
       console.error(`[narre:runtime] trace=${traceId} stage=mcp.missing session=${resolvedSessionId}`);
+      this.config.supervisor?.updateSessionStatus(supervisorSessionId, 'error', {
+        eventType: 'session_failed',
+        metadata: { error: 'missing_mcp_server' },
+      });
       events.onError('Could not find netior-mcp server. Run: pnpm --filter @netior/mcp build');
       return { sessionId: resolvedSessionId };
     }
@@ -120,8 +161,8 @@ export class NarreRuntime {
     const mcpServerConfigs = this.buildMcpServerConfigs(
       mcpServerPath,
       request.projectId,
-      promptSkill,
-      promptSkillContext,
+      activeSkill,
+      skillContext,
     );
     console.log(
       `[narre:runtime] trace=${traceId} stage=run.start session=${resolvedSessionId} ` +
@@ -296,6 +337,12 @@ export class NarreRuntime {
       });
     } catch (error) {
       if (!isAborted()) {
+        this.config.supervisor?.updateSessionStatus(supervisorSessionId, 'error', {
+          eventType: 'session_failed',
+          metadata: {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
         throw error;
       }
 
@@ -303,16 +350,28 @@ export class NarreRuntime {
 
       if (assistantBlocks.length === 0) {
         await this.config.sessionStore.removeTurn(resolvedSessionId, request.projectId, userTurn.id);
+        this.config.supervisor?.updateSessionStatus(supervisorSessionId, 'idle', {
+          eventType: 'session_completed',
+          metadata: { aborted: 'true' },
+        });
         return { sessionId: resolvedSessionId };
       }
 
       await this.config.sessionStore.upsertTurn(resolvedSessionId, request.projectId, buildAssistantTurn());
+      this.config.supervisor?.updateSessionStatus(supervisorSessionId, 'idle', {
+        eventType: 'session_completed',
+        metadata: { aborted: 'true' },
+      });
       return { sessionId: resolvedSessionId };
     }
 
     if (isAborted()) {
       if (assistantBlocks.length === 0) {
         await this.config.sessionStore.removeTurn(resolvedSessionId, request.projectId, userTurn.id);
+        this.config.supervisor?.updateSessionStatus(supervisorSessionId, 'idle', {
+          eventType: 'session_completed',
+          metadata: { aborted: 'true' },
+        });
         return { sessionId: resolvedSessionId };
       }
     } else if (assistantBlocks.length === 0) {
@@ -336,6 +395,14 @@ export class NarreRuntime {
       `assistantChars=${result.assistantText.length} tools=${result.toolCalls.length} ` +
       `elapsedMs=${Date.now() - runStartedAt}`,
     );
+    this.config.supervisor?.updateSessionStatus(supervisorSessionId, 'idle', {
+      eventType: 'session_completed',
+      metadata: {
+        assistantChars: String(result.assistantText.length),
+        toolCalls: String(result.toolCalls.length),
+        elapsedMs: String(Date.now() - runStartedAt),
+      },
+    });
 
     return { sessionId: resolvedSessionId };
   }
@@ -343,8 +410,8 @@ export class NarreRuntime {
   private buildMcpServerConfigs(
     mcpServerPath: string,
     projectId: string,
-    promptSkill: NarrePromptSkillDefinition | null,
-    promptSkillContext: NarrePromptSkillContext,
+    activeSkill: NarreSkillDefinition | null,
+    skillContext: NarreSkillContext,
   ): NarreMcpServerConfig[] {
     const runningInsideElectronNode = Boolean(process.versions.electron) || process.env.ELECTRON_RUN_AS_NODE === '1';
     const mcpCommand = process.execPath;
@@ -358,10 +425,10 @@ export class NarreRuntime {
     }
 
     const profiles = Array.from(new Set(
-      promptSkill?.resolveToolProfiles?.(promptSkillContext)
+      activeSkill?.resolveToolProfiles?.(skillContext)
       ?? [
         'core',
-        ...(promptSkill?.additionalToolProfiles ?? []),
+        ...(activeSkill?.additionalToolProfiles ?? []),
       ],
     ));
 
@@ -397,6 +464,19 @@ export class NarreRuntime {
   }
 }
 
+function toPublicSkillDefinition(skill: NarreSkillDefinition): SkillDefinition {
+  return {
+    id: skill.id,
+    name: skill.name,
+    description: skill.description,
+    source: skill.source,
+    ...(skill.trigger ? { trigger: skill.trigger } : {}),
+    ...(skill.args ? { args: skill.args } : {}),
+    ...(skill.hint ? { hint: skill.hint } : {}),
+    ...(skill.requiredMentionTypes ? { requiredMentionTypes: skill.requiredMentionTypes } : {}),
+  };
+}
+
 function buildTurnId(): string {
   return `turn-${randomUUID()}`;
 }
@@ -420,19 +500,23 @@ function resolveActorProvider(name: string): NarreActorProvider {
 function buildUserTurn(
   message: string,
   mentions: NarreMention[] | undefined,
-  parsedCommand: ReturnType<typeof parseCommand>,
-  commandArgs?: Record<string, string>,
+  skillInvocation: SkillInvocation | null,
+  skillArgs?: Record<string, string>,
 ): NarreTranscriptTurn {
   const blocks: NarreTranscriptBlock[] = [];
 
-  if (parsedCommand?.command.type === 'conversation') {
-    const args = commandArgs ?? parsedCommand.args;
+  if (skillInvocation) {
+    const args = skillArgs ?? skillInvocation.args;
+    const skillName = skillInvocation.trigger?.type === 'slash'
+      ? skillInvocation.trigger.name
+      : skillInvocation.skillId;
 
     blocks.push({
       id: buildBlockId(),
-      type: 'command',
-      name: parsedCommand.command.name,
-      label: `/${parsedCommand.command.name}`,
+      type: 'skill',
+      skillId: skillInvocation.skillId,
+      name: skillName,
+      label: skillInvocation.trigger?.type === 'slash' ? `/${skillInvocation.trigger.name}` : skillName,
       ...(Object.keys(args).length > 0 ? { args } : {}),
       ...(mentions && mentions.length > 0 ? { refs: mentions } : {}),
     });

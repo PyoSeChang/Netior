@@ -1,4 +1,4 @@
-import type { NarrePromptSkillKey } from '@netior/shared/types';
+import type { BuiltInSkillId } from '@netior/shared/types';
 import type {
   EvalExecutionMode,
   EvalProviderId,
@@ -28,7 +28,7 @@ export function normalizeEvalProviderId(value: unknown): EvalProviderId {
 
 export function normalizeScenarioKind(
   value: unknown,
-  targetSkill?: NarrePromptSkillKey,
+  targetSkill?: BuiltInSkillId,
 ): EvalScenarioKind {
   if (value === 'fixed' || value === 'interpretive') {
     return value;
@@ -56,7 +56,7 @@ export function normalizeExecutionMode(value: unknown): EvalExecutionMode {
   return value === 'multi_agent' ? 'multi_agent' : 'single_agent';
 }
 
-export function normalizePromptSkillKey(value: unknown): NarrePromptSkillKey | undefined {
+export function normalizeTargetSkillId(value: unknown): BuiltInSkillId | undefined {
   switch (value) {
     case 'bootstrap':
     case 'index':
@@ -69,7 +69,7 @@ export function normalizePromptSkillKey(value: unknown): NarrePromptSkillKey | u
 export function normalizeScenarioExecution(
   execution: ScenarioExecutionManifest | undefined,
 ): ScenarioExecutionConfig {
-  const targetSkill = normalizePromptSkillKey(execution?.target_skill);
+  const targetSkill = normalizeTargetSkillId(execution?.target_skill);
   const scenarioKind = normalizeScenarioKind(execution?.scenario_kind, targetSkill);
 
   return {
@@ -105,12 +105,12 @@ export function applyRunSpecExecutionOverrides(
 
   return {
     ...execution,
-    ...(runSpec.target_skill ? { target_skill: normalizePromptSkillKey(runSpec.target_skill) } : {}),
+    ...(runSpec.target_skill ? { target_skill: normalizeTargetSkillId(runSpec.target_skill) } : {}),
     ...(runSpec.target_skill || runSpec.scenario_kind
       ? {
           scenario_kind: normalizeScenarioKind(
             runSpec.scenario_kind ?? execution.scenario_kind,
-            normalizePromptSkillKey(runSpec.target_skill ?? execution.target_skill),
+            normalizeTargetSkillId(runSpec.target_skill ?? execution.target_skill),
           ),
         }
       : {}),
@@ -124,7 +124,7 @@ export function applyRunSpecExecutionOverrides(
             runSpec.tester,
             normalizeScenarioKind(
               runSpec.scenario_kind ?? execution.scenario_kind,
-              normalizePromptSkillKey(runSpec.target_skill ?? execution.target_skill),
+              normalizeTargetSkillId(runSpec.target_skill ?? execution.target_skill),
             ),
           ),
         }

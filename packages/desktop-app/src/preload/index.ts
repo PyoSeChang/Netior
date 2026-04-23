@@ -328,6 +328,16 @@ const electronAPI = {
       ipcRenderer.invoke('agent:getSnapshot') as Promise<AgentSessionSnapshot[]>,
     setName: (terminalSessionId: string, name: string) =>
       ipcRenderer.invoke('agent:setName', terminalSessionId, name) as Promise<boolean>,
+    listDefinitions: (projectId?: string | null) =>
+      ipcRenderer.invoke('agent:listDefinitions', projectId),
+    upsertDefinition: (input: Record<string, unknown>) =>
+      ipcRenderer.invoke('agent:upsertDefinition', input),
+    deleteDefinition: (input: Record<string, unknown>) =>
+      ipcRenderer.invoke('agent:deleteDefinition', input),
+    upsertSkill: (input: Record<string, unknown>) =>
+      ipcRenderer.invoke('agent:upsertSkill', input),
+    deleteSkill: (input: Record<string, unknown>) =>
+      ipcRenderer.invoke('agent:deleteSkill', input),
     onSessionEvent: (callback: (event: AgentSessionEvent) => void) => {
       const handler = (_event: IpcRendererEvent, payload: AgentSessionEvent) => callback(payload);
       ipcRenderer.on('agent:sessionEvent', handler);
@@ -351,6 +361,11 @@ const electronAPI = {
   },
   narre: {
     listSessions: (projectId: string) => ipcRenderer.invoke('narre:listSessions', projectId),
+    listSkills: (projectId: string) => ipcRenderer.invoke('narre:listSkills', projectId),
+    listSupervisorAgents: (projectId?: string | null) => ipcRenderer.invoke('narre:supervisorListAgents', projectId),
+    listSupervisorSkills: (projectId: string) => ipcRenderer.invoke('narre:supervisorListSkills', projectId),
+    listSupervisorSessions: () => ipcRenderer.invoke('narre:supervisorListSessions'),
+    listSupervisorEvents: (afterSeq?: number | null) => ipcRenderer.invoke('narre:supervisorListEvents', afterSeq),
     createSession: (projectId: string) => ipcRenderer.invoke('narre:createSession', projectId),
     getSession: (sessionId: string) => ipcRenderer.invoke('narre:getSession', sessionId),
     deleteSession: (sessionId: string) => ipcRenderer.invoke('narre:deleteSession', sessionId),
@@ -359,7 +374,6 @@ const electronAPI = {
     searchMentions: (projectId: string, query: string) => ipcRenderer.invoke('narre:searchMentions', projectId, query),
     sendMessage: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:sendMessage', data),
     respondToCard: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:respondCard', data),
-    executeCommand: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:executeCommand', data),
     interruptMessage: (data: Record<string, unknown>) => ipcRenderer.invoke('narre:interruptMessage', data),
     onStreamEvent: (callback: (event: unknown) => void) => {
       const handler = (_event: IpcRendererEvent, data: unknown) => callback(data);

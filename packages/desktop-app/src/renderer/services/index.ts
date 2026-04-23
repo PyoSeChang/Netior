@@ -12,6 +12,7 @@ export { conceptPropertyService } from './concept-property-service';
 export { conceptContentService } from './concept-content-service';
 export { objectService } from './object-service';
 export { narreService } from './narre-service';
+export { agentService } from './agent-service';
 export { contextService } from './context-service';
 export { typeGroupService } from './type-group-service';
 export { unwrapIpc } from './ipc';

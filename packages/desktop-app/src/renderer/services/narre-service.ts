@@ -1,8 +1,37 @@
-import type { NarreMention, NarreSession, NarreSessionDetail, NarreStreamEvent } from '@netior/shared/types';
+import type {
+  AgentDefinition,
+  NarreMention,
+  NarreSession,
+  NarreSessionDetail,
+  NarreStreamEvent,
+  SkillDefinition,
+  SupervisorAgentSessionSnapshot,
+  SupervisorEvent,
+} from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
 export async function listSessions(projectId: string): Promise<NarreSession[]> {
   return unwrapIpc(await window.electron.narre.listSessions(projectId));
+}
+
+export async function listSkills(projectId: string): Promise<SkillDefinition[]> {
+  return unwrapIpc(await window.electron.narre.listSkills(projectId));
+}
+
+export async function listSupervisorAgents(projectId?: string | null): Promise<AgentDefinition[]> {
+  return unwrapIpc(await window.electron.narre.listSupervisorAgents(projectId));
+}
+
+export async function listSupervisorSkills(projectId: string): Promise<SkillDefinition[]> {
+  return unwrapIpc(await window.electron.narre.listSupervisorSkills(projectId));
+}
+
+export async function listSupervisorSessions(): Promise<SupervisorAgentSessionSnapshot[]> {
+  return unwrapIpc(await window.electron.narre.listSupervisorSessions());
+}
+
+export async function listSupervisorEvents(afterSeq?: number | null): Promise<SupervisorEvent[]> {
+  return unwrapIpc(await window.electron.narre.listSupervisorEvents(afterSeq));
 }
 
 export async function createSession(projectId: string): Promise<NarreSession> {
@@ -61,20 +90,17 @@ export async function respondToCard(
   unwrapIpc(await window.electron.narre.respondToCard({ sessionId, toolCallId, response }));
 }
 
-export async function executeCommand(
-  projectId: string,
-  command: string,
-  args?: Record<string, string>,
-): Promise<void> {
-  unwrapIpc(await window.electron.narre.executeCommand({ projectId, command, args }));
-}
-
 export async function interruptMessage(sessionId: string): Promise<boolean> {
   return unwrapIpc(await window.electron.narre.interruptMessage({ sessionId }));
 }
 
 export const narreService = {
   listSessions,
+  listSkills,
+  listSupervisorAgents,
+  listSupervisorSkills,
+  listSupervisorSessions,
+  listSupervisorEvents,
   createSession,
   getSession,
   deleteSession,
@@ -84,6 +110,5 @@ export const narreService = {
   sendMessage,
   onStreamEvent,
   respondToCard,
-  executeCommand,
   interruptMessage,
 };

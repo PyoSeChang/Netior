@@ -1,20 +1,26 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { SLASH_COMMANDS } from '@netior/shared/constants';
-import type { SlashCommand } from '@netior/shared/types';
+import { SLASH_TRIGGER_SKILLS } from '@netior/shared/constants';
+import type { SkillDefinition } from '@netior/shared/types';
 import { useI18n } from '../../../hooks/useI18n';
 import { logShortcut } from '../../../shortcuts/shortcut-utils';
 
 interface NarreSlashPickerProps {
   query: string;
   position: { bottom: number; left: number };
-  onSelect: (command: SlashCommand) => void;
+  skills?: readonly SkillDefinition[];
+  onSelect: (skill: SkillDefinition) => void;
   onClose: () => void;
+}
+
+function getSkillLabel(skill: SkillDefinition): string {
+  return skill.trigger?.type === 'slash' ? `/${skill.trigger.name}` : skill.name;
 }
 
 export function NarreSlashPicker({
   query,
   position,
+  skills = SLASH_TRIGGER_SKILLS,
   onSelect,
   onClose,
 }: NarreSlashPickerProps): JSX.Element {
@@ -22,10 +28,13 @@ export function NarreSlashPicker({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filtered = SLASH_COMMANDS.filter(
-    (cmd) =>
-      cmd.name.toLowerCase().includes(query.toLowerCase()) ||
-      t(cmd.description as any).toLowerCase().includes(query.toLowerCase()),
+  const filtered = skills.filter(
+    (skill) =>
+      skill.name.toLowerCase().includes(query.toLowerCase()) ||
+      getSkillLabel(skill).toLowerCase().includes(query.toLowerCase()) ||
+      (skill.source === 'builtin' ? t(skill.description as any) : skill.description)
+        .toLowerCase()
+        .includes(query.toLowerCase()),
   );
 
   // Reset selection when filtered list changes
@@ -86,18 +95,20 @@ export function NarreSlashPicker({
       onMouseDown={(e) => e.preventDefault()}
     >
       <div className="max-h-[200px] overflow-y-auto py-1">
-        {filtered.map((cmd, idx) => (
+        {filtered.map((skill, idx) => (
           <div
-            key={cmd.name}
+            key={`${skill.source}:${skill.trigger?.type === 'slash' ? skill.trigger.name : skill.id}`}
             className={[
               'flex flex-col px-3 py-1.5 cursor-pointer',
               idx === selectedIndex ? 'bg-surface-hover' : '',
             ].join(' ')}
             onMouseEnter={() => setSelectedIndex(idx)}
-            onClick={() => onSelect(cmd)}
+            onClick={() => onSelect(skill)}
           >
-            <span className="text-xs font-medium text-default">/{cmd.name}</span>
-            <span className="text-xs text-muted">{t(cmd.description as any)}</span>
+            <span className="text-xs font-medium text-default">{getSkillLabel(skill)}</span>
+            <span className="text-xs text-muted">
+              {skill.source === 'builtin' ? t(skill.description as any) : skill.description}
+            </span>
           </div>
         ))}
       </div>

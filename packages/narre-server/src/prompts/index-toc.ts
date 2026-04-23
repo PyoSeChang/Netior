@@ -22,7 +22,7 @@ export function buildIndexTocPrompt(
     savedMessage: '\ubaa9\ucc28\uac00 \uc800\uc7a5\ub418\uc5c8\uc2b5\ub2c8\ub2e4. PDF Viewer\uc5d0\uc11c \ud655\uc778\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.',
   };
 
-  return `## Command Skill: /index
+  return `## Skill: /index
 You are in PDF TOC indexing mode for the current project "${projectName}".
 The current project is already bound for this run. Do not ask for or rediscover \`project_id\`.
 
@@ -137,7 +137,7 @@ After saving, confirm: "${ui.savedMessage}"
 
 - Respond in the same language the user uses.
 - Focus only on the target PDF, its metadata, and the explicit page ranges. Do not inspect unrelated local workspace files.
-- Do not use broad graph or schema discovery tools during this command unless the user explicitly broadens the task.
+- Do not use broad graph or schema discovery tools during this skill unless the user explicitly broadens the task.
 - ${behavior.discourageLocalWorkspaceActions
     ? 'Do not drift into generic repo or coding analysis while indexing a document.'
     : 'Stay focused on the document indexing task unless the user explicitly broadens the scope.'}

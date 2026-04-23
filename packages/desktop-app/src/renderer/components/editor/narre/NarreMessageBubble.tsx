@@ -382,6 +382,7 @@ export function NarreMessageBubble({
                   {isUser ? renderContentWithMentions(block.text) : renderAssistantContent(block.text)}
                 </div>
               );
+            case 'skill':
             case 'command': {
               const detailBadges = [
                 ...(block.refs ?? []).map((ref) => (

@@ -1,31 +1,46 @@
 import type {
+  SkillDefinition,
   FieldType,
   SemanticCategoryKey,
   SemanticTraitKey,
-  SlashCommand,
   SlotContractLevel,
   SystemSlotKey,
 } from '../types/index.js';
 export * from './netior-mcp-tools.js';
 
 // ============================================
-// Slash Commands
+// Agent Skill Storage
 // ============================================
 
-export const SLASH_COMMANDS: readonly SlashCommand[] = [
+export const AGENT_SKILL_STORAGE = {
+  PROJECT_CONFIG_DIR: '.netior',
+  AGENTS_DIR: 'agents',
+  AGENT_FILE_NAME: 'agent.json',
+  SKILLS_DIR: 'skills',
+  SKILL_FILE_NAME: 'SKILL.md',
+  FORMAT: 'skill-md-directory',
+} as const;
+
+// ============================================
+// Built-in Skills
+// ============================================
+
+export const BUILT_IN_SKILLS: readonly SkillDefinition[] = [
   {
+    id: 'bootstrap',
     name: 'bootstrap',
     description: 'narre.command.bootstrap',
-    type: 'conversation',
+    source: 'builtin',
+    trigger: { type: 'slash', name: 'bootstrap' },
     hint: 'narre.command.bootstrapHint',
-    promptSkillKey: 'bootstrap',
   },
   {
+    id: 'index',
     name: 'index',
     description: 'narre.command.index',
-    type: 'conversation',
+    source: 'builtin',
+    trigger: { type: 'slash', name: 'index' },
     hint: 'narre.command.indexHint',
-    promptSkillKey: 'index',
     args: [
       {
         name: 'startPage',
@@ -49,6 +64,15 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
     requiredMentionTypes: ['file'],
   },
 ] as const;
+
+export const SLASH_TRIGGER_SKILLS = BUILT_IN_SKILLS.filter(
+  (skill) => skill.trigger?.type === 'slash',
+);
+
+export function findSkillBySlashTrigger(triggerName: string): SkillDefinition | null {
+  const normalized = triggerName.toLowerCase();
+  return SLASH_TRIGGER_SKILLS.find((skill) => skill.trigger?.name === normalized) ?? null;
+}
 
 // ============================================
 // IPC Channels
@@ -206,10 +230,20 @@ export const IPC_CHANNELS = {
   AGENT_STATUS_EVENT: 'agent:statusEvent',
   AGENT_NAME_CHANGED: 'agent:nameChanged',
   AGENT_TURN_EVENT: 'agent:turnEvent',
+  AGENT_LIST_DEFINITIONS: 'agent:listDefinitions',
+  AGENT_UPSERT_DEFINITION: 'agent:upsertDefinition',
+  AGENT_DELETE_DEFINITION: 'agent:deleteDefinition',
+  AGENT_UPSERT_SKILL: 'agent:upsertSkill',
+  AGENT_DELETE_SKILL: 'agent:deleteSkill',
 
   // Narre
   NARRE_SEND_MESSAGE: 'narre:sendMessage',
   NARRE_LIST_SESSIONS: 'narre:listSessions',
+  NARRE_LIST_SKILLS: 'narre:listSkills',
+  NARRE_SUPERVISOR_LIST_AGENTS: 'narre:supervisorListAgents',
+  NARRE_SUPERVISOR_LIST_SKILLS: 'narre:supervisorListSkills',
+  NARRE_SUPERVISOR_LIST_SESSIONS: 'narre:supervisorListSessions',
+  NARRE_SUPERVISOR_LIST_EVENTS: 'narre:supervisorListEvents',
   NARRE_GET_SESSION: 'narre:getSession',
   NARRE_CREATE_SESSION: 'narre:createSession',
   NARRE_DELETE_SESSION: 'narre:deleteSession',
@@ -217,7 +251,6 @@ export const IPC_CHANNELS = {
   NARRE_SEARCH_MENTIONS: 'narre:searchMentions',
   NARRE_GET_API_KEY_STATUS: 'narre:getApiKeyStatus',
   NARRE_SET_API_KEY: 'narre:setApiKey',
-  NARRE_EXECUTE_COMMAND: 'narre:executeCommand',
   NARRE_RESPOND_CARD: 'narre:respondCard',
   NARRE_INTERRUPT_MESSAGE: 'narre:interruptMessage',
 } as const;

@@ -5,7 +5,7 @@ import { join } from 'path';
 import type { NarreBehaviorSettings, NarreCodexSettings } from '@netior/shared/types';
 import { resolveSidecarRuntime } from './sidecar-runtime';
 import { getNetiorServiceBaseUrl } from './netior-service-manager';
-import { getNarreServerPort } from '../runtime/runtime-paths';
+import { getNarreServerPort, getSharedUserDataRoot } from '../runtime/runtime-paths';
 import {
   clearSharedSidecarState,
   hasOtherDesktopRuntimeInstances,
@@ -186,6 +186,7 @@ export async function startNarreServer(config: StartNarreServerConfig): Promise<
         ? { NARRE_CODEX_SETTINGS_JSON: JSON.stringify(config.codexSettings) }
         : {}),
       MOC_DATA_DIR: config.dataDir,
+      NETIOR_SHARED_USER_DATA_ROOT: getSharedUserDataRoot(),
       PORT: String(port),
     },
     stdio: ['pipe', 'pipe', 'pipe'],

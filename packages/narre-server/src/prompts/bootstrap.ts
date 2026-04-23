@@ -30,7 +30,7 @@ This project is not empty. Bootstrap should refine or extend the structure inste
 
   const recoveryCheckpoint = buildRecoveryCheckpoint(bootstrapHistory);
 
-  return `## Command Skill: /bootstrap
+  return `## Skill: /bootstrap
 You are in bootstrap mode for the current project "${projectName}".
 Use the base prompt's project identity, archetype schema digest, relation digest, and network digest as starting context.
 
@@ -180,7 +180,7 @@ interface BootstrapHistorySummary {
 export type BootstrapToolStage = 'interview' | 'proposal' | 'execution';
 
 function summarizeBootstrapHistory(turns: NarreTranscriptTurn[]): BootstrapHistorySummary {
-  const relevantTurns = sliceTurnsFromLatestBootstrapCommand(turns);
+  const relevantTurns = sliceTurnsFromLatestBootstrapInvocation(turns);
   const toolKeys = relevantTurns.flatMap((turn) =>
     turn.role !== 'assistant'
       ? []
@@ -223,7 +223,7 @@ export function determineBootstrapToolProfiles(
   return ['discovery', 'bootstrap-interview'];
 }
 
-function sliceTurnsFromLatestBootstrapCommand(turns: NarreTranscriptTurn[]): NarreTranscriptTurn[] {
+function sliceTurnsFromLatestBootstrapInvocation(turns: NarreTranscriptTurn[]): NarreTranscriptTurn[] {
   let startIndex = -1;
 
   for (let index = 0; index < turns.length; index += 1) {
@@ -232,11 +232,11 @@ function sliceTurnsFromLatestBootstrapCommand(turns: NarreTranscriptTurn[]): Nar
       continue;
     }
 
-    const hasBootstrapCommand = turn.blocks.some(
-      (block) => block.type === 'command' && block.name === 'bootstrap',
+    const hasBootstrapInvocation = turn.blocks.some(
+      (block) => (block.type === 'skill' || block.type === 'command') && block.name === 'bootstrap',
     );
 
-    if (hasBootstrapCommand) {
+    if (hasBootstrapInvocation) {
       startIndex = index;
     }
   }

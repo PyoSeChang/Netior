@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
+  AGENT_SKILL_STORAGE,
+  BUILT_IN_SKILLS,
   DEFAULTS,
+  findSkillBySlashTrigger,
   getNarreToolMetadata,
   getNetiorMcpToolSpec,
   IPC_CHANNELS,
   listNetiorMcpToolSpecs,
+  SLASH_TRIGGER_SKILLS,
 } from '../constants';
 
 describe('IPC_CHANNELS', () => {
@@ -41,6 +45,24 @@ describe('DEFAULTS', () => {
   it('should have window defaults', () => {
     expect(DEFAULTS.WINDOW_WIDTH).toBe(1200);
     expect(DEFAULTS.WINDOW_HEIGHT).toBe(800);
+  });
+});
+
+describe('AGENT_SKILL_STORAGE', () => {
+  it('should expose the user agent skill package layout', () => {
+    expect(AGENT_SKILL_STORAGE.PROJECT_CONFIG_DIR).toBe('.netior');
+    expect(AGENT_SKILL_STORAGE.AGENTS_DIR).toBe('agents');
+    expect(AGENT_SKILL_STORAGE.AGENT_FILE_NAME).toBe('agent.json');
+    expect(AGENT_SKILL_STORAGE.SKILLS_DIR).toBe('skills');
+    expect(AGENT_SKILL_STORAGE.SKILL_FILE_NAME).toBe('SKILL.md');
+  });
+});
+
+describe('BUILT_IN_SKILLS', () => {
+  it('should expose built-in slash-triggered skills', () => {
+    expect(SLASH_TRIGGER_SKILLS.map((skill) => skill.id)).toEqual(['bootstrap', 'index']);
+    expect(findSkillBySlashTrigger('bootstrap')?.id).toBe('bootstrap');
+    expect(findSkillBySlashTrigger('missing')).toBeNull();
   });
 });
 

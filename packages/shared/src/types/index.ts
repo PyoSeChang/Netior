@@ -726,7 +726,7 @@ export interface NetworkBreadcrumbItem {
 // ============================================
 
 export type EditorViewMode = 'float' | 'full' | 'side' | 'detached';
-export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'network' | 'project' | 'narre' | 'fileMetadata' | 'context';
+export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'network' | 'project' | 'narre' | 'agent' | 'fileMetadata' | 'context';
 
 /** Identifies a window that hosts editor tabs (main window or detached window) */
 export interface EditorHostState {
@@ -921,7 +921,17 @@ export interface NarreRichTextBlock {
   mentions?: NarreMention[];
 }
 
-export interface NarreCommandBlock {
+export interface NarreSkillInvocationBlock {
+  id: string;
+  type: 'skill';
+  skillId: string;
+  name: string;
+  label: string;
+  args?: Record<string, string>;
+  refs?: NarreMention[];
+}
+
+export interface NarreLegacyCommandBlock {
   id: string;
   type: 'command';
   name: string;
@@ -964,7 +974,8 @@ export interface NarreTranscriptTurn {
 
 export type NarreTranscriptBlock =
   | NarreRichTextBlock
-  | NarreCommandBlock
+  | NarreSkillInvocationBlock
+  | NarreLegacyCommandBlock
   | NarreDraftBlock
   | NarreToolBlock
   | NarreCardBlock;
@@ -1025,30 +1036,45 @@ export interface NarreStreamEvent {
 }
 
 // ============================================
-// Slash Command Types
+// Skill Types
 // ============================================
 
-export type CommandArgType = 'string' | 'enum' | 'number' | 'number_list';
+export type SkillId = string;
+export type BuiltInSkillId = 'bootstrap' | 'index';
+export type SkillSource = 'builtin' | 'file';
+export type SkillArgType = 'string' | 'enum' | 'number' | 'number_list';
 
-export interface CommandArg {
+export interface SkillArg {
   name: string;
   description: string;
   required: boolean;
-  type: CommandArgType;
+  type: SkillArgType;
   options?: string[];
 }
 
-export type CommandType = 'conversation' | 'system';
-export type NarrePromptSkillKey = 'bootstrap' | 'index';
+export interface SkillSlashTrigger {
+  type: 'slash';
+  name: string;
+}
 
-export interface SlashCommand {
+export type SkillTrigger = SkillSlashTrigger;
+
+export interface SkillDefinition {
+  id: SkillId;
   name: string;
   description: string;
-  type: CommandType;
-  args?: CommandArg[];
+  source: SkillSource;
+  trigger?: SkillTrigger;
+  args?: SkillArg[];
   hint?: string;
   requiredMentionTypes?: NarreMention['type'][];
-  promptSkillKey?: NarrePromptSkillKey;
+  instructions?: string;
+}
+
+export interface SkillInvocation {
+  skillId: SkillId;
+  trigger?: SkillTrigger;
+  args: Record<string, string>;
 }
 
 // ============================================
@@ -1140,6 +1166,173 @@ export interface NetiorChangeEvent {
   type: 'archetypes' | 'concepts' | 'relationTypes' | 'typeGroups' | 'networks' | 'edges' | 'layouts' | 'contexts';
   action: 'created' | 'updated' | 'deleted';
   id: string;
+}
+
+// ============================================
+// Agent Definition Types
+// ============================================
+
+export type AgentDefinitionKind = 'narre' | 'terminal';
+export type NarreAgentType = 'system' | 'user';
+export type NarreSystemAgentType = 'network-builder' | 'network-finder' | 'agent-operator';
+export type NarreUserAgentType = 'global' | 'project';
+export type TerminalAgentType = 'codex-cli' | 'claude-code';
+export type AgentSkillPackageFormat = 'skill-md-directory';
+
+export interface AgentSkillRef {
+  id: string;
+  name?: string;
+  version?: string;
+  format?: AgentSkillPackageFormat;
+}
+
+export interface UserAgentSkillPackage {
+  id: string;
+  rootDir: string;
+  skillFilePath: string;
+  format: AgentSkillPackageFormat;
+}
+
+export interface UserAgentSkillSummary {
+  id: string;
+  name: string;
+  description: string;
+  body: string;
+  rootDir: string;
+  skillFilePath: string;
+  updatedAt: string | null;
+}
+
+export interface UserAgentRecord {
+  id: string;
+  name: string;
+  description: string;
+  userAgentType: NarreUserAgentType;
+  projectId?: string;
+  rootDir: string;
+  createdAt: string;
+  updatedAt: string;
+  skills: UserAgentSkillSummary[];
+}
+
+export interface UpsertUserAgentInput {
+  id?: string;
+  name: string;
+  description?: string;
+  userAgentType: NarreUserAgentType;
+  projectId?: string;
+}
+
+export interface UpsertUserAgentSkillInput {
+  agentId: string;
+  userAgentType: NarreUserAgentType;
+  projectId?: string;
+  skillId?: string;
+  name: string;
+  description: string;
+  body: string;
+}
+
+export interface DeleteUserAgentInput {
+  agentId: string;
+  userAgentType: NarreUserAgentType;
+  projectId?: string;
+}
+
+export interface DeleteUserAgentSkillInput extends DeleteUserAgentInput {
+  skillId: string;
+}
+
+export interface BaseAgentDefinition {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface NarreSystemAgentDefinition extends BaseAgentDefinition {
+  kind: 'narre';
+  narreAgentType: 'system';
+  systemAgentType: NarreSystemAgentType;
+  skills: AgentSkillRef[];
+}
+
+export interface NarreGlobalUserAgentDefinition extends BaseAgentDefinition {
+  kind: 'narre';
+  narreAgentType: 'user';
+  userAgentType: 'global';
+  skills: AgentSkillRef[];
+}
+
+export interface NarreProjectUserAgentDefinition extends BaseAgentDefinition {
+  kind: 'narre';
+  narreAgentType: 'user';
+  userAgentType: 'project';
+  projectId: string;
+  skills: AgentSkillRef[];
+}
+
+export type NarreUserAgentDefinition =
+  | NarreGlobalUserAgentDefinition
+  | NarreProjectUserAgentDefinition;
+
+export type NarreAgentDefinition =
+  | NarreSystemAgentDefinition
+  | NarreUserAgentDefinition;
+
+export interface TerminalAgentDefinition extends BaseAgentDefinition {
+  kind: 'terminal';
+  terminalAgentType: TerminalAgentType;
+}
+
+export type AgentDefinition =
+  | NarreAgentDefinition
+  | TerminalAgentDefinition;
+
+export type SupervisorEventType =
+  | 'session_started'
+  | 'session_updated'
+  | 'session_completed'
+  | 'session_failed'
+  | 'session_reported';
+
+export interface SupervisorAgentSessionSnapshot {
+  id: string;
+  agentKey: string;
+  agentId: string;
+  agent: AgentDefinition;
+  status: AgentStatus;
+  reason: AgentAttentionReason | null;
+  surface: AgentSurfaceRef;
+  externalSessionId: string | null;
+  projectId?: string;
+  title?: string | null;
+  skillId?: SkillId | null;
+  createdAt: string;
+  updatedAt: string;
+  metadata?: Record<string, string>;
+}
+
+export interface SupervisorEvent {
+  seq: number;
+  type: SupervisorEventType;
+  sessionId: string;
+  agentKey: string;
+  status: AgentStatus;
+  createdAt: string;
+  snapshot: SupervisorAgentSessionSnapshot;
+}
+
+export interface SupervisorSessionReport {
+  agent: AgentDefinition;
+  surface: AgentSurfaceRef;
+  sessionId: string;
+  externalSessionId?: string | null;
+  projectId?: string;
+  title?: string | null;
+  status?: AgentStatus;
+  reason?: AgentAttentionReason | null;
+  skillId?: SkillId | null;
+  metadata?: Record<string, string>;
 }
 
 // ============================================

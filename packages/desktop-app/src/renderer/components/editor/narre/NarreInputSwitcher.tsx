@@ -4,8 +4,9 @@ import type {
   NarreInterviewCard,
   NarreMention,
   NarrePermissionCard,
+  SkillDefinition,
 } from '@netior/shared/types';
-import type { NarrePendingCommandState } from '../../../lib/narre-ui-state';
+import type { NarrePendingSkillInvocationState } from '../../../lib/narre-ui-state';
 import { useI18n } from '../../../hooks/useI18n';
 import { Badge } from '../../ui/Badge';
 import { NarreMentionInput, type NarreComposerSubmit } from './NarreMentionInput';
@@ -24,9 +25,10 @@ interface NarreInputSwitcherProps {
   sendDisabled?: boolean;
   placeholder?: string;
   draftHtml?: string;
-  pendingCommand?: NarrePendingCommandState | null;
+  availableSkills?: readonly SkillDefinition[];
+  pendingSkillInvocation?: NarrePendingSkillInvocationState | null;
   onDraftChange?: (draftHtml: string) => void;
-  onPendingCommandChange?: (pendingCommand: NarrePendingCommandState | null) => void;
+  onPendingSkillInvocationChange?: (pendingSkillInvocation: NarrePendingSkillInvocationState | null) => void;
   onSend: (payload: NarreComposerSubmit) => Promise<boolean | void> | boolean | void;
   activePrompt: NarreInteractivePrompt | null;
   onPromptRespond: (toolCallId: string, response: unknown) => Promise<void> | void;
@@ -58,9 +60,10 @@ export function NarreInputSwitcher({
   sendDisabled = false,
   placeholder,
   draftHtml = '',
-  pendingCommand = null,
+  availableSkills,
+  pendingSkillInvocation = null,
   onDraftChange,
-  onPendingCommandChange,
+  onPendingSkillInvocationChange,
   onSend,
   activePrompt,
   onPromptRespond,
@@ -117,9 +120,10 @@ export function NarreInputSwitcher({
         sendDisabled={sendDisabled}
         placeholder={placeholder}
         draftHtml={draftHtml}
-        pendingCommand={pendingCommand}
+        availableSkills={availableSkills}
+        pendingSkillInvocation={pendingSkillInvocation}
         onDraftChange={onDraftChange}
-        onPendingCommandChange={onPendingCommandChange}
+        onPendingSkillInvocationChange={onPendingSkillInvocationChange}
       />
     </div>
   );

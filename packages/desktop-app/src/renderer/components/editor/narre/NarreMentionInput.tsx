@@ -1,9 +1,9 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Send, X } from 'lucide-react';
-import type { NarreMention, SlashCommand } from '@netior/shared/types';
-import { SLASH_COMMANDS } from '@netior/shared/constants';
+import type { NarreMention, SkillDefinition } from '@netior/shared/types';
+import { SLASH_TRIGGER_SKILLS } from '@netior/shared/constants';
 import type { MentionResult } from '../../../services/narre-service';
-import type { NarrePendingCommandState } from '../../../lib/narre-ui-state';
+import type { NarrePendingSkillInvocationState } from '../../../lib/narre-ui-state';
 import { useI18n } from '../../../hooks/useI18n';
 import { Badge } from '../../ui/Badge';
 import { IconButton } from '../../ui/IconButton';
@@ -16,20 +16,20 @@ export interface NarreComposerSubmit {
   text: string;
   mentions: NarreMention[];
   draftHtml: string;
-  pendingCommand: NarrePendingCommandState | null;
+  pendingSkillInvocation: NarrePendingSkillInvocationState | null;
 }
 
 interface NarreMentionInputProps {
   projectId: string;
   onSend: (payload: NarreComposerSubmit) => Promise<boolean | void> | boolean | void;
-  onCommand?: (command: SlashCommand) => void;
   disabled?: boolean;
   sendDisabled?: boolean;
   placeholder?: string;
   draftHtml?: string;
-  pendingCommand?: NarrePendingCommandState | null;
+  availableSkills?: readonly SkillDefinition[];
+  pendingSkillInvocation?: NarrePendingSkillInvocationState | null;
   onDraftChange?: (draftHtml: string) => void;
-  onPendingCommandChange?: (pendingCommand: NarrePendingCommandState | null) => void;
+  onPendingSkillInvocationChange?: (pendingSkillInvocation: NarrePendingSkillInvocationState | null) => void;
 }
 
 interface PickerState {
@@ -110,14 +110,17 @@ function createMentionChip(mention: MentionResult): HTMLSpanElement {
   return chip;
 }
 
-function getSlashCommandByName(commandName: string): SlashCommand | null {
-  return SLASH_COMMANDS.find((command) => command.name === commandName) ?? null;
+function getSlashSkillByName(skillName: string, skills: readonly SkillDefinition[]): SkillDefinition | null {
+  return skills.find((skill) =>
+    skill.name === skillName || skill.trigger?.name === skillName,
+  ) ?? null;
 }
 
-function createPendingCommandState(command: SlashCommand): NarrePendingCommandState {
-  if (command.name === 'index') {
+function createPendingSkillInvocationState(skill: SkillDefinition): NarrePendingSkillInvocationState {
+  const triggerName = skill.trigger?.type === 'slash' ? skill.trigger.name : skill.name;
+  if (triggerName === 'index') {
     return {
-      name: command.name,
+      name: triggerName,
       indexArgs: {
         startPage: 1,
         endPage: 1,
@@ -126,7 +129,7 @@ function createPendingCommandState(command: SlashCommand): NarrePendingCommandSt
     };
   }
 
-  return { name: command.name };
+  return { name: triggerName };
 }
 
 function isPdfMention(mention: NarreMention): boolean {
@@ -148,14 +151,14 @@ function placeCaretAtEnd(el: HTMLDivElement): void {
 export function NarreMentionInput({
   projectId,
   onSend,
-  onCommand,
   disabled = false,
   sendDisabled = false,
   placeholder,
   draftHtml = '',
-  pendingCommand = null,
+  availableSkills = SLASH_TRIGGER_SKILLS,
+  pendingSkillInvocation = null,
   onDraftChange,
-  onPendingCommandChange,
+  onPendingSkillInvocationChange,
 }: NarreMentionInputProps): JSX.Element {
   const { t } = useI18n();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -173,7 +176,7 @@ export function NarreMentionInput({
   });
   const mentionSearchStart = useRef<number | null>(null);
   const previousDisabled = useRef(disabled);
-  const selectedCommand = pendingCommand ? getSlashCommandByName(pendingCommand.name) : null;
+  const selectedSkill = pendingSkillInvocation ? getSlashSkillByName(pendingSkillInvocation.name, availableSkills) : null;
   const fileMention = snapshot.mentions.find((mention) => mention.type === 'file');
 
   const syncComposerState = useCallback((): ComposerSnapshot => {
@@ -203,11 +206,11 @@ export function NarreMentionInput({
     setSlashPicker((p) => ({ ...p, isOpen: false }));
     mentionSearchStart.current = null;
     onDraftChange?.('');
-    onPendingCommandChange?.(null);
-  }, [onDraftChange, onPendingCommandChange]);
+    onPendingSkillInvocationChange?.(null);
+  }, [onDraftChange, onPendingSkillInvocationChange]);
 
-  const commandValidationMessage = (() => {
-    if (!pendingCommand || pendingCommand.name !== 'index') {
+  const skillValidationMessage = (() => {
+    if (!pendingSkillInvocation || pendingSkillInvocation.name !== 'index') {
       return null;
     }
 
@@ -219,42 +222,36 @@ export function NarreMentionInput({
       return t('pdfToc.noPdfFile');
     }
 
-    if (!pendingCommand.indexArgs || pendingCommand.indexArgs.endPage < pendingCommand.indexArgs.startPage) {
+    if (!pendingSkillInvocation.indexArgs || pendingSkillInvocation.indexArgs.endPage < pendingSkillInvocation.indexArgs.startPage) {
       return t('pdfToc.invalidRange');
     }
 
     return null;
   })();
 
-  const canSubmit = pendingCommand ? commandValidationMessage === null : !isEmpty;
+  const canSubmit = pendingSkillInvocation ? skillValidationMessage === null : !isEmpty;
 
   const handleSend = useCallback(async () => {
     const el = editorRef.current;
     if (!el || disabled || sendDisabled || !canSubmit) return;
 
     const { text, mentions } = serializeContentEditable(el);
-    if (!pendingCommand && !text.trim()) return;
+    if (!pendingSkillInvocation && !text.trim()) return;
 
     const result = await onSend({
       text,
       mentions,
       draftHtml: el.innerHTML,
-      pendingCommand,
+      pendingSkillInvocation,
     });
     if (result === false) return;
 
     logShortcut('shortcut.narreChat.sendMessage');
     resetEditor();
-  }, [canSubmit, disabled, onSend, pendingCommand, resetEditor, sendDisabled]);
+  }, [canSubmit, disabled, onSend, pendingSkillInvocation, resetEditor, sendDisabled]);
 
-  const handleSlashSelect = useCallback((command: SlashCommand) => {
+  const handleSlashSelect = useCallback((skill: SkillDefinition) => {
     const el = editorRef.current;
-    if (command.type === 'system' && onCommand) {
-      onCommand(command);
-      resetEditor();
-      return;
-    }
-
     if (el) {
       el.innerHTML = '';
       setSnapshot(EMPTY_SNAPSHOT);
@@ -265,8 +262,8 @@ export function NarreMentionInput({
     }
 
     setSlashPicker((p) => ({ ...p, isOpen: false }));
-    onPendingCommandChange?.(createPendingCommandState(command));
-  }, [onCommand, onDraftChange, onPendingCommandChange, resetEditor]);
+    onPendingSkillInvocationChange?.(createPendingSkillInvocationState(skill));
+  }, [onDraftChange, onPendingSkillInvocationChange]);
 
   const handleSlashPickerClose = useCallback(() => {
     setSlashPicker((p) => ({ ...p, isOpen: false }));
@@ -351,9 +348,9 @@ export function NarreMentionInput({
     const text = node.textContent || '';
     const cursorPos = range.startOffset;
 
-    // Check for "/" at the start of input (slash command)
+    // Check for "/" at the start of input (slash-triggered skill)
     const fullText = (editor.textContent || '').replace(/\u200B/g, '');
-    if (!pendingCommand && fullText.startsWith('/')) {
+    if (!pendingSkillInvocation && fullText.startsWith('/')) {
       const slashBody = fullText.slice(1);
       const slashQuery = slashBody.split(/\s+/, 1)[0] ?? '';
 
@@ -409,7 +406,7 @@ export function NarreMentionInput({
         mentionSearchStart.current = null;
       }
     }
-  }, [pendingCommand, picker.isOpen, slashPicker.isOpen, onDraftChange, syncComposerState]);
+  }, [pendingSkillInvocation, picker.isOpen, slashPicker.isOpen, onDraftChange, syncComposerState]);
 
   const handleMentionSelect = useCallback((mention: MentionResult) => {
     const el = editorRef.current;
@@ -514,18 +511,20 @@ export function NarreMentionInput({
             {placeholder || t('narre.inputPlaceholder')}
           </div>
         )}
-        {selectedCommand && !disabled && (
+        {selectedSkill && !disabled && (
           <div className="mt-2 rounded-md border border-subtle bg-surface-card px-3 py-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Badge variant="accent">/{selectedCommand.name}</Badge>
+                <Badge variant="accent">
+                  /{pendingSkillInvocation?.name ?? selectedSkill.trigger?.name ?? selectedSkill.name}
+                </Badge>
                 <span className="text-xs text-default">
-                  {t(selectedCommand.description as any)}
+                  {selectedSkill.source === 'builtin' ? t(selectedSkill.description as any) : selectedSkill.description}
                 </span>
-                {commandValidationMessage ? (
-                  <Badge variant="warning">{commandValidationMessage}</Badge>
+                {skillValidationMessage ? (
+                  <Badge variant="warning">{skillValidationMessage}</Badge>
                 ) : (
-                  selectedCommand.name === 'index'
+                  selectedSkill.name === 'index'
                     && fileMention
                     && isPdfMention(fileMention)
                     && <Badge variant="success">@{fileMention.display}</Badge>
@@ -534,25 +533,25 @@ export function NarreMentionInput({
               <button
                 type="button"
                 className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-default"
-                onClick={() => onPendingCommandChange?.(null)}
+                onClick={() => onPendingSkillInvocationChange?.(null)}
               >
                 <X size={14} />
               </button>
             </div>
-            {selectedCommand.hint && (
+            {selectedSkill.hint && (
               <p className="mt-2 text-xs text-muted">
-                {t(selectedCommand.hint as any)}
+                {selectedSkill.source === 'builtin' ? t(selectedSkill.hint as any) : selectedSkill.hint}
               </p>
             )}
-            {pendingCommand?.name === 'index' && pendingCommand.indexArgs && (
+            {pendingSkillInvocation?.name === 'index' && pendingSkillInvocation.indexArgs && (
               <div className="mt-3">
                 <PdfTocInputForm
-                  value={pendingCommand.indexArgs as PdfTocFormState}
+                  value={pendingSkillInvocation.indexArgs as PdfTocFormState}
                   fileDisplay={fileMention?.display}
                   disabled={disabled || sendDisabled}
                   onChange={(nextValue) => {
-                    onPendingCommandChange?.({
-                      ...pendingCommand,
+                    onPendingSkillInvocationChange?.({
+                      ...pendingSkillInvocation,
                       indexArgs: nextValue,
                     });
                   }}
@@ -571,10 +570,11 @@ export function NarreMentionInput({
           onClose={handlePickerClose}
         />
       )}
-      {slashPicker.isOpen && !picker.isOpen && !pendingCommand && (
+      {slashPicker.isOpen && !picker.isOpen && !pendingSkillInvocation && (
         <NarreSlashPicker
           query={slashPicker.query}
           position={slashPicker.position}
+          skills={availableSkills}
           onSelect={handleSlashSelect}
           onClose={handleSlashPickerClose}
         />

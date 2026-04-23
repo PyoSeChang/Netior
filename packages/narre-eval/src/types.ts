@@ -2,7 +2,7 @@ import type {
   NarreCard,
   NarreMention,
   NarreStreamEvent,
-  NarrePromptSkillKey,
+  BuiltInSkillId,
   Project,
   ProjectCreate,
   Archetype,
@@ -60,7 +60,7 @@ export type ResponsibilitySurfaceId =
 export interface ScenarioExecutionManifest {
   supported_agents?: string[];
   required_capabilities?: string[];
-  target_skill?: NarrePromptSkillKey;
+  target_skill?: BuiltInSkillId;
   scenario_kind?: EvalScenarioKind;
   agent_id?: string;
   provider?: EvalProviderId;
@@ -74,7 +74,7 @@ export interface ScenarioExecutionManifest {
 export interface ScenarioExecutionConfig {
   supported_agents: string[];
   required_capabilities: string[];
-  target_skill?: NarrePromptSkillKey;
+  target_skill?: BuiltInSkillId;
   scenario_kind: EvalScenarioKind;
   agent_id: string;
   provider: EvalProviderId;
@@ -93,7 +93,7 @@ export interface RunSpec {
   judge?: boolean;
   port?: number;
   baseline?: string;
-  target_skill?: NarrePromptSkillKey;
+  target_skill?: BuiltInSkillId;
   scenario_kind?: EvalScenarioKind;
   agent_id?: string;
   provider?: EvalProviderId;
@@ -137,7 +137,7 @@ export interface ScenarioVersionInfo {
   schema_version: number;
   supported_agents: string[];
   required_capabilities: string[];
-  target_skill?: NarrePromptSkillKey;
+  target_skill?: BuiltInSkillId;
   scenario_kind: EvalScenarioKind;
   agent_id: string;
   provider: EvalProviderId;

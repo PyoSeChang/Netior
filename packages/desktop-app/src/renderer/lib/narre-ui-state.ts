@@ -1,19 +1,19 @@
-export interface NarrePendingIndexCommandState {
+export interface NarrePendingIndexSkillState {
   startPage: number;
   endPage: number;
   overviewPagesText: string;
 }
 
-export interface NarrePendingCommandState {
+export interface NarrePendingSkillInvocationState {
   name: string;
-  indexArgs?: NarrePendingIndexCommandState;
+  indexArgs?: NarrePendingIndexSkillState;
 }
 
 export interface NarreProjectUiState {
   view: 'sessionList' | 'chat';
   activeSessionId: string | null;
   drafts: Record<string, string>;
-  pendingCommands: Record<string, NarrePendingCommandState>;
+  pendingSkillInvocations: Record<string, NarrePendingSkillInvocationState>;
 }
 
 const STORAGE_PREFIX = 'netior:narre-ui:';
@@ -21,7 +21,7 @@ const DEFAULT_PROJECT_UI_STATE: NarreProjectUiState = {
   view: 'sessionList',
   activeSessionId: null,
   drafts: {},
-  pendingCommands: {},
+  pendingSkillInvocations: {},
 };
 
 function canUseStorage(): boolean {
@@ -44,22 +44,23 @@ function sanitizeProjectUiState(value: unknown): NarreProjectUiState {
           .filter((entry): entry is [string, string] => typeof entry[0] === 'string' && typeof entry[1] === 'string'),
       )
     : {};
-  const pendingCommands = source.pendingCommands && typeof source.pendingCommands === 'object' && !Array.isArray(source.pendingCommands)
+  const rawPendingSkillInvocations = source.pendingSkillInvocations ?? (source as { pendingCommands?: unknown }).pendingCommands;
+  const pendingSkillInvocations = rawPendingSkillInvocations && typeof rawPendingSkillInvocations === 'object' && !Array.isArray(rawPendingSkillInvocations)
     ? Object.fromEntries(
-        Object.entries(source.pendingCommands)
-          .map(([key, command]) => {
-            if (typeof key !== 'string' || !command || typeof command !== 'object' || Array.isArray(command)) {
+        Object.entries(rawPendingSkillInvocations)
+          .map(([key, invocation]) => {
+            if (typeof key !== 'string' || !invocation || typeof invocation !== 'object' || Array.isArray(invocation)) {
               return null;
             }
 
-            const candidate = command as Partial<NarrePendingCommandState>;
+            const candidate = invocation as Partial<NarrePendingSkillInvocationState>;
             if (typeof candidate.name !== 'string' || candidate.name.length === 0) {
               return null;
             }
 
-            const next: NarrePendingCommandState = { name: candidate.name };
+            const next: NarrePendingSkillInvocationState = { name: candidate.name };
             if (candidate.indexArgs && typeof candidate.indexArgs === 'object' && !Array.isArray(candidate.indexArgs)) {
-              const indexArgs = candidate.indexArgs as Partial<NarrePendingIndexCommandState>;
+              const indexArgs = candidate.indexArgs as Partial<NarrePendingIndexSkillState>;
               const startPage = typeof indexArgs.startPage === 'number' ? indexArgs.startPage : 1;
               const endPage = typeof indexArgs.endPage === 'number' ? indexArgs.endPage : 1;
               const overviewPagesText = typeof indexArgs.overviewPagesText === 'string' ? indexArgs.overviewPagesText : '';
@@ -73,7 +74,7 @@ function sanitizeProjectUiState(value: unknown): NarreProjectUiState {
 
             return [key, next] as const;
           })
-          .filter((entry): entry is readonly [string, NarrePendingCommandState] => entry !== null),
+          .filter((entry): entry is readonly [string, NarrePendingSkillInvocationState] => entry !== null),
       )
     : {};
 
@@ -81,7 +82,7 @@ function sanitizeProjectUiState(value: unknown): NarreProjectUiState {
     view: source.view === 'chat' ? 'chat' : 'sessionList',
     activeSessionId: typeof source.activeSessionId === 'string' ? source.activeSessionId : null,
     drafts,
-    pendingCommands,
+    pendingSkillInvocations,
   };
 }
 
@@ -172,35 +173,35 @@ export function moveNarreProjectDraft(
   });
 }
 
-export function setNarreProjectPendingCommand(
+export function setNarreProjectPendingSkillInvocation(
   projectId: string,
   sessionId: string | null,
-  commandState: NarrePendingCommandState | null,
+  skillInvocationState: NarrePendingSkillInvocationState | null,
 ): void {
   const draftKey = sessionId ?? '__new__';
   updateNarreProjectUiState(projectId, (prev) => {
-    const pendingCommands = { ...prev.pendingCommands };
-    if (commandState) {
-      pendingCommands[draftKey] = commandState;
+    const pendingSkillInvocations = { ...prev.pendingSkillInvocations };
+    if (skillInvocationState) {
+      pendingSkillInvocations[draftKey] = skillInvocationState;
     } else {
-      delete pendingCommands[draftKey];
+      delete pendingSkillInvocations[draftKey];
     }
 
     return {
       ...prev,
-      pendingCommands,
+      pendingSkillInvocations,
     };
   });
 }
 
-export function getNarreProjectPendingCommand(
+export function getNarreProjectPendingSkillInvocation(
   projectId: string,
   sessionId: string | null,
-): NarrePendingCommandState | null {
-  return getNarreProjectUiState(projectId).pendingCommands[sessionId ?? '__new__'] ?? null;
+): NarrePendingSkillInvocationState | null {
+  return getNarreProjectUiState(projectId).pendingSkillInvocations[sessionId ?? '__new__'] ?? null;
 }
 
-export function moveNarreProjectPendingCommand(
+export function moveNarreProjectPendingSkillInvocation(
   projectId: string,
   fromSessionId: string | null,
   toSessionId: string | null,
@@ -213,16 +214,16 @@ export function moveNarreProjectPendingCommand(
   }
 
   updateNarreProjectUiState(projectId, (prev) => {
-    const pendingCommands = { ...prev.pendingCommands };
-    const fromCommand = pendingCommands[fromKey];
-    if (fromCommand && !pendingCommands[toKey]) {
-      pendingCommands[toKey] = fromCommand;
+    const pendingSkillInvocations = { ...prev.pendingSkillInvocations };
+    const fromInvocation = pendingSkillInvocations[fromKey];
+    if (fromInvocation && !pendingSkillInvocations[toKey]) {
+      pendingSkillInvocations[toKey] = fromInvocation;
     }
-    delete pendingCommands[fromKey];
+    delete pendingSkillInvocations[fromKey];
 
     return {
       ...prev,
-      pendingCommands,
+      pendingSkillInvocations,
     };
   });
 }

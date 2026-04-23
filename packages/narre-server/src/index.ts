@@ -1,20 +1,27 @@
 import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { basename, dirname, join } from 'path';
 import { existsSync } from 'fs';
 import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
-import type { NarreBehaviorSettings, NarreCodexSettings, NarreMention, NarreStreamEvent } from '@netior/shared/types';
+import type {
+  NarreBehaviorSettings,
+  NarreCodexSettings,
+  NarreMention,
+  NarreStreamEvent,
+  SupervisorSessionReport,
+} from '@netior/shared/types';
 import { normalizeNarreBehaviorSettings } from './system-prompt.js';
 import { SessionStore } from './session-store.js';
 import { initSSE, sendSSEEvent, endSSE } from './streaming.js';
-import { parseCommand } from './command-router.js';
 import { NarreRuntime } from './runtime/narre-runtime.js';
 import type { NarreProviderAdapter } from './runtime/provider-adapter.js';
 import { ClaudeProviderAdapter } from './providers/claude.js';
 import { initNarreLogging } from './logging.js';
 import { buildProjectPromptMetadata } from './project-prompt-metadata.js';
+import { getProjectById } from './netior-service-client.js';
+import { SupervisorRegistry } from './supervisor/supervisor-registry.js';
 
 const currentFilePath = typeof __filename === 'string'
   ? __filename
@@ -27,6 +34,9 @@ const electronResourcesPath = (process as NodeJS.Process & { resourcesPath?: str
 
 const PORT = parseInt(process.env.PORT ?? '3100', 10);
 const MOC_DATA_DIR = process.env.MOC_DATA_DIR;
+const NETIOR_SHARED_USER_DATA_ROOT = process.env.NETIOR_SHARED_USER_DATA_ROOT;
+const NARRE_GLOBAL_USER_AGENT_ID = process.env.NARRE_GLOBAL_USER_AGENT_ID;
+const NARRE_PROJECT_USER_AGENT_ID = process.env.NARRE_PROJECT_USER_AGENT_ID;
 const NARRE_TRACE_HEADER = 'x-netior-trace-id';
 
 if (!MOC_DATA_DIR) {
@@ -60,6 +70,11 @@ function summarizeStreamEvent(event: NarreStreamEvent): string {
 process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT = process.env.CLAUDE_CODE_STREAM_CLOSE_TIMEOUT || '300000';
 
 const sessionStore = new SessionStore(MOC_DATA_DIR);
+const sharedUserDataRootDir = NETIOR_SHARED_USER_DATA_ROOT ?? inferSharedUserDataRoot(MOC_DATA_DIR);
+const supervisor = new SupervisorRegistry({
+  globalUserAgentId: NARRE_GLOBAL_USER_AGENT_ID,
+  projectUserAgentId: NARRE_PROJECT_USER_AGENT_ID,
+});
 const behaviorSettings = parseBehaviorSettings();
 const codexSettings = parseCodexSettings();
 let provider!: NarreProviderAdapter;
@@ -84,6 +99,58 @@ app.get('/sessions', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
+});
+
+app.get('/skills', async (req, res) => {
+  const projectId = req.query.projectId as string;
+  if (!projectId) {
+    res.status(400).json({ error: 'projectId required' });
+    return;
+  }
+  try {
+    res.json(await runtime.listSkills(projectId));
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/supervisor/agents', (req, res) => {
+  const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : null;
+  res.json(supervisor.listAgents(projectId));
+});
+
+app.get('/supervisor/skills', async (req, res) => {
+  const projectId = req.query.projectId as string;
+  if (!projectId) {
+    res.status(400).json({ error: 'projectId required' });
+    return;
+  }
+  try {
+    res.json(await runtime.listSkills(projectId));
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+app.get('/supervisor/sessions', (_req, res) => {
+  res.json(supervisor.listSessions());
+});
+
+app.get('/supervisor/events', (req, res) => {
+  const afterSeq = typeof req.query.afterSeq === 'string'
+    ? Number.parseInt(req.query.afterSeq, 10)
+    : null;
+  res.json(supervisor.listEvents(Number.isFinite(afterSeq) ? afterSeq : null));
+});
+
+app.post('/supervisor/sessions/report', (req, res) => {
+  const report = req.body as Partial<SupervisorSessionReport>;
+  if (!isSupervisorSessionReport(report)) {
+    res.status(400).json({ error: 'invalid supervisor session report' });
+    return;
+  }
+
+  res.json(supervisor.reportSession(report));
 });
 
 app.post('/sessions', async (req, res) => {
@@ -150,24 +217,6 @@ app.post('/chat/respond', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/command', async (req, res) => {
-  const { projectId, command } = req.body;
-  if (!projectId || !command) {
-    res.status(400).json({ error: 'projectId and command required' });
-    return;
-  }
-  const parsed = parseCommand('/' + command);
-  if (!parsed || parsed.command.type !== 'system') {
-    res.status(400).json({ error: 'Invalid system command' });
-    return;
-  }
-
-  initSSE(res);
-  sendSSEEvent(res, { type: 'error', error: `System command /${command} not yet implemented` });
-  sendSSEEvent(res, { type: 'done' });
-  endSSE(res);
-});
-
 app.post('/chat', async (req, res) => {
   const { sessionId, projectId, message, mentions } = req.body as {
     sessionId?: string;
@@ -190,12 +239,6 @@ app.post('/chat', async (req, res) => {
 
   if (!projectId || !message) {
     res.status(400).json({ error: 'projectId and message are required' });
-    return;
-  }
-
-  const parsedCommand = parseCommand(message);
-  if (parsedCommand && parsedCommand.command.type === 'system') {
-    res.status(400).json({ error: 'Use /command endpoint for system commands' });
     return;
   }
 
@@ -295,9 +338,52 @@ async function initializeRuntime(): Promise<{ provider: NarreProviderAdapter; ru
     provider,
     resolveMcpServerPath,
     resolvePromptMetadata: buildProjectPromptMetadata,
+    resolveProjectRootDir,
+    sharedUserDataRootDir,
+    globalUserAgentId: NARRE_GLOBAL_USER_AGENT_ID,
+    projectUserAgentId: NARRE_PROJECT_USER_AGENT_ID,
+    supervisor,
     sessionStore,
   });
   return { provider, runtime };
+}
+
+function inferSharedUserDataRoot(dataDir: string): string {
+  return basename(dataDir) === 'data'
+    ? dirname(dataDir)
+    : dataDir;
+}
+
+async function resolveProjectRootDir(projectId: string): Promise<string | null> {
+  const project = await getProjectById(projectId);
+  if (!project) {
+    throw new Error(`Project not found: ${projectId}`);
+  }
+  return project.root_dir;
+}
+
+function isSupervisorSessionReport(value: unknown): value is SupervisorSessionReport {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const report = value as Partial<SupervisorSessionReport>;
+  if (typeof report.sessionId !== 'string' || report.sessionId.length === 0) {
+    return false;
+  }
+  if (!report.agent || typeof report.agent !== 'object' || typeof report.agent.id !== 'string') {
+    return false;
+  }
+  if (
+    !report.surface
+    || typeof report.surface !== 'object'
+    || (report.surface.kind !== 'terminal' && report.surface.kind !== 'editor')
+    || typeof report.surface.id !== 'string'
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function resolveMcpServerPath(): string | null {

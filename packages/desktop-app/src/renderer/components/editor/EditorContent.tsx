@@ -9,6 +9,7 @@ import { EdgeEditor } from './EdgeEditor';
 import { NetworkEditor } from './NetworkEditor';
 import { ProjectEditor } from './ProjectEditor';
 import { NarreEditor } from './NarreEditor';
+import { AgentEditor } from './AgentEditor';
 import { FileMetadataEditor } from './FileMetadataEditor';
 import { ContextEditor } from './ContextEditor';
 import { useEditorStore, MAIN_HOST_ID } from '../../stores/editor-store';
@@ -73,6 +74,8 @@ export function EditorContent({ tab }: EditorContentProps): JSX.Element {
       content = <ProjectEditor tab={tab} />; break;
     case 'narre':
       content = <NarreEditor tab={tab} />; break;
+    case 'agent':
+      content = <AgentEditor tab={tab} />; break;
     case 'fileMetadata':
       content = <FileMetadataEditor tab={tab} />; break;
     case 'context':

@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback, useSyncExternalStore } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { SLASH_COMMANDS } from '@netior/shared/constants';
+import { SLASH_TRIGGER_SKILLS } from '@netior/shared/constants';
 import type {
   NarreCard,
   NarreMention,
   NarreTranscriptBlock,
+  SkillDefinition,
 } from '@netior/shared/types';
 import { narreService } from '../../../services/narre-service';
 import { useI18n } from '../../../hooks/useI18n';
@@ -20,7 +21,7 @@ import {
   prepareNarreAssistantStream,
   primeNarreSession,
   promoteNarreDraftSession,
-  setNarreSessionPendingCommand,
+  setNarreSessionPendingSkillInvocation,
   setNarreSessionInterrupting,
   setNarreSessionDraft,
   updateNarreCardResponse,
@@ -34,7 +35,7 @@ import { NarreMessageBubble } from './NarreMessageBubble';
 import type { NarreComposerSubmit } from './NarreMentionInput';
 import { NarreInputSwitcher, type NarreInteractivePrompt } from './NarreInputSwitcher';
 import { useProjectStore } from '../../../stores/project-store';
-import type { NarrePendingCommandState } from '../../../lib/narre-ui-state';
+import type { NarrePendingSkillInvocationState } from '../../../lib/narre-ui-state';
 import { toAbsolutePath } from '../../../utils/path-utils';
 import { buildIndexMessage } from '../../../utils/pdf-toc-utils';
 
@@ -47,8 +48,14 @@ interface NarreChatProps {
 
 initNarreSessionStore();
 
-function getSlashCommand(commandName: string): (typeof SLASH_COMMANDS)[number] | null {
-  return SLASH_COMMANDS.find((command) => command.name === commandName) ?? null;
+function getSlashSkill(skillName: string, skills: readonly SkillDefinition[]): SkillDefinition | null {
+  return skills.find((skill) =>
+    skill.name === skillName || skill.trigger?.name === skillName,
+  ) ?? null;
+}
+
+function getSkillDescription(skill: SkillDefinition, translate: (key: any) => string): string {
+  return skill.source === 'builtin' ? translate(skill.description as any) : skill.description;
 }
 
 function isPdfMention(mention: NarreMention): boolean {
@@ -72,9 +79,9 @@ function buildComposerBlockId(prefix = 'composer'): string {
 function buildUserDisplayBlocks(
   text: string,
   mentions: NarreMention[],
-  pendingCommand: NarrePendingCommandState | null,
+  pendingSkillInvocation: NarrePendingSkillInvocationState | null,
 ): NarreTranscriptBlock[] {
-  if (!pendingCommand) {
+  if (!pendingSkillInvocation) {
     return [
       {
         id: buildComposerBlockId('user-text'),
@@ -85,25 +92,26 @@ function buildUserDisplayBlocks(
     ];
   }
 
-  const commandBlock: Extract<NarreTranscriptBlock, { type: 'command' }> = {
-    id: buildComposerBlockId('user-command'),
-    type: 'command',
-    name: pendingCommand.name,
-    label: `/${pendingCommand.name}`,
+  const skillBlock: Extract<NarreTranscriptBlock, { type: 'skill' }> = {
+    id: buildComposerBlockId('user-skill'),
+    type: 'skill',
+    skillId: pendingSkillInvocation.name,
+    name: pendingSkillInvocation.name,
+    label: `/${pendingSkillInvocation.name}`,
     ...(mentions.length > 0 ? { refs: mentions } : {}),
   };
 
-  if (pendingCommand.name === 'index' && pendingCommand.indexArgs) {
-    commandBlock.args = {
-      startPage: String(pendingCommand.indexArgs.startPage),
-      endPage: String(pendingCommand.indexArgs.endPage),
-      ...(pendingCommand.indexArgs.overviewPagesText
-        ? { overviewPages: pendingCommand.indexArgs.overviewPagesText }
+  if (pendingSkillInvocation.name === 'index' && pendingSkillInvocation.indexArgs) {
+    skillBlock.args = {
+      startPage: String(pendingSkillInvocation.indexArgs.startPage),
+      endPage: String(pendingSkillInvocation.indexArgs.endPage),
+      ...(pendingSkillInvocation.indexArgs.overviewPagesText
+        ? { overviewPages: pendingSkillInvocation.indexArgs.overviewPagesText }
         : {}),
     };
   }
 
-  const blocks: NarreTranscriptBlock[] = [commandBlock];
+  const blocks: NarreTranscriptBlock[] = [skillBlock];
   if (text.trim()) {
     blocks.push({
       id: buildComposerBlockId('user-text'),
@@ -166,6 +174,7 @@ export function NarreChat({
   const { t } = useI18n();
   const currentProject = useProjectStore((s) => s.currentProject);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
+  const [availableSkills, setAvailableSkills] = useState<readonly SkillDefinition[]>(SLASH_TRIGGER_SKILLS);
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
   useEffect(() => {
@@ -181,11 +190,11 @@ export function NarreChat({
     hasReceivedFirstStreamEvent,
     isInterrupting,
     pendingDraftHtml,
-    pendingDraftCommand,
+    pendingDraftSkillInvocation,
     pendingUserTimestamp,
     title: sessionTitle,
     loading,
-    pendingCommand,
+    pendingSkillInvocation,
     draftHtml,
   } = sessionState;
   const activePrompt = (() => {
@@ -213,6 +222,26 @@ export function NarreChat({
     void ensureNarreSessionLoaded(projectId, sessionId).catch(() => {});
   }, [projectId, sessionId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setAvailableSkills(SLASH_TRIGGER_SKILLS);
+    void narreService.listSkills(projectId)
+      .then((skills) => {
+        if (!cancelled) {
+          setAvailableSkills(skills);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAvailableSkills(SLASH_TRIGGER_SKILLS);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
   // Auto-scroll logic
   useEffect(() => {
     if (autoScrollRef.current && scrollRef.current) {
@@ -236,31 +265,27 @@ export function NarreChat({
     updateNarreCardResponse(projectId, sessionId, toolCallId, response);
   }, [projectId, sessionId]);
 
-  const buildCommandPreview = useCallback((
-    commandState: NarrePendingCommandState,
+  const buildSkillPreview = useCallback((
+    skillInvocationState: NarrePendingSkillInvocationState,
     mentions: NarreMention[],
   ): string => {
-    const slashCommand = getSlashCommand(commandState.name);
-    const label = slashCommand ? t(slashCommand.description as any) : `/${commandState.name}`;
+    const slashSkill = getSlashSkill(skillInvocationState.name, availableSkills);
+    const label = slashSkill ? getSkillDescription(slashSkill, t) : `/${skillInvocationState.name}`;
 
-    if (commandState.name !== 'index') {
+    if (skillInvocationState.name !== 'index') {
       return label;
     }
 
     const fileMention = mentions.find((mention) => mention.type === 'file');
     const detailParts = [
       fileMention?.display,
-      commandState.indexArgs ? `${commandState.indexArgs.startPage}-${commandState.indexArgs.endPage}` : null,
-      commandState.indexArgs?.overviewPagesText
+      skillInvocationState.indexArgs ? `${skillInvocationState.indexArgs.startPage}-${skillInvocationState.indexArgs.endPage}` : null,
+      skillInvocationState.indexArgs?.overviewPagesText
         ? t('pdfToc.overviewPages')
         : null,
     ].filter((part): part is string => Boolean(part));
     return detailParts.length > 0 ? `${label}\n${detailParts.join(' - ')}` : label;
-    const preview = detailParts.join(' · ');
-    return detailParts.length > 0 ? `${label}\n${preview}` : label;
-
-    return detailParts.length > 0 ? `${label}\n${detailParts.join(' · ')}` : label;
-  }, [t]);
+  }, [availableSkills, t]);
 
   const sendToAgent = useCallback(async ({
     message,
@@ -268,14 +293,14 @@ export function NarreChat({
     composerHtml,
     previewContent,
     userBlocks,
-    pendingCommand: commandState,
+    pendingSkillInvocation: skillInvocationState,
   }: {
     message: string;
     mentions: NarreMention[];
     composerHtml: string;
     previewContent?: string;
     userBlocks: NarreTranscriptBlock[];
-    pendingCommand: NarrePendingCommandState | null;
+    pendingSkillInvocation: NarrePendingSkillInvocationState | null;
   }) => {
     let activeSessionId = sessionId;
     const nextTitle = (previewContent ?? message).slice(0, 60);
@@ -303,14 +328,14 @@ export function NarreChat({
     appendNarreUserMessage(projectId, activeSessionId, userMsg);
     prepareNarreAssistantStream(projectId, activeSessionId, {
       draftHtml: composerHtml,
-      pendingCommand: commandState,
+      pendingSkillInvocation: skillInvocationState,
       userTimestamp: userMsg.timestamp,
     });
     beginNarreAssistantStream(projectId, activeSessionId);
     setNarreSessionDraft(projectId, sessionId, '');
     setNarreSessionDraft(projectId, activeSessionId, '');
-    setNarreSessionPendingCommand(projectId, sessionId, null);
-    setNarreSessionPendingCommand(projectId, activeSessionId, null);
+    setNarreSessionPendingSkillInvocation(projectId, sessionId, null);
+    setNarreSessionPendingSkillInvocation(projectId, activeSessionId, null);
     autoScrollRef.current = true;
 
     try {
@@ -324,7 +349,7 @@ export function NarreChat({
     } catch (error) {
       cancelPendingNarreAssistantTurn(projectId, activeSessionId, {
         draftHtml: composerHtml,
-        pendingCommand: commandState,
+        pendingSkillInvocation: skillInvocationState,
         userTimestamp: userMsg.timestamp,
       });
       appendNarreAssistantErrorMessage(
@@ -340,13 +365,13 @@ export function NarreChat({
     text,
     mentions,
     draftHtml: composerHtml,
-    pendingCommand: commandState,
+    pendingSkillInvocation: skillInvocationState,
   }: NarreComposerSubmit) => {
     if (isStreaming) {
       return false;
     }
 
-    if (!commandState) {
+    if (!skillInvocationState) {
       if (!text.trim()) {
         return false;
       }
@@ -356,13 +381,13 @@ export function NarreChat({
         mentions,
         composerHtml,
         userBlocks: buildUserDisplayBlocks(text, mentions, null),
-        pendingCommand: null,
+        pendingSkillInvocation: null,
       });
     }
 
-    if (commandState.name === 'index') {
+    if (skillInvocationState.name === 'index') {
       const fileMention = mentions.find((mention) => mention.type === 'file');
-      if (!fileMention || !fileMention.id || !commandState.indexArgs) {
+      if (!fileMention || !fileMention.id || !skillInvocationState.indexArgs) {
         return false;
       }
 
@@ -376,9 +401,9 @@ export function NarreChat({
       );
 
       const message = buildIndexMessage(fileMention.display, {
-        startPage: commandState.indexArgs.startPage,
-        endPage: commandState.indexArgs.endPage,
-        overviewPages: parseOverviewPagesText(commandState.indexArgs.overviewPagesText),
+        startPage: skillInvocationState.indexArgs.startPage,
+        endPage: skillInvocationState.indexArgs.endPage,
+        overviewPages: parseOverviewPagesText(skillInvocationState.indexArgs.overviewPagesText),
         fileId: fileMention.id,
         filePath: absoluteFilePath,
       });
@@ -387,24 +412,24 @@ export function NarreChat({
         message,
         mentions,
         composerHtml,
-        previewContent: buildCommandPreview(commandState, mentions),
-        userBlocks: buildUserDisplayBlocks(text, mentions, commandState),
-        pendingCommand: commandState,
+        previewContent: buildSkillPreview(skillInvocationState, mentions),
+        userBlocks: buildUserDisplayBlocks(text, mentions, skillInvocationState),
+        pendingSkillInvocation: skillInvocationState,
       });
     }
 
     const normalizedText = text.trim();
-    const preview = buildCommandPreview(commandState, mentions);
+    const preview = buildSkillPreview(skillInvocationState, mentions);
 
     return sendToAgent({
-      message: normalizedText ? `/${commandState.name}\n${normalizedText}` : `/${commandState.name}`,
+      message: normalizedText ? `/${skillInvocationState.name}\n${normalizedText}` : `/${skillInvocationState.name}`,
       mentions,
       composerHtml,
       previewContent: normalizedText ? `${preview}\n${normalizedText}` : preview,
-      userBlocks: buildUserDisplayBlocks(normalizedText, mentions, commandState),
-      pendingCommand: commandState,
+      userBlocks: buildUserDisplayBlocks(normalizedText, mentions, skillInvocationState),
+      pendingSkillInvocation: skillInvocationState,
     });
-  }, [buildCommandPreview, currentProject, isStreaming, projectId, sendToAgent]);
+  }, [buildSkillPreview, currentProject, isStreaming, projectId, sendToAgent]);
 
   const title = sessionTitle || t('narre.newChat');
   const sendLocked = isStreaming;
@@ -428,7 +453,7 @@ export function NarreChat({
       if (shouldRestorePendingTurn) {
         cancelPendingNarreAssistantTurn(projectId, sessionId, {
           draftHtml: pendingDraftHtml,
-          pendingCommand: pendingDraftCommand,
+          pendingSkillInvocation: pendingDraftSkillInvocation,
           userTimestamp: pendingUserTimestamp,
         });
       }
@@ -444,7 +469,7 @@ export function NarreChat({
     hasReceivedFirstStreamEvent,
     isInterrupting,
     isStreaming,
-    pendingDraftCommand,
+    pendingDraftSkillInvocation,
     pendingDraftHtml,
     pendingUserTimestamp,
     projectId,
@@ -541,14 +566,15 @@ export function NarreChat({
           sendDisabled={sendLocked}
           placeholder={t('narre.inputPlaceholder')}
           draftHtml={draftHtml}
-          pendingCommand={pendingCommand}
+          availableSkills={availableSkills}
+          pendingSkillInvocation={pendingSkillInvocation}
           activePrompt={activePrompt}
           onPromptRespond={handleCardRespond}
           onDraftChange={(nextDraftHtml) => {
             setNarreSessionDraft(projectId, sessionId, nextDraftHtml);
           }}
-          onPendingCommandChange={(nextCommand) => {
-            setNarreSessionPendingCommand(projectId, sessionId, nextCommand);
+          onPendingSkillInvocationChange={(nextSkillInvocation) => {
+            setNarreSessionPendingSkillInvocation(projectId, sessionId, nextSkillInvocation);
           }}
         />
       </div>
