@@ -177,11 +177,10 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
           <AppWorkspaceSidebar />
         </ScrollArea>
       ) : (
-        <>
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="flex min-h-full flex-col py-2">
-              {sidebarView === 'networks' && <NetworkList projectId={project.id} />}
-              {sidebarView === 'files' && (
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="flex min-h-full flex-col py-2">
+            {sidebarView === 'networks' && <NetworkList projectId={project.id} />}
+            {sidebarView === 'files' && (
               <>
                 <div className="flex items-center">
                   <div className="flex-1">
@@ -204,12 +203,11 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
                   <FileTree nodes={fileTree} onFileClick={handleFileClick} />
                 )}
               </>
-              )}
-              {sidebarView === 'objects' && <ObjectPanel />}
-            </div>
-          </ScrollArea>
-          <AgentSessionPanel projectId={project.id} />
-        </>
+            )}
+            {sidebarView === 'objects' && <ObjectPanel />}
+            {sidebarView === 'sessions' && <AgentSessionPanel projectId={project.id} />}
+          </div>
+        </ScrollArea>
       )}
     </div>
   );

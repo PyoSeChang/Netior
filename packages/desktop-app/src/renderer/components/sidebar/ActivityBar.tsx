@@ -1,6 +1,6 @@
 import React from 'react';
-import { Waypoints, FolderTree, Boxes, Settings, Terminal, Sparkles, Bot } from 'lucide-react';
-import { useUIStore } from '../../stores/ui-store';
+import { Waypoints, FolderTree, Boxes, Settings, Terminal, Sparkles, Bot, Activity } from 'lucide-react';
+import { useUIStore, type SidebarView } from '../../stores/ui-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
@@ -16,11 +16,12 @@ export function ActivityBar(): JSX.Element {
     { key: 'networks' as const, icon: Waypoints, label: tk('sidebar.networks') },
     { key: 'objects' as const, icon: Boxes, label: tk('sidebar.objects') },
     { key: 'files' as const, icon: FolderTree, label: t('sidebar.files') },
+    { key: 'sessions' as const, icon: Activity, label: 'Agent Sessions' },
   ] as const : [
     { key: 'networks' as const, icon: Waypoints, label: tk('sidebar.networks') },
   ] as const;
 
-  const handleClick = (key: 'networks' | 'objects' | 'files') => {
+  const handleClick = (key: SidebarView) => {
     if (sidebarOpen && sidebarView === key) {
       // Same tab clicked → close sidebar
       toggleSidebar();

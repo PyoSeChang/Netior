@@ -47,7 +47,9 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
   }, [loadSessions]);
 
   const projectSessions = useMemo(
-    () => sessions.filter((session) => session.projectId === projectId),
+    () => sessions
+      .filter((session) => session.projectId === projectId)
+      .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
     [projectId, sessions],
   );
 
@@ -55,8 +57,8 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
   const issueCount = projectSessions.filter((session) => session.status === 'blocked' || session.status === 'error').length;
 
   return (
-    <section className="border-t border-subtle bg-[var(--surface-sidebar-panel)]">
-      <div className="flex items-center justify-between gap-2 px-3 py-2">
+    <section className="flex min-h-full flex-col gap-2">
+      <div className="flex items-center justify-between gap-2 px-2 py-1">
         <div className="flex min-w-0 items-center gap-2">
           <Bot size={14} className="shrink-0 text-accent" />
           <span className="truncate text-xs font-semibold text-default">Agent Sessions</span>
@@ -66,60 +68,58 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
         </IconButton>
       </div>
 
-      <div className="flex items-center gap-2 px-3 pb-2">
+      <div className="flex flex-wrap items-center gap-2 px-2">
         <Badge variant={workingCount > 0 ? 'accent' : 'default'}>{workingCount} working</Badge>
         <Badge variant={issueCount > 0 ? 'warning' : 'default'}>{issueCount} issues</Badge>
         <Badge variant="default">{projectSessions.length} total</Badge>
       </div>
 
-      <div className="border-t border-subtle">
-        {loading ? (
-          <div className="flex justify-center py-6">
-            <Spinner size="sm" />
-          </div>
-        ) : projectSessions.length === 0 ? (
-          <div className="px-3 py-4 text-xs text-muted">No active sessions</div>
-        ) : (
-          <div className="max-h-[220px] overflow-y-auto">
-            {projectSessions.map((session) => (
-              <div
-                key={session.id}
-                className="border-b border-subtle px-3 py-2 last:border-b-0"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="truncate text-xs font-medium text-default">
-                      {session.title?.trim() || session.agent.name}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1">
-                      <Badge variant={getStatusVariant(session.status)}>
-                        {session.status}
-                      </Badge>
-                      <Badge variant="default">
-                        {describeAgent(session)}
-                      </Badge>
-                      {session.skillId && (
-                        <Badge variant="accent">
-                          /{session.skillId}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="mt-1 truncate text-[11px] text-muted">
-                      {describeSurface(session)}
-                    </div>
+      {loading ? (
+        <div className="flex justify-center py-6">
+          <Spinner size="sm" />
+        </div>
+      ) : projectSessions.length === 0 ? (
+        <div className="px-3 py-4 text-xs text-muted">No active sessions</div>
+      ) : (
+        <div className="flex flex-col gap-2 px-2 pb-2">
+          {projectSessions.map((session) => (
+            <div
+              key={session.id}
+              className="rounded border border-subtle bg-surface-card px-3 py-2"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-medium text-default">
+                    {session.title?.trim() || session.agent.name}
                   </div>
-                  <div className="shrink-0 text-[11px] text-muted">
-                    {formatUpdatedAt(session.updatedAt)}
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    <Badge variant={getStatusVariant(session.status)}>
+                      {session.status}
+                    </Badge>
+                    <Badge variant="default">
+                      {describeAgent(session)}
+                    </Badge>
+                    {session.skillId && (
+                      <Badge variant="accent">
+                        /{session.skillId}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mt-1 truncate text-[11px] text-muted">
+                    {describeSurface(session)}
                   </div>
                 </div>
+                <div className="shrink-0 text-[11px] text-muted">
+                  {formatUpdatedAt(session.updatedAt)}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {error && (
-        <div className="border-t border-subtle px-3 py-2 text-[11px] text-status-warning">
+        <div className="px-2 py-1 text-[11px] text-status-warning">
           {error}
         </div>
       )}
