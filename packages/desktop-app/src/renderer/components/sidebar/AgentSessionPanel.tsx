@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bot, RefreshCw } from 'lucide-react';
-import type { AgentStatus, SupervisorAgentSessionSnapshot } from '@netior/shared/types';
+import type {
+  AgentAttentionReason,
+  AgentStatus,
+  SupervisorAgentSessionSnapshot,
+  SupervisorEvent,
+} from '@netior/shared/types';
 import { narreService } from '../../services/narre-service';
 import { useEditorStore } from '../../stores/editor-store';
 import { updateNarreProjectUiState } from '../../lib/narre-ui-state';
@@ -16,6 +21,7 @@ interface AgentSessionPanelProps {
 
 export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.Element {
   const [sessions, setSessions] = useState<SupervisorAgentSessionSnapshot[]>([]);
+  const [events, setEvents] = useState<SupervisorEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,8 +31,12 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
     }
 
     try {
-      const nextSessions = await narreService.listSupervisorSessions();
+      const [nextSessions, nextEvents] = await Promise.all([
+        narreService.listSupervisorSessions(),
+        narreService.listSupervisorEvents(),
+      ]);
       setSessions(nextSessions);
+      setEvents(nextEvents);
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load agent sessions');
@@ -53,6 +63,13 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
       .filter((session) => session.projectId === projectId)
       .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
     [projectId, sessions],
+  );
+  const projectEvents = useMemo(
+    () => events
+      .filter((event) => event.snapshot.projectId === projectId)
+      .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+      .slice(0, 8),
+    [events, projectId],
   );
 
   const workingCount = projectSessions.filter((session) => session.status === 'working').length;
@@ -140,6 +157,11 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
                     <Badge variant={getStatusVariant(session.status)}>
                       {session.status}
                     </Badge>
+                    {session.reason && (
+                      <Badge variant="warning">
+                        {describeAttentionReason(session.reason)}
+                      </Badge>
+                    )}
                     <Badge variant="default">
                       {describeAgent(session)}
                     </Badge>
@@ -161,6 +183,57 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
           ))}
         </div>
       )}
+
+      <div className="px-2 pt-1">
+        <div className="mb-2 text-[11px] font-semibold uppercase text-muted">
+          Recent Activity
+        </div>
+        {projectEvents.length === 0 ? (
+          <div className="rounded border border-subtle bg-surface-card px-3 py-3 text-xs text-muted">
+            No recent events
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 pb-2">
+            {projectEvents.map((event) => (
+              <button
+                key={`${event.seq}:${event.sessionId}`}
+                type="button"
+                className="rounded border border-subtle bg-surface-card px-3 py-2 text-left transition-colors hover:bg-surface-hover"
+                onClick={() => {
+                  void handleSessionOpen(event.snapshot);
+                }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-xs font-medium text-default">
+                      {event.snapshot.title?.trim() || event.snapshot.agent.name}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                      <Badge variant={getStatusVariant(event.status)}>
+                        {event.status}
+                      </Badge>
+                      <Badge variant="default">
+                        {describeEventType(event.type)}
+                      </Badge>
+                      {event.snapshot.reason && (
+                        <Badge variant="warning">
+                          {describeAttentionReason(event.snapshot.reason)}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="mt-1 truncate text-[11px] text-muted">
+                      {describeSurface(event.snapshot)}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-[11px] text-muted">
+                    {formatUpdatedAt(event.createdAt)}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {error && (
         <div className="px-2 py-1 text-[11px] text-status-warning">
@@ -203,6 +276,34 @@ function describeSurface(session: SupervisorAgentSessionSnapshot): string {
   return session.surface.kind === 'terminal'
     ? session.surface.id
     : session.externalSessionId ?? session.surface.id;
+}
+
+function describeAttentionReason(reason: AgentAttentionReason): string {
+  switch (reason) {
+    case 'approval':
+      return 'approval';
+    case 'user_input':
+      return 'input';
+    case 'unknown':
+    default:
+      return 'attention';
+  }
+}
+
+function describeEventType(type: SupervisorEvent['type']): string {
+  switch (type) {
+    case 'session_started':
+      return 'started';
+    case 'session_updated':
+      return 'updated';
+    case 'session_completed':
+      return 'completed';
+    case 'session_failed':
+      return 'failed';
+    case 'session_reported':
+    default:
+      return 'reported';
+  }
 }
 
 function formatUpdatedAt(value: string): string {
