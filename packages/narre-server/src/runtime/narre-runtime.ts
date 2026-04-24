@@ -22,6 +22,10 @@ import { buildProjectPromptMetadata } from '../project-prompt-metadata.js';
 import { parseSkillInvocation } from '../skill-invocation-router.js';
 import { SessionStore } from '../session-store.js';
 import type { NarreMcpServerConfig, NarreProviderAdapter } from './provider-adapter.js';
+import {
+  loadUserAgentPromptDefinitions,
+  type LoadedUserAgentPromptDefinition,
+} from '../agent-skills/user-agent-skill-loader.js';
 import { loadAvailableSkills } from '../skills/registry.js';
 import type {
   NarreSkillContext,
@@ -109,6 +113,12 @@ export class NarreRuntime {
       projectAgentId: this.config.projectUserAgentId ?? null,
       globalAgentId: this.config.globalUserAgentId ?? null,
     });
+    const userAgentPromptDefinitions = await loadUserAgentPromptDefinitions({
+      projectRootDir: metadata.projectRootDir ?? null,
+      sharedUserDataRootDir: this.config.sharedUserDataRootDir ?? null,
+      projectAgentId: this.config.projectUserAgentId ?? null,
+      globalAgentId: this.config.globalUserAgentId ?? null,
+    });
     const parsedSkillInvocation = parseSkillInvocation(request.message, availableSkills);
     const activeSkill: NarreSkillDefinition | null = parsedSkillInvocation
       ? parsedSkillInvocation.skill as NarreSkillDefinition
@@ -119,12 +129,17 @@ export class NarreRuntime {
       projectId: request.projectId,
       historyTurns,
     };
+    const userAgentSystemPrompt = buildUserAgentSystemPrompt(userAgentPromptDefinitions);
     const skillPrompt = activeSkill
       ? activeSkill.buildPrompt(skillContext)
       : '';
-    const systemPrompt = skillPrompt
-      ? `${buildSystemPrompt(metadata, behaviorSettings)}\n\n${skillPrompt}`
-      : buildSystemPrompt(metadata, behaviorSettings);
+    const systemPrompt = [
+      buildSystemPrompt(metadata, behaviorSettings),
+      userAgentSystemPrompt,
+      skillPrompt,
+    ]
+      .filter((section) => section.trim().length > 0)
+      .join('\n\n');
     const normalizedSkillArgs = parsedSkillInvocation
       ? activeSkill?.normalizeArgs?.(request.message, parsedSkillInvocation.invocation) ?? parsedSkillInvocation.invocation.args
       : undefined;
@@ -575,4 +590,26 @@ function buildMentionTag(mention: NarreMention): string {
   }
 
   return mention.display;
+}
+
+function buildUserAgentSystemPrompt(definitions: readonly LoadedUserAgentPromptDefinition[]): string {
+  if (definitions.length === 0) {
+    return '';
+  }
+
+  return [
+    '## User Agent System Prompts',
+    '',
+    ...definitions.flatMap((definition) => [
+      `### ${definition.name}`,
+      `agent_scope=${definition.scope}`,
+      `agent_id=${definition.agentId}`,
+      ...(definition.description ? [`description=${definition.description}`] : []),
+      '',
+      definition.systemPrompt,
+      '',
+    ]),
+  ]
+    .join('\n')
+    .trim();
 }

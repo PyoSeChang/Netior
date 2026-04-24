@@ -6,6 +6,7 @@ import type {
   SupervisorAgentSessionSnapshot,
   SupervisorEvent,
 } from '@netior/shared/types';
+import { useI18n } from '../../hooks/useI18n';
 import { narreService } from '../../services/narre-service';
 import { useEditorStore } from '../../stores/editor-store';
 import { updateNarreProjectUiState } from '../../lib/narre-ui-state';
@@ -20,6 +21,12 @@ interface AgentSessionPanelProps {
 }
 
 export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.Element {
+  const { t, locale } = useI18n();
+  const tk = useCallback(
+    (key: string, params?: Record<string, string | number>) =>
+      t(key as import('@netior/shared/i18n').TranslationKey, params),
+    [t],
+  );
   const [sessions, setSessions] = useState<SupervisorAgentSessionSnapshot[]>([]);
   const [events, setEvents] = useState<SupervisorEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,13 +46,13 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
       setEvents(nextEvents);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Failed to load agent sessions');
+      setError(loadError instanceof Error ? loadError.message : tk('agentSession.loadFailed'));
     } finally {
       if (!background) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [tk]);
 
   useEffect(() => {
     void loadSessions();
@@ -108,27 +115,27 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
     await editorStore.openTab({
       type: 'narre',
       targetId: resolvedProjectId,
-      title: 'Narre',
+      title: t('narre.title'),
       projectId: resolvedProjectId,
     });
-  }, [projectId]);
+  }, [projectId, t]);
 
   return (
     <section className="flex min-h-full flex-col gap-2">
       <div className="flex items-center justify-between gap-2 px-2 py-1">
         <div className="flex min-w-0 items-center gap-2">
           <Bot size={14} className="shrink-0 text-accent" />
-          <span className="truncate text-xs font-semibold text-default">Agent Sessions</span>
+          <span className="truncate text-xs font-semibold text-default">{tk('agentSession.title')}</span>
         </div>
-        <IconButton label="Refresh sessions" onClick={() => void loadSessions()} disabled={loading}>
+        <IconButton label={tk('agentSession.refresh')} onClick={() => void loadSessions()} disabled={loading}>
           <RefreshCw size={14} />
         </IconButton>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 px-2">
-        <Badge variant={workingCount > 0 ? 'accent' : 'default'}>{workingCount} working</Badge>
-        <Badge variant={issueCount > 0 ? 'warning' : 'default'}>{issueCount} issues</Badge>
-        <Badge variant="default">{projectSessions.length} total</Badge>
+        <Badge variant={workingCount > 0 ? 'accent' : 'default'}>{tk('agentSession.workingCount', { count: workingCount })}</Badge>
+        <Badge variant={issueCount > 0 ? 'warning' : 'default'}>{tk('agentSession.issueCount', { count: issueCount })}</Badge>
+        <Badge variant="default">{tk('agentSession.totalCount', { count: projectSessions.length })}</Badge>
       </div>
 
       {loading ? (
@@ -136,7 +143,7 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
           <Spinner size="sm" />
         </div>
       ) : projectSessions.length === 0 ? (
-        <div className="px-3 py-4 text-xs text-muted">No active sessions</div>
+        <div className="px-3 py-4 text-xs text-muted">{tk('agentSession.noActiveSessions')}</div>
       ) : (
         <div className="flex flex-col gap-2 px-2 pb-2">
           {projectSessions.map((session) => (
@@ -155,11 +162,11 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-1">
                     <Badge variant={getStatusVariant(session.status)}>
-                      {session.status}
+                      {translateStatus(session.status, tk)}
                     </Badge>
                     {session.reason && (
                       <Badge variant="warning">
-                        {describeAttentionReason(session.reason)}
+                        {translateAttentionReason(session.reason, tk)}
                       </Badge>
                     )}
                     <Badge variant="default">
@@ -176,7 +183,7 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
                   </div>
                 </div>
                 <div className="shrink-0 text-[11px] text-muted">
-                  {formatUpdatedAt(session.updatedAt)}
+                  {formatUpdatedAt(session.updatedAt, locale)}
                 </div>
               </div>
             </button>
@@ -186,11 +193,11 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
 
       <div className="px-2 pt-1">
         <div className="mb-2 text-[11px] font-semibold uppercase text-muted">
-          Recent Activity
+          {tk('agentSession.recentActivity')}
         </div>
         {projectEvents.length === 0 ? (
           <div className="rounded border border-subtle bg-surface-card px-3 py-3 text-xs text-muted">
-            No recent events
+            {tk('agentSession.noRecentEvents')}
           </div>
         ) : (
           <div className="flex flex-col gap-2 pb-2">
@@ -210,14 +217,14 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1">
                       <Badge variant={getStatusVariant(event.status)}>
-                        {event.status}
+                        {translateStatus(event.status, tk)}
                       </Badge>
                       <Badge variant="default">
-                        {describeEventType(event.type)}
+                        {translateEventType(event.type, tk)}
                       </Badge>
                       {event.snapshot.reason && (
                         <Badge variant="warning">
-                          {describeAttentionReason(event.snapshot.reason)}
+                          {translateAttentionReason(event.snapshot.reason, tk)}
                         </Badge>
                       )}
                     </div>
@@ -226,7 +233,7 @@ export function AgentSessionPanel({ projectId }: AgentSessionPanelProps): JSX.El
                     </div>
                   </div>
                   <div className="shrink-0 text-[11px] text-muted">
-                    {formatUpdatedAt(event.createdAt)}
+                    {formatUpdatedAt(event.createdAt, locale)}
                   </div>
                 </div>
               </button>
@@ -278,41 +285,66 @@ function describeSurface(session: SupervisorAgentSessionSnapshot): string {
     : session.externalSessionId ?? session.surface.id;
 }
 
-function describeAttentionReason(reason: AgentAttentionReason): string {
+function translateStatus(
+  status: AgentStatus,
+  translate: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  switch (status) {
+    case 'working':
+      return translate('agentSession.status.working');
+    case 'blocked':
+      return translate('agentSession.status.blocked');
+    case 'error':
+      return translate('agentSession.status.error');
+    case 'idle':
+      return translate('agentSession.status.idle');
+    case 'offline':
+    default:
+      return translate('agentSession.status.offline');
+  }
+}
+
+function translateAttentionReason(
+  reason: AgentAttentionReason,
+  translate: (key: string, params?: Record<string, string | number>) => string,
+): string {
   switch (reason) {
     case 'approval':
-      return 'approval';
+      return translate('agentSession.attention.approval');
     case 'user_input':
-      return 'input';
+      return translate('agentSession.attention.input');
     case 'unknown':
     default:
-      return 'attention';
+      return translate('agentSession.attention.generic');
   }
 }
 
-function describeEventType(type: SupervisorEvent['type']): string {
+function translateEventType(
+  type: SupervisorEvent['type'],
+  translate: (key: string, params?: Record<string, string | number>) => string,
+): string {
   switch (type) {
     case 'session_started':
-      return 'started';
+      return translate('agentSession.event.started');
     case 'session_updated':
-      return 'updated';
+      return translate('agentSession.event.updated');
     case 'session_completed':
-      return 'completed';
+      return translate('agentSession.event.completed');
     case 'session_failed':
-      return 'failed';
+      return translate('agentSession.event.failed');
     case 'session_reported':
     default:
-      return 'reported';
+      return translate('agentSession.event.reported');
   }
 }
 
-function formatUpdatedAt(value: string): string {
+function formatUpdatedAt(value: string, locale: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return '';
   }
 
-  return date.toLocaleTimeString('ko-KR', {
+  return date.toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',

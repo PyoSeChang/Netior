@@ -1207,6 +1207,7 @@ export interface UserAgentRecord {
   id: string;
   name: string;
   description: string;
+  systemPrompt: string;
   userAgentType: NarreUserAgentType;
   projectId?: string;
   rootDir: string;
@@ -1219,6 +1220,7 @@ export interface UpsertUserAgentInput {
   id?: string;
   name: string;
   description?: string;
+  systemPrompt?: string;
   userAgentType: NarreUserAgentType;
   projectId?: string;
 }
@@ -1247,6 +1249,7 @@ export interface BaseAgentDefinition {
   id: string;
   name: string;
   description?: string;
+  systemPrompt?: string;
 }
 
 export interface NarreSystemAgentDefinition extends BaseAgentDefinition {

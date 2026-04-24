@@ -21,6 +21,7 @@ interface PersistedUserAgent {
   id: string;
   name: string;
   description: string;
+  systemPrompt: string;
   userAgentType: NarreUserAgentType;
   projectId?: string;
   createdAt: string;
@@ -67,6 +68,7 @@ export async function upsertUserAgent(input: UpsertUserAgentInput): Promise<User
     id,
     name,
     description: input.description?.trim() ?? '',
+    systemPrompt: input.systemPrompt?.trim() ?? '',
     userAgentType: input.userAgentType,
     ...(input.userAgentType === 'project' && input.projectId ? { projectId: input.projectId } : {}),
     createdAt: existing?.createdAt ?? now,
@@ -212,6 +214,7 @@ function toUserAgentRecord(
     id: agent.id,
     name: agent.name,
     description: agent.description,
+    systemPrompt: agent.systemPrompt,
     userAgentType: agent.userAgentType,
     ...(agent.projectId ? { projectId: agent.projectId } : {}),
     rootDir,
@@ -249,6 +252,7 @@ function createFallbackAgent(
     id,
     name: humanizeId(id),
     description: '',
+    systemPrompt: '',
     userAgentType,
     ...(userAgentType === 'project' && projectId ? { projectId } : {}),
     createdAt: timestamp,
@@ -272,6 +276,7 @@ async function readAgentFile(filePath: string): Promise<PersistedUserAgent | nul
       id: parsed.id,
       name: parsed.name,
       description: parsed.description ?? '',
+      systemPrompt: parsed.systemPrompt ?? '',
       userAgentType: parsed.userAgentType,
       ...(parsed.projectId ? { projectId: parsed.projectId } : {}),
       createdAt: parsed.createdAt ?? new Date().toISOString(),

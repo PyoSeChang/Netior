@@ -1,4 +1,6 @@
 import { readFile } from 'fs/promises';
+import path from 'path';
+import { AGENT_SKILL_STORAGE } from '@netior/shared/constants';
 import type { SkillDefinition, UserAgentSkillPackage } from '@netior/shared/types';
 import type { NarreSkillDefinition } from '../skills/types.js';
 import {
@@ -34,6 +36,14 @@ interface ParsedSkillMarkdown {
   body: string;
 }
 
+export interface LoadedUserAgentPromptDefinition {
+  scope: UserAgentSkillScope;
+  agentId: string;
+  name: string;
+  description: string;
+  systemPrompt: string;
+}
+
 export async function loadUserAgentSkills(
   options: LoadUserAgentSkillsOptions,
 ): Promise<NarreSkillDefinition[]> {
@@ -62,6 +72,26 @@ export async function loadUserAgentSkills(
   }
 
   return skills;
+}
+
+export async function loadUserAgentPromptDefinitions(
+  options: LoadUserAgentSkillsOptions,
+): Promise<LoadedUserAgentPromptDefinition[]> {
+  const prompts: LoadedUserAgentPromptDefinition[] = [];
+
+  if (options.sharedUserDataRootDir) {
+    const agentsRootDir = resolveGlobalAgentsRoot(options.sharedUserDataRootDir);
+    const agentIds = await resolveAgentIds(agentsRootDir, options.globalAgentId);
+    prompts.push(...await loadPromptDefinitionsForScope(agentsRootDir, 'global', agentIds));
+  }
+
+  if (options.projectRootDir) {
+    const agentsRootDir = resolveProjectAgentsRoot(options.projectRootDir);
+    const agentIds = await resolveAgentIds(agentsRootDir, options.projectAgentId);
+    prompts.push(...await loadPromptDefinitionsForScope(agentsRootDir, 'project', agentIds));
+  }
+
+  return prompts;
 }
 
 async function resolveAgentIds(agentsRootDir: string, explicitAgentId?: string | null): Promise<string[]> {
@@ -122,6 +152,51 @@ async function loadSkillPackages(
   }
 
   return skills;
+}
+
+async function loadPromptDefinitionsForScope(
+  agentsRootDir: string,
+  scope: UserAgentSkillScope,
+  agentIds: readonly string[],
+): Promise<LoadedUserAgentPromptDefinition[]> {
+  const prompts: LoadedUserAgentPromptDefinition[] = [];
+
+  for (const agentId of agentIds) {
+    const agentFilePath = path.join(agentsRootDir, agentId, AGENT_SKILL_STORAGE.AGENT_FILE_NAME);
+
+    try {
+      const content = await readFile(agentFilePath, 'utf8');
+      const parsed = JSON.parse(content) as {
+        name?: unknown;
+        description?: unknown;
+        systemPrompt?: unknown;
+      };
+      const name = typeof parsed.name === 'string' ? parsed.name.trim() : '';
+      const description = typeof parsed.description === 'string' ? parsed.description.trim() : '';
+      const systemPrompt = typeof parsed.systemPrompt === 'string' ? parsed.systemPrompt.trim() : '';
+
+      if (!name || !systemPrompt) {
+        continue;
+      }
+
+      prompts.push({
+        scope,
+        agentId,
+        name,
+        description,
+        systemPrompt,
+      });
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        continue;
+      }
+      console.warn(
+        `[narre:skills] failed to load ${scope} agent prompt ${agentId}: ${(error as Error).message}`,
+      );
+    }
+  }
+
+  return prompts;
 }
 
 async function loadSkillPackage(context: LoadedPackageContext): Promise<NarreSkillDefinition> {
@@ -243,4 +318,11 @@ function getSkillDedupeKey(skill: SkillDefinition): string {
     return `slash:${skill.trigger.name.toLowerCase()}`;
   }
   return `id:${skill.id}`;
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: unknown }).code === 'ENOENT';
 }
