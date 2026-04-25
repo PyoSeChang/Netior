@@ -25,6 +25,7 @@ import { migrate019 } from '../migrations/019-module-path';
 import { migrate020 } from '../migrations/020-archetype-semantics';
 import { migrate021 } from '../migrations/021-concept-recurrence-materialization';
 import { migrate022 } from '../migrations/022-network-universe-ontology';
+import { migrate023 } from '../migrations/023-schema-semantic-annotations';
 
 let testDb: Database.Database | null = null;
 
@@ -55,6 +56,7 @@ export function setupTestDb(): Database.Database {
   migrate020(testDb);
   migrate021(testDb);
   migrate022(testDb);
+  migrate023(testDb);
   testDb.pragma('foreign_keys = ON');
   return testDb;
 }

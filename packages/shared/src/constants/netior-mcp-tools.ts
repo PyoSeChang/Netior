@@ -15,7 +15,7 @@ type NetiorMcpToolSpecEntry = Omit<NetiorMcpToolSpec, 'key' | 'isMutation' | 'ap
 
 export const NETIOR_MCP_TOOL_SPECS = {
   list_archetypes: {
-    description: 'List all archetypes for a project',
+    description: 'List all schemas for a project',
     category: 'types',
     kind: 'query',
     profiles: ['discovery'],
@@ -23,44 +23,44 @@ export const NETIOR_MCP_TOOL_SPECS = {
     defaultProjectBinding: true,
   },
   create_archetype: {
-    description: 'Create a new archetype for a project, including optional group, file template, and semantic traits',
+    description: 'Create a new schema for a project, including optional group, file template, and semantic facets',
     category: 'types',
     kind: 'mutation',
     scope: 'project',
     defaultProjectBinding: true,
   },
   update_archetype: {
-    description: 'Update an existing archetype, including optional group, file template, and semantic traits',
+    description: 'Update an existing schema, including optional group, file template, and semantic facets',
     category: 'types',
     kind: 'mutation',
   },
   delete_archetype: {
-    description: 'Delete an archetype',
+    description: 'Delete a schema',
     category: 'types',
     kind: 'mutation',
   },
   list_archetype_fields: {
-    description: 'List field contracts for a specific archetype',
+    description: 'List slots for a specific schema',
     category: 'types',
     kind: 'query',
   },
   create_archetype_field: {
-    description: 'Create a field contract on an archetype. Use this for scalar fields, typed archetype references, choice-like fields, and slot-bound trait fields.',
+    description: 'Create a slot on a schema. Use this for scalar values, typed schema references, choice-like slots, and semantic annotations.',
     category: 'types',
     kind: 'mutation',
   },
   update_archetype_field: {
-    description: 'Update an archetype field contract, including slot metadata and trait-generated flags',
+    description: 'Update a schema slot, including semantic annotation metadata and facet-generated flags',
     category: 'types',
     kind: 'mutation',
   },
   delete_archetype_field: {
-    description: 'Delete an archetype field contract',
+    description: 'Delete a schema slot',
     category: 'types',
     kind: 'mutation',
   },
   reorder_archetype_fields: {
-    description: 'Reorder field contracts within an archetype',
+    description: 'Reorder slots within a schema',
     category: 'types',
     kind: 'mutation',
   },
@@ -114,7 +114,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
     kind: 'query',
   },
   update_edge: {
-    description: 'Update an edge relation type, system contract, or description',
+    description: 'Update an edge relation type, semantic annotation, or description',
     category: 'graph',
     kind: 'mutation',
   },

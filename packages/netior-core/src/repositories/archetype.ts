@@ -2,6 +2,10 @@ import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
 import { createObject, deleteObjectByRef } from './objects';
 import { syncProjectOntologyForDb } from './system-networks';
+import {
+  semanticAnnotationToSystemSlot,
+  systemSlotToSemanticAnnotation,
+} from '@netior/shared/constants';
 import type {
   Archetype,
   ArchetypeCreate,
@@ -11,7 +15,10 @@ import type {
   ArchetypeFieldUpdate,
 } from '@netior/shared/types';
 
-type ArchetypeRow = Omit<Archetype, 'semantic_traits'> & { semantic_traits: string | null };
+type ArchetypeRow = Omit<Archetype, 'semantic_traits' | 'facets'> & {
+  semantic_traits: string | null;
+  facets?: string | null;
+};
 type ArchetypeFieldRow = Omit<ArchetypeField, 'required' | 'slot_binding_locked' | 'generated_by_trait'> & {
   required: number;
   slot_binding_locked: number;
@@ -33,15 +40,22 @@ function serializeSemanticTraits(traits: Archetype['semantic_traits'] | undefine
 }
 
 function toArchetype(row: ArchetypeRow): Archetype {
+  const semanticTraits = parseSemanticTraits(row.semantic_traits);
   return {
     ...row,
-    semantic_traits: parseSemanticTraits(row.semantic_traits),
+    semantic_traits: semanticTraits,
+    facets: row.facets == null ? semanticTraits : parseSemanticTraits(row.facets),
   };
 }
 
 function toField(row: ArchetypeFieldRow): ArchetypeField {
+  const semanticAnnotation = row.semantic_annotation ?? systemSlotToSemanticAnnotation(row.system_slot);
+  const systemSlot = row.system_slot ?? semanticAnnotationToSystemSlot(row.semantic_annotation);
+
   return {
     ...row,
+    system_slot: systemSlot ?? null,
+    semantic_annotation: semanticAnnotation ?? null,
     required: !!row.required,
     slot_binding_locked: !!row.slot_binding_locked,
     generated_by_trait: !!row.generated_by_trait,
@@ -87,10 +101,12 @@ export function createArchetype(data: ArchetypeCreate): Archetype {
   const db = getDatabase();
   const id = randomUUID();
   const now = new Date().toISOString();
+  const semanticTraits = data.semantic_traits ?? data.facets ?? [];
+  const facets = data.facets ?? data.semantic_traits ?? [];
 
   db.prepare(
-    `INSERT INTO archetypes (id, project_id, group_id, name, description, icon, color, node_shape, file_template, semantic_traits, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO archetypes (id, project_id, group_id, name, description, icon, color, node_shape, file_template, semantic_traits, facets, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     data.project_id,
@@ -101,7 +117,8 @@ export function createArchetype(data: ArchetypeCreate): Archetype {
     data.color ?? null,
     data.node_shape ?? null,
     data.file_template ?? null,
-    serializeSemanticTraits(data.semantic_traits),
+    serializeSemanticTraits(semanticTraits),
+    serializeSemanticTraits(facets),
     now,
     now,
   );
@@ -133,8 +150,19 @@ export function updateArchetype(id: string, data: ArchetypeUpdate): Archetype | 
   if (!existing) return undefined;
 
   const now = new Date().toISOString();
+  const nextSemanticTraits = data.semantic_traits !== undefined
+    ? serializeSemanticTraits(data.semantic_traits)
+    : data.facets !== undefined
+      ? serializeSemanticTraits(data.facets)
+      : existing.semantic_traits;
+  const nextFacets = data.facets !== undefined
+    ? serializeSemanticTraits(data.facets)
+    : data.semantic_traits !== undefined
+      ? serializeSemanticTraits(data.semantic_traits)
+      : (existing.facets ?? existing.semantic_traits);
+
   db.prepare(
-    `UPDATE archetypes SET group_id = ?, name = ?, description = ?, icon = ?, color = ?, node_shape = ?, file_template = ?, semantic_traits = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE archetypes SET group_id = ?, name = ?, description = ?, icon = ?, color = ?, node_shape = ?, file_template = ?, semantic_traits = ?, facets = ?, updated_at = ? WHERE id = ?`,
   ).run(
     data.group_id !== undefined ? data.group_id : existing.group_id,
     data.name !== undefined ? data.name : existing.name,
@@ -143,7 +171,8 @@ export function updateArchetype(id: string, data: ArchetypeUpdate): Archetype | 
     data.color !== undefined ? data.color : existing.color,
     data.node_shape !== undefined ? data.node_shape : existing.node_shape,
     data.file_template !== undefined ? data.file_template : existing.file_template,
-    data.semantic_traits !== undefined ? serializeSemanticTraits(data.semantic_traits) : existing.semantic_traits,
+    nextSemanticTraits,
+    nextFacets,
     now,
     id,
   );
@@ -177,10 +206,12 @@ export function createField(data: ArchetypeFieldCreate): ArchetypeField {
       throw new Error('Circular archetype reference detected');
     }
   }
+  const semanticAnnotation = data.semantic_annotation ?? systemSlotToSemanticAnnotation(data.system_slot);
+  const systemSlot = data.system_slot ?? semanticAnnotationToSystemSlot(data.semantic_annotation);
 
   db.prepare(
-    `INSERT INTO archetype_fields (id, archetype_id, name, field_type, options, sort_order, required, default_value, ref_archetype_id, system_slot, slot_binding_locked, generated_by_trait, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO archetype_fields (id, archetype_id, name, field_type, options, sort_order, required, default_value, ref_archetype_id, system_slot, semantic_annotation, slot_binding_locked, generated_by_trait, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     data.archetype_id,
@@ -191,7 +222,8 @@ export function createField(data: ArchetypeFieldCreate): ArchetypeField {
     data.required ? 1 : 0,
     data.default_value ?? null,
     data.ref_archetype_id ?? null,
-    data.system_slot ?? null,
+    systemSlot ?? null,
+    semanticAnnotation ?? null,
     data.slot_binding_locked ? 1 : 0,
     data.generated_by_trait ? 1 : 0,
     now,
@@ -223,9 +255,20 @@ export function updateField(id: string, data: ArchetypeFieldUpdate): ArchetypeFi
       throw new Error('Circular archetype reference detected');
     }
   }
+  const existingField = toField(existing);
+  const nextSemanticAnnotation = data.semantic_annotation !== undefined
+    ? data.semantic_annotation
+    : data.system_slot !== undefined
+      ? systemSlotToSemanticAnnotation(data.system_slot)
+      : existingField.semantic_annotation;
+  const nextSystemSlot = data.system_slot !== undefined
+    ? data.system_slot
+    : data.semantic_annotation !== undefined
+      ? semanticAnnotationToSystemSlot(data.semantic_annotation)
+      : existingField.system_slot;
 
   db.prepare(
-    `UPDATE archetype_fields SET name = ?, field_type = ?, options = ?, sort_order = ?, required = ?, default_value = ?, ref_archetype_id = ?, system_slot = ?, slot_binding_locked = ?, generated_by_trait = ? WHERE id = ?`,
+    `UPDATE archetype_fields SET name = ?, field_type = ?, options = ?, sort_order = ?, required = ?, default_value = ?, ref_archetype_id = ?, system_slot = ?, semantic_annotation = ?, slot_binding_locked = ?, generated_by_trait = ? WHERE id = ?`,
   ).run(
     data.name !== undefined ? data.name : existing.name,
     newFieldType,
@@ -234,7 +277,8 @@ export function updateField(id: string, data: ArchetypeFieldUpdate): ArchetypeFi
     data.required !== undefined ? (data.required ? 1 : 0) : existing.required,
     data.default_value !== undefined ? data.default_value : existing.default_value,
     newRefId ?? null,
-    data.system_slot !== undefined ? data.system_slot : existing.system_slot,
+    nextSystemSlot ?? null,
+    nextSemanticAnnotation ?? null,
     data.slot_binding_locked !== undefined ? (data.slot_binding_locked ? 1 : 0) : existing.slot_binding_locked,
     data.generated_by_trait !== undefined ? (data.generated_by_trait ? 1 : 0) : existing.generated_by_trait,
     id,

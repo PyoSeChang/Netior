@@ -374,6 +374,31 @@ describe('Repositories', () => {
       expect(updated?.description).toBe('modified');
     });
 
+    it('should bridge relation semantic annotations and legacy system contracts', () => {
+      const network = createNetwork({ project_id: projectId, name: 'N' });
+      const c1 = createConcept({ project_id: projectId, title: 'A' });
+      const c2 = createConcept({ project_id: projectId, title: 'B' });
+      const obj1 = getObjectByRef('concept', c1.id)!;
+      const obj2 = getObjectByRef('concept', c2.id)!;
+      const n1 = addNetworkNode({ network_id: network.id, object_id: obj1.id });
+      const n2 = addNetworkNode({ network_id: network.id, object_id: obj2.id });
+
+      const edge = createEdge({
+        network_id: network.id,
+        source_node_id: n1.id,
+        target_node_id: n2.id,
+        semantic_annotation: 'structure.contains',
+      });
+
+      expect(edge.semantic_annotation).toBe('structure.contains');
+      expect(edge.system_contract).toBe('core:contains');
+      expect(getEdge(edge.id)?.semantic_annotation).toBe('structure.contains');
+
+      const updated = updateEdge(edge.id, { system_contract: 'core:entry_portal' });
+      expect(updated?.system_contract).toBe('core:entry_portal');
+      expect(updated?.semantic_annotation).toBe('structure.entry_portal');
+    });
+
     it('should return undefined when updating nonexistent edge', () => {
       expect(updateEdge('nonexistent', { description: 'x' })).toBeUndefined();
     });
@@ -1254,6 +1279,54 @@ describe('Repositories', () => {
 
     it('should return false when removing nonexistent member', () => {
       expect(removeContextMember('nonexistent')).toBe(false);
+    });
+  });
+
+  // --- Schema Semantics ---
+
+  describe('Schema semantic compatibility', () => {
+    let projectId: string;
+
+    beforeEach(() => {
+      projectId = createProject({ name: 'Semantic', root_dir: '/semantic-test' }).id;
+    });
+
+    it('should bridge facets and legacy semantic traits on schema create/update', () => {
+      const schema = createArchetype({
+        project_id: projectId,
+        name: 'Event',
+        facets: ['temporal'],
+      });
+
+      expect(schema.facets).toEqual(['temporal']);
+      expect(schema.semantic_traits).toEqual(['temporal']);
+
+      const updated = createArchetype({
+        project_id: projectId,
+        name: 'Task',
+        semantic_traits: ['dueable'],
+      });
+
+      expect(updated.facets).toEqual(['dueable']);
+      expect(updated.semantic_traits).toEqual(['dueable']);
+    });
+
+    it('should bridge slot semantic annotations and legacy system slots', () => {
+      const schema = createArchetype({ project_id: projectId, name: 'Event' });
+      const start = createField({
+        archetype_id: schema.id,
+        name: 'Start',
+        field_type: 'datetime',
+        sort_order: 0,
+        semantic_annotation: 'time.start',
+      });
+
+      expect(start.semantic_annotation).toBe('time.start');
+      expect(start.system_slot).toBe('start_at');
+
+      const updated = updateField(start.id, { system_slot: 'end_at' });
+      expect(updated?.semantic_annotation).toBe('time.end');
+      expect(updated?.system_slot).toBe('end_at');
     });
   });
 

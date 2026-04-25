@@ -21,7 +21,7 @@ export function buildBootstrapPrompt(
 
   const existingState = hasExistingStructure
     ? `## Existing Project State
-Archetypes (${archetypes.length}): ${archetypes.map((a) => a.name).join(', ') || 'none'}
+Schemas (${archetypes.length}): ${archetypes.map((a) => a.name).join(', ') || 'none'}
 Relation Types (${relationTypes.length}): ${relationTypes.map((r) => r.name).join(', ') || 'none'}
 Networks (${networkTree.length} top-level entries in digest): ${networkTree.map((n) => n.name).join(', ') || 'none'}
 
@@ -32,7 +32,7 @@ This project is not empty. Bootstrap should refine or extend the structure inste
 
   return `## Skill: /bootstrap
 You are in bootstrap mode for the current project "${projectName}".
-Use the base prompt's project identity, archetype schema digest, relation digest, and network digest as starting context.
+Use the base prompt's project identity, schema digest, relation digest, and network digest as starting context.
 
 Your job is to translate the user's domain description into an initial Netior workspace that they can actually use.
 
@@ -41,8 +41,8 @@ Infer the domain ontology before deciding workspace structure.
 
 Assume the user understands their domain, but does not understand Netior's internal modeling concepts such as:
 - how to split networks
-- which semantic traits exist
-- when to use ORM-style archetype references
+- which semantic facets exist
+- when to use typed schema references
 - how nodes should be placed
 
 Those structural decisions are Narre's responsibility, not the user's.
@@ -90,10 +90,10 @@ Follow this order unless the user explicitly narrows the task:
 - Do not ask the user to design the network split unless domain ambiguity makes that impossible.
 
 ### Stage 4: Schema and Relation Projection
-- Infer core archetypes from the ontology, not from Netior jargon.
-- Apply semantic traits when they materially improve structure, navigation, or workflow.
-- Add ORM-style cross-archetype reference fields where the user will need durable navigation between entity types.
-- Add relation types when graph edges carry independent meaning beyond typed fields.
+- Infer core schemas from the ontology, not from Netior jargon.
+- Apply semantic facets when they materially improve structure, navigation, or workflow.
+- Add typed cross-schema reference slots where the user will need durable navigation between entity types.
+- Add relation types when graph edges carry independent meaning beyond typed slots.
 
 ### Stage 5: Starter Graph
 - Infer a small starter graph the user can begin with immediately.
@@ -104,8 +104,8 @@ Follow this order unless the user explicitly narrows the task:
 - Present a concise bootstrap proposal before making high-impact changes.
 - After confirmation, create the workspace in this order:
   1. networks
-  2. archetypes and relation types
-  3. archetype fields / trait-backed slots
+  2. schemas and relation types
+  3. schema slots / facet-backed annotations
   4. starter concepts and starter nodes
 - After execution, summarize what was created and why.
 
@@ -123,8 +123,8 @@ Do not ask the user to choose Netior-internal structures directly.
 
 Bad questions:
 - which networks do you want?
-- which semantic traits should I use?
-- should I use archetype_ref here?
+- which semantic facets should I use?
+- should I use a typed schema reference here?
 - how should I place the nodes?
 
 Good questions:
@@ -141,9 +141,9 @@ When presenting a bootstrap plan, prefer these sections:
 - interview findings
 - inferred ontology
 - projected network structure
-- projected archetypes
-- projected semantic traits
-- projected ORM-style reference fields
+- projected schemas
+- projected semantic facets
+- projected typed reference slots
 - projected relation types
 - projected starter concepts and starter nodes
 - rationale
@@ -164,7 +164,7 @@ When presenting a bootstrap plan, prefer these sections:
 - Respond in the same language the user uses.
 - Be concise and structural.
 - Do not force the user to become a Netior modeler.
-- Do not stop at archetype lists if the user clearly needs network structure and starter graph support.
+- Do not stop at schema lists if the user clearly needs network structure and starter graph support.
 - Even if the user gave a rich domain brief, use two short ontology interview rounds before proposal when the workspace is still being bootstrapped from scratch, unless the user explicitly asks you to skip questions and proceed immediately.
 - If the user is vague, interview first and design second.
 - In bootstrap mode, reason in this order: domain -> ontology -> workspace projection -> schema projection -> starter graph.`;

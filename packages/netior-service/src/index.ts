@@ -129,6 +129,10 @@ import type {
   TypeGroupUpdate,
   NetiorServiceResponse,
 } from '@netior/shared/types';
+import {
+  semanticAnnotationToSystemSlot,
+  systemSlotToSemanticAnnotation,
+} from '@netior/shared/constants';
 
 const PORT = parseInt(process.env.PORT ?? process.env.NETIOR_SERVICE_PORT ?? '3201', 10);
 const DB_PATH = process.env.NETIOR_SERVICE_DB_PATH;
@@ -1102,7 +1106,10 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   sendJson(res, 404, { ok: false, error: `Route not found: ${method} ${pathname}` });
 }
 
-type ArchetypeRow = Omit<Archetype, 'semantic_traits'> & { semantic_traits: string | null };
+type ArchetypeRow = Omit<Archetype, 'semantic_traits' | 'facets'> & {
+  semantic_traits: string | null;
+  facets?: string | null;
+};
 type ArchetypeFieldRow = Omit<ArchetypeField, 'required' | 'slot_binding_locked' | 'generated_by_trait'> & {
   required: number;
   slot_binding_locked: number;
@@ -1111,6 +1118,7 @@ type ArchetypeFieldRow = Omit<ArchetypeField, 'required' | 'slot_binding_locked'
 
 function toArchetype(row: ArchetypeRow): Archetype {
   let semanticTraits: Archetype['semantic_traits'] = [];
+  let facets: Archetype['facets'] = [];
   try {
     const parsed = row.semantic_traits ? JSON.parse(row.semantic_traits) : [];
     if (Array.isArray(parsed)) {
@@ -1119,16 +1127,30 @@ function toArchetype(row: ArchetypeRow): Archetype {
   } catch {
     semanticTraits = [];
   }
+  try {
+    const parsed = row.facets ? JSON.parse(row.facets) : semanticTraits;
+    if (Array.isArray(parsed)) {
+      facets = parsed.filter((item): item is NonNullable<Archetype['facets']>[number] => typeof item === 'string');
+    }
+  } catch {
+    facets = semanticTraits;
+  }
 
   return {
     ...row,
     semantic_traits: semanticTraits,
+    facets,
   };
 }
 
 function toArchetypeField(row: ArchetypeFieldRow): ArchetypeField {
+  const semanticAnnotation = row.semantic_annotation ?? systemSlotToSemanticAnnotation(row.system_slot);
+  const systemSlot = row.system_slot ?? semanticAnnotationToSystemSlot(row.semantic_annotation);
+
   return {
     ...row,
+    system_slot: systemSlot ?? null,
+    semantic_annotation: semanticAnnotation ?? null,
     required: !!row.required,
     slot_binding_locked: !!row.slot_binding_locked,
     generated_by_trait: !!row.generated_by_trait,

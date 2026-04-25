@@ -4,6 +4,7 @@ export interface SystemPromptArchetypeFieldSummary {
   name: string;
   field_type: string;
   required?: boolean;
+  semantic_annotation?: string | null;
   system_slot?: string | null;
   generated_by_trait?: boolean;
   ref_archetype_name?: string | null;
@@ -18,6 +19,7 @@ export interface SystemPromptArchetypeSummary {
   color?: string | null;
   node_shape?: string | null;
   description?: string | null;
+  facets?: string[];
   semantic_traits?: string[];
   fields?: SystemPromptArchetypeFieldSummary[];
 }
@@ -88,12 +90,12 @@ export function normalizeNarreBehaviorSettings(value: unknown): NarreBehaviorSet
 
 export function buildBehaviorGuidanceSection(behavior: NarreBehaviorSettings): string {
   return [
-    '- Your primary job is to manage Netior modeling state: archetypes, relation types, concepts, networks, edges, files, and related schema/instance metadata.',
+    '- Your primary job is to manage Netior modeling state: schemas, relation types, concepts, networks, edges, files, and related schema/instance metadata.',
     '- Treat requests as Netior modeling work by default, not as general software engineering or local coding work.',
     '- Prefer Netior/MCP tools and graph-object operations over browsing arbitrary local workspace files.',
     '- Interpret the user intent before naming implementation details. Start from the user\'s expected outcome, not from internal field or route names.',
     '- Classify each request as schema, instance, graph, organization, or network-view work before choosing tools.',
-    '- For schema work, distinguish scalar fields, typed archetype references, and instance-backed choice structures.',
+    '- For schema work, distinguish scalar slots, typed schema references, and instance-backed choice structures.',
     '- Prefer a small set of primitive families: schema discovery/mutation, instance discovery/mutation, candidate source discovery, and graph discovery/mutation.',
     '- Do not proactively create or manage modules or contexts in this phase. They are out of scope for Narre-owned changes.',
     behavior.graphPriority === 'strict'
@@ -128,19 +130,21 @@ function isRelationalField(field: SystemPromptArchetypeFieldSummary): boolean {
 }
 
 function isSearchableField(field: SystemPromptArchetypeFieldSummary): boolean {
-  return !!field.system_slot || SEARCHABLE_FIELD_TYPES.has(field.field_type);
+  return !!field.semantic_annotation || !!field.system_slot || SEARCHABLE_FIELD_TYPES.has(field.field_type);
 }
 
 function formatFieldSummary(field: SystemPromptArchetypeFieldSummary): string {
   const facets: string[] = [field.field_type];
   facets.push(field.required ? 'required' : 'optional');
 
-  if (field.system_slot) {
+  if (field.semantic_annotation) {
+    facets.push(`annotation=${field.semantic_annotation}`);
+  } else if (field.system_slot) {
     facets.push(`slot=${field.system_slot}`);
   }
 
   if (field.generated_by_trait) {
-    facets.push('trait-generated');
+    facets.push('facet-generated');
   }
 
   if (field.ref_archetype_name) {
@@ -169,7 +173,7 @@ function buildArchetypeList(archetypes: SystemPromptArchetypeSummary[]): string 
       'concept_title',
       ...fields
         .filter((field) => isSearchableField(field))
-        .map((field) => field.system_slot ?? field.name),
+        .map((field) => field.semantic_annotation ?? field.system_slot ?? field.name),
     ]));
 
     const profile = [
@@ -183,9 +187,9 @@ function buildArchetypeList(archetypes: SystemPromptArchetypeSummary[]): string 
     return [
       `### ${archetype.name} [id=${archetype.id}]`,
       `- profile=${profile}`,
-      `- traits=${archetype.semantic_traits && archetype.semantic_traits.length > 0 ? archetype.semantic_traits.join('|') : '(none)'}`,
+      `- facets=${archetype.facets && archetype.facets.length > 0 ? archetype.facets.join('|') : '(none)'}`,
       `- properties=${propertyFields.length > 0 ? propertyFields.slice(0, 6).map(formatFieldSummary).join('; ') : '(none yet)'}`,
-      `- archetype_relations=${relationalFields.length > 0 ? relationalFields.slice(0, 6).map(formatFieldSummary).join('; ') : '(none yet)'}`,
+      `- schema_relations=${relationalFields.length > 0 ? relationalFields.slice(0, 6).map(formatFieldSummary).join('; ') : '(none yet)'}`,
       `- search_surface=${searchSurface.join(', ')}`,
       overflow,
     ].filter(Boolean).join('\n');
@@ -204,8 +208,9 @@ function buildRelationalSchemaSection(archetypes: SystemPromptArchetypeSummary[]
       const facets = [
         `type=${field.field_type}`,
         field.required ? 'required' : 'optional',
-        ...(field.system_slot ? [`slot=${field.system_slot}`] : []),
-        ...(field.generated_by_trait ? ['trait-generated'] : []),
+        ...(field.semantic_annotation ? [`annotation=${field.semantic_annotation}`] : []),
+        ...(!field.semantic_annotation && field.system_slot ? [`slot=${field.system_slot}`] : []),
+        ...(field.generated_by_trait ? ['facet-generated'] : []),
       ];
       lines.push(
         `- ${archetype.name}.${field.name} -> ${field.ref_archetype_name ?? 'untyped'} [${facets.join(', ')}]`,
@@ -277,7 +282,7 @@ function buildNetworkContextSection(
     `- universe=${universeNetwork ? `${universeNetwork.name} [id=${universeNetwork.id}]` : 'none'}`,
     `- ontology=${ontologyNetwork ? `${ontologyNetwork.name} [id=${ontologyNetwork.id}]` : 'none'}`,
     '- universe_role=app-wide project portal network; do not edit it like a normal network',
-    '- ontology_role=project schema/type network for type groups, archetypes, relation types, and their relations',
+    '- ontology_role=project schema/type network for type groups, schemas, relation types, and their relations',
   ];
 
   const treeLines: string[] = [];
@@ -329,10 +334,10 @@ The active project is already fixed for this run. Do not search for which projec
 ## Project Schema Digest
 Use this schema digest as the primary search surface before calling tools.
 
-## Archetype Search Surfaces (${archetypes.length})
+## Schema Search Surfaces (${archetypes.length})
 ${archetypeList}
 
-## Archetype Relation Map
+## Schema Relation Map
 ${relationalSchema}
 
 ## Relation Types (${relationTypes.length})
@@ -345,16 +350,16 @@ ${typeGroupList}
 ${networkContext}
 
 ## Search Strategy
-- Start from the archetype schema digest in this prompt: traits, property contracts, archetype relations, relation types, and network hierarchy.
+- Start from the schema digest in this prompt: facets, slots, semantic annotations, schema relations, relation types, and network hierarchy.
 - For bootstrap or early-structure work, reason ontology-first: infer entity kinds, relation kinds, artifact kinds, and workflow structure before deciding network splits or schema.
 - Treat networks as a workspace projection of inferred ontology, not as the first thing the user must specify.
 - Before searching concepts, infer these three things first:
-  1. likely target archetype
-  2. likely filter properties or system slots
-  3. whether another archetype must be resolved first through a typed reference
-- Treat archetype relations like an ORM map:
+  1. likely target schema
+  2. likely filter properties or semantic annotations
+  3. whether another schema must be resolved first through a typed reference
+- Treat schema relations like an ORM map:
   - if Task.owner -> Person exists, resolve Person first when the user searches by owner
-  - if Document.supersedes -> Document exists, use that field contract before inventing a graph edge search
+  - if Document.supersedes -> Document exists, use that schema slot before inventing a graph edge search
 - Distinguish these layers:
   - object or schema change
   - concept instance search or mutation
@@ -362,7 +367,7 @@ ${networkContext}
   - layout/view change
   - type organization change
 - Use relation types for graph-edge meaning.
-- Use archetype field contracts for concept property filtering, typed references, and schema-level relations.
+- Use schema slots for concept property filtering, typed references, and schema-level relations.
 - Ask a short confirmation only when the structural meaning can materially diverge:
   - field vs edge
   - inline enum vs instance-backed choice
@@ -371,29 +376,29 @@ ${networkContext}
   - merge/split/refactor/migration that may change existing data
 
 ## Tool Policy
-- Stable project schema, archetype search surfaces, and network hierarchy index are already in this prompt. Do not broad-search for them again unless the live state may have diverged.
+- Stable project schemas, schema search surfaces, and network hierarchy index are already in this prompt. Do not broad-search for them again unless the live state may have diverged.
 - Prefer this decision order:
   1. mentioned object
   2. prompt digest
   3. targeted lookup
   4. broad discovery
 - Use tools for live state, IDs that are still missing, membership, current values, ambiguity resolution, candidate sets, and destructive-change verification.
-- Do not re-fetch archetype lists, relation type lists, type groups, or network hierarchy just because those tools exist.
+- Do not re-fetch schema lists, relation type lists, type groups, or network hierarchy just because those tools exist.
 - The active project is already bound for this run. Do not search for project identity or pass raw 'project_id' values unless the user explicitly asks for cross-project work.
 - When a tool supports default project binding, omit 'project_id' and use the current project by default.
 - Prefer one precise inspection over multiple exploratory searches.
 
 ## Guidelines
-- When the project has little or no structure, proactively suggest a bootstrap based on the project topic. Start from the domain, infer ontology first, then project it into likely networks and schema. Avoid making the user choose Netior-internal structures prematurely.
+- When the project has little or no structure, proactively suggest a bootstrap based on the project topic. Start from the domain, infer ontology first, then project it into likely networks and schemas. Avoid making the user choose Netior-internal structures prematurely.
 - Always confirm before destructive operations (delete, bulk modify).
 - When deleting an entity with dependent data, warn about cascading effects.
 - Respond in the same language the user uses.
 - Be concise and action-oriented.
-- Before searching or mutating concepts, identify the target archetype and likely search fields from the schema digest first.
-- For field-level schema work, inspect archetype field contracts and concept properties before changing relationship structure.
+- Before searching or mutating concepts, identify the target schema and likely search slots from the schema digest first.
+- For slot-level schema work, inspect schema slots and concept properties before changing relationship structure.
 - Before assigning reference or choice values, inspect the candidate set instead of guessing from memory.
 - Use graph primitives when the user is talking about network structure, navigation hierarchy, node placement, or independent object-to-object relations in the graph.
-- Do not replace a true graph relation with a field just because a field tool exists, and do not replace a field contract with an edge just because a graph tool exists.
+- Do not replace a true graph relation with a slot just because a slot tool exists, and do not replace a schema slot with an edge just because a graph tool exists.
 - When creating multiple entities, execute tool calls sequentially and report progress.
 ${buildBehaviorGuidanceSection(behavior)}`;
 }

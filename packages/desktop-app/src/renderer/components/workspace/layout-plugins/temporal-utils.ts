@@ -1,4 +1,5 @@
 import type { LayoutRenderNode } from './types';
+import { getSemanticBoolean, getSemanticNumber, getSemanticSlotValue } from './semantic';
 
 interface RecurrenceDefinition {
   freq: 'DAILY' | 'WEEKLY' | 'MONTHLY';
@@ -143,7 +144,7 @@ function parseTemporalLimit(rawValue: unknown, fallbackMinutes = 0): { epochDay:
 }
 
 function parseRecurrenceDefinition(node: LayoutRenderNode): RecurrenceDefinition | null {
-  const rawRule = node.metadata.recurrence_rule;
+  const rawRule = getSemanticSlotValue(node, 'time.recurrence_rule');
   if (typeof rawRule !== 'string' || rawRule.trim() === '') return null;
 
   const params = rawRule
@@ -167,15 +168,12 @@ function parseRecurrenceDefinition(node: LayoutRenderNode): RecurrenceDefinition
     ? params.BYDAY.split(',').map((token) => parseByDayToken(token.trim().toUpperCase())).filter((value): value is number => value != null)
     : null;
 
-  const untilEpochDay = typeof node.metadata.recurrence_until === 'number'
-    ? node.metadata.recurrence_until as number
-    : null;
+  const untilEpochDay = getSemanticNumber(node, 'time.recurrence_until') ?? null;
   const untilMinutes = typeof node.metadata.recurrence_until_minutes === 'number'
     ? Number(node.metadata.recurrence_until_minutes)
     : null;
-  const count = typeof node.metadata.recurrence_count === 'number'
-    ? Math.max(1, Math.floor(Number(node.metadata.recurrence_count)))
-    : null;
+  const recurrenceCount = getSemanticNumber(node, 'time.recurrence_count');
+  const count = recurrenceCount == null ? null : Math.max(1, Math.floor(recurrenceCount));
 
   return {
     freq,
@@ -188,14 +186,14 @@ function parseRecurrenceDefinition(node: LayoutRenderNode): RecurrenceDefinition
 }
 
 function resolveTemporalDuration(node: LayoutRenderNode): TemporalDuration | null {
-  const startEpochDay = node.metadata.start_at as number | undefined;
+  const startEpochDay = getSemanticNumber(node, 'time.start');
   if (startEpochDay == null) return null;
 
-  const endEpochDayRaw = node.metadata.end_at as number | undefined;
+  const endEpochDayRaw = getSemanticNumber(node, 'time.end');
   const endEpochDay = endEpochDayRaw != null ? Math.max(startEpochDay, endEpochDayRaw) : startEpochDay;
   const startMinutes = typeof node.metadata.start_at_minutes === 'number' ? Number(node.metadata.start_at_minutes) : 0;
   const endMinutes = typeof node.metadata.end_at_minutes === 'number' ? Number(node.metadata.end_at_minutes) : startMinutes;
-  const isAllDay = node.metadata.all_day === true;
+  const isAllDay = getSemanticBoolean(node, 'time.all_day') === true;
   const isTimed = !isAllDay && (node.metadata.start_at_has_time === true || node.metadata.end_at_has_time === true);
   const startAbs = startEpochDay * 1440 + (isTimed ? startMinutes : 0);
   let endAbs = endEpochDay * 1440 + (isTimed ? endMinutes : 1440);
@@ -239,6 +237,7 @@ function createOccurrenceNode(
   return {
     ...source,
     id: `${source.id}::occurrence::${occurrenceStartDay}::${occurrenceIndex}`,
+    semantic: undefined,
     metadata: {
       ...source.metadata,
       start_at: occurrenceStartDay,
@@ -455,9 +454,10 @@ export function formatTemporalSlotValueForWriteback(
   const supportsTime = node.metadata.__slotFieldTypes
     && typeof node.metadata.__slotFieldTypes === 'object'
     && (node.metadata.__slotFieldTypes as Record<string, string>)[slot] === 'datetime';
-  const isAllDay = node.metadata.all_day === true;
-  const timeZone = typeof node.metadata.timezone === 'string' && node.metadata.timezone.trim() !== ''
-    ? node.metadata.timezone.trim()
+  const isAllDay = getSemanticBoolean(node, 'time.all_day') === true;
+  const timeZoneValue = getSemanticSlotValue(node, 'time.timezone');
+  const timeZone = typeof timeZoneValue === 'string' && timeZoneValue.trim() !== ''
+    ? timeZoneValue.trim()
     : null;
 
   if (forceDateOnly || isAllDay || !supportsTime || typeof minutesOfDay !== 'number') {
@@ -481,7 +481,8 @@ export function formatTemporalSlotValueForWriteback(
 }
 
 export function hasRecurrence(node: LayoutRenderNode): boolean {
-  return typeof node.metadata.recurrence_rule === 'string' && node.metadata.recurrence_rule.trim() !== '';
+  const recurrenceRule = getSemanticSlotValue(node, 'time.recurrence_rule');
+  return typeof recurrenceRule === 'string' && recurrenceRule.trim() !== '';
 }
 
 export function isDateOnlyTemporalValue(value: string | null | undefined): boolean {

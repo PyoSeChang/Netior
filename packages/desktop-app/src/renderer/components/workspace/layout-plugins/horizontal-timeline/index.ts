@@ -16,6 +16,11 @@ import {
   formatTemporalSlotValueForWriteback,
   projectRecurringTemporalNodes,
 } from '../temporal-utils';
+import {
+  getSemanticBoolean,
+  getSemanticNumber,
+  getSemanticSlotFieldId,
+} from '../semantic';
 
 export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
   key: 'horizontal-timeline',
@@ -60,8 +65,8 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
     const overlayNodes: LayoutRenderNode[] = [];
 
     for (const node of nodes) {
-      const timeValue = node.metadata.start_at as number | undefined;
-      const endTimeValue = node.metadata.end_at as number | undefined;
+      const timeValue = getSemanticNumber(node, 'time.start');
+      const endTimeValue = getSemanticNumber(node, 'time.end');
 
       // Hide nodes without time data on timeline
       if (timeValue == null) continue;
@@ -105,9 +110,8 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
     // Reverse-calculate: workspace X -> epoch days -> ISO date/datetime
     const epochDay = Math.round(originDay + newX / PIXELS_PER_DAY);
 
-    const slotFieldIds = node.metadata.__slotFieldIds as Record<string, string> | undefined;
-    const startFieldId = slotFieldIds?.start_at;
-    const allDayFieldId = slotFieldIds?.all_day;
+    const startFieldId = getSemanticSlotFieldId(node, 'time.start');
+    const allDayFieldId = getSemanticSlotFieldId(node, 'time.all_day');
     const propertyUpdates: Array<{ conceptId: string; fieldId: string; value: string }> = [];
 
     if (startFieldId && node.conceptId) {
@@ -121,7 +125,7 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
       propertyUpdates.push({
         conceptId: node.conceptId,
         fieldId: allDayFieldId,
-        value: String(node.metadata.all_day === true),
+        value: String(getSemanticBoolean(node, 'time.all_day') === true),
       });
     }
 
@@ -133,32 +137,33 @@ export const horizontalTimelinePlugin: WorkspaceLayoutPlugin = {
 
   onSpanResize(context: SpanResizeContext): SpanResizeResult {
     const { dx, edge, node, zoom } = context;
-    const slotFieldIds = node.metadata.__slotFieldIds as Record<string, string> | undefined;
+    const startFieldId = getSemanticSlotFieldId(node, 'time.start');
+    const endFieldId = getSemanticSlotFieldId(node, 'time.end');
     const propertyUpdates: Array<{ conceptId: string; fieldId: string; value: string }> = [];
-    if (!node.conceptId || !slotFieldIds) return {};
+    if (!node.conceptId || (!startFieldId && !endFieldId)) return {};
 
     const pxPerDay = PIXELS_PER_DAY * zoom;
     if (pxPerDay === 0) return {};
 
     const deltaDays = Math.round(dx / pxPerDay);
-    const startDay = node.metadata.start_at as number | undefined;
-    const endDay = node.metadata.end_at as number | undefined;
+    const startDay = getSemanticNumber(node, 'time.start');
+    const endDay = getSemanticNumber(node, 'time.end');
     if (startDay == null || endDay == null) return {};
 
-    if (edge === 'start' && slotFieldIds.start_at) {
+    if (edge === 'start' && startFieldId) {
       const nextStartDay = Math.min(startDay + deltaDays, endDay);
       propertyUpdates.push({
         conceptId: node.conceptId,
-        fieldId: slotFieldIds.start_at,
+        fieldId: startFieldId,
         value: formatTemporalSlotValue(node, 'start_at', nextStartDay),
       });
     }
 
-    if (edge === 'end' && slotFieldIds.end_at) {
+    if (edge === 'end' && endFieldId) {
       const nextEndDay = Math.max(endDay + deltaDays, startDay);
       propertyUpdates.push({
         conceptId: node.conceptId,
-        fieldId: slotFieldIds.end_at,
+        fieldId: endFieldId,
         value: formatTemporalSlotValue(node, 'end_at', nextEndDay),
       });
     }

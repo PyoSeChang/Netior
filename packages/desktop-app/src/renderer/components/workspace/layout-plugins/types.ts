@@ -1,5 +1,10 @@
 import type React from 'react';
 import type { RenderNode, RenderEdge } from '../types';
+import type {
+  SemanticFacetKey,
+  SlotSemanticAnnotationKey,
+  SystemSlotKey,
+} from '@netior/shared/types';
 
 /** A user-configurable layout option */
 export interface ConfigField {
@@ -24,10 +29,29 @@ export interface InteractionConstraints {
 
 // ── Layout Computation ──
 
+export interface LayoutSemanticSlotValue {
+  annotation: SlotSemanticAnnotationKey;
+  fieldId: string;
+  fieldType: string;
+  rawValue: string | null;
+  value: unknown;
+  legacySlot: SystemSlotKey | null;
+}
+
+export interface LayoutSemanticProjection {
+  schemaId?: string;
+  facets: SemanticFacetKey[];
+  slots: Partial<Record<SlotSemanticAnnotationKey, LayoutSemanticSlotValue>>;
+  slotFieldIds: Partial<Record<SlotSemanticAnnotationKey, string>>;
+  legacySlotFieldIds: Partial<Record<SystemSlotKey, string>>;
+  legacySlotFieldTypes: Partial<Record<SystemSlotKey, string>>;
+}
+
 /** RenderNode extended with plugin metadata */
 export interface LayoutRenderNode extends RenderNode {
   metadata: Record<string, unknown>;
   archetypeId?: string;
+  semantic?: LayoutSemanticProjection;
 }
 
 export interface LayoutComputeInput {

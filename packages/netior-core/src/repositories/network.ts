@@ -8,6 +8,10 @@ import {
   getProjectOntologyNetworkForDb,
   getUniverseNetworkForDb,
 } from './system-networks';
+import {
+  semanticAnnotationToSystemContract,
+  systemContractToSemanticAnnotation,
+} from '@netior/shared/constants';
 import type {
   Network, NetworkCreate, NetworkUpdate,
   NetworkNode, NetworkNodeCreate, NetworkNodeUpdate,
@@ -191,6 +195,18 @@ export function ensureProjectOntologyNetwork(projectId: string): Network {
 // ── Network Full Data ──
 
 type RelationTypeRow = Omit<RelationType, 'directed'> & { directed: number };
+type EdgeRow = Edge;
+
+function toEdge(row: EdgeRow): Edge {
+  const semanticAnnotation = row.semantic_annotation ?? systemContractToSemanticAnnotation(row.system_contract);
+  const systemContract = row.system_contract ?? semanticAnnotationToSystemContract(row.semantic_annotation);
+
+  return {
+    ...row,
+    system_contract: systemContract ?? null,
+    semantic_annotation: semanticAnnotation ?? null,
+  };
+}
 
 export function getNetworkFull(networkId: string): NetworkFullData | undefined {
   const db = getDatabase();
@@ -282,7 +298,8 @@ export function getNetworkFull(networkId: string): NetworkFullData | undefined {
       source_node_id: row.source_node_id as string,
       target_node_id: row.target_node_id as string,
       relation_type_id: (row.relation_type_id as string | null) ?? null,
-      system_contract: (row.system_contract as string | null) ?? null,
+      system_contract: ((row.system_contract as string | null) ?? semanticAnnotationToSystemContract(row.semantic_annotation as Edge['semantic_annotation'])) ?? null,
+      semantic_annotation: ((row.semantic_annotation as Edge['semantic_annotation']) ?? systemContractToSemanticAnnotation(row.system_contract as Edge['system_contract'])) ?? null,
       description: (row.description as string | null) ?? null,
       created_at: row.created_at as string,
       ...(hasRelationType ? {
@@ -366,37 +383,52 @@ export function createEdge(data: EdgeCreate): Edge {
   const db = getDatabase();
   const id = randomUUID();
   const now = new Date().toISOString();
+  const semanticAnnotation = data.semantic_annotation ?? systemContractToSemanticAnnotation(data.system_contract);
+  const systemContract = data.system_contract ?? semanticAnnotationToSystemContract(data.semantic_annotation);
 
   db.prepare(
-    `INSERT INTO edges (id, network_id, source_node_id, target_node_id, relation_type_id, system_contract, description, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO edges (id, network_id, source_node_id, target_node_id, relation_type_id, system_contract, semantic_annotation, description, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id, data.network_id, data.source_node_id, data.target_node_id,
-    data.relation_type_id ?? null, data.system_contract ?? null, data.description ?? null,
+    data.relation_type_id ?? null, systemContract ?? null, semanticAnnotation ?? null, data.description ?? null,
     now,
   );
 
-  return db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as Edge;
+  return toEdge(db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow);
 }
 
 export function getEdge(id: string): Edge | undefined {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as Edge | undefined;
+  const row = db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow | undefined;
+  return row ? toEdge(row) : undefined;
 }
 
 export function updateEdge(id: string, data: EdgeUpdate): Edge | undefined {
   const db = getDatabase();
-  const existing = db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as Edge | undefined;
-  if (!existing) return undefined;
+  const existingRow = db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow | undefined;
+  if (!existingRow) return undefined;
+  const existing = toEdge(existingRow);
+  const nextSemanticAnnotation = data.semantic_annotation !== undefined
+    ? data.semantic_annotation
+    : data.system_contract !== undefined
+      ? systemContractToSemanticAnnotation(data.system_contract)
+      : existing.semantic_annotation;
+  const nextSystemContract = data.system_contract !== undefined
+    ? data.system_contract
+    : data.semantic_annotation !== undefined
+      ? semanticAnnotationToSystemContract(data.semantic_annotation)
+      : existing.system_contract;
 
-  db.prepare('UPDATE edges SET relation_type_id = ?, system_contract = ?, description = ? WHERE id = ?').run(
+  db.prepare('UPDATE edges SET relation_type_id = ?, system_contract = ?, semantic_annotation = ?, description = ? WHERE id = ?').run(
     data.relation_type_id !== undefined ? data.relation_type_id : existing.relation_type_id,
-    data.system_contract !== undefined ? data.system_contract : existing.system_contract,
+    nextSystemContract ?? null,
+    nextSemanticAnnotation ?? null,
     data.description !== undefined ? data.description : existing.description,
     id,
   );
 
-  return db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as Edge;
+  return toEdge(db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow);
 }
 
 export function deleteEdge(id: string): boolean {

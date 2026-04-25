@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { LayoutLayerProps } from '../types';
 import { PIXELS_PER_DAY, todayEpochDays } from './scale-utils';
 import { HEADER_TOTAL_HEIGHT } from './TimelineBackground';
+import { getSemanticNumber } from '../semantic';
 
 const BAND_HEIGHT = 28;
 const BAND_GAP = 2;
@@ -32,8 +33,8 @@ export const TimelineOverlay: React.FC<LayoutLayerProps> = ({
     }> = [];
 
     for (const node of nodes) {
-      const timeValue = node.metadata.start_at as number | undefined;
-      const endTimeValue = node.metadata.end_at as number | undefined;
+      const timeValue = getSemanticNumber(node, 'time.start');
+      const endTimeValue = getSemanticNumber(node, 'time.end');
       const color = node.metadata.display_color as string | undefined;
 
       if (timeValue == null || endTimeValue == null) continue;

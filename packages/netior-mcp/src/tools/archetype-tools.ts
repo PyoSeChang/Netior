@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { SEMANTIC_TRAIT_DEFINITIONS } from '@netior/shared/constants';
-import type { SemanticTraitKey } from '@netior/shared/types';
+import { SEMANTIC_FACET_DEFINITIONS } from '@netior/shared/constants';
+import type { SemanticFacetKey, SemanticTraitKey } from '@netior/shared/types';
 import {
   listArchetypes,
   createArchetype,
@@ -11,10 +11,10 @@ import {
 import { emitChange } from '../events.js';
 import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
 
-const semanticTraitKeys = new Set(SEMANTIC_TRAIT_DEFINITIONS.map((definition) => definition.key));
-const semanticTraitsSchema = z.array(z.string()).refine(
-  (values) => values.every((value) => semanticTraitKeys.has(value as never)),
-  'Invalid semantic trait key',
+const semanticFacetKeys = new Set(SEMANTIC_FACET_DEFINITIONS.map((definition) => definition.key));
+const semanticFacetsSchema = z.array(z.string()).refine(
+  (values) => values.every((value) => semanticFacetKeys.has(value as never)),
+  'Invalid semantic facet key',
 );
 
 export function registerArchetypeTools(server: McpServer): void {
@@ -42,17 +42,19 @@ export function registerArchetypeTools(server: McpServer): void {
     'create_archetype',
     {
       project_id: projectIdSchema(),
-      group_id: z.string().nullable().optional().describe('Optional archetype group ID or null'),
-      name: z.string().describe('Archetype name'),
+      group_id: z.string().nullable().optional().describe('Optional schema group ID or null'),
+      name: z.string().describe('Schema name'),
       icon: z.string().optional().describe('Icon identifier'),
       color: z.string().optional().describe('Color value'),
       node_shape: z.string().optional().describe('Node shape for network rendering'),
-      description: z.string().optional().describe('Archetype description'),
+      description: z.string().optional().describe('Schema description'),
       file_template: z.string().nullable().optional().describe('Optional file template for new concepts'),
-      semantic_traits: semanticTraitsSchema.optional().describe('Optional semantic trait keys'),
+      facets: semanticFacetsSchema.optional().describe('Optional semantic facet keys'),
+      semantic_traits: semanticFacetsSchema.optional().describe('Legacy alias for facets'),
     },
-    async ({ project_id, group_id, name, icon, color, node_shape, description, file_template, semantic_traits }) => {
+    async ({ project_id, group_id, name, icon, color, node_shape, description, file_template, facets, semantic_traits }) => {
       try {
+        const nextFacets = (facets ?? semantic_traits) as SemanticFacetKey[] | undefined;
         const result = await createArchetype({
           project_id: resolveProjectId(project_id),
           group_id,
@@ -62,7 +64,8 @@ export function registerArchetypeTools(server: McpServer): void {
           node_shape,
           description,
           file_template: file_template ?? undefined,
-          semantic_traits: semantic_traits as SemanticTraitKey[] | undefined,
+          facets: nextFacets,
+          semantic_traits: nextFacets as SemanticTraitKey[] | undefined,
         });
         emitChange({ type: 'archetype', action: 'create', id: result.id });
         return {
@@ -81,7 +84,7 @@ export function registerArchetypeTools(server: McpServer): void {
     server,
     'update_archetype',
     {
-      archetype_id: z.string().describe('The archetype ID to update'),
+      archetype_id: z.string().describe('The schema ID to update'),
       group_id: z.string().nullable().optional().describe('New group ID or null'),
       name: z.string().optional().describe('New name'),
       icon: z.string().optional().describe('New icon identifier'),
@@ -89,10 +92,12 @@ export function registerArchetypeTools(server: McpServer): void {
       node_shape: z.string().optional().describe('New node shape'),
       description: z.string().optional().describe('New description'),
       file_template: z.string().nullable().optional().describe('New file template or null'),
-      semantic_traits: semanticTraitsSchema.optional().describe('New semantic trait keys'),
+      facets: semanticFacetsSchema.optional().describe('New semantic facet keys'),
+      semantic_traits: semanticFacetsSchema.optional().describe('Legacy alias for facets'),
     },
-    async ({ archetype_id, group_id, name, icon, color, node_shape, description, file_template, semantic_traits }) => {
+    async ({ archetype_id, group_id, name, icon, color, node_shape, description, file_template, facets, semantic_traits }) => {
       try {
+        const nextFacets = (facets ?? semantic_traits) as SemanticFacetKey[] | undefined;
         const result = await updateArchetype(archetype_id, {
           group_id,
           name,
@@ -101,11 +106,12 @@ export function registerArchetypeTools(server: McpServer): void {
           node_shape,
           description,
           file_template,
-          semantic_traits: semantic_traits as SemanticTraitKey[] | undefined,
+          facets: nextFacets,
+          semantic_traits: nextFacets as SemanticTraitKey[] | undefined,
         });
         if (!result) {
           return {
-            content: [{ type: 'text' as const, text: `Error: Archetype not found: ${archetype_id}` }],
+            content: [{ type: 'text' as const, text: `Error: Schema not found: ${archetype_id}` }],
             isError: true,
           };
         }
@@ -125,13 +131,13 @@ export function registerArchetypeTools(server: McpServer): void {
   registerNetiorTool(
     server,
     'delete_archetype',
-    { archetype_id: z.string().describe('The archetype ID to delete') },
+    { archetype_id: z.string().describe('The schema ID to delete') },
     async ({ archetype_id }) => {
       try {
         const deleted = await deleteArchetype(archetype_id);
         if (!deleted) {
           return {
-            content: [{ type: 'text' as const, text: `Error: Archetype not found: ${archetype_id}` }],
+            content: [{ type: 'text' as const, text: `Error: Schema not found: ${archetype_id}` }],
             isError: true,
           };
         }

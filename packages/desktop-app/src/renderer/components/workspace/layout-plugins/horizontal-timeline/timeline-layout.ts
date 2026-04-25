@@ -1,6 +1,7 @@
 import type { LayoutComputeInput, LayoutComputeResult } from '../types';
 import { PIXELS_PER_DAY, todayEpochDays } from './scale-utils';
 import { HEADER_TOTAL_HEIGHT } from './TimelineBackground';
+import { getSemanticNumber } from '../semantic';
 
 const NODE_HEIGHT = 60;
 const NODE_Y_GAP = 10;
@@ -15,8 +16,8 @@ export function computeTimelineLayout(input: LayoutComputeInput): LayoutComputeR
   const result: LayoutComputeResult = {};
 
   for (const node of nodes) {
-    const timeValue = node.metadata.start_at as number | undefined;
-    const endTimeValue = node.metadata.end_at as number | undefined;
+    const timeValue = getSemanticNumber(node, 'time.start');
+    const endTimeValue = getSemanticNumber(node, 'time.end');
 
     if (timeValue == null) {
       result[node.id] = { x: 0, y: CONTENT_TOP + 60 };
@@ -48,7 +49,7 @@ export function computeTimelineLayout(input: LayoutComputeInput): LayoutComputeR
   }
 
   const occurrences = nodes.filter(
-    (n) => n.metadata.end_at == null && n.metadata.start_at != null && result[n.id],
+    (n) => getSemanticNumber(n, 'time.end') == null && getSemanticNumber(n, 'time.start') != null && result[n.id],
   );
   occurrences.sort((a, b) => (result[a.id].x ?? 0) - (result[b.id].x ?? 0));
 

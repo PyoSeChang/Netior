@@ -80,6 +80,7 @@ function mapArchetypeFields(
       name: field.name,
       field_type: field.field_type,
       required: field.required,
+      ...(field.semantic_annotation ? { semantic_annotation: field.semantic_annotation } : {}),
       ...(field.system_slot ? { system_slot: field.system_slot } : {}),
       ...(field.generated_by_trait ? { generated_by_trait: true } : {}),
       ...(field.ref_archetype_id
@@ -133,6 +134,7 @@ export async function buildProjectPromptMetadata(projectId: string): Promise<Sys
       color: archetype.color,
       node_shape: archetype.node_shape,
       description: archetype.description,
+      facets: archetype.facets ?? archetype.semantic_traits,
       semantic_traits: archetype.semantic_traits,
       fields: mapArchetypeFields(archetypeFieldsById.get(archetype.id) ?? [], archetypeNameMap),
     })),

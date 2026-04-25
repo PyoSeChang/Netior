@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useMemo, useState } from 'react';
-import type { ArchetypeField, EditorTab, SemanticCategoryKey, SemanticTraitKey, TypeGroup } from '@netior/shared/types';
+import type { EditorTab, SemanticCategoryKey, SemanticTraitKey, TypeGroup } from '@netior/shared/types';
 import {
   SEMANTIC_CATEGORY_LABELS,
   SEMANTIC_TRAIT_DEFINITIONS,
@@ -27,7 +27,6 @@ import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { ScrollArea } from '../ui/ScrollArea';
 import { Checkbox } from '../ui/Checkbox';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ArchetypeFieldRow } from './ArchetypeFieldRow';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useUIStore } from '../../stores/ui-store';
@@ -50,12 +49,6 @@ interface ArchetypeState {
   node_shape: string | null;
   file_template: string | null;
   semantic_traits: SemanticTraitKey[];
-}
-
-interface PendingTraitRemoval {
-  trait: SemanticTraitKey;
-  nextTraits: SemanticTraitKey[];
-  fieldsToDelete: ArchetypeField[];
 }
 
 const EMPTY_ARCHETYPE_STATE: ArchetypeState = {
@@ -95,8 +88,6 @@ export function ArchetypeEditor({ tab }: ArchetypeEditorProps): JSX.Element {
   const updateArchetype = useArchetypeStore((s) => s.updateArchetype);
   const fieldComplexityLevel = useSettingsStore((s) => s.fieldComplexityLevel);
   const setShowSettings = useUIStore((s) => s.setShowSettings);
-  const [pendingTraitRemoval, setPendingTraitRemoval] = useState<PendingTraitRemoval | null>(null);
-  const [isRemovingTrait, setIsRemovingTrait] = useState(false);
   const [activeSemanticCategory, setActiveSemanticCategory] = useState<SemanticCategoryKey>('time');
 
   const archetype = archetypes.find((a) => a.id === archetypeId);
@@ -226,7 +217,7 @@ export function ArchetypeEditor({ tab }: ArchetypeEditorProps): JSX.Element {
     }),
   ), [semanticTraits]);
   const detachedSlotFields = useMemo(() => (
-    fields.filter((field) => field.system_slot && !activeTraitSlots.has(field.system_slot) && !field.generated_by_trait)
+    fields.filter((field) => field.system_slot && !activeTraitSlots.has(field.system_slot))
   ), [activeTraitSlots, fields]);
   const semanticFields = useMemo(() => (
     fields.filter((field) => !!field.system_slot)
@@ -239,20 +230,6 @@ export function ArchetypeEditor({ tab }: ArchetypeEditorProps): JSX.Element {
     session.setState((prev) => ({ ...prev, ...patch }));
   };
 
-  const applyTraitRemoval = useCallback(async (nextTraits: SemanticTraitKey[], fieldsToDelete: ArchetypeField[]) => {
-    useEditorStore.getState().setDirty(tab.id, true);
-    setIsRemovingTrait(true);
-    try {
-      for (const field of fieldsToDelete) {
-        await deleteField(field.id, archetypeId);
-      }
-      session.setState((prev) => ({ ...prev, semantic_traits: nextTraits }));
-      setPendingTraitRemoval(null);
-    } finally {
-      setIsRemovingTrait(false);
-    }
-  }, [archetypeId, deleteField, session, tab.id]);
-
   const handleToggleTrait = useCallback(async (trait: SemanticTraitKey, checked: boolean) => {
     const currentTraits = semanticTraits;
     const nextTraits = checked
@@ -260,23 +237,6 @@ export function ArchetypeEditor({ tab }: ArchetypeEditorProps): JSX.Element {
       : currentTraits.filter((item) => item !== trait);
 
     if (!checked) {
-      const nextActiveSlots = new Set(
-        nextTraits.flatMap((traitKey) => {
-          const definition = getSemanticTraitDefinition(traitKey);
-          if (!definition) return [];
-          return [...definition.coreSlots, ...definition.optionalSlots];
-        }),
-      );
-      const currentFields = useArchetypeStore.getState().fields[archetypeId] ?? [];
-      const fieldsToDelete = currentFields.filter((field) => (
-        field.generated_by_trait && !!field.system_slot && !nextActiveSlots.has(field.system_slot)
-      ));
-
-      if (fieldsToDelete.length > 0) {
-        setPendingTraitRemoval({ trait, nextTraits, fieldsToDelete });
-        return;
-      }
-
       useEditorStore.getState().setDirty(tab.id, true);
       session.setState((prev) => ({ ...prev, semantic_traits: nextTraits }));
       return;
@@ -776,28 +736,6 @@ export function ArchetypeEditor({ tab }: ArchetypeEditorProps): JSX.Element {
             />
           </NetworkObjectEditorSection>
         </NetworkObjectEditorShell>
-        <ConfirmDialog
-          open={!!pendingTraitRemoval}
-          onClose={() => {
-            if (!isRemovingTrait) {
-              setPendingTraitRemoval(null);
-            }
-          }}
-          onConfirm={() => {
-            if (pendingTraitRemoval) {
-              void applyTraitRemoval(pendingTraitRemoval.nextTraits, pendingTraitRemoval.fieldsToDelete);
-            }
-          }}
-          title={t('archetype.detachTraitConfirmTitle' as never)}
-          message={t('archetype.detachTraitConfirmMessage' as never, {
-            trait: t(getSemanticTraitLabelKey(pendingTraitRemoval?.trait ?? 'temporal') as never),
-            count: pendingTraitRemoval?.fieldsToDelete.length ?? 0,
-          })}
-          confirmLabel={t('archetype.detachTraitConfirmAction' as never)}
-          cancelLabel={t('common.cancel' as never)}
-          variant="danger"
-          isLoading={isRemovingTrait}
-        />
       </>
     </ScrollArea>
   );

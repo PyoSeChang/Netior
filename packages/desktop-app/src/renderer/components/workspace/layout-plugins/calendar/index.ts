@@ -18,6 +18,11 @@ import {
   formatTemporalSlotValueForWriteback,
   projectRecurringTemporalNodes,
 } from '../temporal-utils';
+import {
+  getSemanticBoolean,
+  getSemanticNumber,
+  getSemanticSlotFieldId,
+} from '../semantic';
 
 function resetViewport(setZoom: (zoom: number) => void, setPanX: (panX: number) => void, setPanY: (panY: number) => void): void {
   setZoom(1);
@@ -36,7 +41,11 @@ function focusNowViewport(setZoom: (zoom: number) => void, setPanX: (panX: numbe
 }
 
 function getSlotFieldIds(node: LayoutRenderNode): Record<string, string> | undefined {
-  return node.metadata.__slotFieldIds as Record<string, string> | undefined;
+  return {
+    start_at: getSemanticSlotFieldId(node, 'time.start') ?? '',
+    end_at: getSemanticSlotFieldId(node, 'time.end') ?? '',
+    all_day: getSemanticSlotFieldId(node, 'time.all_day') ?? '',
+  };
 }
 
 function formatSlotValue(
@@ -58,15 +67,15 @@ function resolveCalendarDuration(node: LayoutRenderNode): {
   daySpan: number;
   isTimed: boolean;
 } | null {
-  const startEpochDay = node.metadata.start_at as number | undefined;
+  const startEpochDay = getSemanticNumber(node, 'time.start');
   if (startEpochDay == null) return null;
 
-  const endEpochDayRaw = node.metadata.end_at as number | undefined;
+  const endEpochDayRaw = getSemanticNumber(node, 'time.end');
   const hasEnd = endEpochDayRaw != null;
   const endEpochDay = hasEnd ? Math.max(startEpochDay, endEpochDayRaw) : startEpochDay;
   const startMinutes = typeof node.metadata.start_at_minutes === 'number' ? Number(node.metadata.start_at_minutes) : 0;
   const endMinutes = typeof node.metadata.end_at_minutes === 'number' ? Number(node.metadata.end_at_minutes) : startMinutes;
-  const isAllDay = node.metadata.all_day === true;
+  const isAllDay = getSemanticBoolean(node, 'time.all_day') === true;
   const isTimed = !isAllDay && (node.metadata.start_at_has_time === true || node.metadata.end_at_has_time === true);
 
   if (!isTimed) {

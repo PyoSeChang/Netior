@@ -190,6 +190,12 @@ export type NodeSortConfig =
       emptyPlacement?: NodeSortEmptyPlacement;
     }
   | {
+      kind: 'semantic_annotation';
+      annotation: SlotSemanticAnnotationKey;
+      direction?: NodeSortDirection;
+      emptyPlacement?: NodeSortEmptyPlacement;
+    }
+  | {
       kind: 'property';
       fieldId: string;
       direction?: NodeSortDirection;
@@ -268,6 +274,11 @@ export type SystemContract =
   | 'core:entry_portal'
   | 'core:hierarchy_parent';
 
+export type RelationSemanticAnnotationKey =
+  | 'structure.contains'
+  | 'structure.entry_portal'
+  | 'structure.parent';
+
 export interface Edge {
   id: string;
   network_id: string;
@@ -275,6 +286,7 @@ export interface Edge {
   target_node_id: string;
   relation_type_id: string | null;
   system_contract: SystemContract | null;
+  semantic_annotation?: RelationSemanticAnnotationKey | null;
   description: string | null;
   created_at: string;
 }
@@ -285,12 +297,14 @@ export interface EdgeCreate {
   target_node_id: string;
   relation_type_id?: string;
   system_contract?: SystemContract;
+  semantic_annotation?: RelationSemanticAnnotationKey;
   description?: string;
 }
 
 export interface EdgeUpdate {
   relation_type_id?: string | null;
   system_contract?: SystemContract | null;
+  semantic_annotation?: RelationSemanticAnnotationKey | null;
   description?: string | null;
 }
 
@@ -373,6 +387,54 @@ export type SystemSlotKey =
   | 'approval_state'
   | 'approved_by_ref'
   | 'approved_at';
+
+export type SlotSemanticAnnotationKey =
+  | 'time.start'
+  | 'time.end'
+  | 'time.all_day'
+  | 'time.timezone'
+  | 'time.due'
+  | 'time.recurrence_rule'
+  | 'time.recurrence_until'
+  | 'time.recurrence_count'
+  | 'workflow.status'
+  | 'workflow.status_changed_at'
+  | 'workflow.assignees'
+  | 'workflow.primary_assignee'
+  | 'workflow.priority'
+  | 'workflow.progress'
+  | 'workflow.completed_at'
+  | 'workflow.estimate_value'
+  | 'workflow.estimate_unit'
+  | 'workflow.actual_value'
+  | 'structure.parent'
+  | 'structure.order'
+  | 'structure.tags'
+  | 'structure.category'
+  | 'knowledge.source_url'
+  | 'knowledge.source_ref'
+  | 'knowledge.citation'
+  | 'knowledge.attachments'
+  | 'knowledge.version'
+  | 'knowledge.revision'
+  | 'knowledge.supersedes'
+  | 'space.place'
+  | 'space.address'
+  | 'space.lat'
+  | 'space.lng'
+  | 'quant.measure_value'
+  | 'quant.measure_unit'
+  | 'quant.target_value'
+  | 'quant.budget_amount'
+  | 'quant.budget_currency'
+  | 'quant.budget_limit'
+  | 'governance.owner'
+  | 'governance.approval_state'
+  | 'governance.approved_by'
+  | 'governance.approved_at';
+
+export type SemanticAnnotationKey = SlotSemanticAnnotationKey | RelationSemanticAnnotationKey;
+export type SemanticFacetKey = SemanticTraitKey;
 
 export type SlotContractLevel = 'strict' | 'constrained' | 'loose';
 
@@ -523,6 +585,7 @@ export interface Archetype {
   node_shape: string | null;
   file_template: string | null;
   semantic_traits: SemanticTraitKey[];
+  facets?: SemanticFacetKey[];
   created_at: string;
   updated_at: string;
 }
@@ -537,6 +600,7 @@ export interface ArchetypeCreate {
   node_shape?: string;
   file_template?: string;
   semantic_traits?: SemanticTraitKey[];
+  facets?: SemanticFacetKey[];
 }
 
 export interface ArchetypeUpdate {
@@ -548,6 +612,7 @@ export interface ArchetypeUpdate {
   node_shape?: string | null;
   file_template?: string | null;
   semantic_traits?: SemanticTraitKey[];
+  facets?: SemanticFacetKey[];
 }
 
 // ============================================
@@ -583,6 +648,7 @@ export interface ArchetypeField {
   default_value: string | null;
   ref_archetype_id: string | null;
   system_slot: SystemSlotKey | null;
+  semantic_annotation?: SlotSemanticAnnotationKey | null;
   slot_binding_locked: boolean;
   generated_by_trait: boolean;
   created_at: string;
@@ -598,6 +664,7 @@ export interface ArchetypeFieldCreate {
   default_value?: string;
   ref_archetype_id?: string;
   system_slot?: SystemSlotKey | null;
+  semantic_annotation?: SlotSemanticAnnotationKey | null;
   slot_binding_locked?: boolean;
   generated_by_trait?: boolean;
 }
@@ -611,9 +678,17 @@ export interface ArchetypeFieldUpdate {
   default_value?: string | null;
   ref_archetype_id?: string | null;
   system_slot?: SystemSlotKey | null;
+  semantic_annotation?: SlotSemanticAnnotationKey | null;
   slot_binding_locked?: boolean;
   generated_by_trait?: boolean;
 }
+
+export type Schema = Archetype;
+export type SchemaCreate = ArchetypeCreate;
+export type SchemaUpdate = ArchetypeUpdate;
+export type SchemaSlot = ArchetypeField;
+export type SchemaSlotCreate = ArchetypeFieldCreate;
+export type SchemaSlotUpdate = ArchetypeFieldUpdate;
 
 // ============================================
 // Type Group

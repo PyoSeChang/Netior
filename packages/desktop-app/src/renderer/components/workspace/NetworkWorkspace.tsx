@@ -33,6 +33,7 @@ import { getLayout } from './layout-plugins/registry';
 import type { LayoutRenderNode } from './layout-plugins/types';
 import { dateToEpochDays, isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
 import { formatTemporalSlotValueForWriteback, getOccurrenceKey, getSourceNodeId } from './layout-plugins/temporal-utils';
+import { applyConceptSemanticProjection } from './semantic-projection';
 import { useNetworkShortcuts } from './useNetworkShortcuts';
 import { HIERARCHY_PARENT_CONTRACT, isHierarchyParentContract } from '../../lib/hierarchy-contract';
 import { openNetworkViewerTab } from '../../lib/open-network-viewer-tab';
@@ -1839,48 +1840,27 @@ export function NetworkWorkspace({
         ? sourceNode?.concept?.archetype_id ?? undefined
         : undefined;
       const metadata: Record<string, unknown> = { ...(n.metadata ?? {}) };
-      const slotFieldIds: Record<string, string> = {};
-      const slotFieldTypes: Record<string, string> = {};
       const conceptId = n.conceptId;
       const props = conceptId ? nodeProperties[conceptId] ?? [] : [];
       const propMap = new Map(props.map((prop) => [prop.field_id, prop.value]));
+      const archetype = archetypeId ? archetypes.find((item) => item.id === archetypeId) : undefined;
+      let semantic: LayoutRenderNode['semantic'];
 
       if (sourceNode?.concept?.color) {
         metadata.display_color = sourceNode.concept.color;
-      } else if (archetypeId) {
-        const archetype = archetypes.find((item) => item.id === archetypeId);
+      } else if (archetype) {
         if (archetype?.color) metadata.display_color = archetype.color;
       }
 
       if (archetypeId) {
         const archetypeFields = archetypeFieldsById[archetypeId] ?? [];
-        const slotRawValues: Partial<Record<string, string>> = {};
-
-        for (const field of archetypeFields) {
-          if (!field.system_slot) continue;
-          slotFieldTypes[field.system_slot] = field.field_type;
-          slotFieldIds[field.system_slot] = field.id;
-          const rawValue = propMap.get(field.id);
-          if (rawValue == null) continue;
-          slotRawValues[field.system_slot] = rawValue;
-        }
-
-        for (const field of archetypeFields) {
-          if (!field.system_slot) continue;
-          const rawValue = propMap.get(field.id);
-          if (rawValue == null) continue;
-          applySystemSlotMetadata(metadata, field, rawValue, slotRawValues);
-        }
-      }
-
-      if (Object.keys(slotFieldIds).length > 0) {
-        metadata.__slotFieldIds = slotFieldIds;
-      }
-      if (Object.keys(slotFieldTypes).length > 0) {
-        metadata.__slotFieldTypes = slotFieldTypes;
-      }
-      if (propMap.size > 0) {
-        metadata.__fieldValues = Object.fromEntries(propMap);
+        semantic = applyConceptSemanticProjection({
+          metadata,
+          schemaId: archetypeId,
+          facets: archetype?.facets ?? archetype?.semantic_traits ?? [],
+          fields: archetypeFields,
+          propertyValues: propMap,
+        });
       }
       if (sourceNode?.concept?.recurrence_source_concept_id) {
         metadata.__recurrenceSourceConceptId = sourceNode.concept.recurrence_source_concept_id;
@@ -1889,7 +1869,7 @@ export function NetworkWorkspace({
         metadata.__occurrenceKey = sourceNode.concept.recurrence_occurrence_key;
       }
 
-      return { ...n, metadata, archetypeId };
+      return { ...n, metadata, semantic, archetypeId };
     }),
   [visibleRenderNodes, nodes, archetypeFieldsById, nodeProperties, archetypes]);
 
