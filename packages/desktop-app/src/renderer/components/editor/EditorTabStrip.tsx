@@ -218,6 +218,7 @@ function TabItem({
         onTabDropOnTarget(e, tab.id, dropPosition);
       }}
     >
+      {isActive && <span aria-hidden="true" className="tab-active-indicator" />}
       {dropPosition && (
         <span
           aria-hidden="true"
@@ -487,7 +488,7 @@ export function EditorTabStrip({
       onDrop={handleDrop}
       onContextMenu={handleStripContextMenu}
     >
-      <div ref={scrollRef} className="tab-scroll flex min-w-0 flex-1 items-end pl-2">
+      <div ref={scrollRef} className="tab-scroll flex min-w-0 flex-1 items-end pl-3 pr-2">
         {tabs.map((tab) => (
           <TabItem
             key={tab.id}
