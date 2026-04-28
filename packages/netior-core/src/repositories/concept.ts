@@ -2,87 +2,100 @@ import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
 import { createObject, deleteObjectByRef } from './objects';
 import {
-  semanticAnnotationToSlotAspects,
-  semanticAnnotationToSystemSlot,
-  systemSlotToSemanticAnnotation,
+  fieldMeaningToMeaningBindings,
+  meaningSlotToFieldMeaning,
 } from '@netior/shared/constants';
-import type { Concept, ConceptCreate, ConceptUpdate, Archetype, ArchetypeField, SlotSemanticAspectKey } from '@netior/shared/types';
+import type {
+  Schema,
+  SchemaField,
+  Concept,
+  ConceptCreate,
+  ConceptUpdate,
+  FieldMeaningBindingKey,
+  SemanticModelRefKey,
+  FieldMeaningKey,
+  MeaningSlotKey,
+} from '@netior/shared/types';
 import { renderTemplate, serializeToAgent } from '../services/concept-content-sync';
 
-type ArchetypeRow = Omit<Archetype, 'semantic_traits' | 'facets'> & {
-  semantic_traits: string | null;
-  facets?: string | null;
+type SchemaRow = Omit<Schema, 'semantic_models' | 'models'> & {
+  semantic_models: string | null;
+  models?: string | null;
 };
-type ArchetypeFieldRow = Omit<ArchetypeField, 'required' | 'slot_binding_locked' | 'generated_by_trait'> & {
+type SchemaFieldRow = Omit<SchemaField, 'required' | 'slot_binding_locked' | 'generated_by_model' | 'meaning_bindings'> & {
+  meaning_slot: MeaningSlotKey | null;
+  meaning_key: FieldMeaningKey | null;
   required: number;
   slot_binding_locked: number;
-  generated_by_trait: number;
+  generated_by_model: number;
 };
 
-function toArchetype(row: ArchetypeRow): Archetype {
-  let semanticTraits: Archetype['semantic_traits'] = [];
-  let facets: Archetype['facets'] = [];
+function parseSemanticModels(raw: string | null | undefined): SemanticModelRefKey[] {
+  if (!raw) return [];
   try {
-    const parsed = row.semantic_traits ? JSON.parse(row.semantic_traits) : [];
-    if (Array.isArray(parsed)) {
-      semanticTraits = parsed.filter((item): item is Archetype['semantic_traits'][number] => typeof item === 'string');
-    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item): item is SemanticModelRefKey => typeof item === 'string') : [];
   } catch {
-    semanticTraits = [];
+    return [];
   }
-  try {
-    const parsed = row.facets ? JSON.parse(row.facets) : semanticTraits;
-    if (Array.isArray(parsed)) {
-      facets = parsed.filter((item): item is NonNullable<Archetype['facets']>[number] => typeof item === 'string');
-    }
-  } catch {
-    facets = semanticTraits;
-  }
+}
 
+function toSchema(row: SchemaRow): Schema {
+  const semanticModels = parseSemanticModels(row.semantic_models ?? row.models);
   return {
     ...row,
-    semantic_traits: semanticTraits,
-    facets,
+    semantic_models: semanticModels,
+    models: row.models == null ? semanticModels : parseSemanticModels(row.models),
   };
 }
 
-function normalizeSemanticAspects(aspects: readonly SlotSemanticAspectKey[] | null | undefined, annotation: ArchetypeField['semantic_annotation']): SlotSemanticAspectKey[] {
-  const raw = aspects && aspects.length > 0
-    ? aspects
-    : semanticAnnotationToSlotAspects(annotation);
-  return [...new Set(raw.filter((item): item is SlotSemanticAspectKey => typeof item === 'string' && item.trim().length > 0))];
+function normalizeMeaningBindings(
+  bindings: readonly FieldMeaningBindingKey[] | null | undefined,
+  annotation: FieldMeaningKey | null | undefined,
+): FieldMeaningBindingKey[] {
+  const raw = bindings && bindings.length > 0
+    ? bindings
+    : fieldMeaningToMeaningBindings(annotation);
+  return [...new Set(raw.filter((item): item is FieldMeaningBindingKey => typeof item === 'string' && item.trim().length > 0))];
 }
 
-function getFieldSemanticAspectsByFieldId(fieldIds: string[]): Map<string, SlotSemanticAspectKey[]> {
-  const byField = new Map<string, SlotSemanticAspectKey[]>();
+function getFieldMeaningBindingsByFieldId(fieldIds: string[]): Map<string, FieldMeaningBindingKey[]> {
+  const byField = new Map<string, FieldMeaningBindingKey[]>();
   if (fieldIds.length === 0) return byField;
 
   const db = getDatabase();
   const placeholders = fieldIds.map(() => '?').join(',');
-  const rows = db.prepare(
-    `SELECT field_id, aspect_key FROM slot_semantic_aspects WHERE field_id IN (${placeholders}) ORDER BY field_id, sort_order, aspect_key`,
-  ).all(...fieldIds) as { field_id: string; aspect_key: string }[];
-
-  for (const row of rows) {
-    const current = byField.get(row.field_id) ?? [];
-    current.push(row.aspect_key as SlotSemanticAspectKey);
-    byField.set(row.field_id, current);
+  const meaningRows = db.prepare(
+    `SELECT field_id, meaning_key FROM field_meaning_bindings WHERE field_id IN (${placeholders}) ORDER BY field_id, sort_order, meaning_key`,
+  ).all(...fieldIds) as { field_id: string; meaning_key: string }[];
+  if (meaningRows.length > 0) {
+    for (const row of meaningRows) {
+      const current = byField.get(row.field_id) ?? [];
+      current.push(row.meaning_key as FieldMeaningBindingKey);
+      byField.set(row.field_id, current);
+    }
+    return byField;
   }
+
   return byField;
 }
 
-function toField(row: ArchetypeFieldRow, semanticAspects?: readonly SlotSemanticAspectKey[]): ArchetypeField {
-  const semanticAnnotation = row.semantic_annotation ?? systemSlotToSemanticAnnotation(row.system_slot);
-  const systemSlot = row.system_slot ?? semanticAnnotationToSystemSlot(row.semantic_annotation);
+function toField(row: SchemaFieldRow, meaningBindings?: readonly FieldMeaningBindingKey[]): SchemaField {
+  const fieldMeaning = row.meaning_key ?? meaningSlotToFieldMeaning(row.meaning_slot);
+  const bindings = normalizeMeaningBindings(meaningBindings, fieldMeaning);
+  const generatedByModel = Boolean(row.generated_by_model);
+  const {
+    meaning_slot: _meaningSlot,
+    meaning_key: _meaningKey,
+    ...field
+  } = row;
 
   return {
-    ...row,
-    system_slot: systemSlot ?? null,
-    semantic_annotation: semanticAnnotation ?? null,
-    semantic_aspects: normalizeSemanticAspects(semanticAspects, semanticAnnotation),
+    ...field,
+    meaning_bindings: bindings,
     required: !!row.required,
     slot_binding_locked: !!row.slot_binding_locked,
-    generated_by_trait: !!row.generated_by_trait,
+    generated_by_model: generatedByModel,
   };
 }
 
@@ -95,27 +108,27 @@ export function createConcept(data: ConceptCreate): Concept {
   let icon = data.icon ?? null;
   let content = data.content ?? null;
   let agentContent = data.agent_content ?? null;
-  let archetype: Archetype | null = null;
-  let fields: ArchetypeField[] = [];
+  let schema: Schema | null = null;
+  let fields: SchemaField[] = [];
 
-  if (data.archetype_id) {
-    const archetypeRow = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(data.archetype_id) as ArchetypeRow | null;
-    archetype = archetypeRow ? toArchetype(archetypeRow) : null;
-    if (archetypeRow && archetype) {
-      if (!data.color && archetype.color) color = archetype.color;
-      if (!data.icon && archetype.icon) icon = archetype.icon;
+  if (data.schema_id) {
+    const schemaRow = db.prepare('SELECT * FROM schemas WHERE id = ?').get(data.schema_id) as SchemaRow | null;
+    schema = schemaRow ? toSchema(schemaRow) : null;
+    if (schemaRow && schema) {
+      if (!data.color && schema.color) color = schema.color;
+      if (!data.icon && schema.icon) icon = schema.icon;
 
       // Load fields for template rendering
-      const rows = db.prepare('SELECT * FROM archetype_fields WHERE archetype_id = ? ORDER BY sort_order')
-        .all(archetype.id) as ArchetypeFieldRow[];
-      const aspectsByFieldId = getFieldSemanticAspectsByFieldId(rows.map((row) => row.id));
-      fields = rows.map((row) => toField(row, aspectsByFieldId.get(row.id)));
+      const rows = db.prepare('SELECT * FROM schema_fields WHERE schema_id = ? ORDER BY sort_order')
+        .all(schema.id) as SchemaFieldRow[];
+      const meaningsByFieldId = getFieldMeaningBindingsByFieldId(rows.map((row) => row.id));
+      fields = rows.map((row) => toField(row, meaningsByFieldId.get(row.id)));
 
       // Render file_template as initial content
-      if (archetype.file_template && !content) {
+      if (schema.file_template && !content) {
         const defaults: Record<string, string | null> = {};
         for (const f of fields) defaults[f.name] = f.default_value ?? null;
-        content = renderTemplate(archetype.file_template, fields, defaults);
+        content = renderTemplate(schema.file_template, fields, defaults);
       }
     }
   }
@@ -124,7 +137,7 @@ export function createConcept(data: ConceptCreate): Concept {
     `INSERT INTO concepts (
       id,
       project_id,
-      archetype_id,
+      schema_id,
       recurrence_source_concept_id,
       recurrence_occurrence_key,
       title,
@@ -139,7 +152,7 @@ export function createConcept(data: ConceptCreate): Concept {
   ).run(
     id,
     data.project_id,
-    data.archetype_id ?? null,
+    data.schema_id ?? null,
     data.recurrence_source_concept_id ?? null,
     data.recurrence_occurrence_key ?? null,
     data.title,
@@ -156,10 +169,10 @@ export function createConcept(data: ConceptCreate): Concept {
 
   // Generate initial agent_content after insert (needs full concept)
   const concept = db.prepare('SELECT * FROM concepts WHERE id = ?').get(id) as Concept;
-  if (archetype) {
+  if (schema) {
     const defaults: Record<string, string | null> = {};
     for (const f of fields) defaults[f.name] = f.default_value ?? null;
-    agentContent = serializeToAgent({ concept, archetype, fields, properties: defaults });
+    agentContent = serializeToAgent({ concept, schema, fields, properties: defaults });
     db.prepare('UPDATE concepts SET agent_content = ? WHERE id = ?').run(agentContent, id);
     return db.prepare('SELECT * FROM concepts WHERE id = ?').get(id) as Concept;
   }
@@ -182,7 +195,7 @@ export function updateConcept(id: string, data: ConceptUpdate): Concept | undefi
   const now = new Date().toISOString();
   db.prepare(
     `UPDATE concepts
-     SET archetype_id = ?,
+     SET schema_id = ?,
          recurrence_source_concept_id = ?,
          recurrence_occurrence_key = ?,
          title = ?,
@@ -193,7 +206,7 @@ export function updateConcept(id: string, data: ConceptUpdate): Concept | undefi
          updated_at = ?
      WHERE id = ?`,
   ).run(
-    data.archetype_id !== undefined ? data.archetype_id : existing.archetype_id,
+    data.schema_id !== undefined ? data.schema_id : existing.schema_id,
     data.recurrence_source_concept_id !== undefined
       ? data.recurrence_source_concept_id
       : existing.recurrence_source_concept_id,

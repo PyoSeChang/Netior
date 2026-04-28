@@ -1,14 +1,12 @@
 import {
-  semanticAnnotationToSlotAspects,
-  semanticAnnotationToSystemSlot,
-  systemSlotToSemanticAnnotation,
+  meaningBindingToMeaningSlot,
 } from '@netior/shared/constants';
 import type {
-  ArchetypeField,
-  SemanticFacetKey,
-  SlotSemanticAnnotationKey,
-  SlotSemanticAspectKey,
-  SystemSlotKey,
+  SchemaField,
+  FieldMeaningBindingKey,
+  SemanticModelRefKey,
+  FieldMeaningKey,
+  MeaningSlotKey,
 } from '@netior/shared/types';
 import type { LayoutSemanticProjection } from './layout-plugins/types';
 import { dateToEpochDays, isoToEpochDays } from './layout-plugins/horizontal-timeline/scale-utils';
@@ -30,12 +28,12 @@ interface ParsedDateTimeParts {
 interface ApplyConceptSemanticProjectionInput {
   metadata: Record<string, unknown>;
   schemaId?: string;
-  facets?: SemanticFacetKey[];
-  fields: ArchetypeField[];
+  models?: SemanticModelRefKey[];
+  fields: SchemaField[];
   propertyValues: Map<string, string | null>;
 }
 
-const TEMPORAL_ANNOTATIONS = new Set<SlotSemanticAnnotationKey>([
+const TEMPORAL_ANNOTATIONS = new Set<FieldMeaningKey>([
   'time.start',
   'time.end',
   'time.due',
@@ -44,7 +42,7 @@ const TEMPORAL_ANNOTATIONS = new Set<SlotSemanticAnnotationKey>([
   'governance.approved_at',
 ]);
 
-const NUMERIC_ANNOTATIONS = new Set<SlotSemanticAnnotationKey>([
+const NUMERIC_ANNOTATIONS = new Set<FieldMeaningKey>([
   'workflow.progress',
   'workflow.estimate_value',
   'workflow.actual_value',
@@ -171,8 +169,8 @@ function parseNumericMetadataValue(value: string): number | null {
 }
 
 function parseSemanticValue(
-  field: ArchetypeField,
-  annotation: SlotSemanticAnnotationKey | null,
+  field: SchemaField,
+  annotation: FieldMeaningKey | null,
   rawValue: string,
   timeZone?: string | null,
 ): {
@@ -201,46 +199,48 @@ function parseSemanticValue(
   return { value: rawValue };
 }
 
-function getFieldSemanticAspects(field: ArchetypeField, annotation: SlotSemanticAnnotationKey | null): SlotSemanticAspectKey[] {
-  const rawAspects = field.semantic_aspects && field.semantic_aspects.length > 0
-    ? field.semantic_aspects
-    : semanticAnnotationToSlotAspects(annotation);
-  return [...new Set(rawAspects.filter((aspect): aspect is SlotSemanticAspectKey => typeof aspect === 'string' && aspect.trim().length > 0))];
+function getFieldMeaningBindings(field: SchemaField): FieldMeaningBindingKey[] {
+  return [...new Set(field.meaning_bindings.filter((binding): binding is FieldMeaningBindingKey => (
+    typeof binding === 'string' && binding.trim().length > 0
+  )))];
+}
+
+function getPrimarySystemMeaning(bindings: readonly FieldMeaningBindingKey[]): FieldMeaningKey | null {
+  for (const binding of bindings) {
+    if (meaningBindingToMeaningSlot(binding)) return binding as FieldMeaningKey;
+  }
+  return null;
 }
 
 export function applyConceptSemanticProjection({
   metadata,
   schemaId,
-  facets,
+  models,
   fields,
   propertyValues,
 }: ApplyConceptSemanticProjectionInput): LayoutSemanticProjection {
+  const semanticModels = models ?? [];
   const semantic: LayoutSemanticProjection = {
     schemaId,
-    facets: facets ?? [],
-    slots: {},
-    slotsByAspect: {},
-    slotFieldIds: {},
-    aspectFieldIds: {},
-    legacySlotFieldIds: {},
-    legacySlotFieldTypes: {},
+    models: semanticModels,
+    meaningBindings: {},
+    meaningFieldIds: {},
+    meaningSlotFieldIds: {},
+    meaningSlotFieldTypes: {},
   };
-  const rawValuesByAnnotation = new Map<SlotSemanticAnnotationKey, string>();
+  const rawValuesByAnnotation = new Map<FieldMeaningKey, string>();
 
   for (const field of fields) {
-    const annotation = field.semantic_annotation ?? systemSlotToSemanticAnnotation(field.system_slot);
-    const aspects = getFieldSemanticAspects(field, annotation);
-    if (!annotation && aspects.length === 0) continue;
-    if (annotation) {
-      const legacySlot = field.system_slot ?? semanticAnnotationToSystemSlot(annotation);
-      semantic.slotFieldIds[annotation] = field.id;
-      if (legacySlot) {
-        semantic.legacySlotFieldIds[legacySlot] = field.id;
-        semantic.legacySlotFieldTypes[legacySlot] = field.field_type;
+    const bindings = getFieldMeaningBindings(field);
+    const annotation = getPrimarySystemMeaning(bindings);
+    if (bindings.length === 0) continue;
+    for (const binding of bindings) {
+      semantic.meaningFieldIds[binding] = [...(semantic.meaningFieldIds[binding] ?? []), field.id];
+      const meaningSlot = meaningBindingToMeaningSlot(binding);
+      if (meaningSlot) {
+        semantic.meaningSlotFieldIds[meaningSlot] = field.id;
+        semantic.meaningSlotFieldTypes[meaningSlot] = field.field_type;
       }
-    }
-    for (const aspect of aspects) {
-      semantic.aspectFieldIds[aspect] = [...(semantic.aspectFieldIds[aspect] ?? []), field.id];
     }
 
     const rawValue = propertyValues.get(field.id);
@@ -250,53 +250,47 @@ export function applyConceptSemanticProjection({
 
   const timeZone = rawValuesByAnnotation.get('time.timezone');
   for (const field of fields) {
-    const annotation = field.semantic_annotation ?? systemSlotToSemanticAnnotation(field.system_slot);
-    const aspects = getFieldSemanticAspects(field, annotation);
-    if (!annotation && aspects.length === 0) continue;
+    const bindings = getFieldMeaningBindings(field);
+    const annotation = getPrimarySystemMeaning(bindings);
+    if (bindings.length === 0) continue;
     const rawValue = propertyValues.get(field.id);
     if (rawValue == null) continue;
 
-    const legacySlot = annotation ? field.system_slot ?? semanticAnnotationToSystemSlot(annotation) : field.system_slot ?? null;
+    const meaningSlot = annotation ? meaningBindingToMeaningSlot(annotation) : null;
     const parsed = parseSemanticValue(field, annotation, rawValue, timeZone);
     const projected = {
-      annotation,
-      aspects,
+      meaning: annotation ?? bindings[0] ?? null,
+      meaningBindings: bindings,
       fieldId: field.id,
       fieldType: field.field_type,
       rawValue,
       value: parsed.value,
-      legacySlot,
+      meaningSlot,
     };
-    if (annotation) {
-      semantic.slots[annotation] = projected;
+    for (const binding of bindings) {
+      semantic.meaningBindings[binding] = [...(semantic.meaningBindings[binding] ?? []), projected];
     }
-    for (const aspect of aspects) {
-      semantic.slotsByAspect[aspect] = [...(semantic.slotsByAspect[aspect] ?? []), projected];
-    }
-    if (legacySlot) {
-      metadata[legacySlot] = parsed.value;
+    if (meaningSlot) {
+      metadata[meaningSlot] = parsed.value;
       if (parsed.temporal) {
         if (typeof parsed.temporal.minutesOfDay === 'number') {
-          metadata[`${legacySlot}_minutes`] = parsed.temporal.minutesOfDay;
+          metadata[`${meaningSlot}_minutes`] = parsed.temporal.minutesOfDay;
         }
         if (parsed.temporal.hasTime) {
-          metadata[`${legacySlot}_has_time`] = true;
+          metadata[`${meaningSlot}_has_time`] = true;
         }
       }
     }
   }
 
-  if (Object.keys(semantic.legacySlotFieldIds).length > 0) {
-    metadata.__slotFieldIds = semantic.legacySlotFieldIds;
+  if (Object.keys(semantic.meaningSlotFieldIds).length > 0) {
+    metadata.__slotFieldIds = semantic.meaningSlotFieldIds;
   }
-  if (Object.keys(semantic.legacySlotFieldTypes).length > 0) {
-    metadata.__slotFieldTypes = semantic.legacySlotFieldTypes;
+  if (Object.keys(semantic.meaningSlotFieldTypes).length > 0) {
+    metadata.__slotFieldTypes = semantic.meaningSlotFieldTypes;
   }
-  if (Object.keys(semantic.slotFieldIds).length > 0) {
-    metadata.__semanticSlotFieldIds = semantic.slotFieldIds;
-  }
-  if (Object.keys(semantic.aspectFieldIds).length > 0) {
-    metadata.__semanticAspectFieldIds = semantic.aspectFieldIds;
+  if (Object.keys(semantic.meaningFieldIds).length > 0) {
+    metadata.__meaningFieldIds = semantic.meaningFieldIds;
   }
   if (propertyValues.size > 0) {
     metadata.__fieldValues = Object.fromEntries(propertyValues);

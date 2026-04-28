@@ -22,7 +22,7 @@ export const FIELD_TYPE_MIN_LEVEL: Record<FieldType, FieldComplexityLevel> = {
   color: 'standard',
   rating: 'standard',
   tags: 'standard',
-  archetype_ref: 'standard',
+  schema_ref: 'standard',
   relation: 'advanced',
 };
 

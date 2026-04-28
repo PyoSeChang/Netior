@@ -2,15 +2,14 @@ import type {
   SkillDefinition,
   FieldType,
   SemanticCategoryKey,
-  SemanticAnnotationKey,
-  SemanticFacetKey,
-  SemanticTraitKey,
-  SlotSemanticAnnotationKey,
-  SlotSemanticAspectKey,
-  RelationSemanticAnnotationKey,
-  SlotContractLevel,
-  SystemContract,
-  SystemSlotKey,
+  FieldMeaningKey,
+  MeaningBindingKey,
+  MeaningSlotKey,
+  RelationMeaningKey,
+  SemanticMeaningKey,
+  SemanticModelKey,
+  FieldMeaningBindingKey,
+  SlotConstraintLevel,
 } from '../types/index.js';
 export * from './netior-mcp-tools.js';
 
@@ -165,19 +164,19 @@ export const IPC_CHANNELS = {
   MODULE_DIR_REMOVE: 'moduleDir:remove',
   MODULE_DIR_UPDATE_PATH: 'moduleDir:updatePath',
 
-  // Archetype
-  ARCHETYPE_CREATE: 'archetype:create',
-  ARCHETYPE_LIST: 'archetype:list',
-  ARCHETYPE_GET: 'archetype:get',
-  ARCHETYPE_UPDATE: 'archetype:update',
-  ARCHETYPE_DELETE: 'archetype:delete',
+  // Schema
+  SCHEMA_CREATE: 'schema:create',
+  SCHEMA_LIST: 'schema:list',
+  SCHEMA_GET: 'schema:get',
+  SCHEMA_UPDATE: 'schema:update',
+  SCHEMA_DELETE: 'schema:delete',
 
-  // Archetype Field
-  ARCHETYPE_FIELD_CREATE: 'archetypeField:create',
-  ARCHETYPE_FIELD_LIST: 'archetypeField:list',
-  ARCHETYPE_FIELD_UPDATE: 'archetypeField:update',
-  ARCHETYPE_FIELD_DELETE: 'archetypeField:delete',
-  ARCHETYPE_FIELD_REORDER: 'archetypeField:reorder',
+  // Schema Field
+  SCHEMA_FIELD_CREATE: 'schemaField:create',
+  SCHEMA_FIELD_LIST: 'schemaField:list',
+  SCHEMA_FIELD_UPDATE: 'schemaField:update',
+  SCHEMA_FIELD_DELETE: 'schemaField:delete',
+  SCHEMA_FIELD_REORDER: 'schemaField:reorder',
 
   // RelationType
   RELATION_TYPE_CREATE: 'relationType:create',
@@ -271,56 +270,59 @@ export const DEFAULTS = {
 } as const;
 
 // ============================================
-// System Semantics
+// Meaning Model
 // ============================================
 
-export interface SystemSlotDefinition {
-  key: SystemSlotKey;
-  annotation: SlotSemanticAnnotationKey;
-  aspects?: readonly SlotSemanticAspectKey[];
+export interface MeaningSlotDefinition {
+  key: MeaningSlotKey;
+  fieldMeaning: FieldMeaningKey;
+  bindings?: readonly FieldMeaningBindingKey[];
   category: SemanticCategoryKey;
   label: string;
   allowedFieldTypes: readonly FieldType[];
-  contractLevel: SlotContractLevel;
+  constraintLevel: SlotConstraintLevel;
   multiValue?: boolean;
 }
 
-export interface SemanticAnnotationDefinition {
-  key: SemanticAnnotationKey;
-  legacyKey: SystemSlotKey | SystemContract;
-  scope: 'slot' | 'relation';
-  category: SemanticCategoryKey;
-  label: string;
-  allowedFieldTypes?: readonly FieldType[];
-  contractLevel?: SlotContractLevel;
-  multiValue?: boolean;
-}
-
-export interface SemanticAspectDefinition {
-  key: SlotSemanticAspectKey;
+export interface MeaningBindingDefinition {
+  key: MeaningBindingKey;
+  scope: 'field' | 'relation';
   category: SemanticCategoryKey;
   label: string;
   description?: string;
-  impliedByAnnotations?: readonly SlotSemanticAnnotationKey[];
+  allowedFieldTypes?: readonly FieldType[];
+  constraintLevel?: SlotConstraintLevel;
+  multiValue?: boolean;
+  impliedByFieldMeanings?: readonly FieldMeaningKey[];
 }
 
-export interface SemanticTraitDefinition {
-  key: SemanticTraitKey;
+export interface FieldMeaningBindingDefinition {
+  key: FieldMeaningBindingKey;
   category: SemanticCategoryKey;
   label: string;
-  coreSlots: readonly SystemSlotKey[];
-  optionalSlots: readonly SystemSlotKey[];
+  description?: string;
+  allowedFieldTypes?: readonly FieldType[];
+  impliedByFieldMeanings?: readonly FieldMeaningKey[];
 }
 
-export interface SemanticFacetDefinition {
-  key: SemanticFacetKey;
+export interface SemanticMeaningDefinition {
+  key: SemanticMeaningKey;
   category: SemanticCategoryKey;
   label: string;
-  coreAnnotations: readonly SlotSemanticAnnotationKey[];
-  optionalAnnotations: readonly SlotSemanticAnnotationKey[];
-  coreAspects: readonly SlotSemanticAspectKey[];
-  optionalAspects: readonly SlotSemanticAspectKey[];
-  legacyTrait: SemanticTraitKey;
+  description?: string;
+  coreSlots: readonly MeaningSlotKey[];
+  optionalSlots: readonly MeaningSlotKey[];
+  fallbackSlots?: readonly MeaningSlotKey[];
+}
+
+export interface SemanticModelDefinition {
+  key: SemanticModelKey;
+  category: SemanticCategoryKey;
+  label: string;
+  description?: string;
+  meanings: readonly SemanticMeaningKey[];
+  coreSlots: readonly MeaningSlotKey[];
+  optionalSlots: readonly MeaningSlotKey[];
 }
 
 export const SEMANTIC_CATEGORY_LABELS: Readonly<Record<SemanticCategoryKey, string>> = {
@@ -333,85 +335,117 @@ export const SEMANTIC_CATEGORY_LABELS: Readonly<Record<SemanticCategoryKey, stri
   governance: 'Governance',
 } as const;
 
-export const SYSTEM_SLOT_DEFINITIONS: readonly SystemSlotDefinition[] = [
-  { key: 'start_at', annotation: 'time.start', category: 'time', label: 'Start At', allowedFieldTypes: ['date', 'datetime'], contractLevel: 'strict' },
-  { key: 'end_at', annotation: 'time.end', category: 'time', label: 'End At', allowedFieldTypes: ['date', 'datetime'], contractLevel: 'strict' },
-  { key: 'all_day', annotation: 'time.all_day', category: 'time', label: 'All Day', allowedFieldTypes: ['boolean'], contractLevel: 'strict' },
-  { key: 'timezone', annotation: 'time.timezone', category: 'time', label: 'Timezone', allowedFieldTypes: ['text', 'select'], contractLevel: 'constrained' },
-  { key: 'due_at', annotation: 'time.due', category: 'time', label: 'Due At', allowedFieldTypes: ['date', 'datetime'], contractLevel: 'strict' },
-  { key: 'recurrence_rule', annotation: 'time.recurrence_rule', category: 'time', label: 'Recurrence Rule', allowedFieldTypes: ['text', 'select'], contractLevel: 'constrained' },
-  { key: 'recurrence_until', annotation: 'time.recurrence_until', category: 'time', label: 'Recurrence Until', allowedFieldTypes: ['date', 'datetime'], contractLevel: 'constrained' },
-  { key: 'recurrence_count', annotation: 'time.recurrence_count', category: 'time', label: 'Recurrence Count', allowedFieldTypes: ['number'], contractLevel: 'constrained' },
-  { key: 'status', annotation: 'workflow.status', category: 'workflow', label: 'Status', allowedFieldTypes: ['select', 'radio', 'text'], contractLevel: 'constrained' },
-  { key: 'status_changed_at', annotation: 'workflow.status_changed_at', category: 'workflow', label: 'Status Changed At', allowedFieldTypes: ['datetime'], contractLevel: 'constrained' },
-  { key: 'assignee_refs', annotation: 'workflow.assignees', category: 'workflow', label: 'Assignees', allowedFieldTypes: ['multi-select', 'tags'], contractLevel: 'loose', multiValue: true },
-  { key: 'primary_assignee_ref', annotation: 'workflow.primary_assignee', category: 'workflow', label: 'Primary Assignee', allowedFieldTypes: ['select', 'relation', 'archetype_ref'], contractLevel: 'constrained' },
-  { key: 'priority', annotation: 'workflow.priority', category: 'workflow', label: 'Priority', allowedFieldTypes: ['number', 'select', 'radio'], contractLevel: 'constrained' },
-  { key: 'progress_ratio', annotation: 'workflow.progress', category: 'workflow', label: 'Progress Ratio', allowedFieldTypes: ['number', 'rating'], contractLevel: 'constrained' },
-  { key: 'completed_at', annotation: 'workflow.completed_at', category: 'workflow', label: 'Completed At', allowedFieldTypes: ['date', 'datetime'], contractLevel: 'constrained' },
-  { key: 'estimate_value', annotation: 'workflow.estimate_value', category: 'workflow', label: 'Estimate Value', allowedFieldTypes: ['number'], contractLevel: 'constrained' },
-  { key: 'estimate_unit', annotation: 'workflow.estimate_unit', category: 'workflow', label: 'Estimate Unit', allowedFieldTypes: ['select', 'radio', 'text'], contractLevel: 'constrained' },
-  { key: 'actual_value', annotation: 'workflow.actual_value', category: 'workflow', label: 'Actual Value', allowedFieldTypes: ['number'], contractLevel: 'constrained' },
-  { key: 'parent_ref', annotation: 'structure.parent', category: 'structure', label: 'Parent', allowedFieldTypes: ['relation', 'archetype_ref'], contractLevel: 'strict' },
-  { key: 'order_index', annotation: 'structure.order', category: 'structure', label: 'Order Index', allowedFieldTypes: ['number'], contractLevel: 'strict' },
-  { key: 'tag_keys', annotation: 'structure.tags', category: 'structure', label: 'Tags', allowedFieldTypes: ['tags', 'multi-select'], contractLevel: 'constrained', multiValue: true },
-  { key: 'category_key', annotation: 'structure.category', category: 'structure', label: 'Category', allowedFieldTypes: ['select', 'radio', 'text'], contractLevel: 'constrained' },
-  { key: 'source_url', annotation: 'knowledge.source_url', category: 'knowledge', label: 'Source URL', allowedFieldTypes: ['url', 'text'], contractLevel: 'constrained' },
-  { key: 'source_ref', annotation: 'knowledge.source_ref', category: 'knowledge', label: 'Source Ref', allowedFieldTypes: ['relation', 'archetype_ref'], contractLevel: 'constrained' },
-  { key: 'citation', annotation: 'knowledge.citation', category: 'knowledge', label: 'Citation', allowedFieldTypes: ['text', 'textarea'], contractLevel: 'loose' },
-  { key: 'attachment_refs', annotation: 'knowledge.attachments', category: 'knowledge', label: 'Attachments', allowedFieldTypes: ['file', 'multi-select', 'tags'], contractLevel: 'loose', multiValue: true },
-  { key: 'version', annotation: 'knowledge.version', category: 'knowledge', label: 'Version', allowedFieldTypes: ['text'], contractLevel: 'constrained' },
-  { key: 'revision', annotation: 'knowledge.revision', category: 'knowledge', label: 'Revision', allowedFieldTypes: ['text'], contractLevel: 'constrained' },
-  { key: 'supersedes_ref', annotation: 'knowledge.supersedes', category: 'knowledge', label: 'Supersedes', allowedFieldTypes: ['relation', 'archetype_ref'], contractLevel: 'constrained' },
-  { key: 'place_ref', annotation: 'space.place', category: 'space', label: 'Place', allowedFieldTypes: ['relation', 'archetype_ref'], contractLevel: 'constrained' },
-  { key: 'address', annotation: 'space.address', category: 'space', label: 'Address', allowedFieldTypes: ['text', 'textarea'], contractLevel: 'loose' },
-  { key: 'lat', annotation: 'space.lat', category: 'space', label: 'Latitude', allowedFieldTypes: ['number'], contractLevel: 'strict' },
-  { key: 'lng', annotation: 'space.lng', category: 'space', label: 'Longitude', allowedFieldTypes: ['number'], contractLevel: 'strict' },
-  { key: 'measure_value', annotation: 'quant.measure_value', category: 'quant', label: 'Measure Value', allowedFieldTypes: ['number', 'rating'], contractLevel: 'constrained' },
-  { key: 'measure_unit', annotation: 'quant.measure_unit', category: 'quant', label: 'Measure Unit', allowedFieldTypes: ['text', 'select'], contractLevel: 'constrained' },
-  { key: 'target_value', annotation: 'quant.target_value', category: 'quant', label: 'Target Value', allowedFieldTypes: ['number'], contractLevel: 'constrained' },
-  { key: 'budget_amount', annotation: 'quant.budget_amount', category: 'quant', label: 'Budget Amount', allowedFieldTypes: ['number'], contractLevel: 'constrained' },
-  { key: 'budget_currency', annotation: 'quant.budget_currency', category: 'quant', label: 'Budget Currency', allowedFieldTypes: ['text', 'select'], contractLevel: 'constrained' },
-  { key: 'budget_limit', annotation: 'quant.budget_limit', category: 'quant', label: 'Budget Limit', allowedFieldTypes: ['number'], contractLevel: 'constrained' },
-  { key: 'owner_ref', annotation: 'governance.owner', category: 'governance', label: 'Owner', allowedFieldTypes: ['relation', 'archetype_ref', 'select'], contractLevel: 'constrained' },
-  { key: 'approval_state', annotation: 'governance.approval_state', category: 'governance', label: 'Approval State', allowedFieldTypes: ['select', 'radio', 'text'], contractLevel: 'constrained' },
-  { key: 'approved_by_ref', annotation: 'governance.approved_by', category: 'governance', label: 'Approved By', allowedFieldTypes: ['relation', 'archetype_ref', 'select'], contractLevel: 'constrained' },
-  { key: 'approved_at', annotation: 'governance.approved_at', category: 'governance', label: 'Approved At', allowedFieldTypes: ['datetime'], contractLevel: 'constrained' },
+export const MEANING_SLOT_DEFINITIONS: readonly MeaningSlotDefinition[] = [
+  { key: 'start_at', fieldMeaning: 'time.start', category: 'time', label: 'Start At', allowedFieldTypes: ['date', 'datetime'], constraintLevel: 'strict' },
+  { key: 'end_at', fieldMeaning: 'time.end', category: 'time', label: 'End At', allowedFieldTypes: ['date', 'datetime'], constraintLevel: 'strict' },
+  { key: 'all_day', fieldMeaning: 'time.all_day', category: 'time', label: 'All Day', allowedFieldTypes: ['boolean'], constraintLevel: 'strict' },
+  { key: 'timezone', fieldMeaning: 'time.timezone', category: 'time', label: 'Timezone', allowedFieldTypes: ['text', 'select'], constraintLevel: 'constrained' },
+  { key: 'due_at', fieldMeaning: 'time.due', category: 'time', label: 'Due At', allowedFieldTypes: ['date', 'datetime'], constraintLevel: 'strict' },
+  { key: 'recurrence_rule', fieldMeaning: 'time.recurrence_rule', category: 'time', label: 'Recurrence Rule', allowedFieldTypes: ['text'], constraintLevel: 'loose' },
+  { key: 'recurrence_frequency', fieldMeaning: 'time.recurrence_frequency', category: 'time', label: 'Recurrence Frequency', allowedFieldTypes: ['select', 'radio'], constraintLevel: 'strict' },
+  { key: 'recurrence_interval', fieldMeaning: 'time.recurrence_interval', category: 'time', label: 'Recurrence Interval', allowedFieldTypes: ['number'], constraintLevel: 'strict' },
+  { key: 'recurrence_weekdays', fieldMeaning: 'time.recurrence_weekdays', category: 'time', label: 'Recurrence Weekdays', allowedFieldTypes: ['multi-select', 'tags'], constraintLevel: 'constrained', multiValue: true },
+  { key: 'recurrence_monthday', fieldMeaning: 'time.recurrence_monthday', category: 'time', label: 'Recurrence Month Day', allowedFieldTypes: ['number'], constraintLevel: 'constrained' },
+  { key: 'recurrence_until', fieldMeaning: 'time.recurrence_until', category: 'time', label: 'Recurrence Until', allowedFieldTypes: ['date', 'datetime'], constraintLevel: 'constrained' },
+  { key: 'recurrence_count', fieldMeaning: 'time.recurrence_count', category: 'time', label: 'Recurrence Count', allowedFieldTypes: ['number'], constraintLevel: 'constrained' },
+  { key: 'status', fieldMeaning: 'workflow.status', category: 'workflow', label: 'Status', allowedFieldTypes: ['select', 'radio', 'text'], constraintLevel: 'constrained' },
+  { key: 'status_changed_at', fieldMeaning: 'workflow.status_changed_at', category: 'workflow', label: 'Status Changed At', allowedFieldTypes: ['datetime'], constraintLevel: 'constrained' },
+  { key: 'assignee_refs', fieldMeaning: 'workflow.assignees', category: 'workflow', label: 'Assignees', allowedFieldTypes: ['multi-select', 'tags'], constraintLevel: 'loose', multiValue: true },
+  { key: 'primary_assignee_ref', fieldMeaning: 'workflow.primary_assignee', category: 'workflow', label: 'Primary Assignee', allowedFieldTypes: ['select', 'relation', 'schema_ref'], constraintLevel: 'constrained' },
+  { key: 'priority', fieldMeaning: 'workflow.priority', category: 'workflow', label: 'Priority', allowedFieldTypes: ['number', 'select', 'radio'], constraintLevel: 'constrained' },
+  { key: 'progress_ratio', fieldMeaning: 'workflow.progress', category: 'workflow', label: 'Progress Ratio', allowedFieldTypes: ['number', 'rating'], constraintLevel: 'constrained' },
+  { key: 'completed_at', fieldMeaning: 'workflow.completed_at', category: 'workflow', label: 'Completed At', allowedFieldTypes: ['date', 'datetime'], constraintLevel: 'constrained' },
+  { key: 'estimate_value', fieldMeaning: 'workflow.estimate_value', category: 'workflow', label: 'Estimate Value', allowedFieldTypes: ['number'], constraintLevel: 'constrained' },
+  { key: 'estimate_unit', fieldMeaning: 'workflow.estimate_unit', category: 'workflow', label: 'Estimate Unit', allowedFieldTypes: ['select', 'radio', 'text'], constraintLevel: 'constrained' },
+  { key: 'actual_value', fieldMeaning: 'workflow.actual_value', category: 'workflow', label: 'Actual Value', allowedFieldTypes: ['number'], constraintLevel: 'constrained' },
+  { key: 'parent_ref', fieldMeaning: 'structure.parent', category: 'structure', label: 'Parent', allowedFieldTypes: ['relation', 'schema_ref'], constraintLevel: 'strict' },
+  { key: 'order_index', fieldMeaning: 'structure.order', category: 'structure', label: 'Order Index', allowedFieldTypes: ['number'], constraintLevel: 'strict' },
+  { key: 'tag_keys', fieldMeaning: 'structure.tags', category: 'structure', label: 'Tags', allowedFieldTypes: ['tags', 'multi-select'], constraintLevel: 'constrained', multiValue: true },
+  { key: 'category_key', fieldMeaning: 'structure.category', category: 'structure', label: 'Category', allowedFieldTypes: ['select', 'radio', 'text'], constraintLevel: 'constrained' },
+  { key: 'source_url', fieldMeaning: 'knowledge.source_url', category: 'knowledge', label: 'Source URL', allowedFieldTypes: ['url', 'text'], constraintLevel: 'constrained' },
+  { key: 'source_ref', fieldMeaning: 'knowledge.source_ref', category: 'knowledge', label: 'Source Ref', allowedFieldTypes: ['relation', 'schema_ref'], constraintLevel: 'constrained' },
+  { key: 'citation', fieldMeaning: 'knowledge.citation', category: 'knowledge', label: 'Citation', allowedFieldTypes: ['text', 'textarea'], constraintLevel: 'loose' },
+  { key: 'attachment_refs', fieldMeaning: 'knowledge.attachments', category: 'knowledge', label: 'Attachments', allowedFieldTypes: ['file', 'multi-select', 'tags'], constraintLevel: 'loose', multiValue: true },
+  { key: 'version', fieldMeaning: 'knowledge.version', category: 'knowledge', label: 'Version', allowedFieldTypes: ['text'], constraintLevel: 'constrained' },
+  { key: 'revision', fieldMeaning: 'knowledge.revision', category: 'knowledge', label: 'Revision', allowedFieldTypes: ['text'], constraintLevel: 'constrained' },
+  { key: 'supersedes_ref', fieldMeaning: 'knowledge.supersedes', category: 'knowledge', label: 'Supersedes', allowedFieldTypes: ['relation', 'schema_ref'], constraintLevel: 'constrained' },
+  { key: 'place_ref', fieldMeaning: 'space.place', category: 'space', label: 'Place', allowedFieldTypes: ['relation', 'schema_ref'], constraintLevel: 'constrained' },
+  { key: 'address', fieldMeaning: 'space.address', category: 'space', label: 'Address', allowedFieldTypes: ['text', 'textarea'], constraintLevel: 'loose' },
+  { key: 'lat', fieldMeaning: 'space.lat', category: 'space', label: 'Latitude', allowedFieldTypes: ['number'], constraintLevel: 'strict' },
+  { key: 'lng', fieldMeaning: 'space.lng', category: 'space', label: 'Longitude', allowedFieldTypes: ['number'], constraintLevel: 'strict' },
+  { key: 'measure_value', fieldMeaning: 'quant.measure_value', category: 'quant', label: 'Measure Value', allowedFieldTypes: ['number', 'rating'], constraintLevel: 'constrained' },
+  { key: 'measure_unit', fieldMeaning: 'quant.measure_unit', category: 'quant', label: 'Measure Unit', allowedFieldTypes: ['text', 'select'], constraintLevel: 'constrained' },
+  { key: 'target_value', fieldMeaning: 'quant.target_value', category: 'quant', label: 'Target Value', allowedFieldTypes: ['number'], constraintLevel: 'constrained' },
+  { key: 'budget_amount', fieldMeaning: 'quant.budget_amount', category: 'quant', label: 'Budget Amount', allowedFieldTypes: ['number'], constraintLevel: 'constrained' },
+  { key: 'budget_currency', fieldMeaning: 'quant.budget_currency', category: 'quant', label: 'Budget Currency', allowedFieldTypes: ['text', 'select'], constraintLevel: 'constrained' },
+  { key: 'budget_limit', fieldMeaning: 'quant.budget_limit', category: 'quant', label: 'Budget Limit', allowedFieldTypes: ['number'], constraintLevel: 'constrained' },
+  { key: 'owner_ref', fieldMeaning: 'governance.owner', category: 'governance', label: 'Owner', allowedFieldTypes: ['relation', 'schema_ref', 'select'], constraintLevel: 'constrained' },
+  { key: 'approval_state', fieldMeaning: 'governance.approval_state', category: 'governance', label: 'Approval State', allowedFieldTypes: ['select', 'radio', 'text'], constraintLevel: 'constrained' },
+  { key: 'approved_by_ref', fieldMeaning: 'governance.approved_by', category: 'governance', label: 'Approved By', allowedFieldTypes: ['relation', 'schema_ref', 'select'], constraintLevel: 'constrained' },
+  { key: 'approved_at', fieldMeaning: 'governance.approved_at', category: 'governance', label: 'Approved At', allowedFieldTypes: ['datetime'], constraintLevel: 'constrained' },
 ] as const;
 
-export const SEMANTIC_TRAIT_DEFINITIONS: readonly SemanticTraitDefinition[] = [
-  { key: 'temporal', category: 'time', label: 'Temporal', coreSlots: ['start_at'], optionalSlots: ['end_at', 'all_day', 'timezone'] },
-  { key: 'dueable', category: 'time', label: 'Dueable', coreSlots: ['due_at'], optionalSlots: [] },
-  { key: 'recurring', category: 'time', label: 'Recurring', coreSlots: ['recurrence_rule'], optionalSlots: ['recurrence_until', 'recurrence_count'] },
-  { key: 'statusful', category: 'workflow', label: 'Statusful', coreSlots: ['status'], optionalSlots: ['status_changed_at'] },
-  { key: 'assignable', category: 'workflow', label: 'Assignable', coreSlots: ['assignee_refs'], optionalSlots: ['primary_assignee_ref'] },
-  { key: 'prioritizable', category: 'workflow', label: 'Prioritizable', coreSlots: ['priority'], optionalSlots: [] },
-  { key: 'progressable', category: 'workflow', label: 'Progressable', coreSlots: ['progress_ratio'], optionalSlots: ['completed_at'] },
-  { key: 'estimable', category: 'workflow', label: 'Estimable', coreSlots: ['estimate_value'], optionalSlots: ['estimate_unit', 'actual_value'] },
-  { key: 'hierarchical', category: 'structure', label: 'Hierarchical', coreSlots: ['parent_ref'], optionalSlots: ['order_index'] },
-  { key: 'ordered', category: 'structure', label: 'Ordered', coreSlots: ['order_index'], optionalSlots: [] },
-  { key: 'taggable', category: 'structure', label: 'Taggable', coreSlots: ['tag_keys'], optionalSlots: [] },
-  { key: 'categorizable', category: 'structure', label: 'Categorizable', coreSlots: ['category_key'], optionalSlots: [] },
-  { key: 'sourceable', category: 'knowledge', label: 'Sourceable', coreSlots: ['source_url'], optionalSlots: ['source_ref', 'citation'] },
-  { key: 'attachable', category: 'knowledge', label: 'Attachable', coreSlots: ['attachment_refs'], optionalSlots: [] },
-  { key: 'versioned', category: 'knowledge', label: 'Versioned', coreSlots: ['version'], optionalSlots: ['revision', 'supersedes_ref'] },
-  { key: 'locatable', category: 'space', label: 'Locatable', coreSlots: ['place_ref'], optionalSlots: ['address', 'lat', 'lng'] },
-  { key: 'measurable', category: 'quant', label: 'Measurable', coreSlots: ['measure_value'], optionalSlots: ['measure_unit', 'target_value'] },
-  { key: 'budgeted', category: 'quant', label: 'Budgeted', coreSlots: ['budget_amount'], optionalSlots: ['budget_currency', 'budget_limit'] },
-  { key: 'ownable', category: 'governance', label: 'Ownable', coreSlots: ['owner_ref'], optionalSlots: [] },
-  { key: 'approvable', category: 'governance', label: 'Approvable', coreSlots: ['approval_state'], optionalSlots: ['approved_by_ref', 'approved_at'] },
+export const SEMANTIC_MEANING_DEFINITIONS: readonly SemanticMeaningDefinition[] = [
+  { key: 'time_interval', category: 'time', label: 'Time Interval', description: 'Places the object on a time axis.', coreSlots: ['start_at'], optionalSlots: ['end_at', 'all_day', 'timezone'] },
+  { key: 'deadline', category: 'time', label: 'Deadline', description: 'Gives the object a due point.', coreSlots: ['due_at'], optionalSlots: ['timezone'] },
+  { key: 'recurrence', category: 'time', label: 'Recurrence', description: 'Lets the object repeat by structured cadence.', coreSlots: ['recurrence_frequency', 'recurrence_interval'], optionalSlots: ['recurrence_weekdays', 'recurrence_monthday', 'recurrence_until', 'recurrence_count'], fallbackSlots: ['recurrence_rule'] },
+  { key: 'workflow_state', category: 'workflow', label: 'Workflow State', coreSlots: ['status'], optionalSlots: ['status_changed_at'] },
+  { key: 'assignment', category: 'workflow', label: 'Assignment', coreSlots: ['assignee_refs'], optionalSlots: ['primary_assignee_ref'] },
+  { key: 'priority', category: 'workflow', label: 'Priority', coreSlots: ['priority'], optionalSlots: [] },
+  { key: 'progress', category: 'workflow', label: 'Progress', coreSlots: ['progress_ratio'], optionalSlots: ['completed_at'] },
+  { key: 'estimate', category: 'workflow', label: 'Estimate', coreSlots: ['estimate_value'], optionalSlots: ['estimate_unit', 'actual_value'] },
+  { key: 'hierarchy', category: 'structure', label: 'Hierarchy', coreSlots: ['parent_ref'], optionalSlots: ['order_index'] },
+  { key: 'ordering', category: 'structure', label: 'Ordering', coreSlots: ['order_index'], optionalSlots: [] },
+  { key: 'tagging', category: 'structure', label: 'Tagging', coreSlots: ['tag_keys'], optionalSlots: [] },
+  { key: 'classification', category: 'structure', label: 'Classification', coreSlots: ['category_key'], optionalSlots: [] },
+  { key: 'source', category: 'knowledge', label: 'Source', coreSlots: ['source_url'], optionalSlots: ['source_ref', 'citation'] },
+  { key: 'attachment', category: 'knowledge', label: 'Attachment', coreSlots: ['attachment_refs'], optionalSlots: [] },
+  { key: 'versioning', category: 'knowledge', label: 'Versioning', coreSlots: ['version'], optionalSlots: ['revision', 'supersedes_ref'] },
+  { key: 'location', category: 'space', label: 'Location', coreSlots: ['place_ref'], optionalSlots: ['address', 'lat', 'lng'] },
+  { key: 'measurement', category: 'quant', label: 'Measurement', coreSlots: ['measure_value'], optionalSlots: ['measure_unit', 'target_value'] },
+  { key: 'budget', category: 'quant', label: 'Budget', coreSlots: ['budget_amount'], optionalSlots: ['budget_currency', 'budget_limit'] },
+  { key: 'ownership', category: 'governance', label: 'Ownership', coreSlots: ['owner_ref'], optionalSlots: [] },
+  { key: 'approval', category: 'governance', label: 'Approval', coreSlots: ['approval_state'], optionalSlots: ['approved_by_ref', 'approved_at'] },
 ] as const;
 
-export const SYSTEM_SLOT_TO_SEMANTIC_ANNOTATION: Readonly<Record<SystemSlotKey, SlotSemanticAnnotationKey>> =
-  Object.fromEntries(SYSTEM_SLOT_DEFINITIONS.map((definition) => [definition.key, definition.annotation])) as Record<SystemSlotKey, SlotSemanticAnnotationKey>;
+export const SEMANTIC_MODEL_DEFINITIONS: readonly SemanticModelDefinition[] = [
+  { key: 'temporal', category: 'time', label: 'Temporal', description: 'Represents objects that occupy time with a start point and optional end context.', meanings: ['time_interval'], coreSlots: ['start_at'], optionalSlots: ['end_at', 'all_day', 'timezone'] },
+  { key: 'dueable', category: 'time', label: 'Dueable', description: 'Represents objects that have one deadline or due point.', meanings: ['deadline'], coreSlots: ['due_at'], optionalSlots: [] },
+  { key: 'recurring', category: 'time', label: 'Recurring', description: 'Represents objects that repeat through frequency, interval, calendar constraints, and end conditions.', meanings: ['recurrence'], coreSlots: ['recurrence_frequency', 'recurrence_interval'], optionalSlots: ['recurrence_weekdays', 'recurrence_monthday', 'recurrence_until', 'recurrence_count'] },
+  { key: 'statusful', category: 'workflow', label: 'Statusful', description: 'Represents objects whose workflow state can be read by boards, lists, and filters.', meanings: ['workflow_state'], coreSlots: ['status'], optionalSlots: ['status_changed_at'] },
+  { key: 'assignable', category: 'workflow', label: 'Assignable', description: 'Represents objects that can be assigned to one or more responsible actors.', meanings: ['assignment'], coreSlots: ['assignee_refs'], optionalSlots: ['primary_assignee_ref'] },
+  { key: 'prioritizable', category: 'workflow', label: 'Prioritizable', description: 'Represents objects that carry a priority value for ranking and triage.', meanings: ['priority'], coreSlots: ['priority'], optionalSlots: [] },
+  { key: 'progressable', category: 'workflow', label: 'Progressable', description: 'Represents objects with measurable progress and completion timing.', meanings: ['progress'], coreSlots: ['progress_ratio'], optionalSlots: ['completed_at'] },
+  { key: 'estimable', category: 'workflow', label: 'Estimable', description: 'Represents objects with estimated and actual effort, cost, or resource values.', meanings: ['estimate'], coreSlots: ['estimate_value'], optionalSlots: ['estimate_unit', 'actual_value'] },
+  { key: 'hierarchical', category: 'structure', label: 'Hierarchical', description: 'Represents objects arranged in parent-child structures.', meanings: ['hierarchy'], coreSlots: ['parent_ref'], optionalSlots: ['order_index'] },
+  { key: 'ordered', category: 'structure', label: 'Ordered', description: 'Represents objects with an explicit manual sort position.', meanings: ['ordering'], coreSlots: ['order_index'], optionalSlots: [] },
+  { key: 'taggable', category: 'structure', label: 'Taggable', description: 'Represents objects classified by a lightweight set of tags.', meanings: ['tagging'], coreSlots: ['tag_keys'], optionalSlots: [] },
+  { key: 'categorizable', category: 'structure', label: 'Categorizable', description: 'Represents objects classified by one category or taxonomy key.', meanings: ['classification'], coreSlots: ['category_key'], optionalSlots: [] },
+  { key: 'sourceable', category: 'knowledge', label: 'Sourceable', description: 'Represents objects that can cite where their information came from.', meanings: ['source'], coreSlots: ['source_url'], optionalSlots: ['source_ref', 'citation'] },
+  { key: 'attachable', category: 'knowledge', label: 'Attachable', description: 'Represents objects that can reference attached files or external assets.', meanings: ['attachment'], coreSlots: ['attachment_refs'], optionalSlots: [] },
+  { key: 'versioned', category: 'knowledge', label: 'Versioned', description: 'Represents objects with version, revision, and supersession metadata.', meanings: ['versioning'], coreSlots: ['version'], optionalSlots: ['revision', 'supersedes_ref'] },
+  { key: 'locatable', category: 'space', label: 'Locatable', description: 'Represents objects that can be placed by location, address, or coordinates.', meanings: ['location'], coreSlots: ['place_ref'], optionalSlots: ['address', 'lat', 'lng'] },
+  { key: 'measurable', category: 'quant', label: 'Measurable', description: 'Represents objects with measured values, units, and optional targets.', meanings: ['measurement'], coreSlots: ['measure_value'], optionalSlots: ['measure_unit', 'target_value'] },
+  { key: 'budgeted', category: 'quant', label: 'Budgeted', description: 'Represents objects with budget amount, currency, and limit metadata.', meanings: ['budget'], coreSlots: ['budget_amount'], optionalSlots: ['budget_currency', 'budget_limit'] },
+  { key: 'ownable', category: 'governance', label: 'Ownable', description: 'Represents objects with an accountable owner.', meanings: ['ownership'], coreSlots: ['owner_ref'], optionalSlots: [] },
+  { key: 'approvable', category: 'governance', label: 'Approvable', description: 'Represents objects with approval state, approver, and approval time.', meanings: ['approval'], coreSlots: ['approval_state'], optionalSlots: ['approved_by_ref', 'approved_at'] },
+] as const;
 
-export const SEMANTIC_ANNOTATION_TO_SYSTEM_SLOT: Readonly<Partial<Record<SlotSemanticAnnotationKey, SystemSlotKey>>> =
-  Object.fromEntries(SYSTEM_SLOT_DEFINITIONS.map((definition) => [definition.annotation, definition.key])) as Partial<Record<SlotSemanticAnnotationKey, SystemSlotKey>>;
+export const MEANING_SLOT_TO_FIELD_MEANING: Readonly<Record<MeaningSlotKey, FieldMeaningKey>> =
+  Object.fromEntries(MEANING_SLOT_DEFINITIONS.map((definition) => [definition.key, definition.fieldMeaning])) as Record<MeaningSlotKey, FieldMeaningKey>;
 
-const SLOT_SEMANTIC_ASPECT_OVERRIDES: Readonly<Partial<Record<SlotSemanticAnnotationKey, readonly SlotSemanticAspectKey[]>>> = {
+export const FIELD_MEANING_TO_MEANING_SLOT: Readonly<Partial<Record<FieldMeaningKey, MeaningSlotKey>>> =
+  Object.fromEntries(MEANING_SLOT_DEFINITIONS.map((definition) => [definition.fieldMeaning, definition.key])) as Partial<Record<FieldMeaningKey, MeaningSlotKey>>;
+
+const FIELD_MEANING_BINDING_OVERRIDES: Readonly<Partial<Record<FieldMeaningKey, readonly FieldMeaningBindingKey[]>>> = {
   'time.start': ['time.start', 'temporal.point', 'temporal.boundary.start'],
   'time.end': ['time.end', 'temporal.point', 'temporal.boundary.end'],
   'time.due': ['time.due', 'temporal.point', 'temporal.deadline', 'obligation.due', 'boundary.deadline', 'consequence.trigger'],
+  'time.recurrence_rule': ['time.recurrence_rule', 'temporal.recurrence', 'recurrence.compound_rule'],
+  'time.recurrence_frequency': ['time.recurrence_frequency', 'temporal.recurrence', 'temporal.cadence'],
+  'time.recurrence_interval': ['time.recurrence_interval', 'temporal.recurrence', 'temporal.interval'],
+  'time.recurrence_weekdays': ['time.recurrence_weekdays', 'temporal.recurrence', 'calendar.weekday_set'],
+  'time.recurrence_monthday': ['time.recurrence_monthday', 'temporal.recurrence', 'calendar.month_day'],
   'time.recurrence_until': ['time.recurrence_until', 'temporal.boundary.end'],
   'workflow.completed_at': ['workflow.completed_at', 'temporal.point', 'workflow.completion'],
   'structure.parent': ['structure.parent', 'relation.parent', 'structure.hierarchy'],
@@ -423,125 +457,114 @@ const SLOT_SEMANTIC_ASPECT_OVERRIDES: Readonly<Partial<Record<SlotSemanticAnnota
   'governance.approved_at': ['governance.approved_at', 'temporal.point', 'governance.approval_event'],
 } as const;
 
-function dedupeSemanticAspects(aspects: readonly SlotSemanticAspectKey[]): SlotSemanticAspectKey[] {
-  return [...new Set(aspects)];
+function dedupeMeaningBindings(meanings: readonly FieldMeaningBindingKey[]): FieldMeaningBindingKey[] {
+  return [...new Set(meanings)];
 }
 
-export const SEMANTIC_ANNOTATION_TO_SLOT_ASPECTS: Readonly<Record<SlotSemanticAnnotationKey, readonly SlotSemanticAspectKey[]>> =
-  Object.fromEntries(SYSTEM_SLOT_DEFINITIONS.map((definition) => [
-    definition.annotation,
-    dedupeSemanticAspects(SLOT_SEMANTIC_ASPECT_OVERRIDES[definition.annotation] ?? [definition.annotation]),
-  ])) as unknown as Record<SlotSemanticAnnotationKey, readonly SlotSemanticAspectKey[]>;
+export const FIELD_MEANING_TO_MEANING_BINDINGS: Readonly<Record<FieldMeaningKey, readonly FieldMeaningBindingKey[]>> =
+  Object.fromEntries(MEANING_SLOT_DEFINITIONS.map((definition) => [
+    definition.fieldMeaning,
+    dedupeMeaningBindings(FIELD_MEANING_BINDING_OVERRIDES[definition.fieldMeaning] ?? [definition.fieldMeaning]),
+  ])) as unknown as Record<FieldMeaningKey, readonly FieldMeaningBindingKey[]>;
 
-export const SYSTEM_CONTRACT_TO_RELATION_ANNOTATION: Readonly<Record<SystemContract, RelationSemanticAnnotationKey>> = {
-  'core:contains': 'structure.contains',
-  'core:entry_portal': 'structure.entry_portal',
-  'core:hierarchy_parent': 'structure.parent',
-} as const;
+const RELATION_MEANING_DEFINITIONS: readonly MeaningBindingDefinition[] = [
+  { key: 'structure.contains', scope: 'relation', category: 'structure', label: 'Contains' },
+  { key: 'structure.entry_portal', scope: 'relation', category: 'structure', label: 'Entry Portal' },
+  { key: 'structure.parent', scope: 'relation', category: 'structure', label: 'Parent Relation' },
+] as const;
 
-export const RELATION_ANNOTATION_TO_SYSTEM_CONTRACT: Readonly<Record<RelationSemanticAnnotationKey, SystemContract>> = {
-  'structure.contains': 'core:contains',
-  'structure.entry_portal': 'core:entry_portal',
-  'structure.parent': 'core:hierarchy_parent',
-} as const;
-
-export const SEMANTIC_ANNOTATION_DEFINITIONS: readonly SemanticAnnotationDefinition[] = [
-  ...SYSTEM_SLOT_DEFINITIONS.map((definition) => ({
-    key: definition.annotation,
-    legacyKey: definition.key,
-    scope: 'slot' as const,
+export const MEANING_BINDING_DEFINITIONS: readonly MeaningBindingDefinition[] = [
+  ...MEANING_SLOT_DEFINITIONS.map((definition) => ({
+    key: definition.fieldMeaning,
+    scope: 'field' as const,
     category: definition.category,
     label: definition.label,
     allowedFieldTypes: definition.allowedFieldTypes,
-    contractLevel: definition.contractLevel,
+    constraintLevel: definition.constraintLevel,
     multiValue: definition.multiValue,
   })),
-  { key: 'structure.contains', legacyKey: 'core:contains', scope: 'relation', category: 'structure', label: 'Contains' },
-  { key: 'structure.entry_portal', legacyKey: 'core:entry_portal', scope: 'relation', category: 'structure', label: 'Entry Portal' },
-  { key: 'structure.parent', legacyKey: 'core:hierarchy_parent', scope: 'relation', category: 'structure', label: 'Parent Relation' },
+  ...RELATION_MEANING_DEFINITIONS,
 ] as const;
 
-const EXTRA_SEMANTIC_ASPECT_DEFINITIONS: readonly SemanticAspectDefinition[] = [
-  { key: 'temporal.point', category: 'time', label: 'Temporal Point', description: 'A point on a temporal axis.' },
-  { key: 'temporal.boundary.start', category: 'time', label: 'Temporal Start Boundary' },
-  { key: 'temporal.boundary.end', category: 'time', label: 'Temporal End Boundary' },
-  { key: 'temporal.deadline', category: 'time', label: 'Temporal Deadline' },
-  { key: 'obligation.due', category: 'workflow', label: 'Obligation Due' },
-  { key: 'boundary.deadline', category: 'structure', label: 'Deadline Boundary' },
-  { key: 'consequence.trigger', category: 'workflow', label: 'Consequence Trigger' },
-  { key: 'workflow.completion', category: 'workflow', label: 'Workflow Completion' },
-  { key: 'relation.parent', category: 'structure', label: 'Parent Relation' },
-  { key: 'structure.hierarchy', category: 'structure', label: 'Hierarchy Structure' },
-  { key: 'provenance.source', category: 'knowledge', label: 'Provenance Source' },
-  { key: 'relation.citation', category: 'knowledge', label: 'Citation Relation' },
-  { key: 'responsibility.accountable_agent', category: 'governance', label: 'Accountable Agent' },
-  { key: 'authority.approver', category: 'governance', label: 'Approving Authority' },
-  { key: 'governance.approval_event', category: 'governance', label: 'Approval Event' },
+const EXTRA_FIELD_MEANING_BINDING_DEFINITIONS: readonly FieldMeaningBindingDefinition[] = [
+  { key: 'temporal.point', category: 'time', label: 'Temporal Point', description: 'A point on a temporal axis.', allowedFieldTypes: ['date', 'datetime'] },
+  { key: 'temporal.boundary.start', category: 'time', label: 'Temporal Start Boundary', allowedFieldTypes: ['date', 'datetime'] },
+  { key: 'temporal.boundary.end', category: 'time', label: 'Temporal End Boundary', allowedFieldTypes: ['date', 'datetime'] },
+  { key: 'temporal.deadline', category: 'time', label: 'Temporal Deadline', allowedFieldTypes: ['date', 'datetime'] },
+  { key: 'obligation.due', category: 'workflow', label: 'Obligation Due', allowedFieldTypes: ['date', 'datetime'] },
+  { key: 'boundary.deadline', category: 'structure', label: 'Deadline Boundary', allowedFieldTypes: ['date', 'datetime'] },
+  { key: 'consequence.trigger', category: 'workflow', label: 'Consequence Trigger', allowedFieldTypes: ['date', 'datetime', 'boolean'] },
+  { key: 'temporal.recurrence', category: 'time', label: 'Temporal Recurrence', allowedFieldTypes: ['select', 'radio', 'number', 'multi-select', 'tags'] },
+  { key: 'temporal.cadence', category: 'time', label: 'Temporal Cadence', allowedFieldTypes: ['select', 'radio'] },
+  { key: 'temporal.interval', category: 'time', label: 'Temporal Interval', allowedFieldTypes: ['number'] },
+  { key: 'calendar.weekday_set', category: 'time', label: 'Calendar Weekday Set', allowedFieldTypes: ['multi-select', 'tags'] },
+  { key: 'calendar.month_day', category: 'time', label: 'Calendar Month Day', allowedFieldTypes: ['number'] },
+  { key: 'recurrence.compound_rule', category: 'time', label: 'Compound Recurrence Rule', allowedFieldTypes: ['text'] },
+  { key: 'workflow.completion', category: 'workflow', label: 'Workflow Completion', allowedFieldTypes: ['date', 'datetime', 'boolean'] },
+  { key: 'relation.parent', category: 'structure', label: 'Parent Relation', allowedFieldTypes: ['relation', 'schema_ref'] },
+  { key: 'structure.hierarchy', category: 'structure', label: 'Hierarchy Structure', allowedFieldTypes: ['relation', 'schema_ref'] },
+  { key: 'provenance.source', category: 'knowledge', label: 'Provenance Source', allowedFieldTypes: ['url', 'text', 'relation', 'schema_ref'] },
+  { key: 'relation.citation', category: 'knowledge', label: 'Citation Relation', allowedFieldTypes: ['text', 'textarea', 'relation', 'schema_ref'] },
+  { key: 'responsibility.accountable_agent', category: 'governance', label: 'Accountable Agent', allowedFieldTypes: ['relation', 'schema_ref', 'select'] },
+  { key: 'authority.approver', category: 'governance', label: 'Approving Authority', allowedFieldTypes: ['relation', 'schema_ref', 'select'] },
+  { key: 'governance.approval_event', category: 'governance', label: 'Approval Event', allowedFieldTypes: ['date', 'datetime'] },
 ] as const;
 
-export const SEMANTIC_ASPECT_DEFINITIONS: readonly SemanticAspectDefinition[] = [
-  ...SYSTEM_SLOT_DEFINITIONS.map((definition) => ({
-    key: definition.annotation,
+export const FIELD_MEANING_BINDING_DEFINITIONS: readonly FieldMeaningBindingDefinition[] = [
+  ...MEANING_SLOT_DEFINITIONS.map((definition) => ({
+    key: definition.fieldMeaning,
     category: definition.category,
     label: definition.label,
-    impliedByAnnotations: [definition.annotation],
+    allowedFieldTypes: definition.allowedFieldTypes,
+    impliedByFieldMeanings: [definition.fieldMeaning],
   })),
-  ...EXTRA_SEMANTIC_ASPECT_DEFINITIONS,
+  ...EXTRA_FIELD_MEANING_BINDING_DEFINITIONS,
 ] as const;
 
-export const SEMANTIC_FACET_DEFINITIONS: readonly SemanticFacetDefinition[] = SEMANTIC_TRAIT_DEFINITIONS.map((definition) => ({
-  key: definition.key,
-  category: definition.category,
-  label: definition.label,
-  coreAnnotations: definition.coreSlots.map((slot) => SYSTEM_SLOT_TO_SEMANTIC_ANNOTATION[slot]),
-  optionalAnnotations: definition.optionalSlots.map((slot) => SYSTEM_SLOT_TO_SEMANTIC_ANNOTATION[slot]),
-  coreAspects: definition.coreSlots.flatMap((slot) => SEMANTIC_ANNOTATION_TO_SLOT_ASPECTS[SYSTEM_SLOT_TO_SEMANTIC_ANNOTATION[slot]]),
-  optionalAspects: definition.optionalSlots.flatMap((slot) => SEMANTIC_ANNOTATION_TO_SLOT_ASPECTS[SYSTEM_SLOT_TO_SEMANTIC_ANNOTATION[slot]]),
-  legacyTrait: definition.key,
-}));
-
-export function getSystemSlotDefinition(slot: SystemSlotKey): SystemSlotDefinition | undefined {
-  return SYSTEM_SLOT_DEFINITIONS.find((definition) => definition.key === slot);
+export function getMeaningSlotDefinition(slot: MeaningSlotKey): MeaningSlotDefinition | undefined {
+  return MEANING_SLOT_DEFINITIONS.find((definition) => definition.key === slot);
 }
 
-export function getSemanticAnnotationDefinition(annotation: SemanticAnnotationKey): SemanticAnnotationDefinition | undefined {
-  return SEMANTIC_ANNOTATION_DEFINITIONS.find((definition) => definition.key === annotation);
+export function getMeaningBindingDefinition(binding: MeaningBindingKey): MeaningBindingDefinition | undefined {
+  return MEANING_BINDING_DEFINITIONS.find((definition) => definition.key === binding);
 }
 
-export function getSemanticAspectDefinition(aspect: SlotSemanticAspectKey): SemanticAspectDefinition | undefined {
-  return SEMANTIC_ASPECT_DEFINITIONS.find((definition) => definition.key === aspect);
+export function getFieldMeaningBindingDefinition(meaning: FieldMeaningBindingKey): FieldMeaningBindingDefinition | undefined {
+  return FIELD_MEANING_BINDING_DEFINITIONS.find((definition) => definition.key === meaning);
 }
 
-export function systemSlotToSemanticAnnotation(slot: SystemSlotKey | null | undefined): SlotSemanticAnnotationKey | null {
-  return slot ? SYSTEM_SLOT_TO_SEMANTIC_ANNOTATION[slot] ?? null : null;
+export function getSemanticMeaningDefinition(meaning: SemanticMeaningKey): SemanticMeaningDefinition | undefined {
+  return SEMANTIC_MEANING_DEFINITIONS.find((definition) => definition.key === meaning);
 }
 
-export function semanticAnnotationToSlotAspects(annotation: SlotSemanticAnnotationKey | null | undefined): SlotSemanticAspectKey[] {
-  return annotation ? [...(SEMANTIC_ANNOTATION_TO_SLOT_ASPECTS[annotation] ?? [annotation])] : [];
+export function getSemanticMeaningForSlot(slot: MeaningSlotKey | null | undefined): SemanticMeaningDefinition | undefined {
+  return slot ? SEMANTIC_MEANING_DEFINITIONS.find((definition) => (
+    definition.coreSlots.includes(slot) || definition.optionalSlots.includes(slot) || definition.fallbackSlots?.includes(slot)
+  )) : undefined;
 }
 
-export function systemSlotToSemanticAspects(slot: SystemSlotKey | null | undefined): SlotSemanticAspectKey[] {
-  return semanticAnnotationToSlotAspects(systemSlotToSemanticAnnotation(slot));
+export function meaningSlotToFieldMeaning(slot: MeaningSlotKey | null | undefined): FieldMeaningKey | null {
+  return slot ? MEANING_SLOT_TO_FIELD_MEANING[slot] ?? null : null;
 }
 
-export function semanticAnnotationToSystemSlot(annotation: SlotSemanticAnnotationKey | null | undefined): SystemSlotKey | null {
-  return annotation ? SEMANTIC_ANNOTATION_TO_SYSTEM_SLOT[annotation] ?? null : null;
+export function fieldMeaningToMeaningBindings(fieldMeaning: FieldMeaningKey | null | undefined): FieldMeaningBindingKey[] {
+  return fieldMeaning ? [...(FIELD_MEANING_TO_MEANING_BINDINGS[fieldMeaning] ?? [fieldMeaning])] : [];
 }
 
-export function systemContractToSemanticAnnotation(contract: SystemContract | null | undefined): RelationSemanticAnnotationKey | null {
-  return contract ? SYSTEM_CONTRACT_TO_RELATION_ANNOTATION[contract] ?? null : null;
+export function meaningSlotToMeaningBindings(slot: MeaningSlotKey | null | undefined): FieldMeaningBindingKey[] {
+  return fieldMeaningToMeaningBindings(meaningSlotToFieldMeaning(slot));
 }
 
-export function semanticAnnotationToSystemContract(annotation: RelationSemanticAnnotationKey | null | undefined): SystemContract | null {
-  return annotation ? RELATION_ANNOTATION_TO_SYSTEM_CONTRACT[annotation] ?? null : null;
+export function fieldMeaningToMeaningSlot(fieldMeaning: FieldMeaningKey | null | undefined): MeaningSlotKey | null {
+  return fieldMeaning ? FIELD_MEANING_TO_MEANING_SLOT[fieldMeaning] ?? null : null;
 }
 
-export function getSemanticTraitDefinition(trait: SemanticTraitKey): SemanticTraitDefinition | undefined {
-  return SEMANTIC_TRAIT_DEFINITIONS.find((definition) => definition.key === trait);
+export function meaningBindingToMeaningSlot(meaning: FieldMeaningBindingKey | null | undefined): MeaningSlotKey | null {
+  return fieldMeaningToMeaningSlot(meaning as FieldMeaningKey | null | undefined);
 }
 
-export function getSemanticFacetDefinition(facet: SemanticFacetKey): SemanticFacetDefinition | undefined {
-  return SEMANTIC_FACET_DEFINITIONS.find((definition) => definition.key === facet);
+export function getSemanticModelDefinition(model: SemanticModelKey): SemanticModelDefinition | undefined {
+  return SEMANTIC_MODEL_DEFINITIONS.find((definition) => definition.key === model);
 }
 
 export function getSemanticCategoryLabelKey(category: SemanticCategoryKey): string {
@@ -552,34 +575,34 @@ export function getSemanticCategoryDescriptionKey(category: SemanticCategoryKey)
   return `semantic.category.${category}.description`;
 }
 
-export function getSemanticTraitLabelKey(trait: SemanticTraitKey): string {
-  return `semantic.trait.${trait}.label`;
+export function getSemanticModelLabelKey(model: SemanticModelKey): string {
+  return `semantic.model.${model}.label`;
 }
 
-export function getSemanticTraitDescriptionKey(trait: SemanticTraitKey): string {
-  return `semantic.trait.${trait}.description`;
+export function getSemanticModelDescriptionKey(model: SemanticModelKey): string {
+  return `semantic.model.${model}.description`;
 }
 
-export function getSemanticFacetLabelKey(facet: SemanticFacetKey): string {
-  return getSemanticTraitLabelKey(facet);
+export function getSemanticMeaningLabelKey(meaning: SemanticMeaningKey): string {
+  return `semantic.meaning.${meaning}.label`;
 }
 
-export function getSemanticFacetDescriptionKey(facet: SemanticFacetKey): string {
-  return getSemanticTraitDescriptionKey(facet);
+export function getSemanticMeaningDescriptionKey(meaning: SemanticMeaningKey): string {
+  return `semantic.meaning.${meaning}.description`;
 }
 
-export function getSemanticAnnotationLabelKey(annotation: SemanticAnnotationKey): string {
-  return `semantic.annotation.${annotation}.label`;
+export function getFieldMeaningLabelKey(fieldMeaning: FieldMeaningKey): string {
+  return `semantic.fieldMeaning.${fieldMeaning}.label`;
 }
 
-export function getSemanticAnnotationDescriptionKey(annotation: SemanticAnnotationKey): string {
-  return `semantic.annotation.${annotation}.description`;
+export function getFieldMeaningDescriptionKey(fieldMeaning: FieldMeaningKey): string {
+  return `semantic.fieldMeaning.${fieldMeaning}.description`;
 }
 
-export function getSystemSlotLabelKey(slot: SystemSlotKey): string {
+export function getMeaningSlotLabelKey(slot: MeaningSlotKey): string {
   return `semantic.slot.${slot}.label`;
 }
 
-export function getSystemSlotDescriptionKey(slot: SystemSlotKey): string {
+export function getMeaningSlotDescriptionKey(slot: MeaningSlotKey): string {
   return `semantic.slot.${slot}.description`;
 }

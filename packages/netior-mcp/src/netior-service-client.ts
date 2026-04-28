@@ -1,10 +1,15 @@
 import type {
-  Archetype,
-  ArchetypeField,
-  ArchetypeFieldCreate,
-  ArchetypeFieldUpdate,
-  ArchetypeCreate,
-  ArchetypeUpdate,
+  Schema,
+  SchemaField,
+  SchemaFieldCreate,
+  SchemaFieldUpdate,
+  SchemaMeaning,
+  SchemaMeaningCreate,
+  SchemaMeaningSlotBinding,
+  SchemaMeaningSlotBindingUpdate,
+  SchemaMeaningUpdate,
+  SchemaCreate,
+  SchemaUpdate,
   Concept,
   ConceptCreate,
   ConceptProperty,
@@ -31,6 +36,9 @@ import type {
   RelationType,
   RelationTypeCreate,
   RelationTypeUpdate,
+  SemanticModel,
+  SemanticModelCreate,
+  SemanticModelUpdate,
   NetiorServiceResponse,
   TypeGroup,
   TypeGroupCreate,
@@ -111,57 +119,122 @@ export async function deleteNetwork(id: string): Promise<boolean> {
   });
 }
 
-export async function listArchetypes(projectId: string): Promise<Archetype[]> {
-  return requestJson<Archetype[]>(`/archetypes${toQueryString({ projectId })}`);
+export async function listSchemas(projectId: string): Promise<Schema[]> {
+  return requestJson<Schema[]>(`/schemas${toQueryString({ projectId })}`);
 }
 
-export async function listArchetypeFields(archetypeId: string): Promise<ArchetypeField[]> {
-  return requestJson<ArchetypeField[]>(`/archetype-fields${toQueryString({ archetypeId })}`);
+export async function listSchemaFields(schemaId: string): Promise<SchemaField[]> {
+  return requestJson<SchemaField[]>(`/schema-fields${toQueryString({ schemaId })}`);
 }
 
-export async function createArchetypeField(data: ArchetypeFieldCreate): Promise<ArchetypeField> {
-  return requestJson<ArchetypeField>('/archetype-fields', {
+export async function listSchemaMeanings(schemaId: string): Promise<SchemaMeaning[]> {
+  return requestJson<SchemaMeaning[]>(`/schema-meanings${toQueryString({ schemaId })}`);
+}
+
+export async function ensureSchemaMeaning(data: SchemaMeaningCreate): Promise<SchemaMeaning | null> {
+  return requestJson<SchemaMeaning | null>('/schema-meanings', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function updateArchetypeField(id: string, data: ArchetypeFieldUpdate): Promise<ArchetypeField | null> {
-  return requestJson<ArchetypeField | null>(`/archetype-fields/${encodeURIComponent(id)}`, {
+export async function updateSchemaMeaning(
+  id: string,
+  data: SchemaMeaningUpdate,
+): Promise<SchemaMeaning | null> {
+  return requestJson<SchemaMeaning | null>(`/schema-meanings/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteArchetypeField(id: string): Promise<boolean> {
-  return requestJson<boolean>(`/archetype-fields/${encodeURIComponent(id)}`, {
+export async function deleteSchemaMeaning(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/schema-meanings/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }
 
-export async function reorderArchetypeFields(archetypeId: string, orderedIds: string[]): Promise<boolean> {
-  return requestJson<boolean>('/archetype-fields/reorder', {
+export async function updateSchemaMeaningSlotBinding(
+  id: string,
+  data: SchemaMeaningSlotBindingUpdate,
+): Promise<SchemaMeaningSlotBinding | null> {
+  return requestJson<SchemaMeaningSlotBinding | null>(`/schema-meaning-slots/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ archetypeId, orderedIds }),
+    body: JSON.stringify(data),
   });
 }
 
-export async function createArchetype(data: ArchetypeCreate): Promise<Archetype> {
-  return requestJson<Archetype>('/archetypes', {
+export async function createSchemaField(data: SchemaFieldCreate): Promise<SchemaField> {
+  return requestJson<SchemaField>('/schema-fields', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function updateArchetype(id: string, data: ArchetypeUpdate): Promise<Archetype | null> {
-  return requestJson<Archetype | null>(`/archetypes/${encodeURIComponent(id)}`, {
+export async function updateSchemaField(id: string, data: SchemaFieldUpdate): Promise<SchemaField | null> {
+  return requestJson<SchemaField | null>(`/schema-fields/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteArchetype(id: string): Promise<boolean> {
-  return requestJson<boolean>(`/archetypes/${encodeURIComponent(id)}`, {
+export async function deleteSchemaField(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/schema-fields/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function reorderSchemaFields(schemaId: string, orderedIds: string[]): Promise<boolean> {
+  return requestJson<boolean>('/schema-fields/reorder', {
+    method: 'PATCH',
+    body: JSON.stringify({ schemaId, orderedIds }),
+  });
+}
+
+export async function createSchema(data: SchemaCreate): Promise<Schema> {
+  return requestJson<Schema>('/schemas', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSchema(id: string, data: SchemaUpdate): Promise<Schema | null> {
+  return requestJson<Schema | null>(`/schemas/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSchema(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/schemas/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function listSemanticModels(projectId: string): Promise<SemanticModel[]> {
+  return requestJson<SemanticModel[]>(`/semantic-models${toQueryString({ projectId })}`);
+}
+
+export async function createSemanticModel(data: SemanticModelCreate): Promise<SemanticModel> {
+  return requestJson<SemanticModel>('/semantic-models', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getSemanticModel(id: string): Promise<SemanticModel | null> {
+  return requestJson<SemanticModel | null>(`/semantic-models/${encodeURIComponent(id)}`);
+}
+
+export async function updateSemanticModel(id: string, data: SemanticModelUpdate): Promise<SemanticModel | null> {
+  return requestJson<SemanticModel | null>(`/semantic-models/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSemanticModel(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/semantic-models/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }

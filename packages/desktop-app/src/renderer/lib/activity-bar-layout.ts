@@ -1,15 +1,19 @@
-export type ActivityBarTopItemKey = 'projects' | 'networks' | 'objects' | 'files' | 'sessions';
-export type ActivityBarBottomItemKey = 'narre' | 'terminal' | 'agents' | 'settings';
+export type ActivityBarTopItemKey =
+  | 'projects'
+  | 'networks'
+  | 'files'
+  | 'sessions';
+export type ActivityBarBottomItemKey = 'ontology' | 'narre' | 'terminal' | 'agents' | 'settings';
 
 export const ACTIVITY_BAR_TOP_ITEM_KEYS = [
   'projects',
   'networks',
-  'objects',
   'files',
   'sessions',
 ] as const satisfies readonly ActivityBarTopItemKey[];
 
 export const ACTIVITY_BAR_BOTTOM_ITEM_KEYS = [
+  'ontology',
   'narre',
   'terminal',
   'agents',
@@ -57,6 +61,22 @@ function normalizeItemOrder<T extends string>(value: unknown, defaults: readonly
   return [...ordered, ...defaults.filter((entry) => !ordered.includes(entry))];
 }
 
+function normalizeTopItemOrder(value: unknown): ActivityBarTopItemKey[] {
+  const entries = normalizeStringArray(value);
+  if (entries.includes('objects')) {
+    return [...ACTIVITY_BAR_TOP_ITEM_KEYS];
+  }
+  return normalizeItemOrder(entries, ACTIVITY_BAR_TOP_ITEM_KEYS);
+}
+
+function normalizeBottomItemOrder(value: unknown): ActivityBarBottomItemKey[] {
+  const entries = normalizeStringArray(value);
+  if (entries.includes('sessions')) {
+    return [...ACTIVITY_BAR_BOTTOM_ITEM_KEYS];
+  }
+  return normalizeItemOrder(entries, ACTIVITY_BAR_BOTTOM_ITEM_KEYS);
+}
+
 function normalizeNetworkBookmarksByProject(value: unknown): Record<string, string[]> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {};
@@ -84,8 +104,8 @@ export function normalizeActivityBarLayoutConfig(value: unknown): ActivityBarLay
     : {};
 
   return {
-    topItemOrder: normalizeItemOrder(source.topItemOrder, ACTIVITY_BAR_TOP_ITEM_KEYS),
-    bottomItemOrder: normalizeItemOrder(source.bottomItemOrder, ACTIVITY_BAR_BOTTOM_ITEM_KEYS),
+    topItemOrder: normalizeTopItemOrder(source.topItemOrder),
+    bottomItemOrder: normalizeBottomItemOrder(source.bottomItemOrder),
     networkBookmarksByProject: normalizeNetworkBookmarksByProject(source.networkBookmarksByProject),
   };
 }

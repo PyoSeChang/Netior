@@ -1,10 +1,15 @@
 import type {
-  Archetype,
-  ArchetypeCreate,
-  ArchetypeField,
-  ArchetypeFieldCreate,
-  ArchetypeFieldUpdate,
-  ArchetypeUpdate,
+  Schema,
+  SchemaCreate,
+  SchemaField,
+  SchemaFieldCreate,
+  SchemaFieldUpdate,
+  SchemaMeaning,
+  SchemaMeaningCreate,
+  SchemaMeaningSlotBinding,
+  SchemaMeaningSlotBindingUpdate,
+  SchemaMeaningUpdate,
+  SchemaUpdate,
   ConceptEditorPrefs,
   ConceptEditorPrefsUpdate,
   Concept,
@@ -46,6 +51,9 @@ import type {
   RelationType,
   RelationTypeCreate,
   RelationTypeUpdate,
+  SemanticModel,
+  SemanticModelCreate,
+  SemanticModelUpdate,
   TypeGroup,
   TypeGroupCreate,
   TypeGroupKind,
@@ -271,62 +279,96 @@ export async function removeRemoteModuleDirectory(id: string): Promise<boolean> 
   });
 }
 
-export async function listRemoteArchetypes(projectId: string): Promise<Archetype[]> {
-  return requestJson<Archetype[]>(`/archetypes${toQueryString({ projectId })}`);
+export async function listRemoteSchemas(projectId: string): Promise<Schema[]> {
+  return requestJson<Schema[]>(`/schemas${toQueryString({ projectId })}`);
 }
 
-export async function createRemoteArchetype(data: ArchetypeCreate): Promise<Archetype> {
-  return requestJson<Archetype>('/archetypes', {
+export async function createRemoteSchema(data: SchemaCreate): Promise<Schema> {
+  return requestJson<Schema>('/schemas', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function getRemoteArchetype(id: string): Promise<Archetype | null> {
-  return requestJson<Archetype | null>(`/archetypes/${encodeURIComponent(id)}`);
+export async function getRemoteSchema(id: string): Promise<Schema | null> {
+  return requestJson<Schema | null>(`/schemas/${encodeURIComponent(id)}`);
 }
 
-export async function updateRemoteArchetype(id: string, data: ArchetypeUpdate): Promise<Archetype | null> {
-  return requestJson<Archetype | null>(`/archetypes/${encodeURIComponent(id)}`, {
+export async function updateRemoteSchema(id: string, data: SchemaUpdate): Promise<Schema | null> {
+  return requestJson<Schema | null>(`/schemas/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteRemoteArchetype(id: string): Promise<boolean> {
-  return requestJson<boolean>(`/archetypes/${encodeURIComponent(id)}`, {
+export async function deleteRemoteSchema(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/schemas/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }
 
-export async function listRemoteArchetypeFields(archetypeId: string): Promise<ArchetypeField[]> {
-  return requestJson<ArchetypeField[]>(`/archetype-fields${toQueryString({ archetypeId })}`);
+export async function listRemoteSchemaFields(schemaId: string): Promise<SchemaField[]> {
+  return requestJson<SchemaField[]>(`/schema-fields${toQueryString({ schemaId })}`);
 }
 
-export async function createRemoteArchetypeField(data: ArchetypeFieldCreate): Promise<ArchetypeField> {
-  return requestJson<ArchetypeField>('/archetype-fields', {
+export async function createRemoteSchemaField(data: SchemaFieldCreate): Promise<SchemaField> {
+  return requestJson<SchemaField>('/schema-fields', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function updateRemoteArchetypeField(id: string, data: ArchetypeFieldUpdate): Promise<ArchetypeField | null> {
-  return requestJson<ArchetypeField | null>(`/archetype-fields/${encodeURIComponent(id)}`, {
+export async function updateRemoteSchemaField(id: string, data: SchemaFieldUpdate): Promise<SchemaField | null> {
+  return requestJson<SchemaField | null>(`/schema-fields/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteRemoteArchetypeField(id: string): Promise<boolean> {
-  return requestJson<boolean>(`/archetype-fields/${encodeURIComponent(id)}`, {
+export async function deleteRemoteSchemaField(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/schema-fields/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }
 
-export async function reorderRemoteArchetypeFields(archetypeId: string, orderedIds: string[]): Promise<boolean> {
-  return requestJson<boolean>('/archetype-fields/reorder', {
+export async function reorderRemoteSchemaFields(schemaId: string, orderedIds: string[]): Promise<boolean> {
+  return requestJson<boolean>('/schema-fields/reorder', {
     method: 'PATCH',
-    body: JSON.stringify({ archetypeId, orderedIds }),
+    body: JSON.stringify({ schemaId, orderedIds }),
+  });
+}
+
+export async function listRemoteSchemaMeanings(schemaId: string): Promise<SchemaMeaning[]> {
+  return requestJson<SchemaMeaning[]>(`/schema-meanings${toQueryString({ schemaId })}`);
+}
+
+export async function ensureRemoteSchemaMeaning(data: SchemaMeaningCreate): Promise<SchemaMeaning | null> {
+  return requestJson<SchemaMeaning | null>('/schema-meanings', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateRemoteSchemaMeaning(id: string, data: SchemaMeaningUpdate): Promise<SchemaMeaning | null> {
+  return requestJson<SchemaMeaning | null>(`/schema-meanings/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteRemoteSchemaMeaning(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/schema-meanings/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function updateRemoteSchemaMeaningSlotBinding(
+  id: string,
+  data: SchemaMeaningSlotBindingUpdate,
+): Promise<SchemaMeaningSlotBinding | null> {
+  return requestJson<SchemaMeaningSlotBinding | null>(`/schema-meaning-slots/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
   });
 }
 
@@ -354,6 +396,34 @@ export async function updateRemoteRelationType(id: string, data: RelationTypeUpd
 
 export async function deleteRemoteRelationType(id: string): Promise<boolean> {
   return requestJson<boolean>(`/relation-types/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function listRemoteSemanticModels(projectId: string): Promise<SemanticModel[]> {
+  return requestJson<SemanticModel[]>(`/semantic-models${toQueryString({ projectId })}`);
+}
+
+export async function createRemoteSemanticModel(data: SemanticModelCreate): Promise<SemanticModel> {
+  return requestJson<SemanticModel>('/semantic-models', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getRemoteSemanticModel(id: string): Promise<SemanticModel | null> {
+  return requestJson<SemanticModel | null>(`/semantic-models/${encodeURIComponent(id)}`);
+}
+
+export async function updateRemoteSemanticModel(id: string, data: SemanticModelUpdate): Promise<SemanticModel | null> {
+  return requestJson<SemanticModel | null>(`/semantic-models/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteRemoteSemanticModel(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/semantic-models/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }

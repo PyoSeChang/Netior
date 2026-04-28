@@ -180,20 +180,27 @@ const electronAPI = {
     remove: (id: string) => ipcRenderer.invoke('moduleDir:remove', id),
     updatePath: (id: string, dirPath: string) => ipcRenderer.invoke('moduleDir:updatePath', id, dirPath),
   },
-  archetype: {
-    create: (data: Record<string, unknown>) => ipcRenderer.invoke('archetype:create', data),
-    list: (projectId: string) => ipcRenderer.invoke('archetype:list', projectId),
-    get: (id: string) => ipcRenderer.invoke('archetype:get', id),
+  schema: {
+    create: (data: Record<string, unknown>) => ipcRenderer.invoke('schema:create', data),
+    list: (projectId: string) => ipcRenderer.invoke('schema:list', projectId),
+    get: (id: string) => ipcRenderer.invoke('schema:get', id),
     update: (id: string, data: Record<string, unknown>) =>
-      ipcRenderer.invoke('archetype:update', id, data),
-    delete: (id: string) => ipcRenderer.invoke('archetype:delete', id),
-    createField: (data: Record<string, unknown>) => ipcRenderer.invoke('archetypeField:create', data),
-    listFields: (archetypeId: string) => ipcRenderer.invoke('archetypeField:list', archetypeId),
+      ipcRenderer.invoke('schema:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('schema:delete', id),
+    createField: (data: Record<string, unknown>) => ipcRenderer.invoke('schemaField:create', data),
+    listFields: (schemaId: string) => ipcRenderer.invoke('schemaField:list', schemaId),
     updateField: (id: string, data: Record<string, unknown>) =>
-      ipcRenderer.invoke('archetypeField:update', id, data),
-    deleteField: (id: string) => ipcRenderer.invoke('archetypeField:delete', id),
-    reorderFields: (archetypeId: string, orderedIds: string[]) =>
-      ipcRenderer.invoke('archetypeField:reorder', archetypeId, orderedIds),
+      ipcRenderer.invoke('schemaField:update', id, data),
+    deleteField: (id: string) => ipcRenderer.invoke('schemaField:delete', id),
+    reorderFields: (schemaId: string, orderedIds: string[]) =>
+      ipcRenderer.invoke('schemaField:reorder', schemaId, orderedIds),
+    listMeanings: (schemaId: string) => ipcRenderer.invoke('schemaMeaning:list', schemaId),
+    ensureMeaning: (data: Record<string, unknown>) => ipcRenderer.invoke('schemaMeaning:ensure', data),
+    updateMeaning: (id: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('schemaMeaning:update', id, data),
+    deleteMeaning: (id: string) => ipcRenderer.invoke('schemaMeaning:delete', id),
+    updateMeaningSlot: (id: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('schemaMeaningSlot:update', id, data),
   },
   relationType: {
     create: (data: Record<string, unknown>) => ipcRenderer.invoke('relationType:create', data),
@@ -202,6 +209,14 @@ const electronAPI = {
     update: (id: string, data: Record<string, unknown>) =>
       ipcRenderer.invoke('relationType:update', id, data),
     delete: (id: string) => ipcRenderer.invoke('relationType:delete', id),
+  },
+  model: {
+    create: (data: Record<string, unknown>) => ipcRenderer.invoke('model:create', data),
+    list: (projectId: string) => ipcRenderer.invoke('model:list', projectId),
+    get: (id: string) => ipcRenderer.invoke('model:get', id),
+    update: (id: string, data: Record<string, unknown>) =>
+      ipcRenderer.invoke('model:update', id, data),
+    delete: (id: string) => ipcRenderer.invoke('model:delete', id),
   },
   conceptProp: {
     upsert: (data: Record<string, unknown>) => ipcRenderer.invoke('conceptProp:upsert', data),

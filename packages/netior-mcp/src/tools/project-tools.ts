@@ -1,19 +1,20 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { ArchetypeField, NetworkTreeNode, TypeGroup } from '@netior/shared/types';
+import type { SchemaField, NetworkTreeNode, TypeGroup } from '@netior/shared/types';
 import {
   getUniverseNetwork,
   getProjectById,
   getProjectOntologyNetwork,
   getNetworkTree,
-  listArchetypeFields,
-  listArchetypes,
+  listSchemaFields,
+  listSchemas,
   listRelationTypes,
   listTypeGroups,
   getConceptsByProject,
   listNetworks,
 } from '../netior-service-client.js';
 import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
+import { toAgentConcept, toAgentFieldType, toAgentTypeGroupKind } from './schema-surface.js';
 
 function buildTypeGroupPathMap(groups: TypeGroup[]): Map<string, string> {
   const byId = new Map(groups.map((group) => [group.id, group]));
@@ -42,7 +43,7 @@ function mapTypeGroups(groups: TypeGroup[]): Array<{ id: string; kind: string; p
   const pathMap = buildTypeGroupPathMap(groups);
   return groups.map((group) => ({
     id: group.id,
-    kind: group.kind,
+    kind: toAgentTypeGroupKind(group.kind),
     path: pathMap.get(group.id) ?? group.name,
   }));
 }
@@ -64,15 +65,15 @@ function buildOptionsPreview(options: string | null): string[] | undefined {
   return values.slice(0, 5);
 }
 
-function mapArchetypeFields(
-  fields: ArchetypeField[],
-  archetypeNames: Map<string, string>,
+function mapSchemaFields(
+  fields: SchemaField[],
+  schemaNames: Map<string, string>,
 ): Array<{
   id: string;
   name: string;
   field_type: string;
   required: boolean;
-  ref_archetype_name?: string;
+  ref_schema_name?: string;
   options_preview?: string[];
 }> {
   return fields.map((field) => {
@@ -81,10 +82,10 @@ function mapArchetypeFields(
     return {
       id: field.id,
       name: field.name,
-      field_type: field.field_type,
+      field_type: toAgentFieldType(field.field_type),
       required: field.required,
-      ...(field.ref_archetype_id
-        ? { ref_archetype_name: archetypeNames.get(field.ref_archetype_id) ?? field.ref_archetype_id }
+      ...(field.ref_schema_id
+        ? { ref_schema_name: schemaNames.get(field.ref_schema_id) ?? field.ref_schema_id }
         : {}),
       ...(optionsPreview ? { options_preview: optionsPreview } : {}),
     };
@@ -124,33 +125,33 @@ export function registerProjectTools(server: McpServer): void {
         }
 
         const [
-          archetypes,
+          schemas,
           relationTypes,
           concepts,
           networks,
-          archetypeGroups,
+          schemaGroups,
           relationTypeGroups,
           universeNetwork,
           ontologyNetwork,
           networkTree,
         ] = await Promise.all([
-          listArchetypes(targetProjectId),
+          listSchemas(targetProjectId),
           listRelationTypes(targetProjectId),
           getConceptsByProject(targetProjectId),
           listNetworks(targetProjectId),
-          listTypeGroups(targetProjectId, 'archetype'),
+          listTypeGroups(targetProjectId, 'schema'),
           listTypeGroups(targetProjectId, 'relation_type'),
           getUniverseNetwork(),
           getProjectOntologyNetwork(targetProjectId),
           getNetworkTree(targetProjectId),
         ]);
-        const archetypeNameMap = new Map<string, string>(archetypes.map((archetype) => [archetype.id, archetype.name]));
-        const archetypeFieldsById = new Map<string, ArchetypeField[]>(
+        const schemaNameMap = new Map<string, string>(schemas.map((schema) => [schema.id, schema.name]));
+        const schemaFieldsById = new Map<string, SchemaField[]>(
           await Promise.all(
-            archetypes.map(async (archetype) => [archetype.id, await listArchetypeFields(archetype.id)] as const),
+            schemas.map(async (schema) => [schema.id, await listSchemaFields(schema.id)] as const),
           ),
         );
-        const typeGroups = mapTypeGroups([...archetypeGroups, ...relationTypeGroups]);
+        const typeGroups = mapTypeGroups([...schemaGroups, ...relationTypeGroups]);
 
         const summary = {
           project: {
@@ -158,16 +159,16 @@ export function registerProjectTools(server: McpServer): void {
             name: project.name,
             root_dir: project.root_dir,
           },
-          archetypes: {
-            count: archetypes.length,
-            items: archetypes.map((archetype) => ({
-              id: archetype.id,
-              name: archetype.name,
-              icon: archetype.icon,
-              color: archetype.color,
-              node_shape: archetype.node_shape,
-              description: archetype.description,
-              fields: mapArchetypeFields(archetypeFieldsById.get(archetype.id) ?? [], archetypeNameMap),
+          schemas: {
+            count: schemas.length,
+            items: schemas.map((schema) => ({
+              id: schema.id,
+              name: schema.name,
+              icon: schema.icon,
+              color: schema.color,
+              node_shape: schema.node_shape,
+              description: schema.description,
+              fields: mapSchemaFields(schemaFieldsById.get(schema.id) ?? [], schemaNameMap),
             })),
           },
           relation_types: {
@@ -187,7 +188,10 @@ export function registerProjectTools(server: McpServer): void {
           },
           concepts: {
             count: concepts.length,
-            items: concepts.map((c) => ({ id: c.id, title: c.title, archetype_id: c.archetype_id })),
+            items: concepts.map((concept) => {
+              const agentConcept = toAgentConcept(concept);
+              return { id: agentConcept.id, title: agentConcept.title, schema_id: agentConcept.schema_id };
+            }),
           },
           networks: {
             count: networks.length,

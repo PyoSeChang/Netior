@@ -5,12 +5,12 @@ describe('field complexity visibility', () => {
   it('shows only beginner-safe field types at basic level', () => {
     expect(isFieldTypeVisibleAtLevel('text', 'basic')).toBe(true);
     expect(isFieldTypeVisibleAtLevel('multi-select', 'basic')).toBe(true);
-    expect(isFieldTypeVisibleAtLevel('archetype_ref', 'basic')).toBe(false);
+    expect(isFieldTypeVisibleAtLevel('schema_ref', 'basic')).toBe(false);
     expect(isFieldTypeVisibleAtLevel('relation', 'basic')).toBe(false);
   });
 
   it('shows concept-backed selection at standard level but keeps relation hidden', () => {
-    expect(isFieldTypeVisibleAtLevel('archetype_ref', 'standard')).toBe(true);
+    expect(isFieldTypeVisibleAtLevel('schema_ref', 'standard')).toBe(true);
     expect(isFieldTypeVisibleAtLevel('file', 'standard')).toBe(true);
     expect(isFieldTypeVisibleAtLevel('relation', 'standard')).toBe(false);
   });

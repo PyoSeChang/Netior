@@ -19,7 +19,8 @@ export type NetworkBrowserObjectType =
   | 'network'
   | 'project'
   | 'concept'
-  | 'archetype'
+  | 'schema'
+  | 'model'
   | 'relation_type'
   | 'context'
   | 'file'
@@ -54,7 +55,8 @@ const ICONS: Record<NetworkBrowserObjectType, React.ElementType> = {
   network: Waypoints,
   project: FolderOpen,
   concept: CircleDot,
-  archetype: Shapes,
+  schema: Shapes,
+  model: Boxes,
   relation_type: Share2,
   context: Layers3,
   file: FileText,
@@ -251,7 +253,7 @@ export function NetworkObjectBrowser({
                                 ? 'bg-accent-muted/40 text-accent'
                                 : 'text-default hover:bg-state-hover'
                           }`}
-                          onClick={() => onSelect(item)}
+                          onClick={() => onOpen(item)}
                           onDoubleClick={() => onOpen(item)}
                         >
                           <div className={`rounded-lg p-2 ${selected ? 'bg-accent-muted text-accent' : 'bg-surface-editor text-secondary'}`}>

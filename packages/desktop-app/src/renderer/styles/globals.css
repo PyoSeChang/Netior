@@ -310,7 +310,7 @@ body,
   --tab-radius: 12px;
 }
 
-.workspace-title-strip .window-control-button {
+.tab-strip .window-control-button {
   height: 35px;
 }
 

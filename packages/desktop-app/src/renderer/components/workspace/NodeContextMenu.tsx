@@ -75,11 +75,18 @@ export function NodeContextMenu({
         networkId: currentNetwork?.id,
         nodeId,
       });
-    } else if (objectType === 'archetype') {
+    } else if (objectType === 'schema') {
       useEditorStore.getState().openTab({
-        type: 'archetype',
+        type: 'schema',
         targetId: objectTargetId,
-        title: objectTitle ?? t('archetype.title'),
+        title: objectTitle ?? t('schema.title'),
+      });
+    } else if (objectType === 'model') {
+      useEditorStore.getState().openTab({
+        type: 'model',
+        targetId: objectTargetId,
+        title: objectTitle ?? t('model.title' as never),
+        projectId: currentNetwork?.project_id ?? undefined,
       });
     } else if (objectType === 'relation_type') {
       useEditorStore.getState().openTab({
@@ -106,7 +113,7 @@ export function NodeContextMenu({
   const canOpenEditor =
     !!objectType &&
     !!objectTargetId &&
-    ['network', 'project', 'concept', 'archetype', 'relation_type', 'context', 'file'].includes(objectType);
+    ['network', 'project', 'concept', 'schema', 'model', 'relation_type', 'context', 'file'].includes(objectType);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

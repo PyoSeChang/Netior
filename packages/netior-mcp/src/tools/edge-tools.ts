@@ -1,6 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { RelationSemanticAnnotationKey } from '@netior/shared/types';
 import {
   createEdge,
   deleteEdge,
@@ -9,17 +8,6 @@ import {
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
 import { registerNetiorTool } from './shared-tool-registry.js';
-
-const systemContractSchema = z.enum([
-  'core:contains',
-  'core:entry_portal',
-  'core:hierarchy_parent',
-]);
-const relationSemanticAnnotationSchema = z.enum([
-  'structure.contains',
-  'structure.entry_portal',
-  'structure.parent',
-]);
 
 export function registerEdgeTools(server: McpServer): void {
   registerNetiorTool(
@@ -30,19 +18,15 @@ export function registerEdgeTools(server: McpServer): void {
       source_node_id: z.string().describe('Source node ID'),
       target_node_id: z.string().describe('Target node ID'),
       relation_type_id: z.string().optional().describe('Optional relation type ID'),
-      semantic_annotation: relationSemanticAnnotationSchema.optional().describe('Optional relation semantic annotation'),
-      system_contract: systemContractSchema.optional().describe('Legacy optional system contract'),
       description: z.string().optional().describe('Optional edge description'),
     },
-    async ({ network_id, source_node_id, target_node_id, relation_type_id, semantic_annotation, system_contract, description }) => {
+    async ({ network_id, source_node_id, target_node_id, relation_type_id, description }) => {
       try {
         const result = await createEdge({
           network_id,
           source_node_id,
           target_node_id,
           relation_type_id,
-          semantic_annotation: semantic_annotation as RelationSemanticAnnotationKey | undefined,
-          system_contract,
           description,
         });
         emitChange({ type: 'edge', action: 'create', id: result.id });
@@ -89,16 +73,12 @@ export function registerEdgeTools(server: McpServer): void {
     {
       edge_id: z.string().describe('The edge ID'),
       relation_type_id: z.string().nullable().optional().describe('Relation type ID or null'),
-      semantic_annotation: relationSemanticAnnotationSchema.nullable().optional().describe('Relation semantic annotation or null'),
-      system_contract: systemContractSchema.nullable().optional().describe('Legacy system contract or null'),
       description: z.string().nullable().optional().describe('Edge description or null'),
     },
-    async ({ edge_id, relation_type_id, semantic_annotation, system_contract, description }) => {
+    async ({ edge_id, relation_type_id, description }) => {
       try {
         const result = await updateEdge(edge_id, {
           relation_type_id,
-          semantic_annotation: semantic_annotation as RelationSemanticAnnotationKey | null | undefined,
-          system_contract,
           description,
         });
         if (!result) {

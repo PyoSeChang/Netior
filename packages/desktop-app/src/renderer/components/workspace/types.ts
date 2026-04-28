@@ -51,7 +51,7 @@ export interface RenderEdge {
   label: string;
   color?: string;
   lineStyle?: 'solid' | 'dashed' | 'dotted';
-  systemContract?: string | null;
+  relationMeaning?: string | null;
   route?: 'straight' | 'orthogonal' | 'hidden';
   routePoints?: RenderPoint[];
   routeStrategy?: 'default' | 'hierarchy-branch';

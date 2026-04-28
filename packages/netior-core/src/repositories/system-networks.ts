@@ -4,7 +4,7 @@ import type { Network, NetworkNode, NetworkObjectType, ObjectRecord } from '@net
 
 type NetworkScope = 'app' | 'project';
 type SystemNetworkKind = 'universe' | 'ontology';
-type OntologyObjectRole = 'type_group' | 'archetype' | 'relation_type';
+type OntologyObjectRole = 'type_group' | 'model' | 'schema' | 'relation_type';
 
 function insertNetworkLayout(db: Database.Database, networkId: string, now: string): void {
   db.prepare(
@@ -322,11 +322,18 @@ export function ensureProjectNodeInUniverseForDb(db: Database.Database, projectI
 }
 
 function ensureOntologyObjectRecordsForDb(db: Database.Database, projectId: string): void {
-  const archetypes = db.prepare(
-    'SELECT id, project_id, created_at FROM archetypes WHERE project_id = ?',
+  const schemas = db.prepare(
+    'SELECT id, project_id, created_at FROM schemas WHERE project_id = ?',
   ).all(projectId) as { id: string; project_id: string; created_at: string }[];
-  for (const archetype of archetypes) {
-    ensureObjectForDb(db, 'archetype', 'project', archetype.project_id, archetype.id, archetype.created_at);
+  for (const schema of schemas) {
+    ensureObjectForDb(db, 'schema', 'project', schema.project_id, schema.id, schema.created_at);
+  }
+
+  const models = db.prepare(
+    'SELECT id, project_id, created_at FROM semantic_models WHERE project_id = ?',
+  ).all(projectId) as { id: string; project_id: string; created_at: string }[];
+  for (const model of models) {
+    ensureObjectForDb(db, 'model', 'project', model.project_id, model.id, model.created_at);
   }
 
   const relationTypes = db.prepare(
@@ -354,17 +361,22 @@ function listOntologyObjectsForDb(
       JOIN type_groups tg ON o.object_type = 'type_group' AND o.ref_id = tg.id
      WHERE tg.project_id = ?
     UNION ALL
-    SELECT o.*, 'archetype' AS ontology_role, 1 AS sort_order, a.created_at AS sort_created_at
+    SELECT o.*, 'schema' AS ontology_role, 1 AS sort_order, a.created_at AS sort_created_at
       FROM objects o
-      JOIN archetypes a ON o.object_type = 'archetype' AND o.ref_id = a.id
+      JOIN schemas a ON o.object_type = 'schema' AND o.ref_id = a.id
      WHERE a.project_id = ?
     UNION ALL
-    SELECT o.*, 'relation_type' AS ontology_role, 2 AS sort_order, rt.created_at AS sort_created_at
+    SELECT o.*, 'model' AS ontology_role, 2 AS sort_order, sm.created_at AS sort_created_at
+      FROM objects o
+      JOIN semantic_models sm ON o.object_type = 'model' AND o.ref_id = sm.id
+     WHERE sm.project_id = ?
+    UNION ALL
+    SELECT o.*, 'relation_type' AS ontology_role, 3 AS sort_order, rt.created_at AS sort_created_at
       FROM objects o
       JOIN relation_types rt ON o.object_type = 'relation_type' AND o.ref_id = rt.id
      WHERE rt.project_id = ?
      ORDER BY sort_order, sort_created_at
-  `).all(projectId, projectId, projectId) as Array<ObjectRecord & {
+  `).all(projectId, projectId, projectId, projectId) as Array<ObjectRecord & {
     ontology_role: OntologyObjectRole;
     sort_order: number;
     sort_created_at: string;
@@ -373,9 +385,10 @@ function listOntologyObjectsForDb(
 
 function getDefaultOntologyNodePosition(role: OntologyObjectRole, index: number): string {
   const laneX: Record<OntologyObjectRole, number> = {
-    type_group: -360,
-    archetype: 0,
-    relation_type: 360,
+    type_group: -540,
+    model: -180,
+    schema: 180,
+    relation_type: 540,
   };
   return JSON.stringify({
     x: laneX[role],
@@ -415,7 +428,8 @@ export function syncProjectOntologyForDb(db: Database.Database, projectId: strin
 
   const roleIndexes: Record<OntologyObjectRole, number> = {
     type_group: 0,
-    archetype: 0,
+    model: 0,
+    schema: 0,
     relation_type: 0,
   };
 

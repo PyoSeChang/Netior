@@ -16,26 +16,14 @@ const NODE_CONFIG_METADATA_KEY = 'nodeConfig';
 
 const nodeSortConfigSchema = z.discriminatedUnion('kind', [
   z.object({
-    kind: z.literal('system_slot'),
-    slot: z.string().describe('System slot key to sort by, such as order_index'),
-    direction: nodeSortDirectionSchema.optional().describe('Sort direction'),
-    emptyPlacement: nodeSortEmptyPlacementSchema.optional().describe('Where empty values should be placed'),
-  }),
-  z.object({
-    kind: z.literal('semantic_annotation'),
-    annotation: z.string().describe('Slot semantic annotation to sort by, such as time.due'),
-    direction: nodeSortDirectionSchema.optional().describe('Sort direction'),
-    emptyPlacement: nodeSortEmptyPlacementSchema.optional().describe('Where empty values should be placed'),
-  }),
-  z.object({
-    kind: z.literal('semantic_aspect'),
-    aspect: z.string().describe('Slot semantic aspect path to sort by, such as temporal.deadline'),
+    kind: z.literal('meaning_binding'),
+    meaning: z.string().describe('Meaning binding key to sort by, such as time.due or temporal.deadline'),
     direction: nodeSortDirectionSchema.optional().describe('Sort direction'),
     emptyPlacement: nodeSortEmptyPlacementSchema.optional().describe('Where empty values should be placed'),
   }),
   z.object({
     kind: z.literal('property'),
-    fieldId: z.string().describe('Archetype field ID to sort by'),
+    fieldId: z.string().describe('Schema field ID to sort by'),
     direction: nodeSortDirectionSchema.optional().describe('Sort direction'),
     emptyPlacement: nodeSortEmptyPlacementSchema.optional().describe('Where empty values should be placed'),
   }),

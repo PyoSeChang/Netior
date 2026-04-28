@@ -5,8 +5,8 @@ import type {
   BuiltInSkillId,
   Project,
   ProjectCreate,
-  Archetype,
-  ArchetypeCreate,
+  Schema,
+  SchemaCreate,
   RelationType,
   RelationTypeCreate,
   Concept,
@@ -277,7 +277,7 @@ export interface SeedContext {
   tempDir: string;
   scenarioDir: string;
   createProject(data: ProjectCreate): Promise<Project>;
-  createArchetype(data: ArchetypeCreate): Promise<Archetype>;
+  createSchema(data: SchemaCreate): Promise<Schema>;
   createRelationType(data: RelationTypeCreate): Promise<RelationType>;
   createConcept(data: ConceptCreate): Promise<Concept>;
   createFileEntity(data: FileEntityCreate): Promise<FileEntity>;

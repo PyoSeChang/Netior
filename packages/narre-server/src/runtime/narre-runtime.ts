@@ -576,8 +576,8 @@ function buildMentionTag(mention: NarreMention): string {
   if (mentionType === 'edge') {
     return `[edge:id=${mention.id}]`;
   }
-  if (mentionType === 'archetype') {
-    return `[archetype:id=${mention.id}, name="${mention.display}"]`;
+  if (mentionType === 'schema') {
+    return `[schema:id=${mention.id}, name="${mention.display}"]`;
   }
   if (mentionType === 'relationType' || mentionType === 'canvasType') {
     return `[${mentionType}:id=${mention.id}, name="${mention.display}"]`;

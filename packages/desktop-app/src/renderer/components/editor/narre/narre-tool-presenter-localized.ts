@@ -8,12 +8,12 @@ import type { NarreToolCall, NarreToolCategory } from '@netior/shared/types';
 
 const COUNT_NOUNS: Record<string, { ko: string; en: string }> = {
   list_concepts: { ko: '개념', en: 'concept' },
-  list_archetypes: { ko: '아키타입', en: 'archetype' },
+  list_schemas: { ko: '스키마', en: 'schema' },
   list_relation_types: { ko: '관계 유형', en: 'relation type' },
   list_networks: { ko: '네트워크', en: 'network' },
   list_modules: { ko: '모듈', en: 'module' },
   list_type_groups: { ko: '타입 그룹', en: 'type group' },
-  list_archetype_fields: { ko: '필드', en: 'field' },
+  list_schema_fields: { ko: '필드', en: 'field' },
   glob_files: { ko: '파일', en: 'file' },
   grep_files: { ko: '일치 항목', en: 'match' },
   list_directory: { ko: '항목', en: 'entry' },
@@ -123,11 +123,11 @@ function summarizeProjectSummary(
   const projectName = preferReadableLabel(project?.name, input.project_name, input.project_id);
   const conceptCount = asNumber(asRecord(parsed?.concepts)?.count);
   const networkCount = asNumber(asRecord(parsed?.networks)?.count);
-  const archetypeCount = asNumber(asRecord(parsed?.archetypes)?.count);
+  const schemaCount = asNumber(asRecord(parsed?.schemas)?.count);
 
   if (locale === 'ko') {
     const parts = [
-      archetypeCount !== null ? `아키타입 ${archetypeCount}개` : null,
+      schemaCount !== null ? `스키마 ${schemaCount}개` : null,
       conceptCount !== null ? `개념 ${conceptCount}개` : null,
       networkCount !== null ? `네트워크 ${networkCount}개` : null,
     ].filter((part): part is string => Boolean(part));

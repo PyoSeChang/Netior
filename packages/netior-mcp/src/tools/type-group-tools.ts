@@ -14,8 +14,9 @@ import {
   resolveNullableProjectId,
   resolveProjectId,
 } from './shared-tool-registry.js';
+import { fromAgentTypeGroupKind, toAgentTypeGroup, type AgentTypeGroupKind } from './schema-surface.js';
 
-const typeGroupKindSchema = z.enum(['archetype', 'relation_type']);
+const typeGroupKindSchema = z.enum(['schema', 'relation_type']);
 
 export function registerTypeGroupTools(server: McpServer): void {
   registerNetiorTool(
@@ -23,11 +24,12 @@ export function registerTypeGroupTools(server: McpServer): void {
     'list_type_groups',
     {
       project_id: projectIdSchema(),
-      kind: typeGroupKindSchema.describe('Whether to list archetype groups or relation type groups'),
+      kind: typeGroupKindSchema.describe('Whether to list schema groups or relation type groups'),
     },
     async ({ project_id, kind }) => {
       try {
-        const result = await listTypeGroups(resolveProjectId(project_id), kind);
+        const result = (await listTypeGroups(resolveProjectId(project_id), fromAgentTypeGroupKind(kind as AgentTypeGroupKind)))
+          .map(toAgentTypeGroup);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -54,7 +56,7 @@ export function registerTypeGroupTools(server: McpServer): void {
     async ({ kind, name, project_id, scope, parent_group_id, sort_order }) => {
       try {
         const result = await createTypeGroup({
-          kind,
+          kind: fromAgentTypeGroupKind(kind as AgentTypeGroupKind),
           name,
           project_id: resolveNullableProjectId(project_id),
           scope,
@@ -63,7 +65,7 @@ export function registerTypeGroupTools(server: McpServer): void {
         });
         emitChange({ type: 'typeGroup', action: 'create', id: result.id });
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(toAgentTypeGroup(result), null, 2) }],
         };
       } catch (error) {
         return {
@@ -98,7 +100,7 @@ export function registerTypeGroupTools(server: McpServer): void {
         }
         emitChange({ type: 'typeGroup', action: 'update', id: group_id });
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(toAgentTypeGroup(result), null, 2) }],
         };
       } catch (error) {
         return {

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Boxes, Plus, Trash2, Waypoints, ChevronRight, ChevronDown, ExternalLink, Pin, PinOff } from 'lucide-react';
-import type { NetworkTreeNode } from '@netior/shared/types';
+import type { NetworkKind, NetworkTreeNode } from '@netior/shared/types';
 import { useNetworkStore } from '../../stores/network-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useActivityBarStore } from '../../stores/activity-bar-store';
@@ -11,6 +11,19 @@ import { openNetworkViewerTab } from '../../lib/open-network-viewer-tab';
 
 interface NetworkListProps {
   projectId: string;
+  kindFilter?: NetworkKind;
+  title?: string;
+  canCreate?: boolean;
+}
+
+function filterTreeByKind(nodes: NetworkTreeNode[], kind: NetworkKind): NetworkTreeNode[] {
+  return nodes.flatMap((node) => {
+    if (node.network.kind === kind) {
+      return [node];
+    }
+
+    return filterTreeByKind(node.children, kind);
+  });
 }
 
 // ─── Context Menu ────────────────────────────────────────────────
@@ -92,7 +105,7 @@ function TreeNode({
 
 // ─── NetworkList Root ─────────────────────────────────────────────
 
-export function NetworkList({ projectId }: NetworkListProps): JSX.Element {
+export function NetworkList({ projectId, kindFilter, title, canCreate }: NetworkListProps): JSX.Element {
   const { t } = useI18n();
   const { currentNetwork, createNetwork, openNetwork, loadNetworkTree, networkTree } = useNetworkStore();
   const ensureActivityBarLoaded = useActivityBarStore((state) => state.ensureLoaded);
@@ -102,6 +115,8 @@ export function NetworkList({ projectId }: NetworkListProps): JSX.Element {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [contextMenu, setContextMenu] = useState<NetworkContextMenuState | null>(null);
+  const allowCreate = canCreate ?? kindFilter !== 'ontology';
+  const visibleTree = kindFilter ? filterTreeByKind(networkTree, kindFilter) : networkTree;
 
   useEffect(() => {
     loadNetworkTree(projectId);
@@ -124,6 +139,7 @@ export function NetworkList({ projectId }: NetworkListProps): JSX.Element {
   }, [creating]);
 
   const handleCreate = async () => {
+    if (!allowCreate) return;
     if (!newName.trim()) return;
     const network = await createNetwork({
       project_id: projectId,
@@ -175,7 +191,7 @@ export function NetworkList({ projectId }: NetworkListProps): JSX.Element {
         });
       },
     },
-    {
+    ...(!contextMenuIsSystem ? [{
       label: contextMenuIsBookmarked ? t('sidebar.removeBookmark' as never) : t('sidebar.addBookmark' as never),
       icon: contextMenuIsBookmarked ? <PinOff size={14} /> : <Pin size={14} />,
       onClick: async () => {
@@ -185,7 +201,7 @@ export function NetworkList({ projectId }: NetworkListProps): JSX.Element {
         }
         await addBookmark(projectId, contextMenu.networkId);
       },
-    },
+    } satisfies ContextMenuEntry] : []),
     ...(!contextMenuIsSystem ? [
       { type: 'divider' as const },
       {
@@ -222,16 +238,18 @@ export function NetworkList({ projectId }: NetworkListProps): JSX.Element {
   return (
     <div className="flex flex-col gap-0.5" onMouseDown={() => setContextMenu(null)}>
       <div className="flex items-center justify-between px-2 py-1">
-        <span className="text-xs font-medium text-secondary">{t('sidebar.networks')}</span>
-        <button
-          className="rounded p-0.5 text-muted hover:bg-state-hover hover:text-default"
-          onClick={() => setCreating(true)}
-        >
-          <Plus size={14} />
-        </button>
+        <span className="text-xs font-medium text-secondary">{title ?? t('sidebar.networks')}</span>
+        {allowCreate && (
+          <button
+            className="rounded p-0.5 text-muted hover:bg-state-hover hover:text-default"
+            onClick={() => setCreating(true)}
+          >
+            <Plus size={14} />
+          </button>
+        )}
       </div>
 
-      {creating && (
+      {allowCreate && creating && (
         <div className="flex flex-col gap-1 px-2">
           <input
             className="rounded border border-subtle bg-surface-input px-2 py-1 text-xs text-default outline-none focus:border-accent"
@@ -248,7 +266,7 @@ export function NetworkList({ projectId }: NetworkListProps): JSX.Element {
         </div>
       )}
 
-      {networkTree.map((treeNode) => (
+      {visibleTree.map((treeNode) => (
         <TreeNode
           key={treeNode.network.id}
           treeNode={treeNode}
@@ -259,7 +277,7 @@ export function NetworkList({ projectId }: NetworkListProps): JSX.Element {
         />
       ))}
 
-      {networkTree.length === 0 && !creating && (
+      {visibleTree.length === 0 && !creating && (
         <div className="px-3 py-4 text-xs text-muted text-center">
           {t('network.noNetworks') ?? 'No networks'}
         </div>

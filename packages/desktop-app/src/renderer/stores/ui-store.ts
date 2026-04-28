@@ -1,7 +1,19 @@
 import { create } from 'zustand';
 
 export type WorkspaceMode = 'browse' | 'edit';
-export type SidebarView = 'projects' | 'networks' | 'objects' | 'files' | 'sessions' | 'bookmarkedNetwork';
+export type SidebarView =
+  | 'projects'
+  | 'ontology'
+  | 'networks'
+  | 'concepts'
+  | 'schemas'
+  | 'models'
+  | 'relationTypes'
+  | 'contexts'
+  | 'objects'
+  | 'files'
+  | 'sessions'
+  | 'bookmarkedNetwork';
 
 interface UIStore {
   workspaceMode: WorkspaceMode;

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import type { EditorTab, SystemContract } from '@netior/shared/types';
+import type { EditorTab, RelationMeaningKey } from '@netior/shared/types';
 import { useNetworkStore } from '../../stores/network-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useEditorStore } from '../../stores/editor-store';
@@ -12,7 +12,7 @@ import { ColorPicker } from '../ui/ColorPicker';
 import { Toggle } from '../ui/Toggle';
 import { Button } from '../ui/Button';
 import { ScrollArea } from '../ui/ScrollArea';
-import { isHierarchyParentContract } from '../../lib/hierarchy-contract';
+import { isHierarchyParentMeaning } from '../../lib/hierarchy-meaning';
 
 interface EdgeEditorProps {
   tab: EditorTab;
@@ -26,7 +26,7 @@ interface EdgeVisualState {
 
 interface EdgeState {
   relation_type_id: string | null;
-  system_contract: SystemContract | null;
+  relation_meaning: RelationMeaningKey | null;
   description: string | null;
   visual: EdgeVisualState;
 }
@@ -47,12 +47,12 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
     tabId: tab.id,
     load: () => {
       const e = useNetworkStore.getState().edges.find((ed) => ed.id === edgeId);
-      if (!e) return { relation_type_id: null, system_contract: null, description: null, visual: { color: null, line_style: null, directed: null } };
+      if (!e) return { relation_type_id: null, relation_meaning: null, description: null, visual: { color: null, line_style: null, directed: null } };
       const ev = useNetworkStore.getState().edgeVisuals.find((v) => v.edgeId === edgeId);
       const parsed: EdgeVisualState = ev ? JSON.parse(ev.visualJson) : { color: null, line_style: null, directed: null };
       return {
         relation_type_id: e.relation_type_id,
-        system_contract: e.system_contract,
+        relation_meaning: e.relation_meaning,
         description: e.description,
         visual: parsed,
       };
@@ -60,7 +60,7 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
     save: async (state) => {
       await networkService.edge.update(edgeId, {
         relation_type_id: state.relation_type_id,
-        system_contract: state.system_contract,
+        relation_meaning: state.relation_meaning,
         description: state.description,
       });
       await setEdgeVisual(edgeId, JSON.stringify(state.visual));
@@ -76,7 +76,7 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
 
   const sourceLabel = sourceNode?.concept?.title ?? sourceNode?.file?.path?.replace(/\\/g, '/').split('/').pop() ?? '?';
   const targetLabel = targetNode?.concept?.title ?? targetNode?.file?.path?.replace(/\\/g, '/').split('/').pop() ?? '?';
-  const isHierarchyContract = isHierarchyParentContract(sessionState?.system_contract);
+  const isHierarchyMeaning = isHierarchyParentMeaning(sessionState?.relation_meaning);
 
   const relationTypeOptions = useMemo(() => [
     { value: '', label: t('edge.noRelationType') },
@@ -121,7 +121,7 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
     <ScrollArea>
       <div className="flex h-full items-start justify-center">
         <div className="flex flex-col gap-6 p-6 w-full max-w-[600px]">
-          {isHierarchyContract && (
+          {isHierarchyMeaning && (
             <div className="sticky top-3 z-[1] mx-auto w-full max-w-[520px] rounded-md border border-default bg-surface-floating px-4 py-3 text-xs text-default shadow-sm">
               <div className="font-medium">{t('edge.hierarchyDirectionTitle')}</div>
               <div className="mt-1 text-secondary">
@@ -147,11 +147,11 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
           </div>
 
           {/* Relation Type */}
-          {session.state.system_contract && (
+          {session.state.relation_meaning && (
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-secondary">System Contract</label>
+              <label className="text-xs font-medium text-secondary">System Meaning</label>
               <div className="rounded-md border border-subtle bg-surface-editor px-3 py-2 text-xs text-default">
-                {session.state.system_contract}
+                {session.state.relation_meaning}
               </div>
             </div>
           )}

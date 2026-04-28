@@ -11,8 +11,8 @@ import {
 describe('normalizeActivityBarLayoutConfig', () => {
   it('fills missing built-in items and removes duplicate bookmark ids', () => {
     const normalized = normalizeActivityBarLayoutConfig({
-      topItemOrder: ['files', 'networks', 'files', 'unknown'],
-      bottomItemOrder: ['settings'],
+      topItemOrder: ['files', 'networks', 'objects', 'sessions', 'files', 'unknown'],
+      bottomItemOrder: ['sessions', 'settings'],
       networkBookmarksByProject: {
         projectA: ['network-2', '', 'network-2', 'network-1'],
         '   ': ['ignored'],
@@ -20,8 +20,13 @@ describe('normalizeActivityBarLayoutConfig', () => {
       },
     });
 
-    expect(normalized.topItemOrder).toEqual(['files', 'networks', 'objects', 'sessions']);
-    expect(normalized.bottomItemOrder).toEqual(['settings', 'narre', 'terminal', 'agents']);
+    expect(normalized.topItemOrder).toEqual([
+      'projects',
+      'networks',
+      'files',
+      'sessions',
+    ]);
+    expect(normalized.bottomItemOrder).toEqual(['ontology', 'narre', 'terminal', 'agents', 'settings']);
     expect(normalized.networkBookmarksByProject).toEqual({
       projectA: ['network-2', 'network-1'],
     });
@@ -35,7 +40,7 @@ describe('normalizeActivityBarLayoutConfig', () => {
 describe('getVisibleOrderedItems', () => {
   it('keeps the stored order for currently available items only', () => {
     expect(
-      getVisibleOrderedItems(['files', 'sessions', 'networks', 'objects'], ['networks', 'files']),
+      getVisibleOrderedItems(['files', 'sessions', 'networks'], ['networks', 'files']),
     ).toEqual(['files', 'networks']);
   });
 });

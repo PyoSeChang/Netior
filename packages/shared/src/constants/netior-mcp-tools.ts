@@ -14,58 +14,113 @@ type NetiorMcpToolSpecEntry = Omit<NetiorMcpToolSpec, 'key' | 'isMutation' | 'ap
 };
 
 export const NETIOR_MCP_TOOL_SPECS = {
-  list_archetypes: {
-    description: 'List all schemas for a project',
+  list_schemas: {
+    description: 'List all schemas for a project, including attached models',
     category: 'types',
     kind: 'query',
     profiles: ['discovery'],
     scope: 'project',
     defaultProjectBinding: true,
   },
-  create_archetype: {
-    description: 'Create a new schema for a project, including optional group, file template, and semantic facets',
+  create_schema: {
+    description: 'Create a new schema for a project, including optional group, file template, and attached models',
     category: 'types',
     kind: 'mutation',
     scope: 'project',
     defaultProjectBinding: true,
   },
-  update_archetype: {
-    description: 'Update an existing schema, including optional group, file template, and semantic facets',
+  update_schema: {
+    description: 'Update an existing schema, including optional group, file template, and attached models',
     category: 'types',
     kind: 'mutation',
   },
-  delete_archetype: {
+  delete_schema: {
     description: 'Delete a schema',
     category: 'types',
     kind: 'mutation',
   },
-  list_archetype_fields: {
-    description: 'List slots for a specific schema',
+  list_schema_fields: {
+    description: 'List fields for a specific schema, including meaning bindings',
     category: 'types',
     kind: 'query',
   },
-  create_archetype_field: {
-    description: 'Create a slot on a schema. Use this for scalar values, typed schema references, choice-like slots, and semantic annotations.',
+  create_schema_field: {
+    description: 'Create a field on a schema. Use meaning_bindings when the field expresses semantic meaning.',
     category: 'types',
     kind: 'mutation',
   },
-  update_archetype_field: {
-    description: 'Update a schema slot, including semantic annotation metadata and facet-generated flags',
+  update_schema_field: {
+    description: 'Update a schema field, including meaning bindings and model-generated flags',
     category: 'types',
     kind: 'mutation',
   },
-  delete_archetype_field: {
-    description: 'Delete a schema slot',
+  delete_schema_field: {
+    description: 'Delete a schema field',
     category: 'types',
     kind: 'mutation',
   },
-  reorder_archetype_fields: {
-    description: 'Reorder slots within a schema',
+  reorder_schema_fields: {
+    description: 'Reorder fields within a schema',
+    category: 'types',
+    kind: 'mutation',
+  },
+  list_schema_meanings: {
+    description: 'List meanings attached to a schema and their field bindings',
+    category: 'types',
+    kind: 'query',
+  },
+  ensure_schema_meaning: {
+    description: 'Attach a meaning to a schema and create its required binding slots',
+    category: 'types',
+    kind: 'mutation',
+  },
+  update_schema_meaning: {
+    description: 'Update a schema meaning label or order',
+    category: 'types',
+    kind: 'mutation',
+  },
+  delete_schema_meaning: {
+    description: 'Delete a schema meaning',
+    category: 'types',
+    kind: 'mutation',
+  },
+  update_schema_meaning_slot: {
+    description: 'Bind or detach a meaning slot to a concrete schema field',
+    category: 'types',
+    kind: 'mutation',
+  },
+  list_models: {
+    description: 'List semantic models for a project',
+    category: 'types',
+    kind: 'query',
+    profiles: ['discovery'],
+    scope: 'project',
+    defaultProjectBinding: true,
+  },
+  get_model: {
+    description: 'Get a semantic model by ID',
+    category: 'types',
+    kind: 'query',
+  },
+  create_model: {
+    description: 'Create a semantic model with meanings and field recipes',
+    category: 'types',
+    kind: 'mutation',
+    scope: 'project',
+    defaultProjectBinding: true,
+  },
+  update_model: {
+    description: 'Update a semantic model with meanings and field recipes',
+    category: 'types',
+    kind: 'mutation',
+  },
+  delete_model: {
+    description: 'Delete a semantic model and detach it from schemas',
     category: 'types',
     kind: 'mutation',
   },
   list_concepts: {
-    description: 'List or search concepts in a project. Supports title query, archetype narrowing, and property-based filters.',
+    description: 'List or search concepts in a project. Supports title query, schema narrowing, and property-based filters.',
     category: 'concepts',
     kind: 'query',
     scope: 'project',
@@ -94,7 +149,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
     kind: 'query',
   },
   upsert_concept_property: {
-    description: 'Set or replace a concept property value for a specific field contract',
+    description: 'Set or replace a concept property value for a specific field',
     category: 'concepts',
     kind: 'mutation',
   },
@@ -114,7 +169,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
     kind: 'query',
   },
   update_edge: {
-    description: 'Update an edge relation type, semantic annotation, or description',
+    description: 'Update an edge relation type, description, or visual metadata',
     category: 'graph',
     kind: 'mutation',
   },
@@ -169,7 +224,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
   },
   get_field_candidates: {
     displayName: 'Suggest Field Options',
-    description: 'Get candidate values or candidate concepts for a field contract. Use this before assigning relational or choice values.',
+    description: 'Get candidate values or candidate concepts for a field definition. Use this before assigning relational or choice values.',
     category: 'types',
     kind: 'analysis',
     scope: 'project',
@@ -329,7 +384,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
     defaultProjectBinding: true,
   },
   list_type_groups: {
-    description: 'List type groups for archetypes or relation types in a project',
+    description: 'List type groups for schemas or relation types in a project',
     category: 'types',
     kind: 'query',
     profiles: ['discovery'],
@@ -337,7 +392,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
     defaultProjectBinding: true,
   },
   create_type_group: {
-    description: 'Create a folder-like type organization group for archetypes or relation types',
+    description: 'Create a folder-like type organization group for schemas or relation types',
     category: 'types',
     kind: 'mutation',
     scope: 'project',
@@ -367,7 +422,7 @@ function humanizeToolName(toolName: string): string {
 }
 
 function inferToolCategory(toolName: string): NarreToolCategory {
-  if (toolName.includes('archetype') || toolName.includes('relation_type') || toolName.includes('type_group') || toolName.includes('field')) {
+  if (toolName.includes('schema') || toolName.includes('relation_type') || toolName.includes('type_group') || toolName.includes('field')) {
     return 'types';
   }
   if (toolName.includes('concept')) {
@@ -416,7 +471,7 @@ function inferToolScope(toolName: string): NetiorMcpToolScope {
   }
   if (
     toolName.includes('project')
-    || toolName.includes('archetype')
+    || toolName.includes('schema')
     || toolName.includes('relation_type')
     || toolName.includes('type_group')
     || toolName.includes('concept')

@@ -25,7 +25,8 @@ import { useAnchoredDropdown } from '../../hooks/useAnchoredDropdown';
 import { useProjectStore } from '../../stores/project-store';
 import { useConceptStore } from '../../stores/concept-store';
 import { useNetworkStore } from '../../stores/network-store';
-import { useArchetypeStore } from '../../stores/archetype-store';
+import { useSchemaStore } from '../../stores/schema-store';
+import { useModelStore } from '../../stores/model-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useContextStore } from '../../stores/context-store';
 import { useEditorStore } from '../../stores/editor-store';
@@ -38,9 +39,17 @@ import { getIconComponent } from '../ui/lucide-utils';
 import { TypeGroupModal } from './TypeGroupModal';
 import { NodeVisual } from '../workspace/node-components/NodeVisual';
 import { openNetworkViewerTab } from '../../lib/open-network-viewer-tab';
+import {
+  getSemanticModelDisplayDescription,
+  getSemanticModelDisplayName,
+} from '../../lib/semantic-model-i18n';
 
-type PanelObjectType = 'concept' | 'network' | 'archetype' | 'relation_type' | 'context';
-type GroupablePanelObjectType = Extract<PanelObjectType, 'archetype' | 'relation_type'>;
+type PanelObjectType = 'concept' | 'network' | 'schema' | 'model' | 'relation_type' | 'context';
+type GroupablePanelObjectType = Extract<PanelObjectType, 'schema' | 'relation_type'>;
+
+interface ObjectPanelProps {
+  types?: PanelObjectType[];
+}
 
 type PanelItem =
   | {
@@ -106,7 +115,8 @@ type ActiveDragState = {
 const FILTERS: Array<{ key: PanelObjectType; icon: React.ElementType; labelKey: TranslationKey | string }> = [
   { key: 'concept', icon: CircleDot, labelKey: 'objectPanel.concept' },
   { key: 'network', icon: Waypoints, labelKey: 'sidebar.networks' },
-  { key: 'archetype', icon: Shapes, labelKey: 'archetype.title' },
+  { key: 'schema', icon: Shapes, labelKey: 'schema.title' },
+  { key: 'model', icon: Boxes, labelKey: 'model.title' },
   { key: 'relation_type', icon: Share2, labelKey: 'relationType.title' },
   { key: 'context', icon: Layers3, labelKey: 'context.title' },
 ];
@@ -126,7 +136,7 @@ function getSelectionRange(rows: PanelRow[], anchorKey: string | null, targetKey
 }
 
 function isGroupableType(type: PanelObjectType): type is GroupablePanelObjectType {
-  return type === 'archetype' || type === 'relation_type';
+  return type === 'schema' || type === 'relation_type';
 }
 
 function isDescendantGroup(groupId: string, parentGroupId: string | null, groups: TypeGroup[]): boolean {
@@ -383,14 +393,15 @@ function InlineGroupInput({
   );
 }
 
-export function ObjectPanel(): JSX.Element {
+export function ObjectPanel({ types }: ObjectPanelProps = {}): JSX.Element {
   const { t } = useI18n();
   const tk = (key: string) => t(key as TranslationKey);
   const currentProject = useProjectStore((state) => state.currentProject);
   const currentNetwork = useNetworkStore((state) => state.currentNetwork);
   const networks = useNetworkStore((state) => state.networks);
   const concepts = useConceptStore((state) => state.concepts);
-  const archetypes = useArchetypeStore((state) => state.archetypes);
+  const schemas = useSchemaStore((state) => state.schemas);
+  const models = useModelStore((state) => state.models);
   const relationTypes = useRelationTypeStore((state) => state.relationTypes);
   const contexts = useContextStore((state) => state.contexts);
   const activeContextId = useContextStore((state) => state.activeContextId);
@@ -398,9 +409,11 @@ export function ObjectPanel(): JSX.Element {
   const createContext = useContextStore((state) => state.createContext);
   const deleteContext = useContextStore((state) => state.deleteContext);
   const setActiveContext = useContextStore((state) => state.setActiveContext);
-  const createArchetype = useArchetypeStore((state) => state.createArchetype);
-  const updateArchetype = useArchetypeStore((state) => state.updateArchetype);
-  const deleteArchetype = useArchetypeStore((state) => state.deleteArchetype);
+  const createSchema = useSchemaStore((state) => state.createSchema);
+  const updateSchema = useSchemaStore((state) => state.updateSchema);
+  const deleteSchema = useSchemaStore((state) => state.deleteSchema);
+  const createModel = useModelStore((state) => state.createModel);
+  const deleteModel = useModelStore((state) => state.deleteModel);
   const createRelationType = useRelationTypeStore((state) => state.createRelationType);
   const updateRelationType = useRelationTypeStore((state) => state.updateRelationType);
   const deleteRelationType = useRelationTypeStore((state) => state.deleteRelationType);
@@ -409,7 +422,7 @@ export function ObjectPanel(): JSX.Element {
   const deleteNetwork = useNetworkStore((state) => state.deleteNetwork);
   const openNetwork = useNetworkStore((state) => state.openNetwork);
   const loadNetworkTree = useNetworkStore((state) => state.loadNetworkTree);
-  const archetypeGroups = useTypeGroupStore((state) => state.groupsByKind.archetype);
+  const schemaGroups = useTypeGroupStore((state) => state.groupsByKind.schema);
   const relationGroups = useTypeGroupStore((state) => state.groupsByKind.relation_type);
   const createGroup = useTypeGroupStore((state) => state.createGroup);
   const updateGroup = useTypeGroupStore((state) => state.updateGroup);
@@ -419,6 +432,7 @@ export function ObjectPanel(): JSX.Element {
   const setNetworkObjectSelection = useNetworkObjectSelectionStore((state) => state.setSelection);
   const setNetworkObjectSelectionState = useNetworkObjectSelectionStore((state) => state.setSelectionState);
   const [selectedTypes, setSelectedTypes] = useState<PanelObjectType[]>(() => FILTERS.map((filter) => filter.key));
+  const activeTypes = types ?? selectedTypes;
   const [search, setSearch] = useState('');
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [groupDialog, setGroupDialog] = useState<GroupDialogState | null>(null);
@@ -442,10 +456,10 @@ export function ObjectPanel(): JSX.Element {
   useEffect(() => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
-      [...archetypeGroups, ...relationGroups].forEach((group) => next.add(group.id));
+      [...schemaGroups, ...relationGroups].forEach((group) => next.add(group.id));
       return next;
     });
-  }, [archetypeGroups, relationGroups]);
+  }, [schemaGroups, relationGroups]);
 
   useEffect(() => {
     const clearDragState = () => {
@@ -477,14 +491,14 @@ export function ObjectPanel(): JSX.Element {
         kind: 'object',
         objectType: 'concept',
         title: concept.title,
-        subtitle: concept.archetype_id
-          ? (archetypes.find((archetype) => archetype.id === concept.archetype_id)?.name ?? 'Concept')
+        subtitle: concept.schema_id
+          ? (schemas.find((schema) => schema.id === concept.schema_id)?.name ?? 'Concept')
           : 'Concept',
         color: concept.color,
         iconName: concept.icon,
       },
     }))
-  ), [concepts, archetypes]);
+  ), [concepts, schemas]);
 
   const networkRows = useMemo<PanelRow[]>(() => (
     [...networks].sort((a, b) => a.name.localeCompare(b.name)).map((network) => ({
@@ -502,19 +516,37 @@ export function ObjectPanel(): JSX.Element {
     }))
   ), [networks, currentNetwork?.id]);
 
-  const archetypeRows = useMemo(() => buildTreeRows(
-    'archetype',
-    archetypeGroups,
-    archetypes,
+  const schemaRows = useMemo(() => buildTreeRows(
+    'schema',
+    schemaGroups,
+    schemas,
     expandedGroups,
-    t('archetype.title'),
-    (archetype) => ({
-      title: archetype.name,
-      subtitle: getGroupName(archetypeGroups, archetype.group_id) ?? t('archetype.title'),
-      color: archetype.color,
-      iconName: archetype.icon,
+    t('schema.title'),
+    (schema) => ({
+      title: schema.name,
+      subtitle: getGroupName(schemaGroups, schema.group_id) ?? t('schema.title'),
+      color: schema.color,
+      iconName: schema.icon,
     }),
-  ), [archetypeGroups, archetypes, expandedGroups, t]);
+  ), [schemaGroups, schemas, expandedGroups, t]);
+
+  const modelRows = useMemo<PanelRow[]>(() => (
+    [...models]
+      .sort((a, b) => getSemanticModelDisplayName(a, t).localeCompare(getSemanticModelDisplayName(b, t)))
+      .map((model) => ({
+        key: `object:model:${model.id}`,
+        depth: 0,
+        item: {
+          id: model.id,
+          kind: 'object',
+          objectType: 'model',
+          title: getSemanticModelDisplayName(model, t),
+          subtitle: getSemanticModelDisplayDescription(model, t) ?? model.key,
+          color: model.color,
+          iconName: model.icon,
+        },
+      }))
+  ), [models, t]);
 
   const relationTypeRows = useMemo(() => buildTreeRows(
     'relation_type',
@@ -549,12 +581,13 @@ export function ObjectPanel(): JSX.Element {
     const rowsByType: Record<PanelObjectType, PanelRow[]> = {
       concept: conceptRows,
       network: networkRows,
-      archetype: archetypeRows,
+      schema: schemaRows,
+      model: modelRows,
       relation_type: relationTypeRows,
       context: contextRows,
     };
 
-    return selectedTypes.map((type) => ({
+    return activeTypes.map((type) => ({
       objectType: type,
       label: labelForType(type),
       totalRows: rowsByType[type].length,
@@ -564,7 +597,7 @@ export function ObjectPanel(): JSX.Element {
           || row.item.subtitle.toLowerCase().includes(normalizedSearch);
       }),
     }));
-  }, [selectedTypes, search, conceptRows, networkRows, archetypeRows, relationTypeRows, contextRows]);
+  }, [activeTypes, search, conceptRows, networkRows, schemaRows, modelRows, relationTypeRows, contextRows]);
 
   const hasSearch = search.trim().length > 0;
   const visibleRows = useMemo(() => sections.flatMap((section) => {
@@ -572,9 +605,9 @@ export function ObjectPanel(): JSX.Element {
     return [];
   }), [collapsedSections, hasSearch, sections]);
   const rowByKey = useMemo(() => new Map(visibleRows.map((row) => [row.key, row])), [visibleRows]);
-  const primaryType = selectedTypes.length === 1 ? selectedTypes[0] : null;
+  const primaryType = activeTypes.length === 1 ? activeTypes[0] : null;
   const canCreateObject = primaryType !== null && !(primaryType === 'context' && !currentNetwork);
-  const canCreateGroup = primaryType === 'archetype' || primaryType === 'relation_type';
+  const canCreateGroup = primaryType === 'schema' || primaryType === 'relation_type';
   const canCreateObjectType = (objectType: PanelObjectType): boolean => (
     objectType !== 'context' || currentNetwork !== null
   );
@@ -656,8 +689,11 @@ export function ObjectPanel(): JSX.Element {
         await openNetwork(item.id);
         await openNetworkViewerTab({ networkId: item.id, title: item.title, projectId: currentProject?.id ?? null });
         break;
-      case 'archetype':
-        await useEditorStore.getState().openTab({ type: 'archetype', targetId: item.id, title: item.title });
+      case 'schema':
+        await useEditorStore.getState().openTab({ type: 'schema', targetId: item.id, title: item.title });
+        break;
+      case 'model':
+        await useEditorStore.getState().openTab({ type: 'model', targetId: item.id, title: item.title, projectId: currentProject?.id });
         break;
       case 'relation_type':
         await useEditorStore.getState().openTab({ type: 'relationType', targetId: item.id, title: item.title });
@@ -715,9 +751,14 @@ export function ObjectPanel(): JSX.Element {
         });
         break;
       }
-      case 'archetype': {
-        const created = await createArchetype({ project_id: currentProject.id, name: tk('archetype.newDefault') });
-        await useEditorStore.getState().openTab({ type: 'archetype', targetId: created.id, title: created.name, isDirty: true });
+      case 'schema': {
+        const created = await createSchema({ project_id: currentProject.id, name: tk('schema.newDefault') });
+        await useEditorStore.getState().openTab({ type: 'schema', targetId: created.id, title: created.name, isDirty: true });
+        break;
+      }
+      case 'model': {
+        const created = await createModel({ project_id: currentProject.id, name: t('model.newDefault' as never) });
+        await useEditorStore.getState().openTab({ type: 'model', targetId: created.id, title: created.name, projectId: currentProject.id, isDirty: true });
         break;
       }
       case 'relation_type': {
@@ -746,8 +787,11 @@ export function ObjectPanel(): JSX.Element {
         await deleteNetwork(item.id);
         if (currentProject) await loadNetworkTree(currentProject.id);
         break;
-      case 'archetype':
-        await deleteArchetype(item.id);
+      case 'schema':
+        await deleteSchema(item.id);
+        break;
+      case 'model':
+        await deleteModel(item.id);
         break;
       case 'relation_type':
         await deleteRelationType(item.id);
@@ -765,7 +809,7 @@ export function ObjectPanel(): JSX.Element {
 
   const submitInlineGroupCreate = async () => {
     if (!currentProject || !inlineGroupCreate || !inlineGroupCreate.value.trim()) return;
-    const groups = inlineGroupCreate.kind === 'archetype' ? archetypeGroups : relationGroups;
+    const groups = inlineGroupCreate.kind === 'schema' ? schemaGroups : relationGroups;
     const siblingGroups = groups.filter((group) => (group.parent_group_id ?? null) === inlineGroupCreate.parentGroupId);
     await createGroup({
       project_id: currentProject.id,
@@ -784,7 +828,7 @@ export function ObjectPanel(): JSX.Element {
     if (!groupDialog) return;
     if (groupDialog.mode === 'create') {
       if (!currentProject) return;
-      const groups = groupDialog.kind === 'archetype' ? archetypeGroups : relationGroups;
+      const groups = groupDialog.kind === 'schema' ? schemaGroups : relationGroups;
       const siblingGroups = groups.filter((group) => (group.parent_group_id ?? null) === groupDialog.parentGroupId);
       await createGroup({
         project_id: currentProject.id,
@@ -888,14 +932,14 @@ export function ObjectPanel(): JSX.Element {
   };
 
   const moveRowsToGroup = async (rows: PanelRow[], objectType: GroupablePanelObjectType, targetGroupId: string | null) => {
-    if (objectType === 'archetype') {
+    if (objectType === 'schema') {
       await Promise.all(rows.map(async (row) => {
         if (row.item.kind === 'object') {
-          await updateArchetype(row.item.id, { group_id: targetGroupId });
+          await updateSchema(row.item.id, { group_id: targetGroupId });
           return;
         }
         if (row.item.id === targetGroupId) return;
-        if (isDescendantGroup(row.item.id, targetGroupId, archetypeGroups)) return;
+        if (isDescendantGroup(row.item.id, targetGroupId, schemaGroups)) return;
         await updateGroup(row.item.id, { parent_group_id: targetGroupId });
       }));
       return;
@@ -1010,7 +1054,7 @@ export function ObjectPanel(): JSX.Element {
         items.push({
           label: tk('typeGroup.create'),
           icon: <FolderPlus size={14} />,
-          onClick: () => handleCreateGroup(primaryType === 'archetype' ? 'archetype' : 'relation_type'),
+          onClick: () => handleCreateGroup(primaryType === 'schema' ? 'schema' : 'relation_type'),
         });
       }
       return items;
@@ -1020,13 +1064,13 @@ export function ObjectPanel(): JSX.Element {
       const groupItem = activeRow.item;
       return [
         {
-          label: activeRow.item.objectType === 'archetype' ? tk('archetype.createInGroup') : tk('relationType.createInGroup'),
+          label: activeRow.item.objectType === 'schema' ? tk('schema.createInGroup') : tk('relationType.createInGroup'),
           icon: <Plus size={14} />,
           onClick: async () => {
             if (!currentProject) return;
-            if (activeRow.item.objectType === 'archetype') {
-              const created = await createArchetype({ project_id: currentProject.id, group_id: activeRow.item.id, name: tk('archetype.newDefault') });
-              await useEditorStore.getState().openTab({ type: 'archetype', targetId: created.id, title: created.name, isDirty: true });
+            if (activeRow.item.objectType === 'schema') {
+              const created = await createSchema({ project_id: currentProject.id, group_id: activeRow.item.id, name: tk('schema.newDefault') });
+              await useEditorStore.getState().openTab({ type: 'schema', targetId: created.id, title: created.name, isDirty: true });
               return;
             }
             const created = await createRelationType({ project_id: currentProject.id, group_id: activeRow.item.id, name: t('relationType.newDefault') });
@@ -1038,7 +1082,7 @@ export function ObjectPanel(): JSX.Element {
           label: tk('typeGroup.rename'),
           icon: <FolderTree size={14} />,
           onClick: () => {
-            const groups = groupItem.objectType === 'archetype' ? archetypeGroups : relationGroups;
+            const groups = groupItem.objectType === 'schema' ? schemaGroups : relationGroups;
             const group = groups.find((item) => item.id === groupItem.id);
             if (group) setGroupDialog({ mode: 'rename', group });
           },
@@ -1083,9 +1127,9 @@ export function ObjectPanel(): JSX.Element {
     t,
     tk,
     currentProject,
-    createArchetype,
+    createSchema,
     createRelationType,
-    archetypeGroups,
+    schemaGroups,
     relationGroups,
     setActiveContext,
     deleteRows,
@@ -1104,7 +1148,7 @@ export function ObjectPanel(): JSX.Element {
     if (row.item.objectType === 'concept' && row.item.iconName) {
       return <NodeVisual icon={row.item.iconName} size={14} imageSize={18} className="shrink-0" />;
     }
-    if (row.item.objectType === 'archetype' && row.item.iconName) {
+    if ((row.item.objectType === 'schema' || row.item.objectType === 'model') && row.item.iconName) {
       const Icon = getIconComponent(row.item.iconName);
       if (Icon) return <Icon size={14} className="shrink-0 text-secondary" />;
     }
@@ -1119,8 +1163,10 @@ export function ObjectPanel(): JSX.Element {
           return <Boxes size={14} className="shrink-0 text-secondary" />;
         }
         return <Waypoints size={14} className="shrink-0 text-secondary" />;
-      case 'archetype':
+      case 'schema':
         return <Shapes size={14} className="shrink-0 text-secondary" />;
+      case 'model':
+        return <Boxes size={14} className="shrink-0 text-secondary" />;
       case 'relation_type':
         return <Share2 size={14} className="shrink-0 text-secondary" />;
       case 'context':
@@ -1211,13 +1257,17 @@ export function ObjectPanel(): JSX.Element {
       tabIndex={0}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-xs font-medium text-secondary">{tk('sidebar.networkObjects')}</span>
-        <ObjectTypeFilterSelect
-          selectedTypes={selectedTypes}
-          onChange={setSelectedTypes}
-          labelFor={labelForType}
-          allLabel={tk('objectPanel.allTypes')}
-        />
+        <span className="truncate text-xs font-medium text-secondary">
+          {primaryType ? labelForType(primaryType) : tk('sidebar.networkObjects')}
+        </span>
+        {!types && (
+          <ObjectTypeFilterSelect
+            selectedTypes={selectedTypes}
+            onChange={setSelectedTypes}
+            labelFor={labelForType}
+            allLabel={tk('objectPanel.allTypes')}
+          />
+        )}
       </div>
 
       <input
@@ -1228,7 +1278,7 @@ export function ObjectPanel(): JSX.Element {
         className="w-full rounded border border-input bg-surface-input px-2.5 py-1.5 text-xs text-default outline-none focus:border-accent"
       />
 
-      {selectedTypes.length === 1 && selectedTypes[0] === 'context' && currentNetwork && (
+      {activeTypes.length === 1 && activeTypes[0] === 'context' && currentNetwork && (
         <div className="rounded border border-subtle bg-surface-card px-2.5 py-1.5 text-[11px] text-muted">
           {currentNetwork.name}
         </div>
@@ -1276,7 +1326,7 @@ export function ObjectPanel(): JSX.Element {
                     <button
                       type="button"
                       className="rounded p-1 text-muted transition-colors hover:bg-state-hover hover:text-default"
-                      onClick={() => handleCreateGroup(section.objectType === 'archetype' ? 'archetype' : 'relation_type')}
+                      onClick={() => handleCreateGroup(section.objectType === 'schema' ? 'schema' : 'relation_type')}
                       title={tk('typeGroup.create')}
                     >
                       <FolderPlus size={12} />

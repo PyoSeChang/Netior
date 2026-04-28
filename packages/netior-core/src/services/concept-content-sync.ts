@@ -1,9 +1,9 @@
-import type { Archetype, ArchetypeField, Concept } from '@netior/shared/types';
+import type { Schema, SchemaField, Concept } from '@netior/shared/types';
 
 interface SerializeParams {
   concept: Concept;
-  archetype: Archetype | null;
-  fields: ArchetypeField[];
+  schema: Schema | null;
+  fields: SchemaField[];
   properties: Record<string, string | null>;
 }
 
@@ -12,7 +12,7 @@ interface SerializeParams {
  *
  * Format:
  * # {title}
- * archetype: {name}
+ * schema: {name}
  *
  * ## Properties
  * - {field}: {value}
@@ -21,12 +21,12 @@ interface SerializeParams {
  * {body}
  */
 export function serializeToAgent(params: SerializeParams): string {
-  const { concept, archetype, fields, properties } = params;
+  const { concept, schema, fields, properties } = params;
   const lines: string[] = [];
 
   lines.push(`# ${concept.title}`);
-  if (archetype) {
-    lines.push(`archetype: ${archetype.name}`);
+  if (schema) {
+    lines.push(`schema: ${schema.name}`);
   }
   lines.push('');
 
@@ -54,7 +54,7 @@ interface ParsedResult {
 /**
  * Parse agent flat text back into structured data.
  */
-export function parseFromAgent(agentContent: string, fields: ArchetypeField[]): ParsedResult {
+export function parseFromAgent(agentContent: string, fields: SchemaField[]): ParsedResult {
   const result: ParsedResult = {
     title: null,
     properties: {},
@@ -109,7 +109,7 @@ export function parseFromAgent(agentContent: string, fields: ArchetypeField[]): 
  */
 export function renderTemplate(
   template: string,
-  fields: ArchetypeField[],
+  fields: SchemaField[],
   properties: Record<string, string | null>,
 ): string {
   let result = template;

@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { registerArchetypeTools } from './archetype-tools.js';
-import { registerArchetypeFieldTools } from './archetype-field-tools.js';
+import { registerSchemaTools } from './schema-tools.js';
+import { registerSchemaFieldTools } from './schema-field-tools.js';
+import { registerSchemaMeaningTools } from './schema-meaning-tools.js';
 import { registerCandidateSourceTools } from './candidate-source-tools.js';
 import { registerConceptPropertyTools } from './concept-property-tools.js';
 import { registerEdgeTools } from './edge-tools.js';
@@ -14,10 +15,13 @@ import { registerTypeGroupTools } from './type-group-tools.js';
 import { registerFilesystemTools } from './filesystem-tools.js';
 import { registerPdfTools } from './pdf-tools.js';
 import { registerModuleTools } from './module-tools.js';
+import { registerModelTools } from './model-tools.js';
 
 export function registerAllTools(server: McpServer): void {
-  registerArchetypeTools(server);
-  registerArchetypeFieldTools(server);
+  registerSchemaTools(server);
+  registerSchemaFieldTools(server);
+  registerSchemaMeaningTools(server);
+  registerModelTools(server);
   registerCandidateSourceTools(server);
   registerRelationTypeTools(server);
   registerTypeGroupTools(server);

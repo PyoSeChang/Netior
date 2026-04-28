@@ -2,12 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import type { EditorTab } from '@netior/shared/types';
 import { ConceptEditor } from './ConceptEditor';
 import { FileEditor } from './FileEditor';
-import { ArchetypeEditor } from './ArchetypeEditor';
+import { SchemaEditor } from './SchemaEditor';
+import { ModelEditor } from './ModelEditor';
 import { TerminalEditor } from './TerminalEditor';
 import { RelationTypeEditor } from './RelationTypeEditor';
 import { EdgeEditor } from './EdgeEditor';
 import { NetworkEditor } from './NetworkEditor';
 import { NetworkViewerEditor } from './NetworkViewerEditor';
+import { OntologyEditor } from './OntologyEditor';
 import { ProjectEditor } from './ProjectEditor';
 import { NarreEditor } from './NarreEditor';
 import { AgentEditor } from './AgentEditor';
@@ -61,8 +63,10 @@ export function EditorContent({ tab }: EditorContentProps): JSX.Element {
       content = <ConceptEditor tab={tab} />; break;
     case 'file':
       content = <FileEditor tab={tab} />; break;
-    case 'archetype':
-      content = <ArchetypeEditor tab={tab} />; break;
+    case 'schema':
+      content = <SchemaEditor tab={tab} />; break;
+    case 'model':
+      content = <ModelEditor tab={tab} />; break;
     case 'terminal':
       content = <TerminalEditor tab={tab} />; break;
     case 'relationType':
@@ -73,6 +77,8 @@ export function EditorContent({ tab }: EditorContentProps): JSX.Element {
       content = <NetworkEditor tab={tab} />; break;
     case 'networkViewer':
       content = <NetworkViewerEditor tab={tab} />; break;
+    case 'ontology':
+      content = <OntologyEditor tab={tab} />; break;
     case 'project':
       content = <ProjectEditor tab={tab} />; break;
     case 'narre':

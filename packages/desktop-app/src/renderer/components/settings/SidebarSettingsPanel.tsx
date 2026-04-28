@@ -148,6 +148,7 @@ export function SidebarSettingsPanel(): JSX.Element {
   const projectNetworks = useMemo(
     () => currentProject
       ? networks.filter((network) => network.project_id === currentProject.id)
+        .filter((network) => network.kind === 'network')
       : [],
     [currentProject, networks],
   );

@@ -22,7 +22,7 @@ interface TypeGroupStore {
 }
 
 const EMPTY_GROUPS: GroupsByKind = {
-  archetype: [],
+  schema: [],
   relation_type: [],
 };
 
@@ -33,13 +33,13 @@ export const useTypeGroupStore = create<TypeGroupStore>((set, get) => ({
   loadByProject: async (projectId) => {
     set({ loading: true });
     try {
-      const [archetypeGroups, relationTypeGroups] = await Promise.all([
-        typeGroupService.list(projectId, 'archetype'),
+      const [schemaGroups, relationTypeGroups] = await Promise.all([
+        typeGroupService.list(projectId, 'schema'),
         typeGroupService.list(projectId, 'relation_type'),
       ]);
       set({
         groupsByKind: {
-          archetype: archetypeGroups,
+          schema: schemaGroups,
           relation_type: relationTypeGroups,
         },
       });

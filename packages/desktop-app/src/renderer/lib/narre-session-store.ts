@@ -11,9 +11,10 @@ import type {
 } from '@netior/shared/types';
 import { SLASH_TRIGGER_SKILLS } from '@netior/shared/constants';
 import { narreService } from '../services/narre-service';
-import { useArchetypeStore } from '../stores/archetype-store';
+import { useSchemaStore } from '../stores/schema-store';
 import { useConceptStore } from '../stores/concept-store';
 import { useNetworkStore } from '../stores/network-store';
+import { useModelStore } from '../stores/model-store';
 import { useRelationTypeStore } from '../stores/relation-type-store';
 import {
   getNarreProjectPendingSkillInvocation,
@@ -60,8 +61,9 @@ let initialized = false;
 let displayBlockCounter = 0;
 
 function refreshStores(projectId: string): void {
-  useArchetypeStore.getState().loadByProject(projectId);
+  useSchemaStore.getState().loadByProject(projectId);
   useConceptStore.getState().loadByProject(projectId);
+  useModelStore.getState().loadByProject(projectId);
   useRelationTypeStore.getState().loadByProject(projectId);
   useNetworkStore.getState().loadNetworks(projectId);
 }

@@ -7,7 +7,7 @@ import { RadioGroup } from '../ui/RadioGroup';
 import { FilePicker } from '../ui/FilePicker';
 import { IconSelector } from '../ui/IconSelector';
 import { useI18n } from '../../hooks/useI18n';
-import { useArchetypeStore } from '../../stores/archetype-store';
+import { useSchemaStore } from '../../stores/schema-store';
 import { isImageSourceValue } from './node-components/node-visual-utils';
 
 const CONCEPT_COLORS = [
@@ -24,7 +24,7 @@ type VisualMode = 'icon' | 'image';
 interface ConceptCreateModalProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (data: { title: string; color?: string; icon?: string; archetype_id?: string }) => void;
+  onCreate: (data: { title: string; color?: string; icon?: string; schema_id?: string }) => void;
 }
 
 export function ConceptCreateModal({ open, onClose, onCreate }: ConceptCreateModalProps): JSX.Element {
@@ -33,13 +33,13 @@ export function ConceptCreateModal({ open, onClose, onCreate }: ConceptCreateMod
   const [color, setColor] = useState<string | undefined>(undefined);
   const [icon, setIcon] = useState('');
   const [visualMode, setVisualMode] = useState<VisualMode>('icon');
-  const [archetypeId, setArchetypeId] = useState<string | undefined>(undefined);
-  const archetypes = useArchetypeStore((s) => s.archetypes);
+  const [schemaId, setSchemaId] = useState<string | undefined>(undefined);
+  const schemas = useSchemaStore((s) => s.schemas);
 
-  // Apply archetype defaults when selected
+  // Apply schema defaults when selected
   useEffect(() => {
-    if (archetypeId) {
-      const arch = archetypes.find((a) => a.id === archetypeId);
+    if (schemaId) {
+      const arch = schemas.find((a) => a.id === schemaId);
       if (arch) {
         if (arch.color && !color) setColor(arch.color);
         if (arch.icon && !icon) {
@@ -48,7 +48,7 @@ export function ConceptCreateModal({ open, onClose, onCreate }: ConceptCreateMod
         }
       }
     }
-  }, [archetypeId]);
+  }, [schemaId]);
 
   const handleSubmit = () => {
     if (!title.trim()) return;
@@ -56,13 +56,13 @@ export function ConceptCreateModal({ open, onClose, onCreate }: ConceptCreateMod
       title: title.trim(),
       color: color || undefined,
       icon: icon.trim() || undefined,
-      archetype_id: archetypeId || undefined,
+      schema_id: schemaId || undefined,
     });
     setTitle('');
     setColor(undefined);
     setIcon('');
     setVisualMode('icon');
-    setArchetypeId(undefined);
+    setSchemaId(undefined);
     onClose();
   };
 
@@ -71,7 +71,7 @@ export function ConceptCreateModal({ open, onClose, onCreate }: ConceptCreateMod
     setColor(undefined);
     setIcon('');
     setVisualMode('icon');
-    setArchetypeId(undefined);
+    setSchemaId(undefined);
     onClose();
   };
 
@@ -93,16 +93,16 @@ export function ConceptCreateModal({ open, onClose, onCreate }: ConceptCreateMod
       }
     >
       <div className="flex flex-col gap-4">
-        {archetypes.length > 0 && (
+        {schemas.length > 0 && (
           <div>
-            <label className="mb-1 block text-xs font-medium text-secondary">{t('concept.archetype')}</label>
+            <label className="mb-1 block text-xs font-medium text-secondary">{t('concept.schema')}</label>
             <Select
               options={[
                 { value: '', label: t('common.none') },
-                ...archetypes.map((a) => ({ value: a.id, label: a.name })),
+                ...schemas.map((a) => ({ value: a.id, label: a.name })),
               ]}
-              value={archetypeId ?? ''}
-              onChange={(e) => setArchetypeId(e.target.value || undefined)}
+              value={schemaId ?? ''}
+              onChange={(e) => setSchemaId(e.target.value || undefined)}
               selectSize="sm"
             />
           </div>

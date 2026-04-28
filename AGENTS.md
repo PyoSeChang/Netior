@@ -88,7 +88,7 @@ The app does not write metadata into the project directory. Canvas and SQLite ha
 ### Data Model
 
 - **Project** — references a user directory (`name`, `root_dir`)
-- **Concept** — belongs to a project; has `title`, `color`, `icon`, `archetype_id`
+- **Concept** — belongs to a project; has `title`, `color`, `icon`, `schema_id`
 - **Canvas** — `Concept:Canvas = 1:N`; stores `concept_id` or `canvas_type_id` plus viewport state
 - **CanvasNode** — placed on a canvas; one of `concept_id`, `file_path`, or `dir_path`
 - **Edge** — belongs to a canvas; has `relation_type_id`, `description`, and visual override fields such as `color`, `line_style`, and `directed`
@@ -98,7 +98,7 @@ The app does not write metadata into the project directory. Canvas and SQLite ha
 
 Project-level types:
 
-- **Archetype** — a concept class
+- **Schema** — a concept class
 - **RelationType** — an edge class
 - **CanvasType** — a canvas class with allowed relation types via a junction table
 
@@ -128,7 +128,7 @@ There is no external canvas library. The canvas is implemented directly with CSS
 
 `EditorTabType`:
 
-`'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'canvasType' | 'canvas' | 'narre'`
+`'concept' | 'file' | 'schema' | 'terminal' | 'edge' | 'relationType' | 'canvasType' | 'canvas' | 'narre'`
 
 Extension-based editor routing:
 

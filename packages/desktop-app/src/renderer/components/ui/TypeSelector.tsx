@@ -78,7 +78,7 @@ const CATEGORIES: TypeCategory[] = [
     types: [
       { value: 'relation', i18nKey: 'relation', icon: Link2 },
       { value: 'file', i18nKey: 'file', icon: FileText },
-      { value: 'archetype_ref', i18nKey: 'archetype_ref', icon: Boxes },
+      { value: 'schema_ref', i18nKey: 'schema_ref', icon: Boxes },
     ],
   },
   {

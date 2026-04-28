@@ -2,17 +2,18 @@ import { useNetworkStore, type NetworkNodeWithObject, type EdgeWithRelationType 
 import { useEditorStore } from './editor-store';
 import { useModuleStore } from './module-store';
 import { useConceptStore } from './concept-store';
-import { useArchetypeStore } from './archetype-store';
+import { useSchemaStore } from './schema-store';
+import { useModelStore } from './model-store';
 import { useRelationTypeStore } from './relation-type-store';
 import { useTypeGroupStore } from './type-group-store';
 import { useFileStore, type OpenFile, type ClipboardAction, type ClipboardState } from './file-store';
 import type {
-  Network, NetworkNode, Edge, Concept, RelationType,
+  Network, NetworkNode, Edge, Concept, RelationType, SemanticModel,
   NetworkBreadcrumbItem, NetworkTreeNode,
   EditorTab, SplitNode,
   Module, ModuleDirectory,
   ConceptProperty,
-  Archetype, ArchetypeField,
+  Schema, SchemaField,
   TypeGroup,
   FileTreeNode,
 } from '@netior/shared/types';
@@ -49,18 +50,23 @@ interface ConceptSnapshot {
   properties: Record<string, ConceptProperty[]>;
 }
 
-interface ArchetypeSnapshot {
-  archetypes: Archetype[];
-  fields: Record<string, ArchetypeField[]>;
+interface SchemaSnapshot {
+  schemas: Schema[];
+  fields: Record<string, SchemaField[]>;
 }
 
 interface RelationTypeSnapshot {
   relationTypes: RelationType[];
 }
 
+interface ModelSnapshot {
+  models: SemanticModel[];
+  loading: boolean;
+}
+
 interface TypeGroupSnapshot {
   groupsByKind: {
-    archetype: TypeGroup[];
+    schema: TypeGroup[];
     relation_type: TypeGroup[];
   };
 }
@@ -78,7 +84,8 @@ interface WorkspaceSnapshot {
   editor: EditorSnapshot;
   module: ModuleSnapshot;
   concept: ConceptSnapshot;
-  archetype: ArchetypeSnapshot;
+  schema: SchemaSnapshot;
+  model: ModelSnapshot;
   relationType: RelationTypeSnapshot;
   typeGroup: TypeGroupSnapshot;
   file: FileSnapshot;
@@ -120,7 +127,8 @@ function capture(): WorkspaceSnapshot {
   const editor = useEditorStore.getState();
   const module = useModuleStore.getState();
   const concept = useConceptStore.getState();
-  const archetype = useArchetypeStore.getState();
+  const schema = useSchemaStore.getState();
+  const model = useModelStore.getState();
   const relationType = useRelationTypeStore.getState();
   const typeGroup = useTypeGroupStore.getState();
   const file = useFileStore.getState();
@@ -154,9 +162,13 @@ function capture(): WorkspaceSnapshot {
       concepts: concept.concepts,
       properties: concept.properties,
     },
-    archetype: {
-      archetypes: archetype.archetypes,
-      fields: archetype.fields,
+    schema: {
+      schemas: schema.schemas,
+      fields: schema.fields,
+    },
+    model: {
+      models: model.models,
+      loading: model.loading,
     },
     relationType: {
       relationTypes: relationType.relationTypes,
@@ -179,7 +191,8 @@ function restore(snapshot: WorkspaceSnapshot): void {
   useEditorStore.setState({ ...normalizeEditorSnapshot(snapshot.editor), pendingCloseTabId: null });
   useModuleStore.setState(snapshot.module);
   useConceptStore.setState(snapshot.concept);
-  useArchetypeStore.setState(snapshot.archetype);
+  useSchemaStore.setState(snapshot.schema);
+  useModelStore.setState(snapshot.model);
   useRelationTypeStore.setState(snapshot.relationType);
   useTypeGroupStore.setState(snapshot.typeGroup);
   useFileStore.setState(snapshot.file);
@@ -190,7 +203,8 @@ export function clearAllProjectStores(): void {
   useEditorStore.getState().clear();
   useModuleStore.getState().clear();
   useConceptStore.getState().clear();
-  useArchetypeStore.getState().clear();
+  useSchemaStore.getState().clear();
+  useModelStore.getState().clear();
   useRelationTypeStore.getState().clear();
   useTypeGroupStore.getState().clear();
   useFileStore.getState().clear();

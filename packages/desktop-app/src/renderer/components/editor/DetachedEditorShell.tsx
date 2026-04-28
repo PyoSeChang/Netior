@@ -4,7 +4,6 @@ import { EditorTabStrip } from './EditorTabStrip';
 import { CloseConfirmDialog } from './CloseConfirmDialog';
 import { WindowAlwaysOnTopButton } from '../ui/WindowAlwaysOnTopButton';
 import { WindowControls } from '../ui/WindowControls';
-import { WindowTitleBar } from '../ui/WindowTitleBar';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useDetachedShortcuts } from '../../shortcuts/useDetachedShortcuts';
@@ -90,24 +89,14 @@ export function DetachedEditorShell({ hostId }: DetachedEditorShellProps): JSX.E
 
   if (!ready) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-surface-panel">
+      <div className="workspace-frame flex h-screen w-screen items-center justify-center bg-surface-chrome">
         <span className="text-xs text-muted">Loading...</span>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-surface-editor text-default">
-      <WindowTitleBar
-        left={<div className="min-w-0 truncate text-sm font-medium text-secondary">{hostLabel}</div>}
-        right={(
-          <div className="flex items-stretch">
-            <WindowAlwaysOnTopButton />
-            <WindowControls />
-          </div>
-        )}
-      />
-
+    <div className="workspace-frame flex h-screen w-screen flex-col bg-surface-chrome text-default">
       <EditorTabStrip
         tabs={tabs}
         activeTabId={activeTabId}
@@ -116,23 +105,28 @@ export function DetachedEditorShell({ hostId }: DetachedEditorShellProps): JSX.E
         onClose={requestCloseTab}
         onTabDrop={(tabId) => moveTabToHost(tabId, hostId)}
         onTabReorder={moveTabWithinStrip}
-      />
-
-      {/* Editor content */}
-      <div className="flex-1 overflow-hidden">
-        {activeTab ? (
-          <div className="h-full" onDragOver={handleHostDragOver} onDrop={handleHostDrop}>
-            <EditorContent tab={activeTab} />
-          </div>
-        ) : (
-          <div
-            className="flex h-full items-center justify-center text-xs text-muted"
-            onDragOver={handleHostDragOver}
-            onDrop={handleHostDrop}
-          >
-            No open tabs
+        rightSlot={(
+          <div className="flex h-full items-stretch">
+            <WindowAlwaysOnTopButton />
+            <WindowControls />
           </div>
         )}
+      />
+
+      <div className="pane-shell pane-shell--editor min-h-0 flex-1 px-2 pb-2">
+        <div
+          className="pane-surface pane-surface--editor relative min-h-0 flex-1 overflow-hidden"
+          onDragOver={handleHostDragOver}
+          onDrop={handleHostDrop}
+        >
+          {activeTab ? (
+            <EditorContent tab={activeTab} />
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs text-muted">
+              {hostLabel}
+            </div>
+          )}
+        </div>
       </div>
 
       <CloseConfirmDialog />

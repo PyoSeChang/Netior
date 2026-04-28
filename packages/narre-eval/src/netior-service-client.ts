@@ -1,6 +1,6 @@
 import type {
-  Archetype,
-  ArchetypeCreate,
+  Schema,
+  SchemaCreate,
   Concept,
   ConceptCreate,
   FileEntity,
@@ -60,15 +60,15 @@ export async function getProjectById(baseUrl: string, projectId: string): Promis
   return requestJson<Project | null>(baseUrl, `/projects/${encodeURIComponent(projectId)}`);
 }
 
-export async function createArchetype(baseUrl: string, data: ArchetypeCreate): Promise<Archetype> {
-  return requestJson<Archetype>(baseUrl, '/archetypes', {
+export async function createSchema(baseUrl: string, data: SchemaCreate): Promise<Schema> {
+  return requestJson<Schema>(baseUrl, '/schemas', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function listArchetypes(baseUrl: string, projectId: string): Promise<Archetype[]> {
-  return requestJson<Archetype[]>(baseUrl, `/archetypes${toQueryString({ projectId })}`);
+export async function listSchemas(baseUrl: string, projectId: string): Promise<Schema[]> {
+  return requestJson<Schema[]>(baseUrl, `/schemas${toQueryString({ projectId })}`);
 }
 
 export async function createRelationType(baseUrl: string, data: RelationTypeCreate): Promise<RelationType> {

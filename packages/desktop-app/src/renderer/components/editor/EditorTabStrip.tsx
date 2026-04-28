@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useSyncExternalStore } from 'react';
-import { X, Terminal, Shapes, Link, Layout, Sparkles, FileText, FolderOpen, RefreshCw, Bot, Waypoints } from 'lucide-react';
+import { X, Terminal, Shapes, Boxes, Link, Layout, Sparkles, FileText, FolderOpen, RefreshCw, Bot, Waypoints } from 'lucide-react';
 import type { EditorTab } from '@netior/shared/types';
 import { setTabDragData, isTabDrag, getTabDragDataAsync, clearTabDragData, flushTabDragData } from '../../hooks/useTabDrag';
 import { getFileOpenDragData, isFileOpenDrag } from '../../hooks/useFileOpenDrag';
@@ -77,8 +77,10 @@ function TabIcon({ tab }: { tab: EditorTab }): JSX.Element {
       return <Terminal size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'concept':
       return <NodeVisual icon={conceptIcon ?? 'box'} size={ICON_SIZE} imageSize={16} className="shrink-0" />;
-    case 'archetype':
+    case 'schema':
       return <Shapes size={ICON_SIZE} style={{ flexShrink: 0 }} />;
+    case 'model':
+      return <Boxes size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'relationType':
     case 'edge':
       return <Link size={ICON_SIZE} style={{ flexShrink: 0 }} />;
@@ -86,6 +88,8 @@ function TabIcon({ tab }: { tab: EditorTab }): JSX.Element {
       return <Layout size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'networkViewer':
       return <Waypoints size={ICON_SIZE} style={{ flexShrink: 0 }} />;
+    case 'ontology':
+      return <Boxes size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'project':
       return <FolderOpen size={ICON_SIZE} style={{ flexShrink: 0 }} />;
     case 'narre':

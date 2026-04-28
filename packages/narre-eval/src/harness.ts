@@ -4,7 +4,7 @@ import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import type { SeedContext } from './types.js';
 import {
-  createArchetype,
+  createSchema,
   createConcept,
   createFileEntity,
   createModule,
@@ -74,8 +74,8 @@ export async function setupScenario(
       projectId = project.id;
       return project;
     },
-    createArchetype(data) {
-      return track(createArchetype(service.baseUrl, data));
+    createSchema(data) {
+      return track(createSchema(service.baseUrl, data));
     },
     createRelationType(data) {
       return track(createRelationType(service.baseUrl, data));

@@ -663,9 +663,9 @@ async function runLlmJudge(
   const prompt = `You are evaluating an AI assistant's performance in Netior.
 
 ## Product Context
-Netior is a graph-based desktop app for modeling typed objects such as archetypes, relation types, concepts, files, networks, and their relationships.
+Netior is a graph-based desktop app for modeling typed objects such as schemas, relation types, concepts, files, networks, and their relationships.
 In these eval scenarios, the assistant is usually asked to inspect or mutate project schema and graph state through tools.
-The important product assumption is that the user usually knows their domain better than Netior internals, but does not necessarily know how networks, semantic traits, ORM-style archetype_ref fields, or node placement should be designed.
+The important product assumption is that the user usually knows their domain better than Netior internals, but does not necessarily know how networks, semantic models, ORM-style schema_ref fields, or node placement should be designed.
 Narre is expected to infer and lead those structural choices from the domain brief instead of pushing internal Netior design back to the user.
 Judge whether the assistant handled the user's request well in that context.
 
@@ -745,7 +745,7 @@ Report requirements:
 - 단순 점수 나열이 아니라 왜 그런 평가를 내렸는지 서술할 것
 - 실제 tool 이름과 생성/변경 결과를 요약할 것
 - Narre가 먼저 ontology를 잘 읽었는지, 즉 entity kinds, relation kinds, artifact kinds, workflow structure를 적절히 인터뷰하고 추론했는지 평가할 것
-- Narre가 네트워크 분기, trait 사용, ORM-style field 설계, node 배치 책임을 얼마나 잘 떠맡았는지 평가할 것
+- Narre가 네트워크 분기, model 사용, ORM-style field 설계, node 배치 책임을 얼마나 잘 떠맡았는지 평가할 것
 - Narre가 Netior 내부 설계를 사용자에게 과도하게 떠넘겼는지도 평가할 것
 - reviewer가 이 문서 하나만 읽고 무엇이 일어났는지 이해할 수 있게 작성할 것
 - 특히 이 시나리오가 특정 skill을 검증한다면, 그 skill의 핵심 책임을 실제로 잘 수행했는지 평가할 것
@@ -757,7 +757,7 @@ Additional Korean report requirements, overriding any malformed requirement text
 - 실제 tool 이름과 생성/변경 결과를 요약할 것
 - Narre가 먼저 ontology를 잘 읽었는지 평가할 것: entity kinds, relation kinds, artifact kinds, workflow structure를 적절히 인터뷰하고 추론했는지 확인할 것
 - bootstrap 시나리오에서는 두 번 이상의 짧은 ontology 인터뷰가 있었는지 확인할 것
-- Narre가 네트워크 분기, trait 사용, ORM-style field 설계, node 배치 책임을 사용자에게 넘기지 않고 스스로 추론했는지 평가할 것
+- Narre가 네트워크 분기, model 사용, ORM-style field 설계, node 배치 책임을 사용자에게 넘기지 않고 스스로 추론했는지 평가할 것
 - Narre가 Netior 내부 설계를 사용자에게 과도하게 떠넘겼는지 평가할 것
 - reviewer가 이 문서 하나만 읽고 무엇이 일어났는지 이해할 수 있게 작성할 것
 - 특정 skill을 검증하는 시나리오라면 그 skill의 핵심 책임이 실제로 수행됐는지 평가할 것
@@ -998,16 +998,16 @@ function summarizeToolForJudge(tool: string, input: Record<string, unknown>): st
   const suffix = tool.split('.').pop() ?? tool;
 
   switch (suffix) {
-    case 'create_archetype':
+    case 'create_schema':
       return `${tool} name=${stringValueForJudge(input.name)}`;
     case 'create_relation_type':
       return `${tool} name=${stringValueForJudge(input.name)}`;
-    case 'create_archetype_field':
-      return `${tool} name=${stringValueForJudge(input.name)} type=${stringValueForJudge(input.field_type)} target=${stringValueForJudge(input.ref_archetype_id)}`;
-    case 'update_archetype':
-      return `${tool} archetype_id=${stringValueForJudge(input.archetype_id)} name=${stringValueForJudge(input.name)}`;
-    case 'delete_archetype':
-      return `${tool} archetype_id=${stringValueForJudge(input.archetype_id)}`;
+    case 'create_schema_field':
+      return `${tool} name=${stringValueForJudge(input.name)} type=${stringValueForJudge(input.field_type)} target=${stringValueForJudge(input.ref_schema_id)}`;
+    case 'update_schema':
+      return `${tool} schema_id=${stringValueForJudge(input.schema_id)} name=${stringValueForJudge(input.name)}`;
+    case 'delete_schema':
+      return `${tool} schema_id=${stringValueForJudge(input.schema_id)}`;
     default:
       return `${tool} ${formatJudgeInputSummary(input)}`.trim();
   }
@@ -1017,11 +1017,11 @@ function summarizeCreatedItemForJudge(tool: string, input: Record<string, unknow
   const suffix = tool.split('.').pop() ?? tool;
 
   switch (suffix) {
-    case 'create_archetype':
-      return `archetype:${stringValueForJudge(input.name)}`;
+    case 'create_schema':
+      return `schema:${stringValueForJudge(input.name)}`;
     case 'create_relation_type':
       return `relation_type:${stringValueForJudge(input.name)}`;
-    case 'create_archetype_field':
+    case 'create_schema_field':
       return `field:${stringValueForJudge(input.name)}`;
     case 'create_concept':
       return `concept:${stringValueForJudge(input.title)}`;

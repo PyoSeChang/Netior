@@ -16,7 +16,7 @@ export function createClaudeSdkUiServer(sendCard: (card: NarreCard) => void, uiB
     tools: [
       tool(
         'propose',
-        'Present an editable draft block to the user. Use this when suggesting archetypes, relation types, concepts, or any structured plan that the user may revise.',
+        'Present an editable draft block to the user. Use this when suggesting schemas, relation types, concepts, or any structured plan that the user may revise.',
         draftToolSchema.shape,
         async (args: DraftToolArgs) => ({
           content: [{

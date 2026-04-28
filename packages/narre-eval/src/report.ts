@@ -341,11 +341,11 @@ function summarizeCreatedItem(toolCall: ToolCallRecord): string | null {
   switch (suffix) {
     case 'create_network':
       return `네트워크: ${stringValue(toolCall.input.name)}`;
-    case 'create_archetype':
+    case 'create_schema':
       return `아키타입: ${stringValue(toolCall.input.name)}`;
     case 'create_relation_type':
       return `릴레이션 타입: ${stringValue(toolCall.input.name)}`;
-    case 'create_archetype_field':
+    case 'create_schema_field':
       return `필드: ${stringValue(toolCall.input.name)} (${stringValue(toolCall.input.field_type)})`;
     case 'create_concept':
       return `컨셉: ${stringValue(toolCall.input.title)}`;

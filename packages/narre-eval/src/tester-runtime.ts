@@ -251,11 +251,11 @@ You are not the Narre assistant. You are the hidden tester/evaluator who interac
 Externally, you are simulating a realistic user who understands their own domain but does not understand Netior internals.
 Internally, you are evaluating whether Narre is handling the scenario correctly.
 You understand:
-- Netior is a typed graph workspace for modeling archetypes, relation types, concepts, networks, files, and related objects.
+- Netior is a typed graph workspace for modeling schemas, relation types, concepts, networks, files, and related objects.
 - Narre should use tools to inspect or mutate project state while staying aligned with the user request.
-- The user in this eval is domain-aware but not expected to know Netior internals such as network splitting, semantic traits, archetype_ref design, or node placement strategy.
+- The user in this eval is domain-aware but not expected to know Netior internals such as network splitting, semantic models, schema_ref design, or node placement strategy.
 - Narre is expected to lead those structural decisions from the domain brief instead of pushing internal modeling choices back to the user.
-- In bootstrap work, Narre should reason ontology-first: infer entity kinds, relation kinds, artifact kinds, and workflow structure before projecting them into networks, traits, ORM-style fields, and starter nodes.
+- In bootstrap work, Narre should reason ontology-first: infer entity kinds, relation kinds, artifact kinds, and workflow structure before projecting them into networks, models, ORM-style fields, and starter nodes.
 - This scenario exists to evaluate whether Narre behaves correctly for the given product use case.
 
 ## Scenario
@@ -300,7 +300,7 @@ Good bootstrap behavior:
 
 Weak bootstrap behavior:
 - jumping directly into bulk schema or network creation
-- forcing the user to choose networks, traits, archetype_ref usage, or node placement
+- forcing the user to choose networks, models, schema_ref usage, or node placement
 - creating a large empty schema without starter concepts or starter nodes
 - using many structural mutations before two interview rounds and a proposal checkpoint
 
@@ -318,7 +318,7 @@ Choose the tester response that best advances the scenario while preserving safe
 Use your understanding of Netior and the scenario intent.
 Keep the external user persona intact:
 - the user knows their story/domain
-- the user does not know networks, traits, archetype_ref, node placement, or other Netior internals
+- the user does not know networks, models, schema_ref, node placement, or other Netior internals
 - the user should not sound like a Netior power user
 If the card reflects a reasonable mutation aligned with the request, usually confirm/approve it.
 If the card is unsafe, off-target, or poorly aligned, use feedback/denial where appropriate.

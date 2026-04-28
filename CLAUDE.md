@@ -66,7 +66,7 @@ process/*.ts           window.electron API)    components/**/*.tsx
 ### Data Model
 
 - **Project** — 사용자 디렉토리 참조 (name, root_dir)
-- **Concept** — 프로젝트 종속. title, color, icon, archetype_id
+- **Concept** — 프로젝트 종속. title, color, icon, schema_id
 - **Canvas** — Concept:Canvas = 1:N. concept_id(nullable), canvas_type_id(nullable), viewport 상태 저장
 - **CanvasNode** — 캔버스 위 배치. concept_id | file_path | dir_path 중 하나 (polymorphic)
 - **Edge** — 캔버스 종속 연결. relation_type_id, description, color/line_style/directed (개별 override 가능)
@@ -74,7 +74,7 @@ process/*.ts           window.electron API)    components/**/*.tsx
 
 ### Type System (프로젝트 레벨)
 
-- **Archetype** — Concept의 클래스 (name, icon, color, node_shape, file_template, fields)
+- **Schema** — Concept의 클래스 (name, icon, color, node_shape, file_template, fields)
 - **RelationType** — Edge의 클래스 (name, description, color, line_style, directed)
 - **CanvasType** — Canvas의 클래스 (name, description, icon, color, allowed_relation_types via junction table)
 
@@ -99,7 +99,7 @@ process/*.ts           window.electron API)    components/**/*.tsx
 
 ### Editor System
 
-EditorTabType: `'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'canvasType' | 'canvas' | 'narre'`
+EditorTabType: `'concept' | 'file' | 'schema' | 'terminal' | 'edge' | 'relationType' | 'canvasType' | 'canvas' | 'narre'`
 
 확장자 기반 에디터 자동 선택:
 - `.md` → MarkdownEditor
@@ -125,7 +125,7 @@ NarreChat.tsx         →IPC→ narre-ipc.ts      →HTTP→ Express :3100
 
 **데이터 흐름:**
 - narre-server는 DB에 직접 접근하지 않음. 모든 DB 작업은 netior-mcp 경유.
-- 시스템 프롬프트용 메타데이터(아크타입, 릴레이션타입 등)는 desktop-app Main이 DB에서 조회 → `/chat` body로 전달.
+- 시스템 프롬프트용 메타데이터(schema, relation type 등)는 desktop-app Main이 DB에서 조회 → `/chat` body로 전달.
 - better-sqlite3 네이티브 모듈은 Electron(desktop-app)과 Node.js(netior-mcp)가 별도 프로세스로 사용. narre-server는 네이티브 모듈 없음.
 
 **핵심 컴포넌트:**
@@ -164,7 +164,7 @@ Claude Code 등록:
 { "mcpServers": { "moc": { "command": "node", "args": ["packages/netior-mcp/dist/index.js"], "env": { "MOC_DB_PATH": "%APPDATA%/netior/data/netior.db" } } } }
 ```
 
-17개 도구: archetype(4) + relationType(4) + canvasType(4) + concept(4) + project_summary(1).
+17개 도구: schema(4) + relationType(4) + canvasType(4) + concept(4) + project_summary(1).
 
 ## Key Constraints
 

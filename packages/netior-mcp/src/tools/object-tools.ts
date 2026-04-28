@@ -2,12 +2,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getObject, getObjectByRef } from '../netior-service-client.js';
 import { registerNetiorTool } from './shared-tool-registry.js';
+import { fromAgentObjectType, toAgentObject, type AgentObjectType } from './schema-surface.js';
 
 const objectTypeSchema = z.enum([
   'concept',
   'network',
   'project',
-  'archetype',
+  'schema',
+  'model',
   'relation_type',
   'type_group',
   'agent',
@@ -32,7 +34,7 @@ export function registerObjectTools(server: McpServer): void {
           };
         }
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(toAgentObject(result), null, 2) }],
         };
       } catch (error) {
         return {
@@ -52,7 +54,7 @@ export function registerObjectTools(server: McpServer): void {
     },
     async ({ object_type, ref_id }) => {
       try {
-        const result = await getObjectByRef(object_type, ref_id);
+        const result = await getObjectByRef(fromAgentObjectType(object_type as AgentObjectType), ref_id);
         if (!result) {
           return {
             content: [{ type: 'text' as const, text: `Error: Object not found for ${object_type}:${ref_id}` }],
@@ -60,7 +62,7 @@ export function registerObjectTools(server: McpServer): void {
           };
         }
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(toAgentObject(result), null, 2) }],
         };
       } catch (error) {
         return {

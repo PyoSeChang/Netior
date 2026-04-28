@@ -34,10 +34,21 @@ import {
   updateModule,
 } from '../repositories/module';
 import { getEditorPrefs, upsertEditorPrefs } from '../repositories/editor-prefs';
+import { createSemanticModel, deleteSemanticModel, getSemanticModel, listSemanticModels, updateSemanticModel } from '../repositories/semantic-model';
 import { createRelationType, listRelationTypes, getRelationType, updateRelationType, deleteRelationType } from '../repositories/relation-type';
 import { createObject, getObject, getObjectByRef, deleteObject, deleteObjectByRef } from '../repositories/objects';
 import { createContext, listContexts, getContext, updateContext, deleteContext, addContextMember, removeContextMember, getContextMembers } from '../repositories/context';
-import { createArchetype, deleteArchetype, createField, listFields, updateField } from '../repositories/archetype';
+import {
+  createSchema,
+  deleteSchema,
+  createField,
+  getSchema,
+  ensureMeaning,
+  listFields,
+  listMeanings,
+  updateField,
+  updateMeaningSlotBinding,
+} from '../repositories/schema';
 import { createTypeGroup, listTypeGroups, getTypeGroup, updateTypeGroup, deleteTypeGroup } from '../repositories/type-group';
 
 describe('Repositories', () => {
@@ -374,7 +385,7 @@ describe('Repositories', () => {
       expect(updated?.description).toBe('modified');
     });
 
-    it('should bridge relation semantic annotations and legacy system contracts', () => {
+    it('should persist relation meanings on edges', () => {
       const network = createNetwork({ project_id: projectId, name: 'N' });
       const c1 = createConcept({ project_id: projectId, title: 'A' });
       const c2 = createConcept({ project_id: projectId, title: 'B' });
@@ -387,16 +398,14 @@ describe('Repositories', () => {
         network_id: network.id,
         source_node_id: n1.id,
         target_node_id: n2.id,
-        semantic_annotation: 'structure.contains',
+        relation_meaning: 'structure.contains',
       });
 
-      expect(edge.semantic_annotation).toBe('structure.contains');
-      expect(edge.system_contract).toBe('core:contains');
-      expect(getEdge(edge.id)?.semantic_annotation).toBe('structure.contains');
+      expect(edge.relation_meaning).toBe('structure.contains');
+      expect(getEdge(edge.id)?.relation_meaning).toBe('structure.contains');
 
-      const updated = updateEdge(edge.id, { system_contract: 'core:entry_portal' });
-      expect(updated?.system_contract).toBe('core:entry_portal');
-      expect(updated?.semantic_annotation).toBe('structure.entry_portal');
+      const updated = updateEdge(edge.id, { relation_meaning: 'structure.entry_portal' });
+      expect(updated?.relation_meaning).toBe('structure.entry_portal');
     });
 
     it('should return undefined when updating nonexistent edge', () => {
@@ -818,6 +827,119 @@ describe('Repositories', () => {
     });
   });
 
+  describe('SemanticModel', () => {
+    let projectId: string;
+
+    beforeEach(() => {
+      const project = createProject({ name: 'Test', root_dir: '/model-test' });
+      projectId = project.id;
+    });
+
+    it('should seed built-in models for new projects', () => {
+      const models = listSemanticModels(projectId);
+      const temporal = models.find((model) => model.key === 'temporal');
+
+      expect(models.length).toBeGreaterThan(0);
+      expect(temporal).toBeDefined();
+      expect(temporal?.built_in).toBe(true);
+      expect(temporal?.description).toContain('occupy time');
+      expect(temporal?.recipe.meanings[0]?.fields[0]?.name).toBe('Start At');
+
+      const obj = getObjectByRef('model', temporal!.id);
+      expect(obj).toBeDefined();
+      expect(obj!.object_type).toBe('model');
+      expect(obj!.project_id).toBe(projectId);
+    });
+
+    it('should create, update, and delete custom models', () => {
+      const model = createSemanticModel({
+        project_id: projectId,
+        name: 'Experiment Rhythm',
+        category: 'experiment',
+        recipe: {
+          meanings: [{
+            id: 'cadence',
+            key: 'cadence',
+            name: 'Cadence',
+            representation: 'field_group',
+            fields: [{
+              id: 'frequency',
+              key: 'frequency',
+              name: 'Frequency',
+              field_types: ['select', 'text'],
+              required: true,
+            }],
+          }],
+          rules: [{ id: 'cadence-required', description: 'Frequency is required.' }],
+        },
+      });
+
+      expect(model.key).toBe('experiment_rhythm');
+      expect(model.category).toBe('experiment');
+      expect(model.recipe.meanings[0]?.fields[0]?.name).toBe('Frequency');
+      expect(model.recipe.meanings[0]?.fields[0]?.field_types).toEqual(['select', 'text']);
+      expect(getObjectByRef('model', model.id)).toBeDefined();
+
+      const updated = updateSemanticModel(model.id, {
+        name: 'Experiment Cadence',
+        recipe: {
+          ...model.recipe,
+          rules: [{ id: 'cadence-required', description: 'Frequency and interval are required.' }],
+        },
+      });
+
+      expect(updated?.name).toBe('Experiment Cadence');
+      expect(updated?.recipe.rules[0]?.description).toContain('interval');
+      expect(getSemanticModel(model.id)?.name).toBe('Experiment Cadence');
+
+      expect(deleteSemanticModel(model.id)).toBe(true);
+      expect(getSemanticModel(model.id)).toBeUndefined();
+      expect(getObjectByRef('model', model.id)).toBeUndefined();
+    });
+
+    it('should keep schema model references aligned when a custom model key changes', () => {
+      const model = createSemanticModel({
+        project_id: projectId,
+        name: 'Evidence Lifecycle',
+        category: 'knowledge',
+        meaning_keys: ['versioning'],
+      });
+      const schema = createSchema({
+        project_id: projectId,
+        name: 'Evidence',
+        semantic_models: [model.key],
+      });
+
+      const updated = updateSemanticModel(model.id, { key: 'evidence_state' });
+
+      expect(updated?.key).toBe('evidence_state');
+      expect(getSchema(schema.id)?.semantic_models).toEqual(['evidence_state']);
+      expect(getSchema(schema.id)?.semantic_models).toEqual(['evidence_state']);
+      expect(getSchema(schema.id)?.models).toEqual(['evidence_state']);
+    });
+
+    it('should remove deleted custom model keys from schemas', () => {
+      const model = createSemanticModel({
+        project_id: projectId,
+        name: 'Evidence Lifecycle',
+        category: 'knowledge',
+        meaning_keys: ['versioning'],
+      });
+      const schema = createSchema({
+        project_id: projectId,
+        name: 'Evidence',
+        semantic_models: [model.key],
+      });
+
+      expect(schema.semantic_models).toEqual([model.key]);
+
+      expect(deleteSemanticModel(model.id)).toBe(true);
+      expect(getSchema(schema.id)?.semantic_models).toEqual([]);
+      expect(getSchema(schema.id)?.semantic_models).toEqual([]);
+      expect(getSchema(schema.id)?.models).toEqual([]);
+    });
+  });
+
   describe('RelationType', () => {
     let projectId: string;
 
@@ -1016,17 +1138,17 @@ describe('Repositories', () => {
     it('should create edge without relation_type_id', () => {
       const edge = createEdge({ network_id: networkId, source_node_id: n1Id, target_node_id: n2Id });
       expect(edge.relation_type_id).toBeNull();
-      expect(edge.system_contract).toBeNull();
+      expect(edge.relation_meaning).toBeNull();
     });
 
-    it('should create edge with system_contract', () => {
+    it('should create edge with relation_meaning', () => {
       const edge = createEdge({
         network_id: networkId,
         source_node_id: n1Id,
         target_node_id: n2Id,
-        system_contract: 'core:contains',
+        relation_meaning: 'structure.contains',
       });
-      expect(edge.system_contract).toBe('core:contains');
+      expect(edge.relation_meaning).toBe('structure.contains');
     });
 
     it('should get edge by id', () => {
@@ -1042,10 +1164,10 @@ describe('Repositories', () => {
       expect(updated?.relation_type_id).toBe(rt.id);
     });
 
-    it('should update edge system_contract', () => {
+    it('should update edge relation_meaning', () => {
       const edge = createEdge({ network_id: networkId, source_node_id: n1Id, target_node_id: n2Id });
-      const updated = updateEdge(edge.id, { system_contract: 'core:entry_portal' });
-      expect(updated?.system_contract).toBe('core:entry_portal');
+      const updated = updateEdge(edge.id, { relation_meaning: 'structure.entry_portal' });
+      expect(updated?.relation_meaning).toBe('structure.entry_portal');
     });
 
     it('should SET NULL when relation type deleted', () => {
@@ -1065,15 +1187,15 @@ describe('Repositories', () => {
       expect(full.edges[0].relation_type?.directed).toBe(true);
     });
 
-    it('should include system_contract in getNetworkFull', () => {
+    it('should include relation_meaning in getNetworkFull', () => {
       createEdge({
         network_id: networkId,
         source_node_id: n1Id,
         target_node_id: n2Id,
-        system_contract: 'core:contains',
+        relation_meaning: 'structure.contains',
       });
       const full = getNetworkFull(networkId)!;
-      expect(full.edges[0].system_contract).toBe('core:contains');
+      expect(full.edges[0].relation_meaning).toBe('structure.contains');
     });
 
     it('should store edge visuals in layout layer', () => {
@@ -1291,161 +1413,246 @@ describe('Repositories', () => {
       projectId = createProject({ name: 'Semantic', root_dir: '/semantic-test' }).id;
     });
 
-    it('should bridge facets and legacy semantic traits on schema create/update', () => {
-      const schema = createArchetype({
+    it('should bridge semantic models with legacy models and models on schema create/update', () => {
+      const schema = createSchema({
         project_id: projectId,
         name: 'Event',
-        facets: ['temporal'],
+        semantic_models: ['temporal'],
       });
 
-      expect(schema.facets).toEqual(['temporal']);
-      expect(schema.semantic_traits).toEqual(['temporal']);
+      expect(schema.semantic_models).toEqual(['temporal']);
+      expect(schema.models).toEqual(['temporal']);
+      expect(schema.semantic_models).toEqual(['temporal']);
 
-      const updated = createArchetype({
+      const updated = createSchema({
         project_id: projectId,
         name: 'Task',
-        semantic_traits: ['dueable'],
+        semantic_models: ['dueable'],
       });
 
-      expect(updated.facets).toEqual(['dueable']);
-      expect(updated.semantic_traits).toEqual(['dueable']);
+      expect(updated.semantic_models).toEqual(['dueable']);
+      expect(updated.models).toEqual(['dueable']);
+      expect(updated.semantic_models).toEqual(['dueable']);
     });
 
-    it('should bridge slot semantic annotations and legacy system slots', () => {
-      const schema = createArchetype({ project_id: projectId, name: 'Event' });
+    it('should bind fields to meanings and read legacy semantic annotations', () => {
+      const schema = createSchema({ project_id: projectId, name: 'Event' });
       const start = createField({
-        archetype_id: schema.id,
+        schema_id: schema.id,
         name: 'Start',
         field_type: 'datetime',
         sort_order: 0,
-        semantic_annotation: 'time.start',
+        meaning_bindings: ['time.start'],
       });
 
-      expect(start.semantic_annotation).toBe('time.start');
-      expect(start.system_slot).toBe('start_at');
-      expect(start.semantic_aspects).toEqual(['time.start', 'temporal.point', 'temporal.boundary.start']);
+      expect(start.meaning_bindings).toEqual(['time.start']);
 
-      const updated = updateField(start.id, { system_slot: 'end_at' });
-      expect(updated?.semantic_annotation).toBe('time.end');
-      expect(updated?.system_slot).toBe('end_at');
-      expect(updated?.semantic_aspects).toEqual(['time.end', 'temporal.point', 'temporal.boundary.end']);
+      const updated = updateField(start.id, { meaning_bindings: ['time.end', 'temporal.point', 'temporal.boundary.end'] });
+      expect(updated?.meaning_bindings).toEqual(['time.end', 'temporal.point', 'temporal.boundary.end']);
     });
 
-    it('should preserve multiple semantic aspects on a single slot', () => {
-      const schema = createArchetype({ project_id: projectId, name: 'Task' });
+    it('should preserve multiple meaning bindings on a single field', () => {
+      const schema = createSchema({ project_id: projectId, name: 'Task' });
       const due = createField({
-        archetype_id: schema.id,
+        schema_id: schema.id,
         name: 'Due',
         field_type: 'datetime',
         sort_order: 0,
-        semantic_annotation: 'time.due',
-        semantic_aspects: ['time.due', 'temporal.deadline', 'obligation.due', 'boundary.deadline'],
+        meaning_bindings: ['time.due', 'temporal.deadline', 'obligation.due', 'boundary.deadline'],
       });
 
-      expect(due.semantic_annotation).toBe('time.due');
-      expect(due.semantic_aspects).toEqual(['time.due', 'temporal.deadline', 'obligation.due', 'boundary.deadline']);
-      expect(listFields(schema.id)[0].semantic_aspects).toEqual(due.semantic_aspects);
+      expect(due.meaning_bindings).toEqual(['time.due', 'temporal.deadline', 'obligation.due', 'boundary.deadline']);
+      expect(listFields(schema.id)[0].meaning_bindings).toEqual(due.meaning_bindings);
+
+      const db = getTestDb();
+      const meaningRows = db.prepare('SELECT meaning_key FROM field_meaning_bindings WHERE field_id = ? ORDER BY sort_order').all(due.id) as { meaning_key: string }[];
+      expect(meaningRows.map((row) => row.meaning_key)).toEqual(due.meaning_bindings);
+    });
+
+    it('should create meanings with slot bindings and bind them to fields', () => {
+      const schema = createSchema({ project_id: projectId, name: 'Recurring Task' });
+      const meaning = ensureMeaning({
+        schema_id: schema.id,
+        meaning_key: 'recurrence',
+        source: 'manual',
+      });
+
+      expect(meaning?.meaning_key).toBe('recurrence');
+      expect(meaning?.slots.map((slot) => slot.slot_key)).toEqual([
+        'recurrence_frequency',
+        'recurrence_interval',
+        'recurrence_weekdays',
+        'recurrence_monthday',
+        'recurrence_until',
+        'recurrence_count',
+      ]);
+
+      const frequencyField = createField({
+        schema_id: schema.id,
+        name: 'Repeat frequency',
+        field_type: 'select',
+        sort_order: 0,
+        meaning_bindings: ['time.recurrence_frequency'],
+      });
+      const frequencyBinding = listMeanings(schema.id)
+        .find((item) => item.meaning_key === 'recurrence')
+        ?.slots.find((slot) => slot.slot_key === 'recurrence_frequency');
+
+      expect(frequencyBinding?.field_id).toBe(frequencyField.id);
+
+      const untilField = createField({
+        schema_id: schema.id,
+        name: 'Repeat until',
+        field_type: 'datetime',
+        sort_order: 1,
+      });
+      const untilBinding = meaning!.slots.find((slot) => slot.slot_key === 'recurrence_until')!;
+      updateMeaningSlotBinding(untilBinding.id, {
+        target_kind: 'field',
+        field_id: untilField.id,
+      });
+
+      const recurring = listMeanings(schema.id).find((item) => item.meaning_key === 'recurrence');
+      expect(recurring?.slots.find((slot) => slot.slot_key === 'recurrence_until')?.field_id).toBe(untilField.id);
+      expect(listFields(schema.id).find((field) => field.id === untilField.id)?.meaning_bindings).toContain('time.recurrence_until');
+    });
+
+    it('should repair legacy recurrence rule bindings into structured recurrence slots', () => {
+      const schema = createSchema({ project_id: projectId, name: 'Legacy Recurring Task' });
+      const db = getTestDb();
+      const now = new Date().toISOString();
+      const meaningId = 'legacy-recurrence-meaning';
+      const fieldId = 'legacy-recurrence-rule-field';
+
+      db.prepare(`
+        INSERT INTO schema_fields (id, schema_id, name, field_type, sort_order, required, meaning_slot, meaning_key, slot_binding_locked, generated_by_model, created_at)
+        VALUES (?, ?, 'Repeat rule', 'text', 0, 1, 'recurrence_rule', 'time.recurrence_rule', 1, 1, ?)
+      `).run(fieldId, schema.id, now);
+      db.prepare(`
+        INSERT INTO schema_meanings (id, schema_id, meaning_key, label, source, source_model, sort_order, created_at, updated_at)
+        VALUES (?, ?, 'recurrence', NULL, 'migration', NULL, 0, ?, ?)
+      `).run(meaningId, schema.id, now, now);
+      db.prepare(`
+        INSERT INTO schema_meaning_slot_bindings (id, meaning_id, slot_key, target_kind, field_id, required, sort_order, created_at)
+        VALUES ('legacy-recurrence-rule-binding', ?, 'recurrence_rule', 'field', ?, 1, 0, ?)
+      `).run(meaningId, fieldId, now);
+
+      const recurrence = listMeanings(schema.id).find((item) => item.meaning_key === 'recurrence');
+
+      expect(recurrence?.slots.map((slot) => slot.slot_key)).toEqual([
+        'recurrence_frequency',
+        'recurrence_interval',
+        'recurrence_weekdays',
+        'recurrence_monthday',
+        'recurrence_until',
+        'recurrence_count',
+      ]);
+      expect(recurrence?.slots.some((slot) => slot.slot_key === 'recurrence_rule')).toBe(false);
+      expect(recurrence?.slots.filter((slot) => slot.required).map((slot) => slot.slot_key)).toEqual([
+        'recurrence_frequency',
+        'recurrence_interval',
+      ]);
     });
   });
 
-  // --- Archetype Ref Field ---
+  // --- Schema Ref Field ---
 
-  describe('Archetype Ref Field', () => {
+  describe('Schema Ref Field', () => {
     let projectId: string;
 
     beforeEach(() => {
       projectId = createProject({ name: 'Test', root_dir: '/ref-test' }).id;
     });
 
-    it('should create archetype_ref field with ref_archetype_id', () => {
-      const a = createArchetype({ project_id: projectId, name: 'Person' });
-      const b = createArchetype({ project_id: projectId, name: 'Company' });
+    it('should create schema_ref field with ref_schema_id', () => {
+      const a = createSchema({ project_id: projectId, name: 'Person' });
+      const b = createSchema({ project_id: projectId, name: 'Company' });
       const field = createField({
-        archetype_id: a.id,
+        schema_id: a.id,
         name: 'employer',
-        field_type: 'archetype_ref',
+        field_type: 'schema_ref',
         sort_order: 0,
-        ref_archetype_id: b.id,
+        ref_schema_id: b.id,
       });
-      expect(field.field_type).toBe('archetype_ref');
-      expect(field.ref_archetype_id).toBe(b.id);
+      expect(field.field_type).toBe('schema_ref');
+      expect(field.ref_schema_id).toBe(b.id);
     });
 
-    it('should create and delete object record for archetype', () => {
-      const a = createArchetype({ project_id: projectId, name: 'Placeable Type' });
-      const obj = getObjectByRef('archetype', a.id);
+    it('should create and delete object record for schema', () => {
+      const a = createSchema({ project_id: projectId, name: 'Placeable Type' });
+      const obj = getObjectByRef('schema', a.id);
       expect(obj).toBeDefined();
-      expect(obj!.object_type).toBe('archetype');
+      expect(obj!.object_type).toBe('schema');
       expect(obj!.project_id).toBe(projectId);
 
-      expect(deleteArchetype(a.id)).toBe(true);
-      expect(getObjectByRef('archetype', a.id)).toBeUndefined();
+      expect(deleteSchema(a.id)).toBe(true);
+      expect(getObjectByRef('schema', a.id)).toBeUndefined();
     });
 
-    it('should reject self-referencing archetype_ref', () => {
-      const a = createArchetype({ project_id: projectId, name: 'Self' });
+    it('should reject self-referencing schema_ref', () => {
+      const a = createSchema({ project_id: projectId, name: 'Self' });
       expect(() =>
         createField({
-          archetype_id: a.id,
+          schema_id: a.id,
           name: 'self',
-          field_type: 'archetype_ref',
+          field_type: 'schema_ref',
           sort_order: 0,
-          ref_archetype_id: a.id,
+          ref_schema_id: a.id,
         }),
-      ).toThrow('Circular archetype reference detected');
+      ).toThrow('Circular schema reference detected');
     });
 
-    it('should reject circular archetype_ref chain A→B→A', () => {
-      const a = createArchetype({ project_id: projectId, name: 'A' });
-      const b = createArchetype({ project_id: projectId, name: 'B' });
+    it('should reject circular schema_ref chain A→B→A', () => {
+      const a = createSchema({ project_id: projectId, name: 'A' });
+      const b = createSchema({ project_id: projectId, name: 'B' });
       // A references B
       createField({
-        archetype_id: a.id,
+        schema_id: a.id,
         name: 'refB',
-        field_type: 'archetype_ref',
+        field_type: 'schema_ref',
         sort_order: 0,
-        ref_archetype_id: b.id,
+        ref_schema_id: b.id,
       });
       // B references A → cycle
       expect(() =>
         createField({
-          archetype_id: b.id,
+          schema_id: b.id,
           name: 'refA',
-          field_type: 'archetype_ref',
+          field_type: 'schema_ref',
           sort_order: 0,
-          ref_archetype_id: a.id,
+          ref_schema_id: a.id,
         }),
-      ).toThrow('Circular archetype reference detected');
+      ).toThrow('Circular schema reference detected');
     });
 
-    it('should reject circular archetype_ref chain A→B→C→A', () => {
-      const a = createArchetype({ project_id: projectId, name: 'A' });
-      const b = createArchetype({ project_id: projectId, name: 'B' });
-      const c = createArchetype({ project_id: projectId, name: 'C' });
-      createField({ archetype_id: a.id, name: 'refB', field_type: 'archetype_ref', sort_order: 0, ref_archetype_id: b.id });
-      createField({ archetype_id: b.id, name: 'refC', field_type: 'archetype_ref', sort_order: 0, ref_archetype_id: c.id });
+    it('should reject circular schema_ref chain A→B→C→A', () => {
+      const a = createSchema({ project_id: projectId, name: 'A' });
+      const b = createSchema({ project_id: projectId, name: 'B' });
+      const c = createSchema({ project_id: projectId, name: 'C' });
+      createField({ schema_id: a.id, name: 'refB', field_type: 'schema_ref', sort_order: 0, ref_schema_id: b.id });
+      createField({ schema_id: b.id, name: 'refC', field_type: 'schema_ref', sort_order: 0, ref_schema_id: c.id });
       expect(() =>
-        createField({ archetype_id: c.id, name: 'refA', field_type: 'archetype_ref', sort_order: 0, ref_archetype_id: a.id }),
-      ).toThrow('Circular archetype reference detected');
+        createField({ schema_id: c.id, name: 'refA', field_type: 'schema_ref', sort_order: 0, ref_schema_id: a.id }),
+      ).toThrow('Circular schema reference detected');
     });
 
-    it('should allow non-cyclic archetype_ref chain A→B, A→C', () => {
-      const a = createArchetype({ project_id: projectId, name: 'A' });
-      const b = createArchetype({ project_id: projectId, name: 'B' });
-      const c = createArchetype({ project_id: projectId, name: 'C' });
-      createField({ archetype_id: a.id, name: 'refB', field_type: 'archetype_ref', sort_order: 0, ref_archetype_id: b.id });
-      const field = createField({ archetype_id: a.id, name: 'refC', field_type: 'archetype_ref', sort_order: 1, ref_archetype_id: c.id });
-      expect(field.ref_archetype_id).toBe(c.id);
+    it('should allow non-cyclic schema_ref chain A→B, A→C', () => {
+      const a = createSchema({ project_id: projectId, name: 'A' });
+      const b = createSchema({ project_id: projectId, name: 'B' });
+      const c = createSchema({ project_id: projectId, name: 'C' });
+      createField({ schema_id: a.id, name: 'refB', field_type: 'schema_ref', sort_order: 0, ref_schema_id: b.id });
+      const field = createField({ schema_id: a.id, name: 'refC', field_type: 'schema_ref', sort_order: 1, ref_schema_id: c.id });
+      expect(field.ref_schema_id).toBe(c.id);
     });
 
-    it('should SET NULL ref_archetype_id when referenced archetype is deleted', () => {
-      const a = createArchetype({ project_id: projectId, name: 'A' });
-      const b = createArchetype({ project_id: projectId, name: 'B' });
-      createField({ archetype_id: a.id, name: 'ref', field_type: 'archetype_ref', sort_order: 0, ref_archetype_id: b.id });
-      deleteArchetype(b.id);
+    it('should SET NULL ref_schema_id when referenced schema is deleted', () => {
+      const a = createSchema({ project_id: projectId, name: 'A' });
+      const b = createSchema({ project_id: projectId, name: 'B' });
+      createField({ schema_id: a.id, name: 'ref', field_type: 'schema_ref', sort_order: 0, ref_schema_id: b.id });
+      deleteSchema(b.id);
       const fields = listFields(a.id);
       expect(fields).toHaveLength(1);
-      expect(fields[0].ref_archetype_id).toBeNull();
+      expect(fields[0].ref_schema_id).toBeNull();
     });
   });
 
@@ -1459,13 +1666,13 @@ describe('Repositories', () => {
     });
 
     it('should create and list type groups', () => {
-      const g = createTypeGroup({ project_id: projectId, kind: 'archetype', name: 'People' });
+      const g = createTypeGroup({ project_id: projectId, kind: 'schema', name: 'People' });
       expect(g.id).toBeDefined();
       expect(g.name).toBe('People');
-      expect(g.kind).toBe('archetype');
+      expect(g.kind).toBe('schema');
       expect(g.sort_order).toBe(0);
 
-      const list = listTypeGroups(projectId, 'archetype');
+      const list = listTypeGroups(projectId, 'schema');
       expect(list).toHaveLength(1);
       expect(list[0].id).toBe(g.id);
 
@@ -1475,40 +1682,40 @@ describe('Repositories', () => {
     });
 
     it('should filter by kind', () => {
-      createTypeGroup({ project_id: projectId, kind: 'archetype', name: 'A' });
+      createTypeGroup({ project_id: projectId, kind: 'schema', name: 'A' });
       createTypeGroup({ project_id: projectId, kind: 'relation_type', name: 'R' });
-      expect(listTypeGroups(projectId, 'archetype')).toHaveLength(1);
+      expect(listTypeGroups(projectId, 'schema')).toHaveLength(1);
       expect(listTypeGroups(projectId, 'relation_type')).toHaveLength(1);
     });
 
     it('should get type group by id', () => {
-      const g = createTypeGroup({ project_id: projectId, kind: 'archetype', name: 'G' });
+      const g = createTypeGroup({ project_id: projectId, kind: 'schema', name: 'G' });
       expect(getTypeGroup(g.id)?.name).toBe('G');
       expect(getTypeGroup('nonexistent')).toBeUndefined();
     });
 
     it('should update type group', () => {
-      const g = createTypeGroup({ project_id: projectId, kind: 'archetype', name: 'Old' });
+      const g = createTypeGroup({ project_id: projectId, kind: 'schema', name: 'Old' });
       const updated = updateTypeGroup(g.id, { name: 'New', sort_order: 5 });
       expect(updated?.name).toBe('New');
       expect(updated?.sort_order).toBe(5);
     });
 
     it('should delete type group', () => {
-      const g = createTypeGroup({ project_id: projectId, kind: 'archetype', name: 'Del' });
+      const g = createTypeGroup({ project_id: projectId, kind: 'schema', name: 'Del' });
       expect(deleteTypeGroup(g.id)).toBe(true);
-      expect(listTypeGroups(projectId, 'archetype')).toHaveLength(0);
+      expect(listTypeGroups(projectId, 'schema')).toHaveLength(0);
       expect(getObjectByRef('type_group', g.id)).toBeUndefined();
     });
 
-    it('should SET NULL archetype group_id when type group is deleted', () => {
-      const g = createTypeGroup({ project_id: projectId, kind: 'archetype', name: 'Grp' });
-      const a = createArchetype({ project_id: projectId, name: 'A' });
-      // Assign group_id via direct SQL since updateArchetype doesn't handle group_id yet
+    it('should SET NULL schema group_id when type group is deleted', () => {
+      const g = createTypeGroup({ project_id: projectId, kind: 'schema', name: 'Grp' });
+      const a = createSchema({ project_id: projectId, name: 'A' });
+      // Assign group_id via direct SQL since updateSchema doesn't handle group_id yet
       const db = getTestDb();
-      db.prepare('UPDATE archetypes SET group_id = ? WHERE id = ?').run(g.id, a.id);
+      db.prepare('UPDATE schemas SET group_id = ? WHERE id = ?').run(g.id, a.id);
       deleteTypeGroup(g.id);
-      const row = db.prepare('SELECT group_id FROM archetypes WHERE id = ?').get(a.id) as { group_id: string | null };
+      const row = db.prepare('SELECT group_id FROM schemas WHERE id = ?').get(a.id) as { group_id: string | null };
       expect(row.group_id).toBeNull();
     });
 
@@ -1523,9 +1730,9 @@ describe('Repositories', () => {
     });
 
     it('should cascade delete when project is deleted', () => {
-      createTypeGroup({ project_id: projectId, kind: 'archetype', name: 'Cascade' });
+      createTypeGroup({ project_id: projectId, kind: 'schema', name: 'Cascade' });
       deleteProject(projectId);
-      expect(listTypeGroups(projectId, 'archetype')).toHaveLength(0);
+      expect(listTypeGroups(projectId, 'schema')).toHaveLength(0);
     });
   });
 });

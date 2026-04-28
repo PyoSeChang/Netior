@@ -3,7 +3,7 @@ import Database from 'better-sqlite3';
 
 import { migrate001 } from './migrations/001-initial';
 import { migrate002 } from './migrations/002-modules-and-hierarchical-canvas';
-import { migrate003 } from './migrations/003-archetypes';
+import { migrate003 } from './migrations/003-schemas';
 import { migrate004 } from './migrations/004-concept-content';
 import { migrate005 } from './migrations/005-app-settings';
 import { migrate006 } from './migrations/006-canvas-1n-and-types';
@@ -14,17 +14,25 @@ import { migrate010 } from './migrations/010-canvas-to-network';
 import { migrate011 } from './migrations/011-network-structure-and-layouts';
 import { migrate012 } from './migrations/012-objects-and-entity-nodes';
 import { migrate013 } from './migrations/013-contexts';
-import { migrate014 } from './migrations/014-archetype-ref-field';
+import { migrate014 } from './migrations/014-schema-ref-field';
 import { migrate015 } from './migrations/015-type-groups';
 import { migrate016 } from './migrations/016-backfill-object-records';
-import { migrate017 } from './migrations/017-edge-system-contract-and-group-node-type';
-import { migrate018 } from './migrations/018-unify-hierarchy-parent-contract';
+import { migrate017 } from './migrations/017-edge-relation-meaning-and-group-node-type';
+import { migrate018 } from './migrations/018-unify-hierarchy-parent-meaning';
 import { migrate019 } from './migrations/019-module-path';
-import { migrate020 } from './migrations/020-archetype-semantics';
+import { migrate020 } from './migrations/020-schema-meaning-foundation';
 import { migrate021 } from './migrations/021-concept-recurrence-materialization';
 import { migrate022 } from './migrations/022-network-universe-ontology';
-import { migrate023 } from './migrations/023-schema-semantic-annotations';
-import { migrate024 } from './migrations/024-slot-semantic-aspects';
+import { migrate023 } from './migrations/023-schema-field-meanings';
+import { migrate024 } from './migrations/024-field-meaning-bindings-v1';
+import { migrate025 } from './migrations/025-schema-meanings';
+import { migrate026 } from './migrations/026-structured-recurrence-meaning';
+import { migrate027 } from './migrations/027-semantic-models-and-meanings';
+import { migrate028 } from './migrations/028-semantic-model-objects';
+import { migrate029 } from './migrations/029-semantic-model-descriptions';
+import { migrate030 } from './migrations/030-semantic-model-recipes';
+import { migrate031 } from './migrations/031-field-meaning-bindings';
+import { migrate032 } from './migrations/032-domain-term-cleanup';
 import {
   ensureProjectNodeInUniverseForDb,
   ensureProjectOntologyNetworkForDb,
@@ -63,6 +71,14 @@ const migrations: Migration[] = [
   { version: 22, migrate: migrate022 },
   { version: 23, migrate: migrate023 },
   { version: 24, migrate: migrate024 },
+  { version: 25, migrate: migrate025 },
+  { version: 26, migrate: migrate026 },
+  { version: 27, migrate: migrate027 },
+  { version: 28, migrate: migrate028 },
+  { version: 29, migrate: migrate029 },
+  { version: 30, migrate: migrate030 },
+  { version: 31, migrate: migrate031 },
+  { version: 32, migrate: migrate032 },
 ];
 
 export function hasColumn(db: Database.Database, table: string, column: string): boolean {

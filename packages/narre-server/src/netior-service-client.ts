@@ -1,11 +1,13 @@
 import type {
-  Archetype,
-  ArchetypeField,
+  Schema,
+  SchemaField,
+  SchemaMeaning,
   NetiorServiceResponse,
   Network,
   NetworkTreeNode,
   Project,
   RelationType,
+  SemanticModel,
   TypeGroup,
   TypeGroupKind,
 } from '@netior/shared/types';
@@ -61,12 +63,20 @@ export async function getProjectById(projectId: string): Promise<Project | null>
   return requestJson<Project | null>(`/projects/${encodeURIComponent(projectId)}`);
 }
 
-export async function listArchetypes(projectId: string): Promise<Archetype[]> {
-  return requestJson<Archetype[]>(`/archetypes${toQueryString({ projectId })}`);
+export async function listSchemas(projectId: string): Promise<Schema[]> {
+  return requestJson<Schema[]>(`/schemas${toQueryString({ projectId })}`);
 }
 
-export async function listArchetypeFields(archetypeId: string): Promise<ArchetypeField[]> {
-  return requestJson<ArchetypeField[]>(`/archetype-fields${toQueryString({ archetypeId })}`);
+export async function listSchemaFields(schemaId: string): Promise<SchemaField[]> {
+  return requestJson<SchemaField[]>(`/schema-fields${toQueryString({ schemaId })}`);
+}
+
+export async function listSchemaMeanings(schemaId: string): Promise<SchemaMeaning[]> {
+  return requestJson<SchemaMeaning[]>(`/schema-meanings${toQueryString({ schemaId })}`);
+}
+
+export async function listSemanticModels(projectId: string): Promise<SemanticModel[]> {
+  return requestJson<SemanticModel[]>(`/semantic-models${toQueryString({ projectId })}`);
 }
 
 export async function listRelationTypes(projectId: string): Promise<RelationType[]> {

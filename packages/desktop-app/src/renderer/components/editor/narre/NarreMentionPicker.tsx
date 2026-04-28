@@ -19,15 +19,15 @@ const MENTION_CATEGORIES = [
   { key: 'all', i18nKey: 'narre.mentionAll' },
   { key: 'concept', i18nKey: 'narre.mentionConcept' },
   { key: 'network', i18nKey: 'narre.mentionNetwork' },
-  { key: 'archetype', i18nKey: 'narre.mentionArchetype' },
+  { key: 'schema', i18nKey: 'narre.mentionSchema' },
   { key: 'relationType', i18nKey: 'narre.mentionRelationType' },
   { key: 'file', i18nKey: 'narre.mentionFile' },
 ] as const;
 
 function PreviewPanel({ item, t }: { item: MentionResult; t: (key: TranslationKey) => string }): JSX.Element {
   const catLabel = MENTION_CATEGORIES.find((c) => c.key === item.type)?.i18nKey;
-  const conceptArchetype = item.type === 'concept' && typeof item.meta?.archetype === 'string' ? item.meta.archetype : null;
-  const archetypeNodeShape = item.type === 'archetype' && typeof item.meta?.nodeShape === 'string' ? item.meta.nodeShape : null;
+  const conceptSchema = item.type === 'concept' && typeof item.meta?.schema === 'string' ? item.meta.schema : null;
+  const schemaNodeShape = item.type === 'schema' && typeof item.meta?.nodeShape === 'string' ? item.meta.nodeShape : null;
   const relationDirected = item.type === 'relationType' && typeof item.meta?.directed === 'boolean' ? item.meta.directed : null;
   const relationLineStyle = item.type === 'relationType' && typeof item.meta?.lineStyle === 'string' ? item.meta.lineStyle : null;
   const filePath = item.type === 'file' && typeof item.meta?.path === 'string' ? item.meta.path : null;
@@ -56,16 +56,16 @@ function PreviewPanel({ item, t }: { item: MentionResult; t: (key: TranslationKe
       {/* Type-specific meta */}
       {item.meta && (
         <div className="flex flex-col gap-1 text-[10px] text-muted">
-          {conceptArchetype && (
+          {conceptSchema && (
             <div className="flex items-center gap-1">
-              <span className="text-secondary">Archetype:</span>
-              <span className="text-default">{conceptArchetype}</span>
+              <span className="text-secondary">Schema:</span>
+              <span className="text-default">{conceptSchema}</span>
             </div>
           )}
-          {archetypeNodeShape && (
+          {schemaNodeShape && (
             <div className="flex items-center gap-1">
               <span className="text-secondary">Shape:</span>
-              <span className="text-default">{archetypeNodeShape}</span>
+              <span className="text-default">{schemaNodeShape}</span>
             </div>
           )}
           {item.type === 'relationType' && (

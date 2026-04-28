@@ -6,53 +6,53 @@ verify:
       expect:
         count_min: 4
 
-  - name: "core fantasy archetypes exist"
+  - name: "core fantasy schemas exist"
     db:
-      table: archetypes
+      table: schemas
       expect:
         count_min: 7
         column_includes:
           name: ["Character", "Faction", "Region", "City", "Quest", "Event", "Scene"]
 
-  - name: "Quest uses workflow traits"
+  - name: "Quest uses workflow models"
     db:
-      table: archetypes
-      condition: "project_id = '{{project_id}}' AND name = 'Quest' AND semantic_traits LIKE '%statusful%' AND semantic_traits LIKE '%prioritizable%'"
+      table: schemas
+      condition: "project_id = '{{project_id}}' AND name = 'Quest' AND semantic_models LIKE '%statusful%' AND semantic_models LIKE '%prioritizable%'"
       expect:
         count: 1
 
-  - name: "Scene uses temporal trait"
+  - name: "Scene uses temporal model"
     db:
-      table: archetypes
-      condition: "project_id = '{{project_id}}' AND name = 'Scene' AND semantic_traits LIKE '%temporal%'"
+      table: schemas
+      condition: "project_id = '{{project_id}}' AND name = 'Scene' AND semantic_models LIKE '%temporal%'"
       expect:
         count: 1
 
-  - name: "Character.faction is a Faction archetype_ref"
+  - name: "Character.faction is a Faction schema_ref"
     db:
-      table: archetype_fields
-      condition: "name = 'faction' AND field_type = 'archetype_ref' AND archetype_id IN (SELECT id FROM archetypes WHERE project_id = '{{project_id}}' AND name = 'Character') AND ref_archetype_id IN (SELECT id FROM archetypes WHERE project_id = '{{project_id}}' AND name = 'Faction')"
+      table: schema_fields
+      condition: "name = 'faction' AND field_type = 'schema_ref' AND schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Character') AND ref_schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Faction')"
       expect:
         count: 1
 
-  - name: "Quest.giver is a Character archetype_ref"
+  - name: "Quest.giver is a Character schema_ref"
     db:
-      table: archetype_fields
-      condition: "name = 'giver' AND field_type = 'archetype_ref' AND archetype_id IN (SELECT id FROM archetypes WHERE project_id = '{{project_id}}' AND name = 'Quest') AND ref_archetype_id IN (SELECT id FROM archetypes WHERE project_id = '{{project_id}}' AND name = 'Character')"
+      table: schema_fields
+      condition: "name = 'giver' AND field_type = 'schema_ref' AND schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Quest') AND ref_schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Character')"
       expect:
         count: 1
 
-  - name: "Quest.target_region is a Region archetype_ref"
+  - name: "Quest.target_region is a Region schema_ref"
     db:
-      table: archetype_fields
-      condition: "name = 'target_region' AND field_type = 'archetype_ref' AND archetype_id IN (SELECT id FROM archetypes WHERE project_id = '{{project_id}}' AND name = 'Quest') AND ref_archetype_id IN (SELECT id FROM archetypes WHERE project_id = '{{project_id}}' AND name = 'Region')"
+      table: schema_fields
+      condition: "name = 'target_region' AND field_type = 'schema_ref' AND schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Quest') AND ref_schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Region')"
       expect:
         count: 1
 
-  - name: "Scene.pov_character is a Character archetype_ref"
+  - name: "Scene.pov_character is a Character schema_ref"
     db:
-      table: archetype_fields
-      condition: "name = 'pov_character' AND field_type = 'archetype_ref' AND archetype_id IN (SELECT id FROM archetypes WHERE project_id = '{{project_id}}' AND name = 'Scene') AND ref_archetype_id IN (SELECT id FROM archetypes WHERE project_id = '{{project_id}}' AND name = 'Character')"
+      table: schema_fields
+      condition: "name = 'pov_character' AND field_type = 'schema_ref' AND schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Scene') AND ref_schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Character')"
       expect:
         count: 1
 
@@ -95,16 +95,16 @@ verify:
         count_min: 4
         count_max: 20
 
-  - name: "archetype creation tool usage is bounded"
+  - name: "schema creation tool usage is bounded"
     tool:
-      name: create_archetype
+      name: create_schema
       expect:
         count_min: 7
         count_max: 20
 
   - name: "field creation tool usage is bounded"
     tool:
-      name: create_archetype_field
+      name: create_schema_field
       expect:
         count_min: 4
         count_max: 30

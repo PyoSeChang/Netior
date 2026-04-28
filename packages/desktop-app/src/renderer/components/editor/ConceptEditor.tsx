@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import type {
   EditorTab,
+  FieldMeaningBindingKey,
   NodeConfig,
   NodeSortConfig,
   NodeType,
-  SystemSlotKey,
 } from '@netior/shared/types';
-import { SYSTEM_SLOT_DEFINITIONS, getSystemSlotLabelKey } from '@netior/shared/constants';
+import { MEANING_SLOT_DEFINITIONS, getMeaningSlotLabelKey, fieldMeaningToMeaningBindings } from '@netior/shared/constants';
 import { conceptPropertyService, networkService, objectService } from '../../services';
 import type { NetworkFullData } from '../../services/network-service';
 import { useConceptStore } from '../../stores/concept-store';
-import { useArchetypeStore } from '../../stores/archetype-store';
+import { useSchemaStore } from '../../stores/schema-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useNetworkStore } from '../../stores/network-store';
@@ -24,11 +24,11 @@ import { TextArea } from '../ui/TextArea';
 import { Button } from '../ui/Button';
 import { FilePicker } from '../ui/FilePicker';
 import { IconSelector } from '../ui/IconSelector';
-import { ConceptPropertiesPanel, FieldInput } from './ConceptPropertiesPanel';
+import { ConceptPropertiesPanel, ConceptPropertyInputs } from './ConceptPropertiesPanel';
 import { ConceptBodyEditor } from './ConceptBodyEditor';
 import { ConceptAgentView } from './ConceptAgentView';
 import { useI18n } from '../../hooks/useI18n';
-import { HIERARCHY_PARENT_CONTRACT } from '../../lib/hierarchy-contract';
+import { HIERARCHY_PARENT_MEANING } from '../../lib/hierarchy-meaning';
 import { isImageSourceValue } from '../workspace/node-components/node-visual-utils';
 import { NodeVisual } from '../workspace/node-components/NodeVisual';
 import {
@@ -43,6 +43,7 @@ import {
   NetworkObjectEditorSection,
   NetworkObjectMetadataList,
 } from './NetworkObjectEditorShell';
+import { getFieldMeaningSlot } from '../../lib/field-meaning-bindings';
 
 interface ConceptEditorProps {
   tab: EditorTab;
@@ -50,7 +51,7 @@ interface ConceptEditorProps {
 
 interface ConceptEditorState {
   title: string;
-  archetypeId: string | null;
+  schemaId: string | null;
   icon: string | null;
   color: string | null;
   content: string | null;
@@ -102,10 +103,10 @@ function createNodeConfigDraft(kind: NodeConfig['kind'], previousSort?: NodeSort
 }
 
 function createSortConfigDraft(kind: NodeSortConfig['kind'], fallbackFieldId?: string): NodeSortConfig | null {
-  if (kind === 'system_slot') {
+  if (kind === 'meaning_binding') {
     return {
-      kind: 'system_slot',
-      slot: 'order_index',
+      kind: 'meaning_binding',
+      meaning: 'structure.order',
       direction: 'asc',
       emptyPlacement: 'last',
     };
@@ -231,10 +232,10 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     upsertProperty,
     deleteProperty: deleteConceptProperty,
   } = useConceptStore();
-  const archetypes = useArchetypeStore((s) => s.archetypes);
-  const fields = useArchetypeStore((s) => s.fields);
-  const loadFields = useArchetypeStore((s) => s.loadFields);
-  const createField = useArchetypeStore((s) => s.createField);
+  const schemas = useSchemaStore((s) => s.schemas);
+  const fields = useSchemaStore((s) => s.fields);
+  const loadFields = useSchemaStore((s) => s.loadFields);
+  const createField = useSchemaStore((s) => s.createField);
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
   const currentNetworkNodes = useNetworkStore((s) => s.nodes);
   const currentNetworkEdges = useNetworkStore((s) => s.edges);
@@ -280,30 +281,32 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     state: ConceptEditorState,
   ) => {
     const liveConcept = useConceptStore.getState().concepts.find((item) => item.id === conceptId);
-    if (!liveConcept?.recurrence_source_concept_id || !state.archetypeId) return;
+    if (!liveConcept?.recurrence_source_concept_id || !state.schemaId) return;
 
-    const activeFields = useArchetypeStore.getState().fields[state.archetypeId] ?? [];
-    const recurrenceRuleField = activeFields.find((field) => field.system_slot === 'recurrence_rule');
-    const startAtField = activeFields.find((field) => field.system_slot === 'start_at');
-    const allDayField = activeFields.find((field) => field.system_slot === 'all_day');
+    const activeFields = useSchemaStore.getState().fields[state.schemaId] ?? [];
+    const recurrenceFrequencyField = activeFields.find((field) => getFieldMeaningSlot(field) === 'recurrence_frequency');
+    const fallbackRecurrenceRuleField = activeFields.find((field) => getFieldMeaningSlot(field) === 'recurrence_rule');
+    const startAtField = activeFields.find((field) => getFieldMeaningSlot(field) === 'start_at');
+    const allDayField = activeFields.find((field) => getFieldMeaningSlot(field) === 'all_day');
 
-    const recurrenceRule = recurrenceRuleField ? state.properties[recurrenceRuleField.id]?.trim() : '';
+    const recurrenceFrequency = recurrenceFrequencyField ? state.properties[recurrenceFrequencyField.id]?.trim() : '';
+    const fallbackRecurrenceRule = fallbackRecurrenceRuleField ? state.properties[fallbackRecurrenceRuleField.id]?.trim() : '';
     const startAtValue = startAtField ? state.properties[startAtField.id] : null;
     const isAllDay = allDayField ? state.properties[allDayField.id] === 'true' : false;
 
-    if (!recurrenceRule || !startAtValue) return;
+    if ((!recurrenceFrequency && !fallbackRecurrenceRule) || !startAtValue) return;
 
-    let recurrenceUntilField = activeFields.find((field) => field.system_slot === 'recurrence_until');
+    let recurrenceUntilField = activeFields.find((field) => getFieldMeaningSlot(field) === 'recurrence_until');
     if (!recurrenceUntilField) {
       recurrenceUntilField = await createField({
-        archetype_id: state.archetypeId,
-        name: t(getSystemSlotLabelKey('recurrence_until') as never),
+        schema_id: state.schemaId,
+        name: t(getMeaningSlotLabelKey('recurrence_until') as never),
         field_type: startAtField?.field_type === 'datetime' && !isAllDay ? 'datetime' : 'date',
         sort_order: activeFields.length,
         required: false,
-        system_slot: 'recurrence_until',
+        meaning_bindings: fieldMeaningToMeaningBindings('time.recurrence_until'),
         slot_binding_locked: true,
-        generated_by_trait: true,
+        generated_by_model: true,
       });
     }
 
@@ -333,7 +336,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     load: isDraft
       ? () => ({
           title: tab.title,
-          archetypeId: null,
+          schemaId: null,
           icon: null,
           color: null,
           content: null,
@@ -352,7 +355,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
             : { nodeOccurrences: [] };
           return {
             title: c?.title ?? '',
-            archetypeId: c?.archetype_id ?? null,
+            schemaId: c?.schema_id ?? null,
             icon: c?.icon ?? null,
             color: c?.color ?? null,
             content: c?.content ?? null,
@@ -367,7 +370,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           const newConcept = await createConcept({
             project_id: currentProject.id,
             title: state.title.trim(),
-            archetype_id: state.archetypeId || undefined,
+            schema_id: state.schemaId || undefined,
             icon: state.icon || undefined,
             color: state.color || undefined,
             content: state.content || undefined,
@@ -388,14 +391,14 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                   network_id: draft.networkId,
                   source_node_id: draft.parentGroupNodeId,
                   target_node_id: node.id,
-                  system_contract: 'core:contains',
+                  relation_meaning: 'structure.contains',
                 });
                 if (parentGroupNode?.node_type === 'hierarchy') {
                   await networkService.edge.create({
                     network_id: draft.networkId,
                     source_node_id: draft.parentGroupNodeId,
                     target_node_id: node.id,
-                    system_contract: HIERARCHY_PARENT_CONTRACT,
+                    relation_meaning: HIERARCHY_PARENT_MEANING,
                   });
                 }
               }
@@ -425,7 +428,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           const conceptId = tab.targetId;
           await updateConcept(conceptId, {
             title: state.title,
-            archetype_id: state.archetypeId,
+            schema_id: state.schemaId,
             icon: state.icon,
             color: state.color,
             content: state.content,
@@ -449,7 +452,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           }));
           useEditorStore.getState().updateTitle(tab.id, state.title);
         },
-    deps: isDraft ? [] : [tab.targetId, concept?.archetype_id, currentProject?.id],
+    deps: isDraft ? [] : [tab.targetId, concept?.schema_id, currentProject?.id],
   });
 
   useEffect(() => {
@@ -457,16 +460,16 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     setConceptVisualMode(resolveVisualMode(session.state?.icon));
   }, [session.isLoading, session.state?.icon]);
 
-  const currentArchetypeId = session.state?.archetypeId;
+  const currentSchemaId = session.state?.schemaId;
   useEffect(() => {
-    if (currentArchetypeId && !fields[currentArchetypeId]) {
-      loadFields(currentArchetypeId);
+    if (currentSchemaId && !fields[currentSchemaId]) {
+      loadFields(currentSchemaId);
     }
-  }, [currentArchetypeId, fields, loadFields]);
+  }, [currentSchemaId, fields, loadFields]);
 
   useEffect(() => {
-    if (!isDraft || !currentArchetypeId) return;
-    const arch = archetypes.find((a) => a.id === currentArchetypeId);
+    if (!isDraft || !currentSchemaId) return;
+    const arch = schemas.find((a) => a.id === currentSchemaId);
     if (arch) {
       session.setState((prev) => ({
         ...prev,
@@ -474,25 +477,27 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
         color: prev.color || arch.color || null,
       }));
     }
-  }, [isDraft, currentArchetypeId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isDraft, currentSchemaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const allowedIds = tab.draftData?.allowedArchetypeIds;
-  const filteredArchetypes = allowedIds
-    ? archetypes.filter((a) => allowedIds.includes(a.id))
-    : archetypes;
+  const allowedIds = tab.draftData?.allowedSchemaIds;
+  const filteredSchemas = allowedIds
+    ? schemas.filter((a) => allowedIds.includes(a.id))
+    : schemas;
 
   useEffect(() => {
-    if (isDraft && allowedIds && !currentArchetypeId && filteredArchetypes.length > 0) {
-      session.setState((prev) => ({ ...prev, archetypeId: filteredArchetypes[0].id }));
+    if (isDraft && allowedIds && !currentSchemaId && filteredSchemas.length > 0) {
+      session.setState((prev) => ({ ...prev, schemaId: filteredSchemas[0].id }));
     }
-  }, [isDraft, allowedIds, currentArchetypeId, filteredArchetypes]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isDraft, allowedIds, currentSchemaId, filteredSchemas]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const archetypeOptions = useMemo(() => [
+  const schemaOptions = useMemo(() => [
     ...(allowedIds ? [] : [{ value: '', label: t('common.none') ?? 'None' }]),
-    ...filteredArchetypes.map((a) => ({ value: a.id, label: a.name })),
-  ], [filteredArchetypes, allowedIds, t]);
+    ...filteredSchemas.map((a) => ({ value: a.id, label: a.name })),
+  ], [filteredSchemas, allowedIds, t]);
 
-  const archetypeFields = currentArchetypeId ? (fields[currentArchetypeId] ?? []) : [];
+  const schemaFields = currentSchemaId
+      ? (fields[currentSchemaId] ?? []).filter((field) => getFieldMeaningSlot(field) !== 'recurrence_rule')
+    : [];
 
   const nodeOccurrences = session.state?.nodeOccurrences ?? [];
   const selectedNodeOccurrence = useMemo(
@@ -546,7 +551,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     if (!selectedOccurrenceNetworkData || !selectedNodeOccurrence) return new Set<string>();
     return new Set(
       selectedOccurrenceNetworkData.edges
-        .filter((edge) => edge.system_contract === 'core:contains' && edge.source_node_id === selectedNodeOccurrence.nodeId)
+        .filter((edge) => edge.relation_meaning === 'structure.contains' && edge.source_node_id === selectedNodeOccurrence.nodeId)
         .map((edge) => edge.target_node_id),
     );
   }, [selectedOccurrenceNetworkData, selectedNodeOccurrence]);
@@ -557,7 +562,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     const directConceptNodes = selectedOccurrenceNetworkData.nodes.filter((node) => (
       directChildIds.has(node.id)
       && node.object?.object_type === 'concept'
-      && !!node.concept?.archetype_id
+      && !!node.concept?.schema_id
     ));
 
     if (directConceptNodes.length > 0) {
@@ -566,48 +571,48 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
 
     return selectedOccurrenceNetworkData.nodes.filter((node) => (
       node.object?.object_type === 'concept'
-      && !!node.concept?.archetype_id
+      && !!node.concept?.schema_id
     ));
   }, [directChildIds, selectedOccurrenceNetworkData]);
 
-  const sortableArchetypeIds = useMemo(() => (
+  const sortableSchemaIds = useMemo(() => (
     Array.from(new Set(
       sortableConceptNodes
-        .map((node) => node.concept?.archetype_id)
+        .map((node) => node.concept?.schema_id)
         .filter((value): value is string => !!value),
     ))
   ), [sortableConceptNodes]);
 
   useEffect(() => {
-    for (const archetypeId of sortableArchetypeIds) {
-      if (!fields[archetypeId]) {
-        void loadFields(archetypeId);
+    for (const schemaId of sortableSchemaIds) {
+      if (!fields[schemaId]) {
+        void loadFields(schemaId);
       }
     }
-  }, [fields, loadFields, sortableArchetypeIds]);
+  }, [fields, loadFields, sortableSchemaIds]);
 
-  const systemSlotSortOptions = useMemo(() => (
-    SYSTEM_SLOT_DEFINITIONS.map((definition) => ({
-      value: definition.key,
-      label: t(getSystemSlotLabelKey(definition.key) as never),
+  const meaningSortOptions = useMemo(() => (
+    MEANING_SLOT_DEFINITIONS.map((definition) => ({
+      value: definition.fieldMeaning,
+      label: t(getMeaningSlotLabelKey(definition.key) as never),
     }))
   ), [t]);
 
   const propertySortOptions = useMemo(() => {
     const deduped = new Map<string, { value: string; label: string }>();
 
-    for (const archetypeId of sortableArchetypeIds) {
-      const archetype = archetypes.find((item) => item.id === archetypeId);
-      for (const field of fields[archetypeId] ?? []) {
+    for (const schemaId of sortableSchemaIds) {
+      const schema = schemas.find((item) => item.id === schemaId);
+      for (const field of fields[schemaId] ?? []) {
         deduped.set(field.id, {
           value: field.id,
-          label: archetype ? `${field.name} - ${archetype.name}` : field.name,
+          label: schema ? `${field.name} - ${schema.name}` : field.name,
         });
       }
     }
 
     return Array.from(deduped.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [archetypes, fields, sortableArchetypeIds]);
+  }, [schemas, fields, sortableSchemaIds]);
 
   const canEditNodeConfig = !!selectedNodeOccurrence && parsedNodeMetadataDraft !== null;
 
@@ -659,7 +664,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
 
   const sortKindOptions = useMemo(() => ([
     { value: '', label: t('common.none') ?? 'None' },
-    { value: 'system_slot', label: t('concept.nodeSortKindOptions.system_slot' as never) },
+    { value: 'meaning_binding', label: t('concept.nodeSortKindOptions.meaning_slot' as never) },
     { value: 'property', label: t('concept.nodeSortKindOptions.property' as never) },
   ]), [t]);
 
@@ -706,7 +711,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
           badge={t('objectPanel.concept' as never)}
           title={session.state.title || tab.title || t('concept.defaultTitle')}
           subtitle={isDraft ? t('concept.create') : t('editorShell.networkObject' as never)}
-          description={session.state.archetypeId ? archetypes.find((a) => a.id === session.state.archetypeId)?.name ?? null : null}
+          description={session.state.schemaId ? schemas.find((a) => a.id === session.state.schemaId)?.name ?? null : null}
           leadingVisual={<NodeVisual icon={session.state.icon ?? 'box'} size={24} imageSize={56} className="shrink-0" />}
         >
           <NetworkObjectEditorSection title={t('editorShell.overview' as never)}>
@@ -748,14 +753,14 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                 <div className="mt-1 text-[11px] text-muted">{t('concept.visualHint' as never)}</div>
               </div>
 
-              {archetypes.length > 0 && (
+              {schemas.length > 0 && (
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-secondary">{t('concept.archetype') ?? 'Archetype'}</label>
+                  <label className="mb-1 block text-xs font-medium text-secondary">{t('concept.schema') ?? 'Schema'}</label>
                   <Select
-                    options={archetypeOptions}
-                    value={session.state.archetypeId ?? ''}
+                    options={schemaOptions}
+                    value={session.state.schemaId ?? ''}
                     onChange={(e) => {
-                      update({ archetypeId: e.target.value || null, properties: {} });
+                      update({ schemaId: e.target.value || null, properties: {} });
                     }}
                     selectSize="sm"
                   />
@@ -763,26 +768,21 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
               )}
             </NetworkObjectEditorSection>
 
-            {session.state.archetypeId && (
+            {session.state.schemaId && (
               <NetworkObjectEditorSection title={t('concept.properties')}>
                 {isDraft ? (
-                  archetypeFields.length > 0 ? (
-                    <div className="flex flex-col gap-2">
-                      {archetypeFields.map((field) => (
-                        <FieldInput
-                          key={field.id}
-                          field={field}
-                          value={session.state.properties[field.id] ?? null}
-                          onChange={(val) => update({
-                            properties: { ...session.state.properties, [field.id]: val },
-                          })}
-                        />
-                      ))}
-                    </div>
+                  schemaFields.length > 0 ? (
+                    <ConceptPropertyInputs
+                      fields={schemaFields}
+                      properties={session.state.properties}
+                      onChange={(fieldId, value) => update({
+                        properties: { ...session.state.properties, [fieldId]: value },
+                      })}
+                    />
                   ) : null
                 ) : (
                   <ConceptPropertiesPanel
-                    archetypeId={session.state.archetypeId}
+                    schemaId={session.state.schemaId}
                     properties={session.state.properties}
                     onChange={(fieldId, value) => update({
                       properties: { ...session.state.properties, [fieldId]: value },
@@ -1048,13 +1048,13 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
 
                                 <div className="flex flex-col gap-1">
                                   <label className="text-xs font-medium text-secondary">{t('concept.nodeSortValue' as never)}</label>
-                                  {sortableNodeSortConfig?.kind === 'system_slot' ? (
+                                  {sortableNodeSortConfig?.kind === 'meaning_binding' ? (
                                     <Select
-                                      options={systemSlotSortOptions}
-                                      value={sortableNodeSortConfig.slot}
+                                      options={meaningSortOptions}
+                                      value={sortableNodeSortConfig.meaning}
                                       onChange={(e) => updateStructuredNodeConfigDraft((config) => (
-                                        isSortableNodeConfig(config) && config.sort?.kind === 'system_slot'
-                                          ? { ...config, sort: { ...config.sort, slot: e.target.value as SystemSlotKey } }
+                                        isSortableNodeConfig(config) && config.sort?.kind === 'meaning_binding'
+                                          ? { ...config, sort: { ...config.sort, meaning: e.target.value as FieldMeaningBindingKey } }
                                           : config
                                       ))}
                                       selectSize="sm"
@@ -1162,7 +1162,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                 <NetworkObjectMetadataList
                   items={[
                     { label: t('editorShell.objectId' as never), value: <code className="font-mono text-xs">{concept.id}</code> },
-                    { label: t('concept.archetype'), value: session.state.archetypeId ? (archetypes.find((a) => a.id === session.state.archetypeId)?.name ?? t('common.none')) : t('common.none') },
+                    { label: t('concept.schema'), value: session.state.schemaId ? (schemas.find((a) => a.id === session.state.schemaId)?.name ?? t('common.none')) : t('common.none') },
                   ]}
                 />
               </NetworkObjectEditorSection>

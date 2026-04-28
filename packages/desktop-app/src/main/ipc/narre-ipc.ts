@@ -20,7 +20,7 @@ import type {
 } from '@netior/shared/types';
 import { BUILT_IN_SKILLS, IPC_CHANNELS } from '@netior/shared/constants';
 import {
-  listRemoteArchetypes,
+  listRemoteSchemas,
   listRemoteFilesByProject,
   listRemoteNetworks,
   listRemoteRelationTypes,
@@ -555,25 +555,25 @@ export function registerNarreIpc(): void {
       const maxResults = 30;
       const lowerQuery = query.toLowerCase();
 
-      const archetypes = await listRemoteArchetypes(projectId);
-      const archetypeMap = new Map(archetypes.map((a) => [a.id, a]));
+      const schemas = await listRemoteSchemas(projectId);
+      const schemaMap = new Map(schemas.map((a) => [a.id, a]));
       const concepts = await searchRemoteConcepts(projectId, query);
 
       for (const c of concepts) {
         if (results.length >= maxResults) break;
-        const arch = c.archetype_id ? archetypeMap.get(c.archetype_id) : null;
+        const arch = c.schema_id ? schemaMap.get(c.schema_id) : null;
         results.push({
           type: 'concept', id: c.id, display: c.title, color: c.color, icon: c.icon,
-          meta: { archetype: arch?.name ?? null },
+          meta: { schema: arch?.name ?? null },
         });
       }
 
-      // Search archetypes
-      for (const a of archetypeMap.values()) {
+      // Search schemas
+      for (const a of schemaMap.values()) {
         if (results.length >= maxResults) break;
         if (a.name.toLowerCase().includes(lowerQuery)) {
           results.push({
-            type: 'archetype', id: a.id, display: a.name, color: a.color, icon: a.icon,
+            type: 'schema', id: a.id, display: a.name, color: a.color, icon: a.icon,
             description: a.description, meta: { nodeShape: a.node_shape },
           });
         }

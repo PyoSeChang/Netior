@@ -1,10 +1,9 @@
 import type React from 'react';
 import type { RenderNode, RenderEdge } from '../types';
 import type {
-  SemanticFacetKey,
-  SlotSemanticAnnotationKey,
-  SlotSemanticAspectKey,
-  SystemSlotKey,
+  FieldMeaningBindingKey,
+  SemanticModelRefKey,
+  MeaningSlotKey,
 } from '@netior/shared/types';
 
 /** A user-configurable layout option */
@@ -31,30 +30,28 @@ export interface InteractionConstraints {
 // ── Layout Computation ──
 
 export interface LayoutSemanticSlotValue {
-  annotation: SlotSemanticAnnotationKey | null;
-  aspects: SlotSemanticAspectKey[];
+  meaning: FieldMeaningBindingKey | null;
+  meaningBindings: FieldMeaningBindingKey[];
   fieldId: string;
   fieldType: string;
   rawValue: string | null;
   value: unknown;
-  legacySlot: SystemSlotKey | null;
+  meaningSlot: MeaningSlotKey | null;
 }
 
 export interface LayoutSemanticProjection {
   schemaId?: string;
-  facets: SemanticFacetKey[];
-  slots: Partial<Record<SlotSemanticAnnotationKey, LayoutSemanticSlotValue>>;
-  slotsByAspect: Partial<Record<SlotSemanticAspectKey, LayoutSemanticSlotValue[]>>;
-  slotFieldIds: Partial<Record<SlotSemanticAnnotationKey, string>>;
-  aspectFieldIds: Partial<Record<SlotSemanticAspectKey, string[]>>;
-  legacySlotFieldIds: Partial<Record<SystemSlotKey, string>>;
-  legacySlotFieldTypes: Partial<Record<SystemSlotKey, string>>;
+  models: SemanticModelRefKey[];
+  meaningBindings: Partial<Record<FieldMeaningBindingKey, LayoutSemanticSlotValue[]>>;
+  meaningFieldIds: Partial<Record<FieldMeaningBindingKey, string[]>>;
+  meaningSlotFieldIds: Partial<Record<MeaningSlotKey, string>>;
+  meaningSlotFieldTypes: Partial<Record<MeaningSlotKey, string>>;
 }
 
 /** RenderNode extended with plugin metadata */
 export interface LayoutRenderNode extends RenderNode {
   metadata: Record<string, unknown>;
-  archetypeId?: string;
+  schemaId?: string;
   semantic?: LayoutSemanticProjection;
 }
 

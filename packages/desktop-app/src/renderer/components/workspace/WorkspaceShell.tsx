@@ -86,6 +86,25 @@ function areNetworkControlsEqual(
   if (a === b) return true;
   if (!a || !b) return false;
 
+  const extraItemsEqual =
+    a.extraItems === b.extraItems
+    || (
+      (a.extraItems?.length ?? 0) === (b.extraItems?.length ?? 0)
+      && (a.extraItems ?? []).every((item, index) => {
+        const other = b.extraItems?.[index];
+        return !!other
+          && item.key === other.key
+          && item.label === other.label
+          && item.active === other.active;
+      })
+    );
+  const hiddenControlsEqual =
+    a.hiddenControls === b.hiddenControls
+    || (
+      (a.hiddenControls?.length ?? 0) === (b.hiddenControls?.length ?? 0)
+      && (a.hiddenControls ?? []).every((item, index) => item === b.hiddenControls?.[index])
+    );
+
   return (
     a.mode === b.mode
     && a.zoom === b.zoom
@@ -94,8 +113,8 @@ function areNetworkControlsEqual(
     && a.canGoBack === b.canGoBack
     && a.canGoForward === b.canGoForward
     && a.config === b.config
-    && a.hiddenControls === b.hiddenControls
-    && a.extraItems === b.extraItems
+    && hiddenControlsEqual
+    && extraItemsEqual
     && a.setZoom === b.setZoom
     && a.setPanX === b.setPanX
     && a.setPanY === b.setPanY

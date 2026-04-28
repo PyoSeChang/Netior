@@ -1,12 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { ArchetypeField } from '@netior/shared/types';
+import type { SchemaField } from '@netior/shared/types';
 import { z } from 'zod';
 import {
   getConceptsByProject,
-  listArchetypeFields,
+  listSchemaFields,
   searchConcepts,
 } from '../netior-service-client.js';
 import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
+import { toAgentFieldType } from './schema-surface.js';
 
 function parseInlineOptions(options: string | null): string[] {
   if (!options) {
@@ -19,7 +20,7 @@ function parseInlineOptions(options: string | null): string[] {
     .filter(Boolean);
 }
 
-function findField(fields: ArchetypeField[], fieldId: string): ArchetypeField | undefined {
+function findField(fields: SchemaField[], fieldId: string): SchemaField | undefined {
   return fields.find((field) => field.id === fieldId);
 }
 
@@ -29,15 +30,15 @@ export function registerCandidateSourceTools(server: McpServer): void {
     'get_field_candidates',
     {
       project_id: projectIdSchema(),
-      archetype_id: z.string().describe('The archetype that owns the field'),
-      field_id: z.string().describe('The field contract ID'),
+      schema_id: z.string().describe('The schema that owns the field'),
+      field_id: z.string().describe('The field ID'),
       query: z.string().optional().describe('Optional search query for candidate concepts'),
       max_results: z.number().optional().describe('Optional maximum number of candidates to return'),
     },
-    async ({ project_id, archetype_id, field_id, query, max_results }) => {
+    async ({ project_id, schema_id, field_id, query, max_results }) => {
       try {
         const targetProjectId = resolveProjectId(project_id);
-        const fields = await listArchetypeFields(archetype_id);
+        const fields = await listSchemaFields(schema_id);
         const field = findField(fields, field_id);
 
         if (!field) {
@@ -49,17 +50,17 @@ export function registerCandidateSourceTools(server: McpServer): void {
 
         const limit = Math.max(1, max_results ?? 50);
 
-        if (field.ref_archetype_id) {
+        if (field.ref_schema_id) {
           const concepts = query
             ? await searchConcepts(targetProjectId, query)
             : await getConceptsByProject(targetProjectId);
           const filtered = concepts
-            .filter((concept) => concept.archetype_id === field.ref_archetype_id)
+            .filter((concept) => concept.schema_id === field.ref_schema_id)
             .slice(0, limit)
             .map((concept) => ({
               id: concept.id,
               title: concept.title,
-              archetype_id: concept.archetype_id,
+              schema_id: concept.schema_id,
             }));
 
           return {
@@ -69,11 +70,11 @@ export function registerCandidateSourceTools(server: McpServer): void {
                 field: {
                   id: field.id,
                   name: field.name,
-                  field_type: field.field_type,
+                  field_type: toAgentFieldType(field.field_type),
                   required: field.required,
-                  ref_archetype_id: field.ref_archetype_id,
+                  ref_schema_id: field.ref_schema_id,
                 },
-                candidate_mode: 'concepts_by_archetype',
+                candidate_mode: 'concepts_by_schema',
                 candidates: filtered,
               }, null, 2),
             }],
@@ -88,7 +89,7 @@ export function registerCandidateSourceTools(server: McpServer): void {
               field: {
                 id: field.id,
                 name: field.name,
-                field_type: field.field_type,
+                field_type: toAgentFieldType(field.field_type),
                 required: field.required,
               },
               candidate_mode: 'inline_options',

@@ -5,11 +5,16 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { useConceptStore } from '../../stores/concept-store';
 import { useNetworkStore } from '../../stores/network-store';
-import { useArchetypeStore } from '../../stores/archetype-store';
+import { useSchemaStore } from '../../stores/schema-store';
+import { useModelStore } from '../../stores/model-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useContextStore } from '../../stores/context-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
+import {
+  getSemanticModelDisplayDescription,
+  getSemanticModelDisplayName,
+} from '../../lib/semantic-model-i18n';
 
 interface ObjectPickerModalProps {
   open: boolean;
@@ -19,9 +24,9 @@ interface ObjectPickerModalProps {
   allowedTabs?: PickerTab[];
 }
 
-type PickerTab = 'concept' | 'network' | 'project' | 'archetype' | 'relation_type' | 'context';
+type PickerTab = 'concept' | 'network' | 'project' | 'schema' | 'model' | 'relation_type' | 'context';
 
-const TABS: PickerTab[] = ['concept', 'network', 'project', 'archetype', 'relation_type', 'context'];
+const TABS: PickerTab[] = ['concept', 'network', 'project', 'schema', 'model', 'relation_type', 'context'];
 
 export function ObjectPickerModal({
   open,
@@ -43,7 +48,8 @@ export function ObjectPickerModal({
   const networks = useNetworkStore((s) => s.networks);
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
   const projects = useProjectStore((s) => s.projects);
-  const archetypes = useArchetypeStore((s) => s.archetypes);
+  const schemas = useSchemaStore((s) => s.schemas);
+  const models = useModelStore((s) => s.models);
   const relationTypes = useRelationTypeStore((s) => s.relationTypes);
   const contexts = useContextStore((s) => s.contexts);
 
@@ -51,7 +57,8 @@ export function ObjectPickerModal({
     concept: t('concept.title'),
     network: t('sidebar.networks' as never),
     project: t('project.title' as never) ?? 'Projects',
-    archetype: t('archetype.title'),
+    schema: t('schema.title'),
+    model: t('model.title' as never),
     relation_type: t('relationType.title'),
     context: t('context.title'),
   };
@@ -70,7 +77,7 @@ export function ObjectPickerModal({
       case 'concept':
         return concepts
           .filter((concept) => !query || matches(concept.title))
-          .map((concept) => ({ id: concept.id, title: concept.title, subtitle: t('concept.archetype') }));
+          .map((concept) => ({ id: concept.id, title: concept.title, subtitle: t('concept.schema') }));
       case 'network':
         return networks
           .filter((network) => network.id !== currentNetwork?.id)
@@ -80,10 +87,22 @@ export function ObjectPickerModal({
         return projects
           .filter((project) => !query || matches(project.name))
           .map((project) => ({ id: project.id, title: project.name, subtitle: t('project.title' as never) ?? 'Project' }));
-      case 'archetype':
-        return archetypes
-          .filter((archetype) => !query || matches(archetype.name))
-          .map((archetype) => ({ id: archetype.id, title: archetype.name, subtitle: t('archetype.title') }));
+      case 'schema':
+        return schemas
+          .filter((schema) => !query || matches(schema.name))
+          .map((schema) => ({ id: schema.id, title: schema.name, subtitle: t('schema.title') }));
+      case 'model':
+        return models
+          .filter((model) => {
+            const title = getSemanticModelDisplayName(model, t);
+            const description = getSemanticModelDisplayDescription(model, t);
+            return !query || matches(title) || matches(model.key) || (description ? matches(description) : false);
+          })
+          .map((model) => ({
+            id: model.id,
+            title: getSemanticModelDisplayName(model, t),
+            subtitle: getSemanticModelDisplayDescription(model, t) ?? t('model.title' as never),
+          }));
       case 'relation_type':
         return relationTypes
           .filter((relationType) => !query || matches(relationType.name))
@@ -95,7 +114,7 @@ export function ObjectPickerModal({
       default:
         return [];
     }
-  }, [activeTab, archetypes, concepts, contexts, currentNetwork?.id, networks, projects, relationTypes, search, t]);
+  }, [activeTab, schemas, concepts, contexts, currentNetwork?.id, models, networks, projects, relationTypes, search, t]);
 
   const handleSelect = (refId: string) => {
     onSelect(activeTab, refId);

@@ -6,14 +6,14 @@ import { useFileStore } from '../../stores/file-store';
 import { useModuleStore } from '../../stores/module-store';
 import { useUIStore } from '../../stores/ui-store';
 import { useProjectStore } from '../../stores/project-store';
-import { useEditorStore } from '../../stores/editor-store';
 import { NetworkList } from './NetworkList';
 import { FileTree } from './FileTree';
 import { ModuleSelector } from './ModuleSelector';
 import { ObjectPanel } from './ObjectPanel';
 import { BookmarkedNetworkSidebar } from './BookmarkedNetworkSidebar';
 import { useConceptStore } from '../../stores/concept-store';
-import { useArchetypeStore } from '../../stores/archetype-store';
+import { useSchemaStore } from '../../stores/schema-store';
+import { useModelStore } from '../../stores/model-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useTypeGroupStore } from '../../stores/type-group-store';
 import { ScrollArea } from '../ui/ScrollArea';
@@ -29,24 +29,32 @@ interface SidebarProps {
   project: Project | null;
 }
 
+const OBJECT_PANEL_TYPES = {
+  concepts: ['concept'],
+  schemas: ['schema'],
+  models: ['model'],
+  relationTypes: ['relation_type'],
+  contexts: ['context'],
+} as const;
+
 function AppWorkspaceSidebar(): JSX.Element {
   const { t } = useI18n();
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
   const projects = useProjectStore((s) => s.projects);
   const createProject = useProjectStore((s) => s.createProject);
+  const openProject = useProjectStore((s) => s.openProject);
   const currentProject = useProjectStore((s) => s.currentProject);
   const createModule = useModuleStore((s) => s.createModule);
-  const openEditorTab = useEditorStore((s) => s.openTab);
   const [showCreateProject, setShowCreateProject] = useState(false);
 
   const handleCreateProject = async (name: string, rootDir: string) => {
     const project = await createProject(name, rootDir);
-    const module = await createModule({ project_id: project.id, name, path: rootDir });
-    await openEditorTab({ type: 'project', targetId: project.id, title: project.name });
+    await createModule({ project_id: project.id, name, path: rootDir });
+    await openProject(project);
   };
 
-  const handleOpenProjectEditor = async (project: Project) => {
-    await openEditorTab({ type: 'project', targetId: project.id, title: project.name });
+  const handleOpenProject = async (project: Project) => {
+    await openProject(project);
   };
 
   return (
@@ -96,7 +104,7 @@ function AppWorkspaceSidebar(): JSX.Element {
                     : 'text-default hover:bg-state-hover'
                 }`}
                 onClick={() => {
-                  void handleOpenProjectEditor(project);
+                  void handleOpenProject(project);
                 }}
               >
                 <span className="truncate">{project.name}</span>
@@ -126,7 +134,8 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
   const { loadNetworks, loadNetworkTree } = useNetworkStore();
   const { loadModules, directories } = useModuleStore();
   const { loadByProject: loadConcepts } = useConceptStore();
-  const { loadByProject: loadArchetypes } = useArchetypeStore();
+  const { loadByProject: loadSchemas } = useSchemaStore();
+  const { loadByProject: loadModels } = useModelStore();
   const { loadByProject: loadRelationTypes } = useRelationTypeStore();
   const { loadByProject: loadTypeGroups } = useTypeGroupStore();
 
@@ -136,10 +145,11 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
     loadNetworkTree(project.id);
     loadModules(project.id);
     loadConcepts(project.id);
-    loadArchetypes(project.id);
+    loadSchemas(project.id);
+    loadModels(project.id);
     loadRelationTypes(project.id);
     loadTypeGroups(project.id);
-  }, [project?.id, loadNetworks, loadNetworkTree, loadModules, loadConcepts, loadArchetypes, loadRelationTypes, loadTypeGroups]);
+  }, [project?.id, loadNetworks, loadNetworkTree, loadModules, loadConcepts, loadSchemas, loadModels, loadRelationTypes, loadTypeGroups]);
 
   useEffect(() => {
     if (!project) return undefined;
@@ -182,7 +192,15 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
       ) : (
         <ScrollArea className="min-h-0 flex-1">
           <div className="flex min-h-full flex-col py-2">
-            {sidebarView === 'networks' && <NetworkList projectId={project.id} />}
+            {sidebarView === 'ontology' && (
+              <NetworkList
+                projectId={project.id}
+                kindFilter="ontology"
+                title={t('sidebar.ontology' as never)}
+                canCreate={false}
+              />
+            )}
+            {sidebarView === 'networks' && <NetworkList projectId={project.id} kindFilter="network" />}
             {sidebarView === 'files' && (
               <>
                 <div className="flex items-center">
@@ -207,6 +225,11 @@ export function Sidebar({ project }: SidebarProps): JSX.Element {
                 )}
               </>
             )}
+            {sidebarView === 'concepts' && <ObjectPanel types={[...OBJECT_PANEL_TYPES.concepts]} />}
+            {sidebarView === 'schemas' && <ObjectPanel types={[...OBJECT_PANEL_TYPES.schemas]} />}
+            {sidebarView === 'models' && <ObjectPanel types={[...OBJECT_PANEL_TYPES.models]} />}
+            {sidebarView === 'relationTypes' && <ObjectPanel types={[...OBJECT_PANEL_TYPES.relationTypes]} />}
+            {sidebarView === 'contexts' && <ObjectPanel types={[...OBJECT_PANEL_TYPES.contexts]} />}
             {sidebarView === 'objects' && <ObjectPanel />}
             {sidebarView === 'sessions' && <AgentSessionPanel projectId={project.id} />}
           </div>

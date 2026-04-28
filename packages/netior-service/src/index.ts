@@ -4,19 +4,21 @@ import {
   addModuleDirectory,
   addNetworkNode,
   closeDatabase,
-  createArchetype,
+  createSchema,
   createConcept,
   createContext,
   createEdge,
   createField,
   createFileEntity,
+  deleteMeaning,
   createModule,
   createNetwork,
   createProject,
   createRelationType,
+  createSemanticModel,
   createTypeGroup,
   deleteProject,
-  deleteArchetype,
+  deleteSchema,
   deleteConcept,
   deleteContext,
   deleteEdge,
@@ -26,10 +28,11 @@ import {
   deleteNetwork,
   deleteProperty,
   deleteRelationType,
+  deleteSemanticModel,
   deleteTypeGroup,
   getContext,
   getContextMembers,
-  getArchetype,
+  getSchema,
   getByConceptId,
   getConceptsByProject,
   getEditorPrefs,
@@ -49,18 +52,21 @@ import {
   getProjectOntologyNetwork,
   getProjectById,
   getRelationType,
+  getSemanticModel,
   getSetting,
   getUniverseNetwork,
   getDatabase,
   initDatabase,
-  listArchetypes,
+  listSchemas,
   listContexts,
   listFields,
+  listMeanings,
   listModuleDirectories,
   listModules,
   listNetworks,
   listProjects,
   listRelationTypes,
+  listSemanticModels,
   listTypeGroups,
   parseFromAgent,
   removeEdgeVisual,
@@ -76,11 +82,14 @@ import {
   setSetting,
   upsertEditorPrefs,
   upsertProperty,
-  updateArchetype,
+  updateSchema,
   updateConcept,
   updateContext,
   updateEdge,
   updateField,
+  ensureMeaning,
+  updateMeaning,
+  updateMeaningSlotBinding,
   updateFileEntity,
   updateLayout,
   updateModule,
@@ -90,15 +99,19 @@ import {
   updateProject,
   updateProjectRootDir,
   updateRelationType,
+  updateSemanticModel,
   updateTypeGroup,
 } from '@netior/core';
 import type {
-  Archetype,
-  ArchetypeCreate,
-  ArchetypeField,
-  ArchetypeFieldCreate,
-  ArchetypeFieldUpdate,
-  ArchetypeUpdate,
+  Schema,
+  SchemaCreate,
+  SchemaField,
+  SchemaFieldCreate,
+  SchemaFieldUpdate,
+  SchemaMeaningCreate,
+  SchemaMeaningSlotBindingUpdate,
+  SchemaMeaningUpdate,
+  SchemaUpdate,
   Concept,
   ConceptEditorPrefsUpdate,
   ConceptCreate,
@@ -124,16 +137,20 @@ import type {
   ProjectUpdate,
   RelationTypeCreate,
   RelationTypeUpdate,
+  SemanticModelCreate,
+  SemanticModelUpdate,
   TypeGroupCreate,
   TypeGroupKind,
   TypeGroupUpdate,
   NetiorServiceResponse,
-  SlotSemanticAspectKey,
+  FieldMeaningBindingKey,
+  SemanticModelKey,
+  FieldMeaningKey,
+  MeaningSlotKey,
 } from '@netior/shared/types';
 import {
-  semanticAnnotationToSlotAspects,
-  semanticAnnotationToSystemSlot,
-  systemSlotToSemanticAnnotation,
+  fieldMeaningToMeaningBindings,
+  meaningSlotToFieldMeaning,
 } from '@netior/shared/constants';
 
 const PORT = parseInt(process.env.PORT ?? process.env.NETIOR_SERVICE_PORT ?? '3201', 10);
@@ -347,16 +364,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  if (pathname === '/archetypes') {
+  if (pathname === '/schemas') {
     if (method === 'GET') {
       const projectId = getRequiredSearchParam(url, 'projectId');
-      sendJson(res, 200, { ok: true, data: listArchetypes(projectId) });
+      sendJson(res, 200, { ok: true, data: listSchemas(projectId) });
       return;
     }
 
     if (method === 'POST') {
-      const body = await readJsonBody<ArchetypeCreate>(req);
-      sendJson(res, 200, { ok: true, data: createArchetype(body) });
+      const body = await readJsonBody<SchemaCreate>(req);
+      sendJson(res, 200, { ok: true, data: createSchema(body) });
       return;
     }
 
@@ -364,22 +381,22 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  if (pathname.startsWith('/archetypes/')) {
-    const id = decodeURIComponent(pathname.slice('/archetypes/'.length));
+  if (pathname.startsWith('/schemas/')) {
+    const id = decodeURIComponent(pathname.slice('/schemas/'.length));
 
     if (method === 'GET') {
-      sendJson(res, 200, { ok: true, data: getArchetype(id) });
+      sendJson(res, 200, { ok: true, data: getSchema(id) });
       return;
     }
 
     if (method === 'PATCH') {
-      const body = await readJsonBody<ArchetypeUpdate>(req);
-      sendJson(res, 200, { ok: true, data: updateArchetype(id, body) });
+      const body = await readJsonBody<SchemaUpdate>(req);
+      sendJson(res, 200, { ok: true, data: updateSchema(id, body) });
       return;
     }
 
     if (method === 'DELETE') {
-      sendJson(res, 200, { ok: true, data: deleteArchetype(id) });
+      sendJson(res, 200, { ok: true, data: deleteSchema(id) });
       return;
     }
 
@@ -387,27 +404,27 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  if (pathname === '/archetype-fields/reorder') {
+  if (pathname === '/schema-fields/reorder') {
     if (method !== 'PATCH') {
       sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
       return;
     }
 
-    const body = await readJsonBody<{ archetypeId: string; orderedIds: string[] }>(req);
-    reorderFields(body.archetypeId, body.orderedIds);
+    const body = await readJsonBody<{ schemaId: string; orderedIds: string[] }>(req);
+    reorderFields(body.schemaId, body.orderedIds);
     sendJson(res, 200, { ok: true, data: true });
     return;
   }
 
-  if (pathname === '/archetype-fields') {
+  if (pathname === '/schema-fields') {
     if (method === 'GET') {
-      const archetypeId = getRequiredSearchParam(url, 'archetypeId');
-      sendJson(res, 200, { ok: true, data: listFields(archetypeId) });
+      const schemaId = getRequiredSearchParam(url, 'schemaId');
+      sendJson(res, 200, { ok: true, data: listFields(schemaId) });
       return;
     }
 
     if (method === 'POST') {
-      const body = await readJsonBody<ArchetypeFieldCreate>(req);
+      const body = await readJsonBody<SchemaFieldCreate>(req);
       sendJson(res, 200, { ok: true, data: createField(body) });
       return;
     }
@@ -416,17 +433,105 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  if (pathname.startsWith('/archetype-fields/')) {
-    const id = decodeURIComponent(pathname.slice('/archetype-fields/'.length));
+  if (pathname === '/schema-meanings') {
+    if (method === 'GET') {
+      const schemaId = getRequiredSearchParam(url, 'schemaId');
+      sendJson(res, 200, { ok: true, data: listMeanings(schemaId) });
+      return;
+    }
+
+    if (method === 'POST') {
+      const body = await readJsonBody<SchemaMeaningCreate>(req);
+      sendJson(res, 200, { ok: true, data: ensureMeaning(body) });
+      return;
+    }
+
+    sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
+    return;
+  }
+
+  if (pathname.startsWith('/schema-meanings/')) {
+    const id = decodeURIComponent(pathname.slice('/schema-meanings/'.length));
 
     if (method === 'PATCH') {
-      const body = await readJsonBody<ArchetypeFieldUpdate>(req);
+      const body = await readJsonBody<SchemaMeaningUpdate>(req);
+      sendJson(res, 200, { ok: true, data: updateMeaning(id, body) });
+      return;
+    }
+
+    if (method === 'DELETE') {
+      sendJson(res, 200, { ok: true, data: deleteMeaning(id) });
+      return;
+    }
+
+    sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
+    return;
+  }
+
+  if (pathname.startsWith('/schema-meaning-slots/')) {
+    const id = decodeURIComponent(pathname.slice('/schema-meaning-slots/'.length));
+
+    if (method === 'PATCH') {
+      const body = await readJsonBody<SchemaMeaningSlotBindingUpdate>(req);
+      sendJson(res, 200, { ok: true, data: updateMeaningSlotBinding(id, body) });
+      return;
+    }
+
+    sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
+    return;
+  }
+
+  if (pathname.startsWith('/schema-fields/')) {
+    const id = decodeURIComponent(pathname.slice('/schema-fields/'.length));
+
+    if (method === 'PATCH') {
+      const body = await readJsonBody<SchemaFieldUpdate>(req);
       sendJson(res, 200, { ok: true, data: updateField(id, body) });
       return;
     }
 
     if (method === 'DELETE') {
       sendJson(res, 200, { ok: true, data: deleteField(id) });
+      return;
+    }
+
+    sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
+    return;
+  }
+
+  if (pathname === '/semantic-models') {
+    if (method === 'GET') {
+      const projectId = getRequiredSearchParam(url, 'projectId');
+      sendJson(res, 200, { ok: true, data: listSemanticModels(projectId) });
+      return;
+    }
+
+    if (method === 'POST') {
+      const body = await readJsonBody<SemanticModelCreate>(req);
+      sendJson(res, 200, { ok: true, data: createSemanticModel(body) });
+      return;
+    }
+
+    sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
+    return;
+  }
+
+  if (pathname.startsWith('/semantic-models/')) {
+    const id = decodeURIComponent(pathname.slice('/semantic-models/'.length));
+
+    if (method === 'GET') {
+      sendJson(res, 200, { ok: true, data: getSemanticModel(id) });
+      return;
+    }
+
+    if (method === 'PATCH') {
+      const body = await readJsonBody<SemanticModelUpdate>(req);
+      sendJson(res, 200, { ok: true, data: updateSemanticModel(id, body) });
+      return;
+    }
+
+    if (method === 'DELETE') {
+      sendJson(res, 200, { ok: true, data: deleteSemanticModel(id) });
       return;
     }
 
@@ -1108,87 +1213,92 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   sendJson(res, 404, { ok: false, error: `Route not found: ${method} ${pathname}` });
 }
 
-type ArchetypeRow = Omit<Archetype, 'semantic_traits' | 'facets'> & {
-  semantic_traits: string | null;
-  facets?: string | null;
+type SchemaRow = Omit<Schema, 'semantic_models' | 'models'> & {
+  semantic_models: string | null;
+  models?: string | null;
 };
-type ArchetypeFieldRow = Omit<ArchetypeField, 'required' | 'slot_binding_locked' | 'generated_by_trait'> & {
+type SchemaFieldRow = Omit<SchemaField, 'required' | 'slot_binding_locked' | 'generated_by_model' | 'meaning_bindings'> & {
   required: number;
   slot_binding_locked: number;
-  generated_by_trait: number;
+  generated_by_model?: number;
+  meaning_slot?: MeaningSlotKey | null;
+  meaning_key?: FieldMeaningKey | null;
 };
 
-function toArchetype(row: ArchetypeRow): Archetype {
-  let semanticTraits: Archetype['semantic_traits'] = [];
-  let facets: Archetype['facets'] = [];
+function parseSemanticModels(raw: string | null | undefined): SemanticModelKey[] {
+  if (!raw) return [];
   try {
-    const parsed = row.semantic_traits ? JSON.parse(row.semantic_traits) : [];
-    if (Array.isArray(parsed)) {
-      semanticTraits = parsed.filter((item): item is Archetype['semantic_traits'][number] => typeof item === 'string');
-    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item): item is SemanticModelKey => typeof item === 'string') : [];
   } catch {
-    semanticTraits = [];
+    return [];
   }
-  try {
-    const parsed = row.facets ? JSON.parse(row.facets) : semanticTraits;
-    if (Array.isArray(parsed)) {
-      facets = parsed.filter((item): item is NonNullable<Archetype['facets']>[number] => typeof item === 'string');
-    }
-  } catch {
-    facets = semanticTraits;
-  }
+}
 
+function toSchema(row: SchemaRow): Schema {
+  const semanticModels = parseSemanticModels(row.semantic_models ?? row.models);
   return {
     ...row,
-    semantic_traits: semanticTraits,
-    facets,
+    semantic_models: semanticModels,
+    models: row.models == null ? semanticModels : parseSemanticModels(row.models),
   };
 }
 
-function normalizeSemanticAspects(aspects: readonly SlotSemanticAspectKey[] | null | undefined, annotation: ArchetypeField['semantic_annotation']): SlotSemanticAspectKey[] {
-  const raw = aspects && aspects.length > 0
-    ? aspects
-    : semanticAnnotationToSlotAspects(annotation);
-  return [...new Set(raw.filter((item): item is SlotSemanticAspectKey => typeof item === 'string' && item.trim().length > 0))];
+function normalizeMeaningBindings(
+  bindings: readonly FieldMeaningBindingKey[] | null | undefined,
+  annotation: FieldMeaningKey | null | undefined,
+): FieldMeaningBindingKey[] {
+  const raw = bindings && bindings.length > 0
+    ? bindings
+    : fieldMeaningToMeaningBindings(annotation);
+  return [...new Set(raw.filter((item): item is FieldMeaningBindingKey => typeof item === 'string' && item.trim().length > 0))];
 }
 
-function getFieldSemanticAspectsByFieldId(fieldIds: string[]): Map<string, SlotSemanticAspectKey[]> {
-  const byField = new Map<string, SlotSemanticAspectKey[]>();
+function getFieldMeaningBindingsByFieldId(fieldIds: string[]): Map<string, FieldMeaningBindingKey[]> {
+  const byField = new Map<string, FieldMeaningBindingKey[]>();
   if (fieldIds.length === 0) return byField;
 
   const db = getDatabase();
   const placeholders = fieldIds.map(() => '?').join(',');
-  const rows = db.prepare(
-    `SELECT field_id, aspect_key FROM slot_semantic_aspects WHERE field_id IN (${placeholders}) ORDER BY field_id, sort_order, aspect_key`,
-  ).all(...fieldIds) as { field_id: string; aspect_key: string }[];
+  const meaningRows = db.prepare(
+    `SELECT field_id, meaning_key FROM field_meaning_bindings WHERE field_id IN (${placeholders}) ORDER BY field_id, sort_order, meaning_key`,
+  ).all(...fieldIds) as { field_id: string; meaning_key: string }[];
+  const rows = meaningRows.length > 0
+    ? meaningRows.map((row) => ({ field_id: row.field_id, meaning_key: row.meaning_key }))
+    : [];
 
   for (const row of rows) {
     const current = byField.get(row.field_id) ?? [];
-    current.push(row.aspect_key as SlotSemanticAspectKey);
+    current.push(row.meaning_key as FieldMeaningBindingKey);
     byField.set(row.field_id, current);
   }
   return byField;
 }
 
-function toArchetypeField(row: ArchetypeFieldRow, semanticAspects?: readonly SlotSemanticAspectKey[]): ArchetypeField {
-  const semanticAnnotation = row.semantic_annotation ?? systemSlotToSemanticAnnotation(row.system_slot);
-  const systemSlot = row.system_slot ?? semanticAnnotationToSystemSlot(row.semantic_annotation);
+function toSchemaField(row: SchemaFieldRow, meaningBindings?: readonly FieldMeaningBindingKey[]): SchemaField {
+  const fieldMeaning = row.meaning_key ?? meaningSlotToFieldMeaning(row.meaning_slot);
+  const bindings = normalizeMeaningBindings(meaningBindings, fieldMeaning);
+  const generatedByModel = Boolean(row.generated_by_model);
+  const {
+    meaning_slot: _meaningSlot,
+    meaning_key: _meaningKey,
+    generated_by_model: _generatedByModel,
+    ...field
+  } = row;
 
   return {
-    ...row,
-    system_slot: systemSlot ?? null,
-    semantic_annotation: semanticAnnotation ?? null,
-    semantic_aspects: normalizeSemanticAspects(semanticAspects, semanticAnnotation),
+    ...field,
+    meaning_bindings: bindings,
     required: !!row.required,
     slot_binding_locked: !!row.slot_binding_locked,
-    generated_by_trait: !!row.generated_by_trait,
+    generated_by_model: generatedByModel,
   };
 }
 
 function loadConceptContentData(conceptId: string): {
   concept: Concept;
-  archetype: Archetype | null;
-  fields: ArchetypeField[];
+  schema: Schema | null;
+  fields: SchemaField[];
   properties: Record<string, string | null>;
 } | null {
   const db = getDatabase();
@@ -1197,18 +1307,18 @@ function loadConceptContentData(conceptId: string): {
     return null;
   }
 
-  let archetype: Archetype | null = null;
-  let fields: ArchetypeField[] = [];
+  let schema: Schema | null = null;
+  let fields: SchemaField[] = [];
   const properties: Record<string, string | null> = {};
 
-  if (concept.archetype_id) {
-    const archetypeRow = db.prepare('SELECT * FROM archetypes WHERE id = ?').get(concept.archetype_id) as ArchetypeRow | null;
-    archetype = archetypeRow ? toArchetype(archetypeRow) : null;
-    if (archetype) {
-      const rows = db.prepare('SELECT * FROM archetype_fields WHERE archetype_id = ? ORDER BY sort_order')
-        .all(archetype.id) as ArchetypeFieldRow[];
-      const aspectsByFieldId = getFieldSemanticAspectsByFieldId(rows.map((row) => row.id));
-      fields = rows.map((row) => toArchetypeField(row, aspectsByFieldId.get(row.id)));
+  if (concept.schema_id) {
+    const schemaRow = db.prepare('SELECT * FROM schemas WHERE id = ?').get(concept.schema_id) as SchemaRow | null;
+    schema = schemaRow ? toSchema(schemaRow) : null;
+    if (schema) {
+      const rows = db.prepare('SELECT * FROM schema_fields WHERE schema_id = ? ORDER BY sort_order')
+        .all(schema.id) as SchemaFieldRow[];
+      const bindingsByFieldId = getFieldMeaningBindingsByFieldId(rows.map((row) => row.id));
+      fields = rows.map((row) => toSchemaField(row, bindingsByFieldId.get(row.id)));
     }
 
     const props = db.prepare('SELECT * FROM concept_properties WHERE concept_id = ?')
@@ -1220,7 +1330,7 @@ function loadConceptContentData(conceptId: string): {
     }
   }
 
-  return { concept, archetype, fields, properties };
+  return { concept, schema, fields, properties };
 }
 
 async function readJsonBody<T>(req: IncomingMessage): Promise<T> {

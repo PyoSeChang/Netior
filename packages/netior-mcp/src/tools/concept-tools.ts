@@ -7,16 +7,17 @@ import {
   updateConcept,
   deleteConcept,
   getConceptProperties,
-  listArchetypeFields,
+  listSchemaFields,
 } from '../netior-service-client.js';
-import type { Concept, ConceptProperty, ArchetypeField } from '@netior/shared/types';
+import type { Concept, ConceptProperty, SchemaField } from '@netior/shared/types';
 import { emitChange } from '../events.js';
 import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
+import { toAgentConcept } from './schema-surface.js';
 
 const conceptPropertyFilterSchema = z.object({
   field_id: z.string().optional().describe('Exact field ID to filter by'),
-  field_name: z.string().optional().describe('Field name to resolve within the target archetype'),
-  system_slot: z.string().optional().describe('System slot key to resolve within the target archetype'),
+  field_name: z.string().optional().describe('Field name to resolve within the target schema'),
+  meaning_binding: z.string().optional().describe('Meaning binding key to resolve within the target schema'),
   value: z.string().describe('Expected serialized value, concept ID, or option value'),
   match: z.enum(['equals', 'contains']).optional().describe('Whether to require exact match or substring/array containment'),
 });
@@ -110,44 +111,46 @@ function matchesPropertyValue(
 }
 
 async function resolvePropertyFilters(
-  archetypeId: string | undefined,
+  schemaId: string | undefined,
   propertyFilters: ConceptPropertyFilterInput[] | undefined,
 ): Promise<ResolvedConceptPropertyFilter[]> {
   if (!propertyFilters || propertyFilters.length === 0) {
     return [];
   }
 
-  const requiresArchetypeResolution = propertyFilters.some((filter) => !filter.field_id);
-  if (requiresArchetypeResolution && !archetypeId) {
-    throw new Error('archetype_id is required when filtering concepts by field_name or system_slot');
+  const requiresSchemaResolution = propertyFilters.some((filter) => !filter.field_id);
+  if (requiresSchemaResolution && !schemaId) {
+    throw new Error('schema_id is required when filtering concepts by field_name or meaning_binding');
   }
 
-  const fieldMapById = new Map<string, ArchetypeField>();
-  const fieldMapByName = new Map<string, ArchetypeField>();
-  const fieldMapBySlot = new Map<string, ArchetypeField>();
+  const fieldMapById = new Map<string, SchemaField>();
+  const fieldMapByName = new Map<string, SchemaField>();
+  const fieldMapByMeaning = new Map<string, SchemaField>();
 
-  if (archetypeId) {
-    const fields = await listArchetypeFields(archetypeId);
+  if (schemaId) {
+    const fields = await listSchemaFields(schemaId);
     for (const field of fields) {
       fieldMapById.set(field.id, field);
       fieldMapByName.set(field.name, field);
-      if (field.system_slot) {
-        fieldMapBySlot.set(field.system_slot, field);
+      for (const meaning of field.meaning_bindings ?? []) {
+        if (!fieldMapByMeaning.has(meaning)) {
+          fieldMapByMeaning.set(meaning, field);
+        }
       }
     }
   }
 
   return propertyFilters.map((filter) => {
     const resolvedField = filter.field_id
-      ? fieldMapById.get(filter.field_id) ?? ({ id: filter.field_id } as ArchetypeField)
+      ? fieldMapById.get(filter.field_id) ?? ({ id: filter.field_id } as SchemaField)
       : filter.field_name
         ? fieldMapByName.get(filter.field_name)
-        : filter.system_slot
-          ? fieldMapBySlot.get(filter.system_slot)
+        : filter.meaning_binding
+          ? fieldMapByMeaning.get(filter.meaning_binding)
           : undefined;
 
     if (!resolvedField?.id) {
-      const label = filter.field_name ?? filter.system_slot ?? filter.field_id ?? '(unknown filter)';
+      const label = filter.field_name ?? filter.meaning_binding ?? filter.field_id ?? '(unknown filter)';
       throw new Error(`Could not resolve concept property filter: ${label}`);
     }
 
@@ -189,20 +192,20 @@ export function registerConceptTools(server: McpServer): void {
     {
       project_id: projectIdSchema(),
       query: z.string().optional().describe('Search query to filter concepts by title'),
-      archetype_id: z.string().optional().describe('Optional archetype ID to narrow the concept set'),
-      property_filters: z.array(conceptPropertyFilterSchema).optional().describe('Optional property filters resolved against the archetype schema'),
+      schema_id: z.string().optional().describe('Optional schema ID to narrow the concept set'),
+      property_filters: z.array(conceptPropertyFilterSchema).optional().describe('Optional property filters resolved against the schema'),
     },
-    async ({ project_id, query, archetype_id, property_filters }) => {
+    async ({ project_id, query, schema_id, property_filters }) => {
       try {
         const targetProjectId = resolveProjectId(project_id);
         const baseConcepts = query
           ? await searchConcepts(targetProjectId, query)
           : await getConceptsByProject(targetProjectId);
-        const archetypeConcepts = archetype_id
-          ? baseConcepts.filter((concept) => concept.archetype_id === archetype_id)
+        const schemaConcepts = schema_id
+          ? baseConcepts.filter((concept) => concept.schema_id === schema_id)
           : baseConcepts;
-        const resolvedFilters = await resolvePropertyFilters(archetype_id, property_filters);
-        const result = await filterConceptsByProperties(archetypeConcepts, resolvedFilters);
+        const resolvedFilters = await resolvePropertyFilters(schema_id, property_filters);
+        const result = (await filterConceptsByProperties(schemaConcepts, resolvedFilters)).map(toAgentConcept);
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
@@ -221,24 +224,24 @@ export function registerConceptTools(server: McpServer): void {
     {
       project_id: projectIdSchema(),
       title: z.string().describe('Concept title'),
-      archetype_id: z.string().optional().describe('Archetype ID to assign'),
+      schema_id: z.string().optional().describe('Schema ID to assign'),
       color: z.string().optional().describe('Color value'),
       icon: z.string().nullable().optional().describe('Icon identifier or emoji text. Use this when not setting profile_image.'),
       profile_image: z.string().nullable().optional().describe('Profile image source. Can be an image URL, data URL, file URL, or local file path. Stored in the concept icon field.'),
     },
-    async ({ project_id, title, archetype_id, color, icon, profile_image }) => {
+    async ({ project_id, title, schema_id, color, icon, profile_image }) => {
       try {
         const visual = resolveConceptVisualValue({ icon, profile_image });
         const result = await createConcept({
           project_id: resolveProjectId(project_id),
           title,
-          archetype_id,
+          schema_id: schema_id,
           color,
           ...(visual !== undefined && visual !== null ? { icon: visual } : {}),
         });
         emitChange({ type: 'concept', action: 'create', id: result.id });
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(toAgentConcept(result), null, 2) }],
         };
       } catch (error) {
         return {
@@ -255,17 +258,17 @@ export function registerConceptTools(server: McpServer): void {
     {
       concept_id: z.string().describe('The concept ID to update'),
       title: z.string().optional().describe('New title'),
-      archetype_id: z.string().optional().describe('New archetype ID'),
+      schema_id: z.string().optional().describe('New schema ID'),
       color: z.string().optional().describe('New color value'),
       icon: z.string().nullable().optional().describe('New icon identifier or emoji text. Use this when not setting profile_image.'),
       profile_image: z.string().nullable().optional().describe('New profile image source. Can be an image URL, data URL, file URL, or local file path. Stored in the concept icon field.'),
     },
-    async ({ concept_id, title, archetype_id, color, icon, profile_image }) => {
+    async ({ concept_id, title, schema_id, color, icon, profile_image }) => {
       try {
         const visual = resolveConceptVisualValue({ icon, profile_image });
         const result = await updateConcept(concept_id, {
           title,
-          archetype_id,
+          schema_id: schema_id,
           color,
           ...(visual !== undefined ? { icon: visual } : {}),
         });
@@ -277,7 +280,7 @@ export function registerConceptTools(server: McpServer): void {
         }
         emitChange({ type: 'concept', action: 'update', id: concept_id });
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(toAgentConcept(result), null, 2) }],
         };
       } catch (error) {
         return {

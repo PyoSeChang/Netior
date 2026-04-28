@@ -27,7 +27,7 @@ export interface ProjectUpdate {
 export interface Concept {
   id: string;
   project_id: string;
-  archetype_id: string | null;
+  schema_id: string | null;
   recurrence_source_concept_id: string | null;
   recurrence_occurrence_key: string | null;
   title: string;
@@ -42,7 +42,7 @@ export interface Concept {
 export interface ConceptCreate {
   project_id: string;
   title: string;
-  archetype_id?: string;
+  schema_id?: string;
   recurrence_source_concept_id?: string | null;
   recurrence_occurrence_key?: string | null;
   color?: string;
@@ -53,7 +53,7 @@ export interface ConceptCreate {
 
 export interface ConceptUpdate {
   title?: string;
-  archetype_id?: string | null;
+  schema_id?: string | null;
   recurrence_source_concept_id?: string | null;
   recurrence_occurrence_key?: string | null;
   color?: string | null;
@@ -173,7 +173,7 @@ export interface ContextMember {
 // ============================================
 
 export type NetworkObjectType =
-  | 'concept' | 'network' | 'project' | 'archetype'
+  | 'concept' | 'network' | 'project' | 'schema' | 'model'
   | 'relation_type' | 'type_group' | 'agent' | 'context'
   | 'file' | 'module' | 'folder';
 
@@ -184,20 +184,8 @@ export type NodeSortEmptyPlacement = 'first' | 'last';
 
 export type NodeSortConfig =
   | {
-      kind: 'system_slot';
-      slot: SystemSlotKey;
-      direction?: NodeSortDirection;
-      emptyPlacement?: NodeSortEmptyPlacement;
-    }
-  | {
-      kind: 'semantic_annotation';
-      annotation: SlotSemanticAnnotationKey;
-      direction?: NodeSortDirection;
-      emptyPlacement?: NodeSortEmptyPlacement;
-    }
-  | {
-      kind: 'semantic_aspect';
-      aspect: SlotSemanticAspectKey;
+      kind: 'meaning_binding';
+      meaning: FieldMeaningBindingKey;
       direction?: NodeSortDirection;
       emptyPlacement?: NodeSortEmptyPlacement;
     }
@@ -275,24 +263,13 @@ export interface NetworkNodeUpdate {
 // Edge
 // ============================================
 
-export type SystemContract =
-  | 'core:contains'
-  | 'core:entry_portal'
-  | 'core:hierarchy_parent';
-
-export type RelationSemanticAnnotationKey =
-  | 'structure.contains'
-  | 'structure.entry_portal'
-  | 'structure.parent';
-
 export interface Edge {
   id: string;
   network_id: string;
   source_node_id: string;
   target_node_id: string;
   relation_type_id: string | null;
-  system_contract: SystemContract | null;
-  semantic_annotation?: RelationSemanticAnnotationKey | null;
+  relation_meaning: RelationMeaningKey | null;
   description: string | null;
   created_at: string;
 }
@@ -302,20 +279,18 @@ export interface EdgeCreate {
   source_node_id: string;
   target_node_id: string;
   relation_type_id?: string;
-  system_contract?: SystemContract;
-  semantic_annotation?: RelationSemanticAnnotationKey;
+  relation_meaning?: RelationMeaningKey;
   description?: string;
 }
 
 export interface EdgeUpdate {
   relation_type_id?: string | null;
-  system_contract?: SystemContract | null;
-  semantic_annotation?: RelationSemanticAnnotationKey | null;
+  relation_meaning?: RelationMeaningKey | null;
   description?: string | null;
 }
 
 // ============================================
-// System Semantics
+// Meaning Model
 // ============================================
 
 export type SemanticCategoryKey =
@@ -327,7 +302,9 @@ export type SemanticCategoryKey =
   | 'quant'
   | 'governance';
 
-export type SemanticTraitKey =
+export type SemanticCategoryRefKey = SemanticCategoryKey | (string & {});
+
+export type SemanticModelKey =
   | 'temporal'
   | 'dueable'
   | 'recurring'
@@ -349,13 +326,41 @@ export type SemanticTraitKey =
   | 'ownable'
   | 'approvable';
 
-export type SystemSlotKey =
+export type SemanticModelRefKey = SemanticModelKey | (string & {});
+
+export type SemanticMeaningKey =
+  | 'time_interval'
+  | 'deadline'
+  | 'recurrence'
+  | 'workflow_state'
+  | 'assignment'
+  | 'priority'
+  | 'progress'
+  | 'estimate'
+  | 'hierarchy'
+  | 'ordering'
+  | 'tagging'
+  | 'classification'
+  | 'source'
+  | 'attachment'
+  | 'versioning'
+  | 'location'
+  | 'measurement'
+  | 'budget'
+  | 'ownership'
+  | 'approval';
+
+export type MeaningSlotKey =
   | 'start_at'
   | 'end_at'
   | 'all_day'
   | 'timezone'
   | 'due_at'
   | 'recurrence_rule'
+  | 'recurrence_frequency'
+  | 'recurrence_interval'
+  | 'recurrence_weekdays'
+  | 'recurrence_monthday'
   | 'recurrence_until'
   | 'recurrence_count'
   | 'status'
@@ -394,13 +399,17 @@ export type SystemSlotKey =
   | 'approved_by_ref'
   | 'approved_at';
 
-export type SlotSemanticAnnotationKey =
+export type FieldMeaningKey =
   | 'time.start'
   | 'time.end'
   | 'time.all_day'
   | 'time.timezone'
   | 'time.due'
   | 'time.recurrence_rule'
+  | 'time.recurrence_frequency'
+  | 'time.recurrence_interval'
+  | 'time.recurrence_weekdays'
+  | 'time.recurrence_monthday'
   | 'time.recurrence_until'
   | 'time.recurrence_count'
   | 'workflow.status'
@@ -439,13 +448,96 @@ export type SlotSemanticAnnotationKey =
   | 'governance.approved_by'
   | 'governance.approved_at';
 
-export type SlotSemanticAspectKey = SlotSemanticAnnotationKey | `${string}.${string}`;
-export type SlotSemanticAspectSource = 'manual' | 'facet' | 'migration' | 'system';
-export type SemanticAspectKey = SlotSemanticAspectKey | RelationSemanticAnnotationKey;
-export type SemanticAnnotationKey = SlotSemanticAnnotationKey | RelationSemanticAnnotationKey;
-export type SemanticFacetKey = SemanticTraitKey;
+export type RelationMeaningKey =
+  | 'structure.contains'
+  | 'structure.entry_portal'
+  | 'structure.parent';
 
-export type SlotContractLevel = 'strict' | 'constrained' | 'loose';
+export type FieldMeaningBindingKey = FieldMeaningKey | `${string}.${string}`;
+export type FieldMeaningBindingSource = 'manual' | 'model' | 'migration' | 'system';
+export type MeaningBindingKey = FieldMeaningBindingKey | RelationMeaningKey;
+export type MeaningSourceKind = 'manual' | 'model' | 'migration' | 'system';
+export type SlotBindingTargetKind = 'field' | 'edge' | 'derived';
+
+export type SlotConstraintLevel = 'strict' | 'constrained' | 'loose';
+
+export type SemanticModelRepresentationKind = 'single_field' | 'field_group' | 'relation' | 'computed';
+
+export interface SemanticModelFieldRecipe {
+  id: string;
+  key: string;
+  name: string;
+  field_types: FieldType[];
+  required: boolean;
+  description?: string | null;
+  options?: string | null;
+}
+
+export interface SemanticModelMeaningRecipe {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  representation: SemanticModelRepresentationKind;
+  fields: SemanticModelFieldRecipe[];
+}
+
+export interface SemanticModelRuleRecipe {
+  id: string;
+  description: string;
+}
+
+export interface SemanticModelRecipe {
+  meanings: SemanticModelMeaningRecipe[];
+  rules: SemanticModelRuleRecipe[];
+}
+
+export interface SemanticModel {
+  id: string;
+  project_id: string;
+  key: SemanticModelRefKey;
+  name: string;
+  description: string | null;
+  category: SemanticCategoryRefKey;
+  meaning_keys: SemanticMeaningKey[];
+  core_slots: MeaningSlotKey[];
+  optional_slots: MeaningSlotKey[];
+  recipe: SemanticModelRecipe;
+  color: string | null;
+  icon: string | null;
+  built_in: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SemanticModelCreate {
+  project_id: string;
+  key?: SemanticModelRefKey;
+  name: string;
+  description?: string | null;
+  category?: SemanticCategoryRefKey;
+  meaning_keys?: SemanticMeaningKey[];
+  core_slots?: MeaningSlotKey[];
+  optional_slots?: MeaningSlotKey[];
+  recipe?: SemanticModelRecipe;
+  color?: string | null;
+  icon?: string | null;
+  built_in?: boolean;
+}
+
+export interface SemanticModelUpdate {
+  key?: SemanticModelRefKey;
+  name?: string;
+  description?: string | null;
+  category?: SemanticCategoryRefKey;
+  meaning_keys?: SemanticMeaningKey[];
+  core_slots?: MeaningSlotKey[];
+  optional_slots?: MeaningSlotKey[];
+  recipe?: SemanticModelRecipe;
+  color?: string | null;
+  icon?: string | null;
+  built_in?: boolean;
+}
 
 // ============================================
 // Layout
@@ -580,10 +672,10 @@ export interface ModuleDirectoryCreate {
 }
 
 // ============================================
-// Archetype
+// Schema
 // ============================================
 
-export interface Archetype {
+export interface Schema {
   id: string;
   project_id: string;
   group_id: string | null;
@@ -593,13 +685,13 @@ export interface Archetype {
   color: string | null;
   node_shape: string | null;
   file_template: string | null;
-  semantic_traits: SemanticTraitKey[];
-  facets?: SemanticFacetKey[];
+  semantic_models: SemanticModelRefKey[];
+  models?: SemanticModelRefKey[];
   created_at: string;
   updated_at: string;
 }
 
-export interface ArchetypeCreate {
+export interface SchemaCreate {
   project_id: string;
   group_id?: string | null;
   name: string;
@@ -608,11 +700,11 @@ export interface ArchetypeCreate {
   color?: string;
   node_shape?: string;
   file_template?: string;
-  semantic_traits?: SemanticTraitKey[];
-  facets?: SemanticFacetKey[];
+  semantic_models?: SemanticModelRefKey[];
+  models?: SemanticModelRefKey[];
 }
 
-export interface ArchetypeUpdate {
+export interface SchemaUpdate {
   group_id?: string | null;
   name?: string;
   description?: string | null;
@@ -620,12 +712,12 @@ export interface ArchetypeUpdate {
   color?: string | null;
   node_shape?: string | null;
   file_template?: string | null;
-  semantic_traits?: SemanticTraitKey[];
-  facets?: SemanticFacetKey[];
+  semantic_models?: SemanticModelRefKey[];
+  models?: SemanticModelRefKey[];
 }
 
 // ============================================
-// Archetype Field
+// Schema Field
 // ============================================
 
 export type FieldType =
@@ -644,69 +736,103 @@ export type FieldType =
   | 'color'
   | 'rating'
   | 'tags'
-  | 'archetype_ref';
+  | 'schema_ref';
 
-export interface ArchetypeField {
+export interface SchemaField {
   id: string;
-  archetype_id: string;
+  schema_id: string;
   name: string;
   field_type: FieldType;
   options: string | null;
   sort_order: number;
   required: boolean;
   default_value: string | null;
-  ref_archetype_id: string | null;
-  system_slot: SystemSlotKey | null;
-  semantic_annotation?: SlotSemanticAnnotationKey | null;
-  semantic_aspects?: SlotSemanticAspectKey[];
+  ref_schema_id: string | null;
+  meaning_bindings: FieldMeaningBindingKey[];
   slot_binding_locked: boolean;
-  generated_by_trait: boolean;
+  generated_by_model: boolean;
   created_at: string;
 }
 
-export interface ArchetypeFieldCreate {
-  archetype_id: string;
+export interface SchemaFieldCreate {
+  schema_id: string;
   name: string;
   field_type: FieldType;
   options?: string;
   sort_order: number;
   required?: boolean;
   default_value?: string;
-  ref_archetype_id?: string;
-  system_slot?: SystemSlotKey | null;
-  semantic_annotation?: SlotSemanticAnnotationKey | null;
-  semantic_aspects?: SlotSemanticAspectKey[];
+  ref_schema_id?: string;
+  meaning_bindings?: FieldMeaningBindingKey[];
   slot_binding_locked?: boolean;
-  generated_by_trait?: boolean;
+  generated_by_model?: boolean;
 }
 
-export interface ArchetypeFieldUpdate {
+export interface SchemaFieldUpdate {
   name?: string;
   field_type?: FieldType;
   options?: string | null;
   sort_order?: number;
   required?: boolean;
   default_value?: string | null;
-  ref_archetype_id?: string | null;
-  system_slot?: SystemSlotKey | null;
-  semantic_annotation?: SlotSemanticAnnotationKey | null;
-  semantic_aspects?: SlotSemanticAspectKey[];
+  ref_schema_id?: string | null;
+  meaning_bindings?: FieldMeaningBindingKey[];
   slot_binding_locked?: boolean;
-  generated_by_trait?: boolean;
+  generated_by_model?: boolean;
 }
 
-export type Schema = Archetype;
-export type SchemaCreate = ArchetypeCreate;
-export type SchemaUpdate = ArchetypeUpdate;
-export type SchemaSlot = ArchetypeField;
-export type SchemaSlotCreate = ArchetypeFieldCreate;
-export type SchemaSlotUpdate = ArchetypeFieldUpdate;
+export interface SchemaMeaningSlotBinding {
+  id: string;
+  meaning_id: string;
+  slot_key: MeaningSlotKey;
+  target_kind: SlotBindingTargetKind;
+  field_id: string | null;
+  required: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SchemaMeaning {
+  id: string;
+  schema_id: string;
+  meaning_key: SemanticMeaningKey;
+  label: string | null;
+  source: MeaningSourceKind;
+  source_model: SemanticModelRefKey | null;
+  sort_order: number;
+  slots: SchemaMeaningSlotBinding[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SchemaMeaningCreate {
+  schema_id: string;
+  meaning_key: SemanticMeaningKey;
+  label?: string | null;
+  source?: MeaningSourceKind;
+  source_model?: SemanticModelRefKey | null;
+  sort_order?: number;
+}
+
+export interface SchemaMeaningUpdate {
+  label?: string | null;
+  sort_order?: number;
+}
+
+export interface SchemaMeaningSlotBindingUpdate {
+  target_kind?: SlotBindingTargetKind;
+  field_id?: string | null;
+}
+
+export type SchemaSlot = SchemaField;
+export type SchemaSlotCreate = SchemaFieldCreate;
+export type SchemaSlotUpdate = SchemaFieldUpdate;
 
 // ============================================
 // Type Group
 // ============================================
 
-export type TypeGroupKind = 'archetype' | 'relation_type';
+export type TypeGroupKind = 'schema' | 'relation_type';
 
 export interface TypeGroup {
   id: string;
@@ -813,7 +939,7 @@ export interface NetworkBreadcrumbItem {
 // ============================================
 
 export type EditorViewMode = 'float' | 'full' | 'side' | 'detached';
-export type EditorTabType = 'concept' | 'file' | 'archetype' | 'terminal' | 'edge' | 'relationType' | 'network' | 'networkViewer' | 'project' | 'narre' | 'agent' | 'fileMetadata' | 'context';
+export type EditorTabType = 'concept' | 'file' | 'schema' | 'model' | 'terminal' | 'edge' | 'relationType' | 'network' | 'networkViewer' | 'ontology' | 'project' | 'narre' | 'agent' | 'fileMetadata' | 'context';
 
 /** Identifies a window that hosts editor tabs (main window or detached window) */
 export interface EditorHostState {
@@ -884,7 +1010,7 @@ export interface EditorTab {
     slotIndex?: number;
     positionX?: number;
     positionY?: number;
-    allowedArchetypeIds?: string[];
+    allowedSchemaIds?: string[];
   };
   /** Whether the user manually renamed this tab (prevents auto-title updates) */
   isManuallyRenamed?: boolean;
@@ -932,7 +1058,7 @@ export interface NarreMessage {
 }
 
 export interface NarreMention {
-  type: 'concept' | 'network' | 'edge' | 'archetype' | 'relationType' | 'module' | 'file';
+  type: 'concept' | 'network' | 'edge' | 'schema' | 'relationType' | 'module' | 'file';
   id?: string;
   path?: string;
   display: string;
@@ -1250,7 +1376,7 @@ export type NarreCard =
   | NarreSummaryCard;
 
 export interface NetiorChangeEvent {
-  type: 'archetypes' | 'concepts' | 'relationTypes' | 'typeGroups' | 'networks' | 'edges' | 'layouts' | 'contexts';
+  type: 'schemas' | 'models' | 'concepts' | 'relationTypes' | 'typeGroups' | 'networks' | 'edges' | 'layouts' | 'contexts';
   action: 'created' | 'updated' | 'deleted';
   id: string;
 }

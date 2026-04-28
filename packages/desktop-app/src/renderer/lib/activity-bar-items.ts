@@ -25,7 +25,6 @@ export const ACTIVITY_BAR_TOP_ITEM_DEFINITIONS: Record<
 > = {
   projects: { key: 'projects', icon: FolderKanban, labelKey: 'project.title' },
   networks: { key: 'networks', icon: Waypoints, labelKey: 'sidebar.networks' },
-  objects: { key: 'objects', icon: Boxes, labelKey: 'sidebar.objects' },
   files: { key: 'files', icon: FolderTree, labelKey: 'sidebar.files' },
   sessions: { key: 'sessions', icon: Activity, labelKey: 'sidebar.sessions' },
 };
@@ -34,6 +33,7 @@ export const ACTIVITY_BAR_BOTTOM_ITEM_DEFINITIONS: Record<
   ActivityBarBottomItemKey,
   ActivityBarItemDefinition<ActivityBarBottomItemKey>
 > = {
+  ontology: { key: 'ontology', icon: Boxes, labelKey: 'sidebar.ontology' },
   narre: { key: 'narre', icon: Sparkles, labelKey: 'narre.title' },
   terminal: { key: 'terminal', icon: Terminal, labelKey: 'sidebar.terminal' },
   agents: { key: 'agents', icon: Bot, labelKey: 'sidebar.agents' },

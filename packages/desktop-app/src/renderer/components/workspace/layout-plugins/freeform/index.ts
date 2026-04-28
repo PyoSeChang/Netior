@@ -2,7 +2,7 @@ import type { NodeConfig, NodeSortConfig } from '@netior/shared/types';
 import type { RenderEdge } from '../../types';
 import type { WorkspaceLayoutPlugin, LayoutRenderNode } from '../types';
 import { extractNodeConfig } from '../../../../lib/node-config';
-import { getFirstSemanticAspectValue, getSemanticSlotValue } from '../semantic';
+import { getMeaningBindingValue } from '../semantic';
 import { FreeformBackground } from './FreeformBackground';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -26,7 +26,7 @@ function buildContainsMaps(nodes: LayoutRenderNode[], edges: RenderEdge[]): {
   const parentByChild = new Map<string, string>();
 
   for (const edge of edges) {
-    if (edge.systemContract !== 'core:contains') continue;
+    if (edge.relationMeaning !== 'structure.contains') continue;
     if (!visibleNodeIds.has(edge.sourceId) || !visibleNodeIds.has(edge.targetId)) continue;
 
     const children = childrenByParent.get(edge.sourceId) ?? [];
@@ -99,16 +99,8 @@ function getGroupNodeConfig(node: LayoutRenderNode): NodeConfig | null {
 }
 
 function getSortValue(node: LayoutRenderNode, sort: NodeSortConfig): unknown {
-  if (sort.kind === 'system_slot') {
-    return node.metadata[sort.slot];
-  }
-
-  if (sort.kind === 'semantic_annotation') {
-    return getSemanticSlotValue(node, sort.annotation);
-  }
-
-  if (sort.kind === 'semantic_aspect') {
-    return getFirstSemanticAspectValue(node, sort.aspect);
+  if (sort.kind === 'meaning_binding') {
+    return getMeaningBindingValue(node, sort.meaning);
   }
 
   const fieldValues = node.metadata.__fieldValues;

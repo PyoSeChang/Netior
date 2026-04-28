@@ -5,6 +5,7 @@ interface RecurrenceDefinition {
   freq: 'DAILY' | 'WEEKLY' | 'MONTHLY';
   interval: number;
   byDay: number[] | null;
+  monthDay: number | null;
   untilEpochDay: number | null;
   untilMinutes: number | null;
   count: number | null;
@@ -42,16 +43,96 @@ function getLastDayOfMonth(year: number, monthIndex: number): number {
 }
 
 function parseByDayToken(token: string): number | null {
-  switch (token) {
+  switch (token.trim().toUpperCase()) {
     case 'SU': return 0;
+    case 'SUN': return 0;
+    case 'SUNDAY': return 0;
+    case '일': return 0;
+    case '일요일': return 0;
     case 'MO': return 1;
+    case 'MON': return 1;
+    case 'MONDAY': return 1;
+    case '월': return 1;
+    case '월요일': return 1;
     case 'TU': return 2;
+    case 'TUE': return 2;
+    case 'TUESDAY': return 2;
+    case '화': return 2;
+    case '화요일': return 2;
     case 'WE': return 3;
+    case 'WED': return 3;
+    case 'WEDNESDAY': return 3;
+    case '수': return 3;
+    case '수요일': return 3;
     case 'TH': return 4;
+    case 'THU': return 4;
+    case 'THURSDAY': return 4;
+    case '목': return 4;
+    case '목요일': return 4;
     case 'FR': return 5;
+    case 'FRI': return 5;
+    case 'FRIDAY': return 5;
+    case '금': return 5;
+    case '금요일': return 5;
     case 'SA': return 6;
+    case 'SAT': return 6;
+    case 'SATURDAY': return 6;
+    case '토': return 6;
+    case '토요일': return 6;
     default: return null;
   }
+}
+
+function parseRecurrenceFrequency(rawValue: unknown): RecurrenceDefinition['freq'] | null {
+  if (typeof rawValue !== 'string') return null;
+  switch (rawValue.trim().toUpperCase()) {
+    case 'DAILY':
+    case 'DAY':
+    case 'DAYS':
+    case 'EVERY DAY':
+    case '매일':
+    case '일간':
+      return 'DAILY';
+    case 'WEEKLY':
+    case 'WEEK':
+    case 'WEEKS':
+    case 'EVERY WEEK':
+    case '매주':
+    case '주간':
+      return 'WEEKLY';
+    case 'MONTHLY':
+    case 'MONTH':
+    case 'MONTHS':
+    case 'EVERY MONTH':
+    case '매월':
+    case '월간':
+      return 'MONTHLY';
+    default:
+      return null;
+  }
+}
+
+function parseWeekdayValues(rawValue: unknown): number[] | null {
+  const values = Array.isArray(rawValue)
+    ? rawValue
+    : typeof rawValue === 'string'
+      ? (() => {
+          const trimmed = rawValue.trim();
+          if (!trimmed) return [];
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) return parsed;
+          } catch {
+            // Fall through to delimiter parsing.
+          }
+          return trimmed.split(/[,;\s]+/);
+        })()
+      : [];
+
+  const weekdays = values
+    .map((value) => (typeof value === 'string' ? parseByDayToken(value) : null))
+    .filter((value): value is number => value != null);
+  return weekdays.length > 0 ? [...new Set(weekdays)] : null;
 }
 
 function isDateOnlyString(value: string): boolean {
@@ -144,6 +225,28 @@ function parseTemporalLimit(rawValue: unknown, fallbackMinutes = 0): { epochDay:
 }
 
 function parseRecurrenceDefinition(node: LayoutRenderNode): RecurrenceDefinition | null {
+  const structuredFreq = parseRecurrenceFrequency(getSemanticSlotValue(node, 'time.recurrence_frequency'));
+  if (structuredFreq) {
+    const interval = Math.max(1, Math.floor(getSemanticNumber(node, 'time.recurrence_interval') ?? 1));
+    const monthDay = getSemanticNumber(node, 'time.recurrence_monthday');
+    const untilEpochDay = getSemanticNumber(node, 'time.recurrence_until') ?? null;
+    const untilMinutes = typeof node.metadata.recurrence_until_minutes === 'number'
+      ? Number(node.metadata.recurrence_until_minutes)
+      : null;
+    const recurrenceCount = getSemanticNumber(node, 'time.recurrence_count');
+    const count = recurrenceCount == null ? null : Math.max(1, Math.floor(recurrenceCount));
+
+    return {
+      freq: structuredFreq,
+      interval,
+      byDay: parseWeekdayValues(getSemanticSlotValue(node, 'time.recurrence_weekdays')),
+      monthDay: monthDay == null ? null : Math.max(1, Math.min(31, Math.floor(monthDay))),
+      untilEpochDay,
+      untilMinutes,
+      count,
+    };
+  }
+
   const rawRule = getSemanticSlotValue(node, 'time.recurrence_rule');
   if (typeof rawRule !== 'string' || rawRule.trim() === '') return null;
 
@@ -179,6 +282,7 @@ function parseRecurrenceDefinition(node: LayoutRenderNode): RecurrenceDefinition
     freq,
     interval,
     byDay: byDay && byDay.length > 0 ? byDay : null,
+    monthDay: null,
     untilEpochDay,
     untilMinutes,
     count,
@@ -327,7 +431,7 @@ function projectMonthlyOccurrences(
 ): LayoutRenderNode[] {
   const occurrences: LayoutRenderNode[] = [];
   const startDate = epochDayToDate(duration.startEpochDay);
-  const targetDay = startDate.getDate();
+  const targetDay = recurrence.monthDay ?? startDate.getDate();
   let occurrenceIndex = 0;
   let monthCursor = 0;
 
@@ -481,6 +585,9 @@ export function formatTemporalSlotValueForWriteback(
 }
 
 export function hasRecurrence(node: LayoutRenderNode): boolean {
+  if (parseRecurrenceFrequency(getSemanticSlotValue(node, 'time.recurrence_frequency'))) {
+    return true;
+  }
   const recurrenceRule = getSemanticSlotValue(node, 'time.recurrence_rule');
   return typeof recurrenceRule === 'string' && recurrenceRule.trim() !== '';
 }

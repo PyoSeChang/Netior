@@ -7,7 +7,7 @@ import type {
 } from '@netior/shared/types';
 import { networkService, layoutService } from '../services';
 import type { NetworkFullData, NodePosition, EdgeVisual } from '../services/network-service';
-import { HIERARCHY_PARENT_CONTRACT, isHierarchyParentContract } from '../lib/hierarchy-contract';
+import { HIERARCHY_PARENT_MEANING, isHierarchyParentMeaning } from '../lib/hierarchy-meaning';
 
 export interface NetworkNodeWithObject extends NetworkNode {
   object?: ObjectRecord;
@@ -51,7 +51,7 @@ function buildPositionMap(positions: NodePosition[]): Map<string, ParsedNodePosi
 function buildContainsParentMap(edges: EdgeWithRelationType[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const edge of edges) {
-    if (edge.system_contract !== 'core:contains') continue;
+    if (edge.relation_meaning !== 'structure.contains') continue;
     if (edge.source_node_id === edge.target_node_id) continue;
     map.set(edge.target_node_id, edge.source_node_id);
   }
@@ -97,8 +97,8 @@ function buildHierarchyParentMap(
   const map = new Map<string, string>();
 
   for (const edge of edges) {
-    const contract = edge.system_contract ?? '';
-    if (!isHierarchyParentContract(contract)) continue;
+    const meaning = edge.relation_meaning ?? '';
+    if (!isHierarchyParentMeaning(meaning)) continue;
 
     const targetHierarchyId = getHierarchyContainerIdForNode(edge.target_node_id, containsParentByChild, hierarchyContainerIds);
     if (!targetHierarchyId) continue;
@@ -206,7 +206,7 @@ async function healHierarchyOrphans(networkId: string): Promise<void> {
     if (!hierarchyContainerIds.has(directContainerId)) continue;
 
     const structuralEdges = edges.filter(
-      (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === node.id,
+      (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === node.id,
     );
 
     const validExplicitParents = structuralEdges.filter((edge) =>
@@ -231,7 +231,7 @@ async function healHierarchyOrphans(networkId: string): Promise<void> {
         network_id: networkId,
         source_node_id: directContainerId,
         target_node_id: node.id,
-        system_contract: HIERARCHY_PARENT_CONTRACT,
+        relation_meaning: HIERARCHY_PARENT_MEANING,
       });
     }
   }
@@ -470,10 +470,10 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
     const outerContainerId = containsParentByChild.get(id) ?? null;
     const directContainedEdges = edges.filter(
-      (edge) => edge.system_contract === 'core:contains' && edge.source_node_id === id,
+      (edge) => edge.relation_meaning === 'structure.contains' && edge.source_node_id === id,
     );
     const directTreeChildEdges = edges.filter(
-      (edge) => isHierarchyParentContract(edge.system_contract) && edge.source_node_id === id,
+      (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.source_node_id === id,
     );
     const directTreeChildTargetIds = new Set(directTreeChildEdges.map((edge) => edge.target_node_id));
     const deletedNodeHierarchyId = getHierarchyContainerIdForNode(id, containsParentByChild, hierarchyContainerIds);
@@ -507,7 +507,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           source_node_id: outerContainerId,
           target_node_id: childId,
           relation_type_id: undefined,
-          system_contract: 'core:contains',
+          relation_meaning: 'structure.contains',
         });
 
         const targetNodeType = nodeById.get(outerContainerId)?.node_type as string | undefined;
@@ -519,7 +519,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
               ? true
             : edges.some(
               (edge) =>
-                isHierarchyParentContract(edge.system_contract)
+                isHierarchyParentMeaning(edge.relation_meaning)
                 && edge.target_node_id === childId
                 && edge.source_node_id !== id,
             );
@@ -528,7 +528,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
               network_id: networkId ?? node.network_id,
               source_node_id: outerContainerId,
               target_node_id: childId,
-              system_contract: HIERARCHY_PARENT_CONTRACT,
+              relation_meaning: HIERARCHY_PARENT_MEANING,
             });
           }
         }
@@ -537,7 +537,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
     if ((node.node_type as string) === 'hierarchy') {
       for (const edge of edges) {
-        if (!isHierarchyParentContract(edge.system_contract)) continue;
+        if (!isHierarchyParentMeaning(edge.relation_meaning)) continue;
         if (!affectedHierarchyNodeIds.has(edge.target_node_id)) continue;
         await networkService.edge.delete(edge.id);
       }
@@ -554,7 +554,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           network_id: networkId ?? node.network_id,
           source_node_id: fallbackParentId ?? fallbackHierarchyId,
           target_node_id: childId,
-          system_contract: HIERARCHY_PARENT_CONTRACT,
+          relation_meaning: HIERARCHY_PARENT_MEANING,
         });
       }
     }
@@ -607,7 +607,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
     await networkService.edge.delete(id);
 
-    if (isHierarchyParentContract(edge.system_contract)) {
+    if (isHierarchyParentMeaning(edge.relation_meaning)) {
       const remainingEdges = edges.filter((candidate) => candidate.id !== id);
       const containsParentByChild = buildContainsParentMap(remainingEdges);
       const hierarchyContainerId = getHierarchyContainerIdForNode(
@@ -617,7 +617,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       );
       const stillHasHierarchyParent = remainingEdges.some(
         (candidate) =>
-          isHierarchyParentContract(candidate.system_contract)
+          isHierarchyParentMeaning(candidate.relation_meaning)
           && candidate.target_node_id === edge.target_node_id,
       );
 
@@ -626,7 +626,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           network_id: edge.network_id,
           source_node_id: hierarchyContainerId,
           target_node_id: edge.target_node_id,
-          system_contract: HIERARCHY_PARENT_CONTRACT,
+          relation_meaning: HIERARCHY_PARENT_MEANING,
         });
       }
     }

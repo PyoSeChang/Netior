@@ -2,14 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Context, NetworkObjectType } from '@netior/shared/types';
 import { contextService, networkService } from '../../services';
 import type { NetworkFullData } from '../../services/network-service';
-import { useArchetypeStore } from '../../stores/archetype-store';
+import { useSchemaStore } from '../../stores/schema-store';
 import { useContextStore } from '../../stores/context-store';
 import { useEditorStore } from '../../stores/editor-store';
+import { useModelStore } from '../../stores/model-store';
 import { useNetworkStore } from '../../stores/network-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useI18n } from '../../hooks/useI18n';
 import { openFileTab } from '../../lib/open-file-tab';
+import {
+  getSemanticModelDisplayDescription,
+  getSemanticModelDisplayName,
+} from '../../lib/semantic-model-i18n';
 import {
   NetworkObjectBrowser,
   type NetworkBrowserItem,
@@ -23,7 +28,7 @@ interface BookmarkedNetworkSidebarProps {
 
 type SupportedSidebarObjectType = Extract<
   NetworkObjectType,
-  'project' | 'network' | 'concept' | 'archetype' | 'relation_type' | 'context' | 'file'
+  'project' | 'network' | 'concept' | 'schema' | 'model' | 'relation_type' | 'context' | 'file'
 >;
 
 interface BookmarkedSidebarItem extends NetworkBrowserItem {
@@ -36,7 +41,8 @@ const SECTION_ORDER: SupportedSidebarObjectType[] = [
   'network',
   'concept',
   'file',
-  'archetype',
+  'schema',
+  'model',
   'relation_type',
   'context',
 ];
@@ -46,7 +52,8 @@ function isSupportedSidebarObjectType(type: NetworkObjectType): type is Supporte
     type === 'project'
     || type === 'network'
     || type === 'concept'
-    || type === 'archetype'
+    || type === 'schema'
+    || type === 'model'
     || type === 'relation_type'
     || type === 'context'
     || type === 'file'
@@ -72,7 +79,8 @@ export function BookmarkedNetworkSidebar({ networkId }: BookmarkedNetworkSidebar
   const openNetwork = useNetworkStore((state) => state.openNetwork);
   const networks = useNetworkStore((state) => state.networks);
   const projects = useProjectStore((state) => state.projects);
-  const archetypes = useArchetypeStore((state) => state.archetypes);
+  const schemas = useSchemaStore((state) => state.schemas);
+  const models = useModelStore((state) => state.models);
   const relationTypes = useRelationTypeStore((state) => state.relationTypes);
 
   useEffect(() => {
@@ -118,9 +126,13 @@ export function BookmarkedNetworkSidebar({ networkId }: BookmarkedNetworkSidebar
     () => new Map(projects.map((project) => [project.id, project])),
     [projects],
   );
-  const archetypesById = useMemo(
-    () => new Map(archetypes.map((archetype) => [archetype.id, archetype])),
-    [archetypes],
+  const schemasById = useMemo(
+    () => new Map(schemas.map((schema) => [schema.id, schema])),
+    [schemas],
+  );
+  const modelsById = useMemo(
+    () => new Map(models.map((model) => [model.id, model])),
+    [models],
   );
   const relationTypesById = useMemo(
     () => new Map(relationTypes.map((relationType) => [relationType.id, relationType])),
@@ -137,7 +149,8 @@ export function BookmarkedNetworkSidebar({ networkId }: BookmarkedNetworkSidebar
       network: t('sidebar.networks'),
       concept: t('objectPanel.concept' as never),
       file: t('sidebar.files'),
-      archetype: t('archetype.title'),
+      schema: t('schema.title'),
+      model: t('model.title' as never),
       relation_type: t('relationType.title'),
       context: t('context.title'),
     }),
@@ -188,14 +201,14 @@ export function BookmarkedNetworkSidebar({ networkId }: BookmarkedNetworkSidebar
         }
         case 'concept': {
           const concept = node.concept;
-          const archetypeName = concept?.archetype_id
-            ? archetypesById.get(concept.archetype_id)?.name
+          const schemaName = concept?.schema_id
+            ? schemasById.get(concept.schema_id)?.name
             : null;
           nextItems.push({
             id: object.ref_id,
             objectType: 'concept',
             title: concept?.title ?? object.ref_id,
-            subtitle: archetypeName ?? t('objectPanel.concept' as never),
+            subtitle: schemaName ?? t('objectPanel.concept' as never),
           });
           break;
         }
@@ -210,13 +223,23 @@ export function BookmarkedNetworkSidebar({ networkId }: BookmarkedNetworkSidebar
           });
           break;
         }
-        case 'archetype': {
-          const archetype = archetypesById.get(object.ref_id);
+        case 'schema': {
+          const schema = schemasById.get(object.ref_id);
           nextItems.push({
             id: object.ref_id,
-            objectType: 'archetype',
-            title: archetype?.name ?? object.ref_id,
-            subtitle: archetype?.description ?? t('archetype.title'),
+            objectType: 'schema',
+            title: schema?.name ?? object.ref_id,
+            subtitle: schema?.description ?? t('schema.title'),
+          });
+          break;
+        }
+        case 'model': {
+          const model = modelsById.get(object.ref_id);
+          nextItems.push({
+            id: object.ref_id,
+            objectType: 'model',
+            title: model ? getSemanticModelDisplayName(model, t) : object.ref_id,
+            subtitle: model ? getSemanticModelDisplayDescription(model, t) ?? t('model.title' as never) : t('model.title' as never),
           });
           break;
         }
@@ -245,9 +268,10 @@ export function BookmarkedNetworkSidebar({ networkId }: BookmarkedNetworkSidebar
 
     return nextItems;
   }, [
-    archetypesById,
+    schemasById,
     contextsById,
     fullData,
+    modelsById,
     networksById,
     projectsById,
     relationTypesById,
@@ -299,8 +323,11 @@ export function BookmarkedNetworkSidebar({ networkId }: BookmarkedNetworkSidebar
           await openFileTab({ filePath: item.filePath });
         }
         return;
-      case 'archetype':
-        await useEditorStore.getState().openTab({ type: 'archetype', targetId: item.id, title: item.title });
+      case 'schema':
+        await useEditorStore.getState().openTab({ type: 'schema', targetId: item.id, title: item.title });
+        return;
+      case 'model':
+        await useEditorStore.getState().openTab({ type: 'model', targetId: item.id, title: item.title });
         return;
       case 'relation_type':
         await useEditorStore.getState().openTab({ type: 'relationType', targetId: item.id, title: item.title });

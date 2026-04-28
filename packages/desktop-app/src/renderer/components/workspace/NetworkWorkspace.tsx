@@ -18,13 +18,14 @@ import type { NodePosition, EdgeVisual } from '../../services/network-service';
 import { useConceptStore } from '../../stores/concept-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useUIStore } from '../../stores/ui-store';
-import { useArchetypeStore } from '../../stores/archetype-store';
+import { useSchemaStore } from '../../stores/schema-store';
+import { useModelStore } from '../../stores/model-store';
 import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useTypeGroupStore } from '../../stores/type-group-store';
 import { useContextStore } from '../../stores/context-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useNetworkObjectSelectionStore } from '../../stores/network-object-selection-store';
-import type { Archetype, ArchetypeField } from '@netior/shared/types';
+import type { Schema, SchemaField } from '@netior/shared/types';
 import { useI18n } from '../../hooks/useI18n';
 import type { RenderNode, RenderEdge, RenderPoint, RenderEdgeAnchor } from './types';
 import type { NodeResizeDirection } from './node-components/types';
@@ -35,8 +36,10 @@ import { dateToEpochDays, isoToEpochDays } from './layout-plugins/time-axis/scal
 import { formatTemporalSlotValueForWriteback, getOccurrenceKey, getSourceNodeId } from './layout-plugins/temporal-utils';
 import { applyConceptSemanticProjection } from './semantic-projection';
 import { useNetworkShortcuts } from './useNetworkShortcuts';
-import { HIERARCHY_PARENT_CONTRACT, isHierarchyParentContract } from '../../lib/hierarchy-contract';
+import { HIERARCHY_PARENT_MEANING, isHierarchyParentMeaning } from '../../lib/hierarchy-meaning';
 import { openNetworkViewerTab } from '../../lib/open-network-viewer-tab';
+import { getSemanticModelDisplayName } from '../../lib/semantic-model-i18n';
+import { getFieldMeaningSlot } from '../../lib/field-meaning-bindings';
 
 interface NetworkWorkspaceProps {
   projectId: string | null;
@@ -213,13 +216,13 @@ function parseNumericMetadataValue(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function applySystemSlotMetadata(
+function applyMeaningSlotMetadata(
   metadata: Record<string, unknown>,
-  field: ArchetypeField,
+  field: SchemaField,
   rawValue: string,
   slotRawValues: Partial<Record<string, string>>,
 ): void {
-  const slot = field.system_slot;
+  const slot = getFieldMeaningSlot(field);
   if (!slot) return;
 
   if (slot === 'all_day') {
@@ -314,7 +317,7 @@ function buildPositionMap(positions: NodePosition[]): Map<string, ParsedNodePosi
 function buildContainsParentMap(edges: EdgeWithRelationType[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const edge of edges) {
-    if (edge.system_contract !== 'core:contains') continue;
+    if (edge.relation_meaning !== 'structure.contains') continue;
     if (edge.source_node_id === edge.target_node_id) continue;
     map.set(edge.target_node_id, edge.source_node_id);
   }
@@ -429,8 +432,8 @@ function buildHierarchyParentMap(
   const map = new Map<string, string>();
 
   for (const edge of edges) {
-    const contract = edge.system_contract ?? '';
-    if (!isHierarchyParentContract(contract)) continue;
+    const meaning = edge.relation_meaning ?? '';
+    if (!isHierarchyParentMeaning(meaning)) continue;
 
     const targetHierarchyId = getHierarchyContainerIdForNode(edge.target_node_id, containsParentByChild, hierarchyContainerIds);
     if (!targetHierarchyId) continue;
@@ -664,7 +667,8 @@ function getGenericObjectPresentation(
   objectRefId?: string,
   networkNames?: Map<string, string>,
   projectNames?: Map<string, string>,
-  archetypeNames?: Map<string, string>,
+  schemaNames?: Map<string, string>,
+  modelNames?: Map<string, string>,
   relationTypeNames?: Map<string, string>,
   typeGroupNames?: Map<string, string>,
   contextNames?: Map<string, string>,
@@ -682,11 +686,17 @@ function getGenericObjectPresentation(
         icon: 'folder',
         semanticTypeLabel: 'Project',
       };
-    case 'archetype':
+    case 'schema':
       return {
-        label: (objectRefId ? archetypeNames?.get(objectRefId) : undefined) ?? 'Archetype',
+        label: (objectRefId ? schemaNames?.get(objectRefId) : undefined) ?? 'Schema',
         icon: 'diamond',
-        semanticTypeLabel: 'Archetype',
+        semanticTypeLabel: 'Schema',
+      };
+    case 'model':
+      return {
+        label: (objectRefId ? modelNames?.get(objectRefId) : undefined) ?? 'Model',
+        icon: 'boxes',
+        semanticTypeLabel: 'Model',
       };
     case 'relation_type':
       return {
@@ -719,18 +729,19 @@ function getGenericObjectPresentation(
 
 function toRenderNodes(
   nodes: NetworkNodeWithObject[],
-  archetypes: Archetype[],
+  schemas: Schema[],
   posMap: Map<string, ParsedNodePosition>,
   networkNames: Map<string, string>,
   networkKinds: Map<string, string>,
   projectNames: Map<string, string>,
-  archetypeNames: Map<string, string>,
+  schemaNames: Map<string, string>,
+  modelNames: Map<string, string>,
   relationTypeNames: Map<string, string>,
   typeGroupNames: Map<string, string>,
   contextNames: Map<string, string>,
   portalChipsBySource: Map<string, EntryPortalChipSpec[]>,
 ): RenderNode[] {
-  const archMap = new Map(archetypes.map((a) => [a.id, a]));
+  const archMap = new Map(schemas.map((a) => [a.id, a]));
   return nodes.map((n) => {
     const pos = posMap.get(n.id);
     const objectType = n.object?.object_type;
@@ -744,7 +755,7 @@ function toRenderNodes(
     const portalChipStripHeight = getPortalChipStripHeight(portalChips.length);
     const parsedMetadata = parseNodeMetadataRecord(n.metadata);
     if (objectType === 'concept' && n.concept) {
-      const arch = n.concept.archetype_id ? archMap.get(n.concept.archetype_id) : undefined;
+      const arch = n.concept.schema_id ? archMap.get(n.concept.schema_id) : undefined;
       const label = n.concept.title;
       const icon = n.concept.icon || arch?.icon || 'pin';
       const baseWidth = isPortal ? 180 : isHierarchy ? 380 : isGroup ? 360 : 160;
@@ -858,7 +869,8 @@ function toRenderNodes(
       n.object?.ref_id,
       networkNames,
       projectNames,
-      archetypeNames,
+      schemaNames,
+      modelNames,
       relationTypeNames,
       typeGroupNames,
       contextNames,
@@ -962,21 +974,21 @@ function parseFileDropItems(raw: string): FileDropItem[] {
   return [];
 }
 
-function resolveEdgePresentation(edge: EdgeWithRelationType): Pick<RenderEdge, 'hidden' | 'route' | 'systemContract'> {
-  const systemContract = edge.system_contract ?? null;
+function resolveEdgePresentation(edge: EdgeWithRelationType): Pick<RenderEdge, 'hidden' | 'route' | 'relationMeaning'> {
+  const relationMeaning = edge.relation_meaning ?? null;
 
-  if (systemContract === 'core:contains' || systemContract === 'core:entry_portal') {
+  if (relationMeaning === 'structure.contains' || relationMeaning === 'structure.entry_portal') {
     return {
       hidden: true,
       route: 'hidden',
-      systemContract,
+      relationMeaning,
     };
   }
 
   return {
     hidden: false,
     route: 'straight',
-    systemContract,
+    relationMeaning,
   };
 }
 
@@ -995,7 +1007,7 @@ function toRenderEdges(
       label: e.relation_type?.name ?? '',
       color: vis?.color ?? e.relation_type?.color ?? undefined,
       lineStyle: (vis?.lineStyle ?? e.relation_type?.line_style ?? undefined) as 'solid' | 'dashed' | 'dotted' | undefined,
-      systemContract: presentation.systemContract,
+      relationMeaning: presentation.relationMeaning,
       route: presentation.route === 'straight' ? (vis?.route ?? 'straight') : presentation.route,
       routePoints: vis?.routePoints,
       hidden: presentation.hidden,
@@ -1233,7 +1245,7 @@ function resolveOrthogonalEdgeHints(
   const targetHierarchyId = getClosestHierarchyAncestorId(edge.targetId, containsParentByChild, hierarchyContainerIds);
   const sharesHierarchy = !!sourceHierarchyId && sourceHierarchyId === targetHierarchyId;
 
-  if (sharesHierarchy && isHierarchyParentContract(edge.systemContract ?? '')) {
+  if (sharesHierarchy && isHierarchyParentMeaning(edge.relationMeaning ?? '')) {
     const downward = targetNode.y >= sourceNode.y;
     const sourceAnchor: RenderEdgeAnchor = edge.sourceId === sourceHierarchyId
       ? (downward ? 'root-bottom' : 'root-top')
@@ -1264,6 +1276,14 @@ function hasCollapsedAncestor(
     current = containsParentByChild.get(current);
   }
   return false;
+}
+
+function areStringSetsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const value of a) {
+    if (!b.has(value)) return false;
+  }
+  return true;
 }
 
 export function NetworkWorkspace({
@@ -1364,7 +1384,7 @@ export function NetworkWorkspace({
 
   useEffect(() => {
     if (selectedNetworkObjects.length === 0 && !networkObjectSelection) {
-      setSelectedIds(new Set());
+      setSelectedIds((previous) => (previous.size === 0 ? previous : new Set()));
       return;
     }
     const targetObjects = selectedNetworkObjects.length > 0
@@ -1378,7 +1398,10 @@ export function NetworkWorkspace({
         node.object?.ref_id
         && targetKeys.has(`${node.object.object_type}:${node.object.ref_id}`))
       .map((node) => node.id);
-    setSelectedIds(new Set(matchedNodeIds));
+    const nextSelectedIds = new Set(matchedNodeIds);
+    setSelectedIds((previous) => (
+      areStringSetsEqual(previous, nextSelectedIds) ? previous : nextSelectedIds
+    ));
   }, [networkObjectSelection, nodes, selectedNetworkObjects]);
 
   // Cancel edge linking when mode changes
@@ -1472,15 +1495,20 @@ export function NetworkWorkspace({
         }
       }
       prevSizeRef.current = { width, height };
-      setContainerSize({ width, height });
+      setContainerSize((previous) => (
+        previous.width === width && previous.height === height
+          ? previous
+          : { width, height }
+      ));
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, [viewportMode, wheelBehavior]);
 
-  const archetypes = useArchetypeStore((s) => s.archetypes);
-  const archetypeFieldsById = useArchetypeStore((s) => s.fields);
-  const loadArchetypeFields = useArchetypeStore((s) => s.loadFields);
+  const schemas = useSchemaStore((s) => s.schemas);
+  const schemaFieldsById = useSchemaStore((s) => s.fields);
+  const loadSchemaFields = useSchemaStore((s) => s.loadFields);
+  const models = useModelStore((s) => s.models);
   const relationTypes = useRelationTypeStore((s) => s.relationTypes);
   const typeGroupsByKind = useTypeGroupStore((s) => s.groupsByKind);
   const contexts = useContextStore((s) => s.contexts);
@@ -1493,17 +1521,21 @@ export function NetworkWorkspace({
   const networkNames = useMemo(() => new Map(networks.map((n) => [n.id, n.name])), [networks]);
   const networkKinds = useMemo(() => new Map(networks.map((n) => [n.id, n.kind])), [networks]);
   const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
-  const archetypeNames = useMemo(() => new Map(archetypes.map((archetype) => [archetype.id, archetype.name])), [archetypes]);
+  const schemaNames = useMemo(() => new Map(schemas.map((schema) => [schema.id, schema.name])), [schemas]);
+  const modelNames = useMemo(
+    () => new Map(models.map((model) => [model.id, getSemanticModelDisplayName(model, t)])),
+    [models, t],
+  );
   const typeGroupNames = useMemo(() => new Map(Object.values(typeGroupsByKind).flat().map((group) => [group.id, group.name])), [typeGroupsByKind]);
   const isTemporalLayout =
     layoutPlugin.key === 'timeline'
     || layoutPlugin.key === 'gantt'
     || layoutPlugin.key === 'calendar';
-  const temporalArchetypeIds = useMemo(() => (
-    archetypes
-      .filter((archetype) => (archetypeFieldsById[archetype.id] ?? []).some((field) => field.system_slot === 'start_at'))
-      .map((archetype) => archetype.id)
-  ), [archetypeFieldsById, archetypes]);
+  const temporalSchemaIds = useMemo(() => (
+    schemas
+      .filter((schema) => (schemaFieldsById[schema.id] ?? []).some((field) => getFieldMeaningSlot(field) === 'start_at'))
+      .map((schema) => schema.id)
+  ), [schemaFieldsById, schemas]);
   const relationTypeNames = useMemo(() => new Map(relationTypes.map((relationType) => [relationType.id, relationType.name])), [relationTypes]);
   const contextNames = useMemo(() => new Map(contexts.map((context) => [context.id, context.name])), [contexts]);
   const entryPortalData = useMemo(() => {
@@ -1512,7 +1544,7 @@ export function NetworkWorkspace({
     const entryPortalTargetNodeIds = new Set<string>();
 
     for (const edge of edges) {
-      if (edge.system_contract !== 'core:entry_portal') continue;
+      if (edge.relation_meaning !== 'structure.entry_portal') continue;
 
       const sourceNode = nodeById.get(edge.source_node_id);
       const targetNode = nodeById.get(edge.target_node_id);
@@ -1641,12 +1673,13 @@ export function NetworkWorkspace({
   const renderNodes = useMemo(() => {
       const baseNodes = toRenderNodes(
         nodes,
-        archetypes,
+        schemas,
         worldPosMap,
       networkNames,
       networkKinds,
       projectNames,
-      archetypeNames,
+      schemaNames,
+      modelNames,
       relationTypeNames,
       typeGroupNames,
         contextNames,
@@ -1676,12 +1709,13 @@ export function NetworkWorkspace({
     }));
   }, [
     nodes,
-    archetypes,
+    schemas,
     worldPosMap,
     networkNames,
     networkKinds,
     projectNames,
-    archetypeNames,
+    schemaNames,
+    modelNames,
     relationTypeNames,
     typeGroupNames,
     contextNames,
@@ -1732,7 +1766,7 @@ export function NetworkWorkspace({
           edge.route === 'straight' &&
           !explicitRoute &&
           sharesHierarchy &&
-          isHierarchyParentContract(edge.systemContract ?? '');
+          isHierarchyParentMeaning(edge.relationMeaning ?? '');
         const route = shouldUseHierarchyRoute ? 'orthogonal' : edge.route;
         const orthogonalHints = route === 'orthogonal' && !edge.routePoints
           ? resolveOrthogonalEdgeHints(edge, visibleNodeMap, containsParentByChild, hierarchyContainerIds)
@@ -1844,45 +1878,45 @@ export function NetworkWorkspace({
   }, [conceptNodeIdsKey, layoutType, currentNetwork?.id, propsVersion]);
 
   useEffect(() => {
-    const archetypeIds = new Set(
+    const schemaIds = new Set(
       nodes
-        .map((node) => node.concept?.archetype_id)
+        .map((node) => node.concept?.schema_id)
         .filter((value): value is string => !!value),
     );
 
-    for (const archetypeId of archetypeIds) {
-      if (!archetypeFieldsById[archetypeId]) {
-        void loadArchetypeFields(archetypeId);
+    for (const schemaId of schemaIds) {
+      if (!schemaFieldsById[schemaId]) {
+        void loadSchemaFields(schemaId);
       }
     }
-  }, [archetypeFieldsById, layoutType, loadArchetypeFields, nodes]);
+  }, [schemaFieldsById, layoutType, loadSchemaFields, nodes]);
 
   const layoutRenderNodes = useMemo<LayoutRenderNode[]>(() =>
     visibleRenderNodes.map((n) => {
       const sourceNode = nodes.find((candidate) => candidate.id === n.id);
-      const archetypeId = n.nodeType === 'concept'
-        ? sourceNode?.concept?.archetype_id ?? undefined
+      const schemaId = n.nodeType === 'concept'
+        ? sourceNode?.concept?.schema_id ?? undefined
         : undefined;
       const metadata: Record<string, unknown> = { ...(n.metadata ?? {}) };
       const conceptId = n.conceptId;
       const props = conceptId ? nodeProperties[conceptId] ?? [] : [];
       const propMap = new Map(props.map((prop) => [prop.field_id, prop.value]));
-      const archetype = archetypeId ? archetypes.find((item) => item.id === archetypeId) : undefined;
+      const schema = schemaId ? schemas.find((item) => item.id === schemaId) : undefined;
       let semantic: LayoutRenderNode['semantic'];
 
       if (sourceNode?.concept?.color) {
         metadata.display_color = sourceNode.concept.color;
-      } else if (archetype) {
-        if (archetype?.color) metadata.display_color = archetype.color;
+      } else if (schema) {
+        if (schema?.color) metadata.display_color = schema.color;
       }
 
-      if (archetypeId) {
-        const archetypeFields = archetypeFieldsById[archetypeId] ?? [];
+      if (schemaId) {
+        const schemaFields = schemaFieldsById[schemaId] ?? [];
         semantic = applyConceptSemanticProjection({
           metadata,
-          schemaId: archetypeId,
-          facets: archetype?.semantic_traits ?? [],
-          fields: archetypeFields,
+          schemaId: schemaId,
+          models: schema?.semantic_models ?? schema?.semantic_models ?? [],
+          fields: schemaFields,
           propertyValues: propMap,
         });
       }
@@ -1893,9 +1927,9 @@ export function NetworkWorkspace({
         metadata.__occurrenceKey = sourceNode.concept.recurrence_occurrence_key;
       }
 
-      return { ...n, metadata, semantic, archetypeId };
+      return { ...n, metadata, semantic, schemaId };
     }),
-  [visibleRenderNodes, nodes, archetypeFieldsById, nodeProperties, archetypes]);
+  [visibleRenderNodes, nodes, schemaFieldsById, nodeProperties, schemas]);
 
   const projectedLayoutNodes = useMemo<LayoutRenderNode[]>(() => (
     layoutPlugin.projectNodes
@@ -2010,7 +2044,7 @@ export function NetworkWorkspace({
     const nextParentNode = nextParentGroupId ? nodeById.get(nextParentGroupId) : undefined;
     const nextHierarchyParentId = nextParentNode?.node_type === 'hierarchy' ? nextParentGroupId : null;
     const existingHierarchyParentEdges = edges.filter(
-      (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === nodeId,
+      (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === nodeId,
     );
     const hasExplicitParentInNextHierarchy = !!nextHierarchyParentId && existingHierarchyParentEdges.some((edge) => (
       edge.source_node_id !== nextHierarchyParentId
@@ -2039,7 +2073,7 @@ export function NetworkWorkspace({
         network_id: currentNetwork.id,
         source_node_id: nextHierarchyParentId,
         target_node_id: nodeId,
-        system_contract: HIERARCHY_PARENT_CONTRACT,
+        relation_meaning: HIERARCHY_PARENT_MEANING,
       });
     }
   }, [allHierarchyContainerIds, containsParentByChild, currentNetwork, edges, nodeById]);
@@ -2057,9 +2091,9 @@ export function NetworkWorkspace({
       childHierarchyId === parentHierarchyId &&
       childNode?.node_type !== 'hierarchy';
 
-    let systemContract: 'core:hierarchy_parent' | undefined;
+    let relationMeaning: 'structure.parent' | undefined;
     if (shouldCreateHierarchyParent) {
-      systemContract = HIERARCHY_PARENT_CONTRACT;
+      relationMeaning = HIERARCHY_PARENT_MEANING;
 
       let current: string | undefined = parentNodeId;
       while (current) {
@@ -2070,7 +2104,7 @@ export function NetworkWorkspace({
       }
 
       const existingHierarchyParents = edges.filter(
-        (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === childNodeId,
+        (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === childNodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -2081,7 +2115,7 @@ export function NetworkWorkspace({
       network_id: currentNetwork.id,
       source_node_id: shouldCreateHierarchyParent ? parentNodeId : sourceNodeId,
       target_node_id: shouldCreateHierarchyParent ? childNodeId : targetNodeId,
-      ...(systemContract ? { system_contract: systemContract } : {}),
+      ...(relationMeaning ? { relation_meaning: relationMeaning } : {}),
     });
     if (shouldCreateHierarchyParent && currentLayout) {
       const currentPosition = rawPosMap.get(childNodeId);
@@ -2130,13 +2164,13 @@ export function NetworkWorkspace({
       entryPortalData.entryPortalTargetNodeIds.has(node.id)
       && node.object?.object_type === 'network'
       && node.object.ref_id === networkRefId
-      && edges.some((edge) => edge.system_contract === 'core:entry_portal' && edge.source_node_id === sourceNodeId && edge.target_node_id === node.id)
+      && edges.some((edge) => edge.relation_meaning === 'structure.entry_portal' && edge.source_node_id === sourceNodeId && edge.target_node_id === node.id)
     ));
     if (targetNodeForNetwork) return false;
 
     if (targetNodeId) {
       const existingContainmentEdges = edges.filter(
-        (edge) => edge.system_contract === 'core:contains' && edge.target_node_id === targetNodeId,
+        (edge) => edge.relation_meaning === 'structure.contains' && edge.target_node_id === targetNodeId,
       );
       for (const edge of existingContainmentEdges) {
         await networkService.edge.delete(edge.id);
@@ -2147,7 +2181,7 @@ export function NetworkWorkspace({
         network_id: currentNetwork.id,
         source_node_id: sourceNodeId,
         target_node_id: targetNodeId,
-        system_contract: 'core:entry_portal',
+        relation_meaning: 'structure.entry_portal',
       });
       await openNetwork(currentNetwork.id);
       return true;
@@ -2176,7 +2210,7 @@ export function NetworkWorkspace({
       network_id: currentNetwork.id,
       source_node_id: sourceNodeId,
       target_node_id: targetNode.id,
-      system_contract: 'core:entry_portal',
+      relation_meaning: 'structure.entry_portal',
     });
     await openNetwork(currentNetwork.id);
     return true;
@@ -2222,11 +2256,21 @@ export function NetworkWorkspace({
       return;
     }
 
-    if (node.object?.object_type === 'archetype') {
+    if (node.object?.object_type === 'schema') {
       useEditorStore.getState().openTab({
-        type: 'archetype',
+        type: 'schema',
         targetId: node.object.ref_id,
-        title: archetypeNames.get(node.object.ref_id) ?? t('archetype.title'),
+        title: schemaNames.get(node.object.ref_id) ?? t('schema.title'),
+      });
+      return;
+    }
+
+    if (node.object?.object_type === 'model') {
+      useEditorStore.getState().openTab({
+        type: 'model',
+        targetId: node.object.ref_id,
+        title: modelNames.get(node.object.ref_id) ?? t('model.title' as never),
+        projectId: currentNetwork?.project_id ?? undefined,
       });
       return;
     }
@@ -2247,7 +2291,7 @@ export function NetworkWorkspace({
         title: contextNames.get(node.object.ref_id) ?? t('context.title'),
       });
     }
-  }, [archetypeNames, contextNames, navigateToChild, openProject, projects, relationTypeNames, t]);
+  }, [schemaNames, contextNames, currentNetwork?.project_id, modelNames, navigateToChild, openProject, projects, relationTypeNames, t]);
 
   const showNodeContextMenu = useCallback((node: NetworkNodeWithObject, x: number, y: number) => {
     const isConcept = node.object?.object_type === 'concept';
@@ -2263,13 +2307,14 @@ export function NetworkWorkspace({
         ?? node.file?.path?.replace(/\\/g, '/').split('/').pop()
         ?? networkNames.get(node.object?.ref_id ?? '')
         ?? projectNames.get(node.object?.ref_id ?? '')
+        ?? modelNames.get(node.object?.ref_id ?? '')
         ?? undefined,
       conceptId: isConcept ? node.object?.ref_id : undefined,
       fileId: isFile ? node.object?.ref_id : undefined,
       filePath: node.file?.path ?? undefined,
       networkId: isNetwork ? node.object?.ref_id : undefined,
     });
-  }, [networkNames, projectNames]);
+  }, [modelNames, networkNames, projectNames]);
 
   const openEdgeEditor = useCallback((edgeId: string) => {
     const edge = edges.find((candidate) => candidate.id === edgeId);
@@ -2291,7 +2336,7 @@ export function NetworkWorkspace({
       return;
     }
     const objectType = node.object.object_type;
-    if (!['network', 'project', 'concept', 'archetype', 'relation_type', 'context'].includes(objectType)) {
+    if (!['network', 'project', 'concept', 'schema', 'model', 'relation_type', 'context'].includes(objectType)) {
       useNetworkObjectSelectionStore.getState().clearSelection();
       return;
     }
@@ -2300,30 +2345,32 @@ export function NetworkWorkspace({
       node.file?.path?.replace(/\\/g, '/').split('/').pop() ??
       networkNames.get(node.object.ref_id) ??
       projectNames.get(node.object.ref_id) ??
-      archetypeNames.get(node.object.ref_id) ??
+      schemaNames.get(node.object.ref_id) ??
+      modelNames.get(node.object.ref_id) ??
       relationTypeNames.get(node.object.ref_id) ??
       contextNames.get(node.object.ref_id);
     useNetworkObjectSelectionStore.getState().setSelection({
-      objectType: objectType as 'network' | 'project' | 'concept' | 'archetype' | 'relation_type' | 'context',
+      objectType: objectType as 'network' | 'project' | 'concept' | 'schema' | 'model' | 'relation_type' | 'context',
       id: node.object.ref_id,
       title,
     });
-  }, [archetypeNames, contextNames, networkNames, projectNames, relationTypeNames]);
+  }, [schemaNames, contextNames, modelNames, networkNames, projectNames, relationTypeNames]);
 
   const syncSelectionFromNodeIds = useCallback((nodeIds: string[]) => {
     const selectedObjects = nodeIds
       .map((id) => nodes.find((node) => node.id === id))
       .filter((node): node is NetworkNodeWithObject =>
-        !!node?.object?.ref_id && ['network', 'project', 'concept', 'archetype', 'relation_type', 'context'].includes(node.object.object_type))
+        !!node?.object?.ref_id && ['network', 'project', 'concept', 'schema', 'model', 'relation_type', 'context'].includes(node.object.object_type))
       .map((node) => ({
-        objectType: node.object!.object_type as 'network' | 'project' | 'concept' | 'archetype' | 'relation_type' | 'context',
+        objectType: node.object!.object_type as 'network' | 'project' | 'concept' | 'schema' | 'model' | 'relation_type' | 'context',
         id: node.object!.ref_id,
         title:
           node.concept?.title ??
           node.file?.path?.replace(/\\/g, '/').split('/').pop() ??
           networkNames.get(node.object!.ref_id) ??
           projectNames.get(node.object!.ref_id) ??
-          archetypeNames.get(node.object!.ref_id) ??
+          schemaNames.get(node.object!.ref_id) ??
+          modelNames.get(node.object!.ref_id) ??
           relationTypeNames.get(node.object!.ref_id) ??
           contextNames.get(node.object!.ref_id),
       }))
@@ -2333,7 +2380,7 @@ export function NetworkWorkspace({
       selection: selectedObjects[0] ?? null,
       selectedItems: selectedObjects,
     });
-  }, [archetypeNames, contextNames, networkNames, nodes, projectNames, relationTypeNames]);
+  }, [schemaNames, contextNames, modelNames, networkNames, nodes, projectNames, relationTypeNames]);
 
   // --- Mouse interaction (via useInteraction, same pattern as Culturium) ---
 
@@ -2423,7 +2470,7 @@ export function NetworkWorkspace({
       materializedConcept = await createConcept({
         project_id: sourceConcept.project_id,
         title: sourceConcept.title,
-        archetype_id: sourceConcept.archetype_id ?? undefined,
+        schema_id: sourceConcept.schema_id ?? undefined,
         recurrence_source_concept_id: sourceConcept.id,
         recurrence_occurrence_key: occurrenceKey,
         icon: sourceConcept.icon ?? undefined,
@@ -2489,7 +2536,15 @@ export function NetworkWorkspace({
       ?? conceptStoreProperties[sourceConcept.id]
       ?? await conceptPropertyService.getByConcept(sourceConcept.id);
     const recurrenceFieldIds = new Set(
-      [slotFieldIds.recurrence_rule, slotFieldIds.recurrence_until, slotFieldIds.recurrence_count]
+      [
+        slotFieldIds.recurrence_frequency,
+        slotFieldIds.recurrence_interval,
+        slotFieldIds.recurrence_weekdays,
+        slotFieldIds.recurrence_monthday,
+        slotFieldIds.recurrence_until,
+        slotFieldIds.recurrence_count,
+        slotFieldIds.recurrence_rule,
+      ]
         .filter((value): value is string => !!value),
     );
     const nextPropertyValues = new Map<string, string | null>();
@@ -2536,7 +2591,7 @@ export function NetworkWorkspace({
           network_id: currentNetwork.id,
           source_node_id: parentGroupId,
           target_node_id: createdNode.id,
-          system_contract: 'core:contains',
+          relation_meaning: 'structure.contains',
         });
       }
 
@@ -2547,14 +2602,14 @@ export function NetworkWorkspace({
           network_id: currentNetwork.id,
           source_node_id: sourceHierarchyParentId,
           target_node_id: createdNode.id,
-          system_contract: HIERARCHY_PARENT_CONTRACT,
+          relation_meaning: HIERARCHY_PARENT_MEANING,
         });
       } else if (parentGroupNode?.node_type === 'hierarchy' && parentGroupId) {
         await networkService.edge.create({
           network_id: currentNetwork.id,
           source_node_id: parentGroupId,
           target_node_id: createdNode.id,
-          system_contract: HIERARCHY_PARENT_CONTRACT,
+          relation_meaning: HIERARCHY_PARENT_MEANING,
         });
       }
 
@@ -2811,11 +2866,11 @@ export function NetworkWorkspace({
       network_id: currentNetwork.id,
       source_node_id: targetContainer.id,
       target_node_id: nodeId,
-      system_contract: 'core:contains',
+      relation_meaning: 'structure.contains',
     });
     if (targetContainer.isHierarchy) {
       const existingHierarchyParents = edges.filter(
-        (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === nodeId,
+        (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === nodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -2825,7 +2880,7 @@ export function NetworkWorkspace({
         network_id: currentNetwork.id,
         source_node_id: hierarchyParentTarget?.id ?? targetContainer.id,
         target_node_id: nodeId,
-        system_contract: HIERARCHY_PARENT_CONTRACT,
+        relation_meaning: HIERARCHY_PARENT_MEANING,
       });
     } else {
       await syncHierarchyParentEdge(nodeId, targetContainer.id);
@@ -3141,7 +3196,7 @@ export function NetworkWorkspace({
         if (detachExternalContainment && containmentParentId && !movedSubtreeIds.has(containmentParentId)) {
           const existingDescendantContainsEdges = edges.filter(
             (edge) =>
-              edge.system_contract === 'core:contains'
+              edge.relation_meaning === 'structure.contains'
               && edge.target_node_id === descendantId
               && !movedSubtreeIds.has(edge.source_node_id),
           );
@@ -3187,7 +3242,7 @@ export function NetworkWorkspace({
     setPendingWorldPositionOverrides(nextWorldPositions);
     try {
       const existingContainsEdges = edges.filter(
-        (edge) => edge.system_contract === 'core:contains' && edge.target_node_id === nodeId,
+        (edge) => edge.relation_meaning === 'structure.contains' && edge.target_node_id === nodeId,
       );
 
       for (const edge of existingContainsEdges) {
@@ -3199,12 +3254,12 @@ export function NetworkWorkspace({
           network_id: currentNetwork.id,
           source_node_id: nextParentGroupId,
           target_node_id: nodeId,
-          system_contract: 'core:contains',
+          relation_meaning: 'structure.contains',
         });
       }
 
       const existingHierarchyParents = edges.filter(
-        (edge) => isHierarchyParentContract(edge.system_contract) && edge.target_node_id === nodeId,
+        (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === nodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -3215,12 +3270,12 @@ export function NetworkWorkspace({
           network_id: currentNetwork.id,
           source_node_id: effectiveHierarchyParentId ?? nextParentGroup.id,
           target_node_id: nodeId,
-          system_contract: HIERARCHY_PARENT_CONTRACT,
+          relation_meaning: HIERARCHY_PARENT_MEANING,
         });
       } else if (currentHierarchyContainerId && !nextHierarchyContainerId) {
         const movedHierarchyEdges = edges.filter(
           (edge) =>
-            isHierarchyParentContract(edge.system_contract)
+            isHierarchyParentMeaning(edge.relation_meaning)
             && movedSubtreeIds.has(edge.target_node_id),
         );
         for (const edge of movedHierarchyEdges) {
@@ -3601,14 +3656,48 @@ export function NetworkWorkspace({
     onNavigateForward: () => {},
   }), [workspaceMode, zoom, panX, panY, networkHistory.length, layoutConfig, layoutPlugin.hiddenControls, controlExtraItems, setZoom, setPanX, setPanY, updatePluginConfig, toggleMode, fitToScreen, navigateBack]);
 
+  const controlsSignature = useMemo(() => {
+    if (!currentNetwork || layoutPlugin.ControlsComponent) return 'none';
+    return JSON.stringify({
+      mode: workspaceMode,
+      zoom,
+      panX,
+      panY,
+      canGoBack: networkHistory.length > 0,
+      canGoForward: false,
+      config: currentLayout?.layout_config_json ?? null,
+      hiddenControls: layoutPlugin.hiddenControls ?? [],
+      extraItems: controlExtraItems.map((item) => ({
+        key: item.key,
+        label: item.label,
+        active: 'active' in item ? item.active ?? false : false,
+      })),
+    });
+  }, [
+    controlExtraItems,
+    currentLayout?.layout_config_json,
+    currentNetwork,
+    layoutPlugin.ControlsComponent,
+    layoutPlugin.hiddenControls,
+    networkHistory.length,
+    panX,
+    panY,
+    workspaceMode,
+    zoom,
+  ]);
+  const lastControlsSignatureRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!onControlsChange) return;
-    if (currentNetwork && !layoutPlugin.ControlsComponent) {
+    if (lastControlsSignatureRef.current === controlsSignature) return;
+    lastControlsSignatureRef.current = controlsSignature;
+
+    if (controlsSignature !== 'none') {
       onControlsChange(controlsRendererProps);
     } else {
       onControlsChange(null);
     }
-  }, [currentNetwork, layoutPlugin.ControlsComponent, onControlsChange, controlsRendererProps]);
+  }, [controlsRendererProps, controlsSignature, onControlsChange]);
 
   useEffect(() => {
     if (!onControlsChange) return undefined;
@@ -3939,7 +4028,7 @@ export function NetworkWorkspace({
                 slotIndex: typeof localPlacement?.slotIndex === 'number' ? localPlacement.slotIndex : undefined,
                 positionX: localPlacement ? localPlacement.x : worldX,
                 positionY: localPlacement ? localPlacement.y : worldY,
-                allowedArchetypeIds: isTemporalLayout && temporalArchetypeIds.length > 0 ? temporalArchetypeIds : undefined,
+                allowedSchemaIds: isTemporalLayout && temporalSchemaIds.length > 0 ? temporalSchemaIds : undefined,
               },
             });
           } : undefined}

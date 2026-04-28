@@ -1,13 +1,15 @@
-import type { ArchetypeField, NetworkTreeNode, TypeGroup } from '@netior/shared/types';
+import type { SchemaField, SchemaMeaning, NetworkTreeNode, SemanticModel, TypeGroup } from '@netior/shared/types';
 import type { SystemPromptParams, SystemPromptTypeGroupSummary } from './system-prompt.js';
 import {
   getProjectOntologyNetwork,
   getNetworkTree,
   getProjectById,
   getUniverseNetwork,
-  listArchetypeFields,
-  listArchetypes,
+  listSchemaFields,
+  listSchemaMeanings,
+  listSchemas,
   listRelationTypes,
+  listSemanticModels,
   listTypeGroups,
 } from './netior-service-client.js';
 
@@ -69,10 +71,10 @@ function buildOptionsPreview(options: string | null): string[] | undefined {
   return values.slice(0, 5);
 }
 
-function mapArchetypeFields(
-  fields: ArchetypeField[],
-  archetypeNames: Map<string, string>,
-): NonNullable<SystemPromptParams['archetypes'][number]['fields']> {
+function mapSchemaFields(
+  fields: SchemaField[],
+  schemaNames: Map<string, string>,
+): NonNullable<SystemPromptParams['schemas'][number]['fields']> {
   return fields.map((field) => {
     const optionsPreview = buildOptionsPreview(field.options);
 
@@ -80,15 +82,55 @@ function mapArchetypeFields(
       name: field.name,
       field_type: field.field_type,
       required: field.required,
-      ...(field.semantic_annotation ? { semantic_annotation: field.semantic_annotation } : {}),
-      ...(field.system_slot ? { system_slot: field.system_slot } : {}),
-      ...(field.generated_by_trait ? { generated_by_trait: true } : {}),
-      ...(field.ref_archetype_id
-        ? { ref_archetype_name: archetypeNames.get(field.ref_archetype_id) ?? field.ref_archetype_id }
+      ...(field.meaning_bindings.length > 0 ? { meaning_bindings: field.meaning_bindings } : {}),
+      ...(field.generated_by_model ? { generated_by_model: true } : {}),
+      ...(field.ref_schema_id
+        ? { ref_schema_name: schemaNames.get(field.ref_schema_id) ?? field.ref_schema_id }
         : {}),
       ...(optionsPreview ? { options_preview: optionsPreview } : {}),
     };
   });
+}
+
+function mapSchemaMeanings(
+  meanings: SchemaMeaning[],
+): NonNullable<SystemPromptParams['schemas'][number]['meanings']> {
+  return meanings.map((meaning) => ({
+    key: meaning.meaning_key,
+    label: meaning.label,
+    source: meaning.source,
+    source_model: meaning.source_model,
+    fields: meaning.slots
+      .filter((slot) => slot.target_kind === 'field' && slot.field_id)
+      .map((slot) => ({
+        binding_id: slot.id,
+        field_id: slot.field_id as string,
+        required: slot.required,
+      })),
+  }));
+}
+
+function mapModels(models: SemanticModel[]): SystemPromptParams['models'] {
+  return models.map((model) => ({
+    id: model.id,
+    key: model.key,
+    name: model.name,
+    description: model.description,
+    category: model.category,
+    meaning_keys: model.meaning_keys,
+    built_in: model.built_in,
+    recipe_meanings: model.recipe.meanings.map((meaning) => ({
+      key: meaning.key,
+      name: meaning.name,
+      representation: meaning.representation,
+      fields: meaning.fields.map((field) => ({
+        key: field.key,
+        name: field.name,
+        field_types: field.field_types,
+        required: field.required,
+      })),
+    })),
+  }));
 }
 
 export async function buildProjectPromptMetadata(projectId: string): Promise<SystemPromptParams> {
@@ -98,45 +140,54 @@ export async function buildProjectPromptMetadata(projectId: string): Promise<Sys
   }
 
   const [
-    archetypes,
+    schemas,
+    models,
     relationTypes,
-    archetypeGroups,
+    schemaGroups,
     relationTypeGroups,
     universeNetwork,
     ontologyNetwork,
     networkTree,
   ] = await Promise.all([
-    listArchetypes(projectId),
+    listSchemas(projectId),
+    listSemanticModels(projectId),
     listRelationTypes(projectId),
-    listTypeGroups(projectId, 'archetype'),
+    listTypeGroups(projectId, 'schema'),
     listTypeGroups(projectId, 'relation_type'),
     getUniverseNetwork(),
     getProjectOntologyNetwork(projectId),
     getNetworkTree(projectId),
   ]);
 
-  const archetypeNameMap = new Map<string, string>(archetypes.map((archetype) => [archetype.id, archetype.name]));
-  const archetypeFieldsById = new Map<string, ArchetypeField[]>(
+  const schemaNameMap = new Map<string, string>(schemas.map((schema) => [schema.id, schema.name]));
+  const schemaFieldsById = new Map<string, SchemaField[]>(
     await Promise.all(
-      archetypes.map(async (archetype) => [archetype.id, await listArchetypeFields(archetype.id)] as const),
+      schemas.map(async (schema) => [schema.id, await listSchemaFields(schema.id)] as const),
     ),
   );
-  const typeGroups = mapTypeGroups([...archetypeGroups, ...relationTypeGroups]);
+  const schemaMeaningsById = new Map<string, SchemaMeaning[]>(
+    await Promise.all(
+      schemas.map(async (schema) => [schema.id, await listSchemaMeanings(schema.id)] as const),
+    ),
+  );
+  const typeGroups = mapTypeGroups([...schemaGroups, ...relationTypeGroups]);
 
   return {
     projectId,
     projectName: project.name,
     projectRootDir: project.root_dir,
-    archetypes: archetypes.map((archetype) => ({
-      id: archetype.id,
-      name: archetype.name,
-      icon: archetype.icon,
-      color: archetype.color,
-      node_shape: archetype.node_shape,
-      description: archetype.description,
-      facets: archetype.facets ?? archetype.semantic_traits,
-      semantic_traits: archetype.semantic_traits,
-      fields: mapArchetypeFields(archetypeFieldsById.get(archetype.id) ?? [], archetypeNameMap),
+    models: mapModels(models),
+    schemas: schemas.map((schema) => ({
+      id: schema.id,
+      name: schema.name,
+      icon: schema.icon,
+      color: schema.color,
+      node_shape: schema.node_shape,
+      description: schema.description,
+      models: schema.semantic_models ?? schema.models ?? schema.semantic_models,
+      semantic_models: schema.semantic_models,
+      meanings: mapSchemaMeanings(schemaMeaningsById.get(schema.id) ?? []),
+      fields: mapSchemaFields(schemaFieldsById.get(schema.id) ?? [], schemaNameMap),
     })),
     relationTypes: relationTypes.map((relationType) => ({
       id: relationType.id,

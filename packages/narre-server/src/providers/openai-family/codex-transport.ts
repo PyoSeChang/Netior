@@ -943,7 +943,7 @@ function buildDynamicToolSpecs(): Array<Record<string, unknown>> {
   return [
     {
       name: 'propose',
-      description: 'Present an editable draft block to the user. Use this when suggesting archetypes, relation types, concepts, or any structured plan that benefits from inline revision.',
+      description: 'Present an editable draft block to the user. Use this when suggesting schemas, relation types, concepts, or any structured plan that benefits from inline revision.',
       inputSchema: {
         type: 'object',
         additionalProperties: false,
