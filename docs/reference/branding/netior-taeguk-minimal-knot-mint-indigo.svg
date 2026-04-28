@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior minimal knot mint indigo draft</title>
+  <desc>Minimal taeguk helix using mint and indigo for a cooler software-product palette.</desc>
+  <path d="M166 176C166 128 226 110 266 144C310 182 310 240 256 256C202 272 202 330 246 368C286 402 346 384 346 336" stroke="#10B981" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M346 176C346 128 286 110 246 144C202 182 202 240 256 256C310 272 310 330 266 368C226 402 166 384 166 336" stroke="#4F46E5" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="256" cy="256" r="13" fill="#111827" />
+</svg>

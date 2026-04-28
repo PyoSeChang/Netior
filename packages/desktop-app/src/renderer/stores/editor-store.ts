@@ -58,6 +58,10 @@ interface EditorStore {
 
   // Tab operations
   openTab: (params: OpenTabParams) => Promise<void>;
+  navigateTab: (
+    tabId: string,
+    params: Omit<OpenTabParams, 'hostId' | 'viewMode' | 'sideSplitRatio'>,
+  ) => void;
   closeTab: (tabId: string) => void;
   closeOtherTabs: (tabId: string) => void;
   closeTabsToRight: (tabId: string) => void;
@@ -274,6 +278,27 @@ function setActiveInLeaf(node: SplitNode, tabId: string): SplitNode {
   const newChildren = [...node.children] as [SplitNode, SplitNode];
   newChildren[0] = setActiveInLeaf(node.children[0], tabId);
   newChildren[1] = setActiveInLeaf(node.children[1], tabId);
+  if (newChildren[0] === node.children[0] && newChildren[1] === node.children[1]) return node;
+  return { ...node, children: newChildren };
+}
+
+function replaceTabIdInTree(node: SplitNode, oldTabId: string, newTabId: string): SplitNode {
+  if (node.type === 'leaf') {
+    if (!node.tabIds.includes(oldTabId)) return node;
+    const nextTabIds = node.tabIds
+      .map((id) => (id === oldTabId ? newTabId : id))
+      .filter((id, index, items) => items.indexOf(id) === index);
+    const nextActiveTabId = node.activeTabId === oldTabId ? newTabId : node.activeTabId;
+    return {
+      ...node,
+      tabIds: nextTabIds,
+      activeTabId: nextActiveTabId,
+    };
+  }
+
+  const newChildren = [...node.children] as [SplitNode, SplitNode];
+  newChildren[0] = replaceTabIdInTree(node.children[0], oldTabId, newTabId);
+  newChildren[1] = replaceTabIdInTree(node.children[1], oldTabId, newTabId);
   if (newChildren[0] === node.children[0] && newChildren[1] === node.children[1]) return node;
   return { ...node, children: newChildren };
 }
@@ -604,9 +629,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         resolvedMode = coerceViewModeForTab({ type }, savedMode);
       } else {
         const mainTabs = tabs.filter((t) => t.hostId === MAIN_HOST_ID);
+        const { activeTabId, sideLayout, fullLayout } = get();
+        const activeMode = activeTabId && sideLayout && findLeafWithTab(sideLayout, activeTabId)
+          ? 'side'
+          : activeTabId && fullLayout && findLeafWithTab(fullLayout, activeTabId)
+            ? 'full'
+            : null;
         const hasSide = mainTabs.some((t) => t.viewMode === 'side' && !t.isMinimized);
         const hasFull = mainTabs.some((t) => t.viewMode === 'full' && !t.isMinimized);
-        resolvedMode = coerceViewModeForTab({ type }, hasFull ? 'full' : hasSide ? 'side' : 'side');
+        resolvedMode = coerceViewModeForTab({ type }, activeMode ?? (hasSide ? 'side' : hasFull ? 'full' : 'side'));
       }
     }
 
@@ -669,6 +700,96 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     } else {
       set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tabId }));
     }
+  },
+
+  navigateTab: (tabId, params) => {
+    const nextTabId = makeTabId(params.type, params.targetId);
+
+    set((s) => {
+      const sourceTab = s.tabs.find((tab) => tab.id === tabId);
+      if (!sourceTab) return s;
+
+      const duplicateTab = nextTabId === tabId
+        ? null
+        : s.tabs.find((tab) => tab.id === nextTabId) ?? null;
+
+      let sideLayout = s.sideLayout;
+      let fullLayout = s.fullLayout;
+
+      if (duplicateTab?.hostId === MAIN_HOST_ID) {
+        if (sideLayout && containsTab(sideLayout, duplicateTab.id)) {
+          sideLayout = removeTabFromTree(sideLayout, duplicateTab.id).tree;
+        }
+        if (fullLayout && containsTab(fullLayout, duplicateTab.id)) {
+          fullLayout = removeTabFromTree(fullLayout, duplicateTab.id).tree;
+        }
+      }
+
+      if (sourceTab.hostId === MAIN_HOST_ID) {
+        if (sideLayout && containsTab(sideLayout, tabId)) {
+          sideLayout = replaceTabIdInTree(sideLayout, tabId, nextTabId);
+          sideLayout = setActiveInLeaf(sideLayout, nextTabId);
+        }
+        if (fullLayout && containsTab(fullLayout, tabId)) {
+          fullLayout = replaceTabIdInTree(fullLayout, tabId, nextTabId);
+          fullLayout = setActiveInLeaf(fullLayout, nextTabId);
+        }
+      }
+
+      const hosts = { ...s.hosts };
+      if (duplicateTab?.hostId && duplicateTab.hostId !== MAIN_HOST_ID) {
+        const duplicateHost = hosts[duplicateTab.hostId];
+        if (duplicateHost?.activeTabId === duplicateTab.id) {
+          hosts[duplicateTab.hostId] = { ...duplicateHost, activeTabId: null };
+        }
+      }
+      if (sourceTab.hostId !== MAIN_HOST_ID) {
+        const host = hosts[sourceTab.hostId];
+        if (host) {
+          hosts[sourceTab.hostId] = { ...host, activeTabId: nextTabId };
+        }
+      }
+
+      const tabs = s.tabs
+        .filter((tab) => tab.id === tabId || tab.id !== nextTabId)
+        .map((tab) => {
+          if (tab.id !== tabId) return tab;
+          return {
+            ...tab,
+            id: nextTabId,
+            type: params.type,
+            targetId: params.targetId,
+            title: params.title,
+            projectId: params.projectId,
+            isDirty: params.isDirty ?? false,
+            isStale: false,
+            activeFilePath: null,
+            draftData: params.draftData,
+            networkId: params.networkId,
+            nodeId: params.nodeId,
+            terminalCwd: params.terminalCwd,
+            terminalLaunchConfig: params.terminalLaunchConfig,
+            editorType: undefined,
+            isMinimized: false,
+          };
+        });
+
+      clearDraftCache(tabId);
+      clearViewState(tabId);
+
+      return {
+        ...s,
+        tabs,
+        hosts,
+        sideLayout,
+        fullLayout,
+        activeTabId: s.activeTabId === tabId || sourceTab.hostId === MAIN_HOST_ID
+          ? nextTabId
+          : s.activeTabId,
+        sideLastActiveTabId: s.sideLastActiveTabId === tabId ? nextTabId : s.sideLastActiveTabId,
+        fullLastActiveTabId: s.fullLastActiveTabId === tabId ? nextTabId : s.fullLastActiveTabId,
+      };
+    });
   },
 
   closeTab: (tabId) => {

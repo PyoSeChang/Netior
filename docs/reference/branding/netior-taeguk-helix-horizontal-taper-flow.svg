@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior horizontal taper flow</title>
+  <desc>Horizontal taeguk-helix concept with continuous ribbon taper and one central dot.</desc>
+  <path d="M76 222C118 168 188 162 232 190C257 207 272 229 282 252C296 286 328 308 372 310C412 312 438 296 452 270C446 298 424 328 384 340C332 356 286 334 250 294C230 272 214 244 188 234C142 216 98 226 76 262C70 248 70 236 76 222Z" fill="#D85A64"/>
+  <path d="M76 290C118 344 188 350 232 322C257 305 272 283 282 260C296 226 328 204 372 202C412 200 438 216 452 242C446 214 424 184 384 172C332 156 286 178 250 218C230 240 214 268 188 278C142 296 98 286 76 250C70 264 70 276 76 290Z" fill="#3A6FB0"/>
+  <circle cx="256" cy="256" r="12" fill="#0F172A"/>
+</svg>

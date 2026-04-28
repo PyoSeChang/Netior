@@ -35,6 +35,7 @@ import { migrate029 } from '../migrations/029-semantic-model-descriptions';
 import { migrate030 } from '../migrations/030-semantic-model-recipes';
 import { migrate031 } from '../migrations/031-field-meaning-bindings';
 import { migrate032 } from '../migrations/032-domain-term-cleanup';
+import { migrate033 } from '../migrations/033-ontology-network-name-cleanup';
 
 let testDb: Database.Database | null = null;
 
@@ -75,6 +76,7 @@ export function setupTestDb(): Database.Database {
   migrate030(testDb);
   migrate031(testDb);
   migrate032(testDb);
+  migrate033(testDb);
   testDb.pragma('foreign_keys = ON');
   return testDb;
 }

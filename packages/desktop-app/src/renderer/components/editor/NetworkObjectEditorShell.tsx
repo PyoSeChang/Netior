@@ -10,6 +10,7 @@ interface NetworkObjectEditorShellProps {
   leadingVisual?: React.ReactNode;
   actions?: React.ReactNode;
   showHeader?: boolean;
+  fillHeight?: boolean;
   children: React.ReactNode;
 }
 
@@ -33,10 +34,11 @@ export function NetworkObjectEditorShell({
   leadingVisual,
   actions,
   showHeader = true,
+  fillHeight = true,
   children,
 }: NetworkObjectEditorShellProps): JSX.Element {
   return (
-    <div className="min-h-full bg-surface-editor">
+    <div className={`${fillHeight ? 'min-h-full' : 'min-h-0'} bg-surface-editor`}>
       <div className="mx-auto flex w-full max-w-[760px] flex-col gap-4 px-6 py-5">
         {showHeader && (
           <section className="rounded-xl border border-default bg-surface-panel p-5 shadow-sm">

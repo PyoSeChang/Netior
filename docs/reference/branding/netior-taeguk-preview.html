@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netior Taeguk Logo Drafts</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111c;
+      --panel: rgba(11, 20, 32, 0.92);
+      --panel-soft: rgba(15, 26, 40, 0.86);
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #eef5ff;
+      --muted: #91a4ba;
+      --accent: #7dd3fc;
+      --accent-soft: rgba(125, 211, 252, 0.12);
+      --shadow: 0 30px 72px rgba(0, 0, 0, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(244, 93, 93, 0.14), transparent 24%),
+        radial-gradient(circle at 88% 18%, rgba(37, 99, 235, 0.16), transparent 26%),
+        linear-gradient(180deg, #08111b 0%, #040912 100%);
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 56px 0 72px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 58px);
+      letter-spacing: -0.05em;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.7;
+    }
+
+    .callout {
+      margin-top: 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid rgba(125, 211, 252, 0.24);
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .grid {
+      margin-top: 34px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(14, 24, 38, 0.92), rgba(7, 13, 22, 0.98));
+      box-shadow: var(--shadow);
+    }
+
+    .artboard {
+      position: relative;
+      padding: 24px;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        radial-gradient(circle at 20% 20%, rgba(244, 93, 93, 0.08), transparent 28%),
+        radial-gradient(circle at 80% 25%, rgba(37, 99, 235, 0.10), transparent 30%),
+        var(--panel-soft);
+      background-size: 28px 28px, 28px 28px, auto, auto, auto;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .artboard img {
+      display: block;
+      width: 100%;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+
+    .content {
+      padding: 20px 20px 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow.recommended {
+      background: rgba(125, 211, 252, 0.14);
+    }
+
+    h2 {
+      margin: 14px 0 10px;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .sizes {
+      margin-top: 18px;
+      display: flex;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .size-chip {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .size-frame {
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #0d1725 0%, #09111b 100%);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .size-frame img {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .size-128 {
+      width: 128px;
+      height: 128px;
+      padding: 8px;
+    }
+
+    .size-48 {
+      width: 48px;
+      height: 48px;
+      padding: 3px;
+      border-radius: 12px;
+    }
+
+    .size-24 {
+      width: 24px;
+      height: 24px;
+      padding: 2px;
+      border-radius: 8px;
+    }
+
+    .notes {
+      margin-top: 34px;
+      padding: 20px 22px;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      background: rgba(10, 18, 29, 0.84);
+    }
+
+    .notes h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .notes ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Netior taeguk logo drafts</h1>
+    <p class="lead">Thirteen concept directions built around taeguk duality, a central Netior dot, and a more dynamic reading of the network than a static closed diagram. The first row stays closer to symbolic balance, the second pushes toward portal, knot, tide, and signal readings, the third tests a harder minimal constraint, and the last row studies how color alone changes the reading of the minimal helix.</p>
+    <div class="callout">Draft only - no production icon changed</div>
+
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-core.svg" alt="Netior Taeguk Core draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Most Literal</div>
+          <h2>Taeguk Core</h2>
+          <p>The clearest human/AI duality read. It feels symbolic and closed, with the central dot making Netior the shared center of the field.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-core.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-core.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-core.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-braid.svg" alt="Netior Braided Taeguk draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow recommended">Recommended</div>
+          <h2>Braided Taeguk</h2>
+          <p>The strongest brand option. It keeps the taeguk mood but reads less like a national symbol and more like a living network interface.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-braid.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-braid.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-braid.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix.svg" alt="Netior Helix Field draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Most Dynamic</div>
+          <h2>Helix Field</h2>
+          <p>The clearest Networkics / evolution read. Strong on dynamism, but also the closest to a biotech or DNA association if pushed too far.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes">
+      <h3>More Radical Directions</h3>
+      <ul>
+        <li>These four are intentionally less emblematic and more interface-like than the first row.</li>
+        <li>They keep the taeguk base and central Netior node, but push the form toward portal, knot, wave, and routing signal.</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-portal.svg" alt="Netior Portal Gate draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Interface</div>
+          <h2>Portal Gate</h2>
+          <p>The most software-like direction. It feels less like a static symbol and more like a passage or operating surface with Netior at the center.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-portal.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-portal.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-portal.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-knot.svg" alt="Netior Living Knot draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow recommended">Radical Pick</div>
+          <h2>Living Knot</h2>
+          <p>The strongest co-evolution read. Human and AI are not mirrored halves here, but continuously entangled paths crossing through Netior.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-knot.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-knot.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-knot.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-tide.svg" alt="Netior Tidal Field draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Flow</div>
+          <h2>Tidal Field</h2>
+          <p>The most contextual option. Instead of stable halves, it suggests waves of activated relation sets moving through a shared center.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-tide.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-tide.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-tide.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-pulse.svg" alt="Netior Pulse Relay draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Signal</div>
+          <h2>Pulse Relay</h2>
+          <p>The sharpest and least ceremonial direction. It reads more like an active routing mark or signal processor than a classical emblem.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-pulse.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-pulse.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-pulse.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes">
+      <h3>Minimal Constraint Round</h3>
+      <ul>
+        <li>These three remove the dark outer border entirely.</li>
+        <li>Each mark keeps only one dot: Netior as the single routing core.</li>
+        <li>The question here is whether the taeguk read still survives when the symbol becomes almost interface-level minimal.</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-minimal-gate.svg" alt="Netior Minimal Gate draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Minimal</div>
+          <h2>Minimal Gate</h2>
+          <p>The cleanest reduction. Two opposing forces, one center, almost no ornament. It feels closest to an interface primitive.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-minimal-gate.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-minimal-gate.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-minimal-gate.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-minimal-knot.svg" alt="Netior Minimal Knot draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow recommended">Minimal Pick</div>
+          <h2>Minimal Knot</h2>
+          <p>The best balance under the new constraint. It still keeps the co-evolution story without relying on extra nodes or a boundary ring.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-minimal-knot.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-minimal-knot.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-minimal-knot.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-minimal-tide.svg" alt="Netior Minimal Tide draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Minimal Flow</div>
+          <h2>Minimal Tide</h2>
+          <p>The softest and most atmospheric reduction. It reads as shifting context more than emblematic duality, which may be a strength if you want less symbolism.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-minimal-tide.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-minimal-tide.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-minimal-tide.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes">
+      <h3>Reading guide</h3>
+      <ul>
+        <li>`Taeguk Core` is best if you want the symbolism to read immediately.</li>
+        <li>`Braided Taeguk` is best if you want something iconic that still feels like a software product.</li>
+        <li>`Helix Field` is best if you want to emphasize dynamic rewiring, co-evolution, and ongoing network formation.</li>
+        <li>`Portal Gate` is best if you want Netior to feel like an interface layer, not a symbolic seal.</li>
+        <li>`Living Knot` is best if you want the strongest human/AI co-evolution story.</li>
+        <li>`Tidal Field` is best if you want the mark to imply changing context and activated relation sets.</li>
+        <li>`Pulse Relay` is best if you want the logo to feel most technological and least ceremonial.</li>
+        <li>`Minimal Gate` is best if you want the strongest reduction and the most product-like icon silhouette.</li>
+        <li>`Minimal Knot` is best if you want to keep the philosophy while cutting almost every extra element.</li>
+        <li>`Minimal Tide` is best if you want a softer, less symbolic and more contextual mood.</li>
+      </ul>
+    </section>
+
+    <section class="notes">
+      <h3>Minimal Knot Color Study</h3>
+      <ul>
+        <li>These keep the exact same minimal helix geometry and only change the palette.</li>
+        <li>The goal is to move away from the magnet read caused by the direct red/blue split.</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-minimal-knot-jade-gold.svg" alt="Netior Minimal Knot jade gold draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow recommended">Color Pick</div>
+          <h2>Jade Gold</h2>
+          <p>The most distinct from a magnet read. It feels more like a crafted knowledge tool or instrument than a physical device.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-minimal-knot-jade-gold.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-minimal-knot-jade-gold.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-minimal-knot-jade-gold.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-minimal-knot-coral-teal.svg" alt="Netior Minimal Knot coral teal draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Warm Split</div>
+          <h2>Coral Teal</h2>
+          <p>Warmer and friendlier. It still reads as duality, but less like opposing poles and more like two live strands in dialogue.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-minimal-knot-coral-teal.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-minimal-knot-coral-teal.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-minimal-knot-coral-teal.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-minimal-knot-mint-indigo.svg" alt="Netior Minimal Knot mint indigo draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Cool Product</div>
+          <h2>Mint Indigo</h2>
+          <p>The most software-product-like palette. Cleaner and cooler than red/blue, though still a bit closer to a conventional tech contrast.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-minimal-knot-mint-indigo.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-minimal-knot-mint-indigo.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-minimal-knot-mint-indigo.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes">
+      <h3>Horizontal Taper Round</h3>
+      <ul>
+        <li>These keep the horizontal helix idea, but move away from perfectly even strokes.</li>
+        <li>The aim is not brush texture, but a taeguk-like sense of live thickness change inside the curve itself.</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-horizontal-taper-flow.svg" alt="Netior Horizontal Taper Flow draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Taper Flow</div>
+          <h2>Horizontal Taper Flow</h2>
+          <p>The most fluid option. The thickness shift feels more alive, and the taeguk motion stays readable without becoming painterly.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-horizontal-taper-flow.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-horizontal-taper-flow.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-horizontal-taper-flow.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-horizontal-taper-comma.svg" alt="Netior Horizontal Taper Comma draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow recommended">Taper Pick</div>
+          <h2>Horizontal Taper Comma</h2>
+          <p>The most taeguk-like of the four. The varying stroke weight pushes it closer to comma motion without needing literal brush texture.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-horizontal-taper-comma.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-horizontal-taper-comma.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-horizontal-taper-comma.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-horizontal-taper-balance.svg" alt="Netior Horizontal Taper Balance draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Balanced</div>
+          <h2>Horizontal Taper Balance</h2>
+          <p>The most stable logo silhouette. Less expressive than the comma variant, but cleaner if this has to become the actual app mark.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-horizontal-taper-balance.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-horizontal-taper-balance.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-horizontal-taper-balance.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-horizontal-taper-sweep.svg" alt="Netior Horizontal Taper Sweep draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Long Sweep</div>
+          <h2>Horizontal Taper Sweep</h2>
+          <p>The most stretched and directional option. It reads more like a strand in motion than a self-contained emblem.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-horizontal-taper-sweep.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-horizontal-taper-sweep.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-horizontal-taper-sweep.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes">
+      <h3>Taeguk Only Round</h3>
+      <ul>
+        <li>This round drops the helix idea entirely and tests how far the logo can go by leaning on taeguk alone.</li>
+        <li>The constraint stays simple: one center dot, no extra nodes, and a stronger focus on the taeguk read itself.</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-pure-classic.svg" alt="Netior Pure Taeguk Classic draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Literal</div>
+          <h2>Pure Taeguk Classic</h2>
+          <p>The cleanest reset. It is the most direct taeguk read, with the Netior dot simply occupying the center instead of adding more structure.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-pure-classic.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-pure-classic.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-pure-classic.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-pure-tilt.svg" alt="Netior Pure Taeguk Tilt draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Tilted</div>
+          <h2>Pure Taeguk Tilt</h2>
+          <p>The same taeguk base, but rotated just enough to feel less emblematic and a little more alive as an app mark.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-pure-tilt.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-pure-tilt.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-pure-tilt.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-pure-tight.svg" alt="Netior Pure Taeguk Tight draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow recommended">Tight</div>
+          <h2>Pure Taeguk Tight</h2>
+          <p>A denser inner turn that feels slightly more logo-designed than the classic version while keeping the taeguk structure obvious.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-pure-tight.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-pure-tight.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-pure-tight.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-pure-open-comma.svg" alt="Netior Pure Taeguk Open Comma draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Open</div>
+          <h2>Pure Taeguk Open Comma</h2>
+          <p>The least seal-like option. It keeps the taeguk commas, but drops the full enclosing disc to feel more like a modern symbol than a badge.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-pure-open-comma.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-pure-open-comma.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-pure-open-comma.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes">
+      <h3>Whitespace Taeguk Round</h3>
+      <ul>
+        <li>These keep the taeguk direction, but stop trying to occupy the full icon field.</li>
+        <li>The symbol is smaller, the negative space is intentional, and the center dot remains the only extra element.</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-air-comma.svg" alt="Netior Taeguk Air Comma draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow recommended">Whitespace Pick</div>
+          <h2>Air Comma</h2>
+          <p>The clearest answer to the last correction. It keeps the taeguk commas, but gives the symbol breathing room instead of filling the whole area.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-air-comma.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-air-comma.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-air-comma.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-air-tilt.svg" alt="Netior Taeguk Air Tilt draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Tilted</div>
+          <h2>Air Tilt</h2>
+          <p>A similar amount of whitespace, but with a slight rotation so the symbol feels less formal and more like a live app mark.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-air-tilt.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-air-tilt.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-air-tilt.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-air-tight.svg" alt="Netior Taeguk Air Tight draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Dense Core</div>
+          <h2>Air Tight</h2>
+          <p>A smaller overall symbol with a denser center. This one may hold up better if the icon gets very small.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-air-tight.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-air-tight.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-air-tight.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-air-open.svg" alt="Netior Taeguk Air Open draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Open</div>
+          <h2>Air Open</h2>
+          <p>The widest breathing room of the set. It feels lighter and more contemporary, but also less assertive than the denser variants.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-air-open.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-air-open.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-air-open.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

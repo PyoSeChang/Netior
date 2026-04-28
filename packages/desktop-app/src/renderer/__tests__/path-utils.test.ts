@@ -14,7 +14,7 @@ describe('path-utils', () => {
     );
   });
 
-  it('converts project-rooted absolute paths back to relative paths', () => {
+  it('converts absolute paths inside the project directory back to relative paths', () => {
     expect(toRelativePath('C:/workspace/project', 'C:/workspace/project/docs/file.pdf')).toBe(
       'docs/file.pdf',
     );

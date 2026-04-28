@@ -222,11 +222,21 @@ export function ensureUniverseNetworkForDb(db: Database.Database): Network {
 }
 
 function getProjectOntologyNetworkRecordForDb(db: Database.Database, projectId: string): Network | undefined {
-  return db.prepare(
+  const ontology = db.prepare(
     `SELECT * FROM networks
       WHERE kind = 'ontology'
         AND scope = 'project'
         AND project_id = ?
+      ORDER BY created_at
+      LIMIT 1`,
+  ).get(projectId) as Network | undefined;
+  if (ontology) return ontology;
+
+  return db.prepare(
+    `SELECT * FROM networks
+      WHERE scope = 'project'
+        AND project_id = ?
+        AND parent_network_id IN (SELECT id FROM networks WHERE kind = 'universe')
       ORDER BY created_at
       LIMIT 1`,
   ).get(projectId) as Network | undefined;

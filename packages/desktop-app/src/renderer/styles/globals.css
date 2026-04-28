@@ -53,6 +53,10 @@ body,
   scrollbar-gutter: stable;
 }
 
+.editor-scrollbar--auto-gutter {
+  scrollbar-gutter: auto;
+}
+
 .editor-scrollbar::-webkit-scrollbar {
   width: 10px;
   height: 10px;

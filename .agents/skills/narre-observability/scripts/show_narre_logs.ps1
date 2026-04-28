@@ -5,6 +5,12 @@ param(
   [ValidateSet('both', 'main', 'narre')]
   [string]$Target = 'both',
 
+  [string]$RuntimeScope,
+
+  [string]$Worktree,
+
+  [switch]$ListScopes,
+
   [int]$Tail = 80,
 
   [switch]$Wait
@@ -42,11 +48,26 @@ function New-LogCandidate {
   [pscustomobject]@{
     Kind = $Kind
     Name = $Name
+    Worktree = Get-WorktreeLabel -RuntimeScope $Name
     LogsDir = $LogsDir
     MainPath = $mainPath
     NarrePath = $narrePath
     UpdatedAt = $updatedAt
   }
+}
+
+function Get-WorktreeLabel {
+  param([string]$RuntimeScope)
+
+  if ($RuntimeScope -eq 'packaged') {
+    return 'packaged'
+  }
+
+  if ($RuntimeScope -match '^dev-(.+)-[0-9a-f]{8}$') {
+    return $Matches[1]
+  }
+
+  return $RuntimeScope
 }
 
 function Get-LogCandidates {
@@ -93,24 +114,72 @@ if (-not $candidates -or $candidates.Count -eq 0) {
   exit 1
 }
 
-$selected = switch ($Scope) {
+if ($ListScopes) {
+  $candidates |
+    Sort-Object Kind, Worktree, Name |
+    Select-Object Kind, Worktree, Name, UpdatedAt, LogsDir |
+    Format-Table -AutoSize
+  exit 0
+}
+
+if ($RuntimeScope -and $Scope -eq 'packaged') {
+  Write-Error "-RuntimeScope cannot be combined with -Scope packaged"
+  exit 1
+}
+
+if ($Worktree -and $Scope -eq 'packaged') {
+  Write-Error "-Worktree cannot be combined with -Scope packaged"
+  exit 1
+}
+
+$selectedPool = switch ($Scope) {
   'packaged' {
-    $candidates | Where-Object { $_.Kind -eq 'packaged' } | Sort-Object UpdatedAt -Descending | Select-Object -First 1
+    $candidates | Where-Object { $_.Kind -eq 'packaged' }
   }
   'runtime' {
-    $candidates | Where-Object { $_.Kind -eq 'runtime' } | Sort-Object UpdatedAt -Descending | Select-Object -First 1
+    $candidates | Where-Object { $_.Kind -eq 'runtime' }
   }
   default {
-    $candidates | Sort-Object UpdatedAt -Descending | Select-Object -First 1
+    $candidates
   }
 }
 
+if ($RuntimeScope) {
+  $selectedPool = $selectedPool | Where-Object { $_.Name -eq $RuntimeScope }
+}
+
+if ($Worktree) {
+  $selectedPool = $selectedPool | Where-Object { $_.Worktree -eq $Worktree }
+}
+
+$selected = $selectedPool | Sort-Object UpdatedAt -Descending | Select-Object -First 1
+
+if (-not $selected -and $Worktree) {
+  $availableWorktrees = $candidates |
+    Where-Object { $_.Kind -eq 'runtime' } |
+    Select-Object -ExpandProperty Worktree -Unique |
+    Sort-Object
+  $availableMessage = if ($availableWorktrees.Count -gt 0) {
+    $availableWorktrees -join ', '
+  } else {
+    '(none)'
+  }
+  Write-Error "No matching runtime log scope found for worktree '$Worktree'. Available worktrees: $availableMessage"
+  exit 1
+}
+
 if (-not $selected) {
+  if ($RuntimeScope) {
+    Write-Error "No matching log scope found for runtime scope '$RuntimeScope'"
+    exit 1
+  }
+
   Write-Error "No matching log scope found for '$Scope'"
   exit 1
 }
 
 Write-Host "Selected scope: $($selected.Name) [$($selected.Kind)]"
+Write-Host "Worktree: $($selected.Worktree)"
 Write-Host "Logs dir: $($selected.LogsDir)"
 
 if ($Wait) {

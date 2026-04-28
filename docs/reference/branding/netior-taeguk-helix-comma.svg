@@ -1,0 +1,11 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior taeguk comma helix</title>
+  <desc>More literal taeguk-comma motion translated into a vertical double-helix silhouette.</desc>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M214 86C160 108 148 182 196 224C228 252 286 254 310 286C340 326 332 388 278 430" stroke="#D85A64" stroke-width="30"/>
+    <path d="M298 86C352 108 364 182 316 224C284 252 226 254 202 286C172 326 180 388 234 430" stroke="#3A6FB0" stroke-width="30"/>
+    <path d="M224 166C238 176 248 186 256 198" stroke="#0F172A" stroke-width="10" opacity="0.28"/>
+    <path d="M288 346C274 336 264 326 256 314" stroke="#0F172A" stroke-width="10" opacity="0.28"/>
+  </g>
+  <circle cx="256" cy="256" r="12" fill="#0F172A"/>
+</svg>

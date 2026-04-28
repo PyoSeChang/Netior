@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior taeguk tide draft</title>
+  <desc>Wave-like dual field suggesting dynamic routing, changing context, and moving relation sets.</desc>
+  <circle cx="256" cy="256" r="176" stroke="#0F172A" stroke-width="18" />
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M112 202C162 154 222 154 256 192C290 230 350 230 400 182" stroke="#F25F5C" stroke-width="52" />
+    <path d="M400 310C350 358 290 358 256 320C222 282 162 282 112 330" stroke="#2563EB" stroke-width="52" />
+    <path d="M256 192V320" stroke="#0F172A" stroke-width="18" opacity="0.28" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="112" cy="202" r="22" />
+    <circle cx="400" cy="182" r="22" />
+    <circle cx="400" cy="310" r="22" />
+    <circle cx="112" cy="330" r="22" />
+    <circle cx="256" cy="192" r="18" />
+    <circle cx="256" cy="320" r="18" />
+    <circle cx="256" cy="256" r="38" />
+  </g>
+  <g fill="#F8FAFC">
+    <circle cx="112" cy="202" r="9" />
+    <circle cx="400" cy="182" r="9" />
+    <circle cx="400" cy="310" r="9" />
+    <circle cx="112" cy="330" r="9" />
+    <circle cx="256" cy="256" r="14" />
+  </g>
+</svg>

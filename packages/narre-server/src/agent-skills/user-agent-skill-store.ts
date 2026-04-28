@@ -17,7 +17,7 @@ export interface UserAgentSkillRootOptions {
 export function resolveUserAgentSkillRoot(options: UserAgentSkillRootOptions): string {
   if (options.agent.userAgentType === 'project') {
     if (!options.projectRootDir) {
-      throw new Error(`Project root directory is required for project user agent ${options.agent.id}`);
+      throw new Error(`Project directory is required for project user agent ${options.agent.id}`);
     }
     return resolveProjectUserAgentSkillRoot(options.projectRootDir, options.agent.id);
   }

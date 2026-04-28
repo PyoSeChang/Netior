@@ -25,7 +25,7 @@ manifest 기준 활성 시나리오:
 
 | Scenario ID | 타입 | 핵심 검증 초점 |
 |---|---|---|
-| `fantasy-world-bootstrap` | `single-turn + dynamic tester interaction` | `/bootstrap` skill, fantasy domain ontology, two-round interview, network split, model/ORM/starter graph 시도 |
+| `fantasy-world-bootstrap` | `single-turn + dynamic tester interaction` | `/bootstrap` skill, fantasy domain ontology, two-round interview, network split, model/meaning/ORM/starter graph 시도 |
 | `think-data-structure-pdf-index` | `single-turn + approval card` | `/index` skill, PDF TOC extraction, file metadata `pdf_toc` 저장, approval-before-save |
 
 ## 표면별 커버리지
@@ -46,7 +46,7 @@ manifest 기준 활성 시나리오:
 | NR06 | layout-aware placement | 없음 | 없음 | 위치/크기/edge visual 검증 없음 |
 | NR07 | concept CRUD | `fantasy-world-bootstrap` | 부분 | starter concept 생성은 보지만 concept content/update/delete는 없음 |
 | NR08 | concept property CRUD | `fantasy-world-bootstrap` | 부분 | property/field value를 기대하지만 field type별 dedicated 검증은 없음 |
-| NR09 | recurrence와 virtual occurrence | 없음 | 없음 | recurrence meaning slot/occurrence materialization 시나리오 없음 |
+| NR09 | recurrence와 virtual occurrence | 없음 | 없음 | recurrence를 여러 field/meaning binding으로 모델링하거나 occurrence materialization하는 시나리오 없음 |
 | NR10 | file/folder entity와 network placement | `think-data-structure-pdf-index` | 부분 | file entity를 seed하고 target PDF로 사용하지만 network placement는 없음 |
 | NR11 | file metadata와 PDF TOC | `think-data-structure-pdf-index` | 강함 | `get_file_metadata`, `update_file_pdf_toc`, `pdf_toc.entries/pageCount/sourceMethod` 저장을 검증 |
 | NR12 | edge CRUD | `fantasy-world-bootstrap` | 부분 | starter edge 생성은 볼 수 있으나 update/delete는 없음 |
@@ -55,7 +55,7 @@ manifest 기준 활성 시나리오:
 | NR15 | group/hierarchy/containment semantics | 없음 | 없음 | group/hierarchy/contains/hierarchy_parent 전용 검증 없음 |
 | NR16 | schema CRUD | `fantasy-world-bootstrap` | 부분 | schema 생성은 보지만 update/delete는 없음 |
 | NR17 | schema field definition CRUD | `fantasy-world-bootstrap` | 부분 | field definition 생성은 보지만 reorder/update/delete는 없음 |
-| NR18 | model와 meaning slot | `fantasy-world-bootstrap` | 부분 | model 사용을 보려 하지만 dedicated model-slot 검증은 없음 |
+| NR18 | model / meaning / binding | `fantasy-world-bootstrap` | 부분 | model 사용은 보려 하지만 model CRUD, schema meaning, field meaning bindings, meaning slot binding 전용 검증은 없음 |
 | NR19 | ORM형 schema 관계와 property 모델링 | `fantasy-world-bootstrap` | 부분 | ORM형 관계 기대는 있으나 cycle/candidate/field-vs-edge 판단 검증은 약함 |
 | NR20 | relation type CRUD | `fantasy-world-bootstrap` | 부분 | relation type 생성은 보지만 update/delete/visual default는 약함 |
 | NR21 | type group CRUD | `fantasy-world-bootstrap` | 부분 | type group 생성 정도만 걸릴 수 있음. Ontology network 자동 투영 검증은 없음 |
@@ -72,14 +72,14 @@ manifest 기준 활성 시나리오:
 
 - fantasy domain에서 ontology-first bootstrap을 시도하는가
 - 캐릭터, 세계관, 플롯, 스토리 같은 network split을 떠올리는가
-- schema, field definition, model, relation type을 쓰려고 하는가
+- schema, model, meaning, field definition, relation type을 쓰려고 하는가
 - starter graph를 만들려고 하는가
 - PDF 목차 페이지를 읽고 승인 후 `pdf_toc` metadata를 저장하는가
 
 아직 충분히 보지 못하는 것은 다음이다.
 
 - 여러 도메인에서의 multi-turn interview 일반화
-- 사용자가 Netior 구조를 모르는 상태에서 Narre가 먼저 model/ORM/network 설계를 제안하는지
+- 사용자가 Netior 구조를 모르는 상태에서 Narre가 먼저 model/meaning/ORM/network 설계를 제안하는지
 - network object CRUD 전체
 - Universe/Ontology system network 이해
 - node occurrence와 node config
@@ -148,7 +148,7 @@ manifest 기준 활성 시나리오:
 - concept 기반 subnetwork 생성/연결
 - entry portal edge 생성
 - group/hierarchy node 구성
-- `core:contains`와 `core:hierarchy_parent` 구분
+- `structure.contains`와 `structure.parent` 구분
 
 ### 4. `schema-model-orm-contract`
 
@@ -165,8 +165,9 @@ manifest 기준 활성 시나리오:
 핵심:
 
 - fantasy domain에서 schema 설계
-- model 추론
-- meaning slot field 생성
+- model CRUD와 model 추론
+- schema meaning과 field meaning bindings 생성
+- 하나의 field가 여러 meaning binding을 갖거나 하나의 meaning이 여러 field로 표현되는 경우
 - schema_ref/relation field 판단
 - relation type과 field의 역할 분리
 - type group 정리
@@ -251,4 +252,4 @@ manifest 기준 활성 시나리오:
 
 - **multi-turn bootstrap**: 사용자는 도메인만 설명하고 Narre가 ontology/schema/network를 끌어낸다.
 - **network object CRUD**: object lookup, node placement, edge relation, portal/hierarchy를 실제로 수행한다.
-- **schema/model/ORM 검증**: 사용자가 모르는 model와 schema 관계를 Narre가 적절히 선택한다.
+- **schema/model/meaning/ORM 검증**: 사용자가 모르는 model, meaning, field binding, schema 관계를 Narre가 적절히 선택한다.

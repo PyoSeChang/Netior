@@ -1,0 +1,31 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior helix field draft</title>
+  <desc>Closed-field helix mark combining taeguk duality, dynamic rewiring, and a central Netior node.</desc>
+  <circle cx="256" cy="256" r="176" stroke="#0F172A" stroke-width="18" />
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M198 108C282 150 282 362 198 404" stroke="#F45D5D" stroke-width="34" />
+    <path d="M314 108C230 150 230 362 314 404" stroke="#2563EB" stroke-width="34" />
+    <path d="M212 156H300" stroke="#0F172A" stroke-width="18" opacity="0.5" />
+    <path d="M184 224H328" stroke="#0F172A" stroke-width="18" opacity="0.78" />
+    <path d="M184 288H328" stroke="#0F172A" stroke-width="18" opacity="0.78" />
+    <path d="M212 356H300" stroke="#0F172A" stroke-width="18" opacity="0.5" />
+  </g>
+  <circle cx="198" cy="108" r="22" fill="#0F172A" />
+  <circle cx="198" cy="108" r="10" fill="#F45D5D" />
+  <circle cx="314" cy="108" r="22" fill="#0F172A" />
+  <circle cx="314" cy="108" r="10" fill="#2563EB" />
+  <circle cx="184" cy="224" r="24" fill="#0F172A" />
+  <circle cx="184" cy="224" r="10" fill="#F45D5D" />
+  <circle cx="328" cy="224" r="24" fill="#0F172A" />
+  <circle cx="328" cy="224" r="10" fill="#2563EB" />
+  <circle cx="184" cy="288" r="24" fill="#0F172A" />
+  <circle cx="184" cy="288" r="10" fill="#2563EB" />
+  <circle cx="328" cy="288" r="24" fill="#0F172A" />
+  <circle cx="328" cy="288" r="10" fill="#F45D5D" />
+  <circle cx="198" cy="404" r="22" fill="#0F172A" />
+  <circle cx="198" cy="404" r="10" fill="#2563EB" />
+  <circle cx="314" cy="404" r="22" fill="#0F172A" />
+  <circle cx="314" cy="404" r="10" fill="#F45D5D" />
+  <circle cx="256" cy="256" r="36" fill="#0F172A" />
+  <circle cx="256" cy="256" r="13" fill="#F8FAFC" />
+</svg>

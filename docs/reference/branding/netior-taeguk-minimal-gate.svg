@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior minimal gate draft</title>
+  <desc>Minimal taeguk-inspired gate mark with no outer border and a single central Netior dot.</desc>
+  <path d="M176 132C132 162 108 208 108 256C108 304 132 350 176 380" stroke="#F25F5C" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M336 132C380 162 404 208 404 256C404 304 380 350 336 380" stroke="#2563EB" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="256" cy="256" r="14" fill="#0F172A" />
+</svg>

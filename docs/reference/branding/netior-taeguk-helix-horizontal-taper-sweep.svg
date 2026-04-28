@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior horizontal taper sweep</title>
+  <desc>Horizontal taeguk-helix concept with a longer continuous sweep and stronger taper contrast.</desc>
+  <path d="M60 228C120 186 190 174 228 198C252 214 266 234 274 252C292 294 344 324 396 318C424 314 444 300 458 280C450 308 428 332 392 344C338 362 286 340 240 300C214 278 194 252 160 240C118 224 82 230 60 260C54 248 54 238 60 228Z" fill="#D85A64"/>
+  <path d="M60 284C120 326 190 338 228 314C252 298 266 278 274 260C292 218 344 188 396 194C424 198 444 212 458 232C450 204 428 180 392 168C338 150 286 172 240 212C214 234 194 260 160 272C118 288 82 282 60 252C54 264 54 274 60 284Z" fill="#3A6FB0"/>
+  <circle cx="256" cy="256" r="12" fill="#0F172A"/>
+</svg>

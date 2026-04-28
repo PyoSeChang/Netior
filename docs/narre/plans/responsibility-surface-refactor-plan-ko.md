@@ -24,7 +24,7 @@
 
 - `NR02` network CRUD 일부
 - `NR05` concept 생성
-- `NR09~NR19` schema/graph core
+- `NR09~NR19` schema/graph core 일부
 
 현재 약한 축:
 
@@ -36,13 +36,13 @@
 - `NR21~NR22` file entity / PDF metadata
 - `NR24~NR25` staged skill contract
 
-즉 지금 Narre는 “도메인을 workspace로 투영하는 운영자”라기보다 “schema 편집기”에 더 가깝다.
+즉 지금 Narre는 “도메인을 workspace로 투영하는 운영자”라기보다 “schema 편집기”에 더 가깝다. 이번 도메인 모델 확장 이후에는 schema만 만드는 것이 아니라 project-level model, model meanings, field meaning bindings, meaning slot binding까지 함께 설계해야 한다.
 
 ### 2. MCP는 graph/schema core는 강하지만 responsibility surface 전체를 못 덮는다
 
 강한 축:
 
-- `NR02`, `NR05`, `NR09~NR19`
+- `NR02`, `NR05`, `NR09~NR19` 일부
 
 큰 공백:
 
@@ -60,6 +60,7 @@
 
 - schema CRUD
 - field definition
+- model CRUD / schema meaning / field meaning bindings
 - typed `schema_ref`
 - 일부 destructive confirmation
 
@@ -69,6 +70,7 @@
 - `NR03~NR08`
 - `NR09~NR11`
 - `NR13~NR14`
+- `NR18`의 model/meaning/binding 세부 검증
 - `NR20~NR22`
 - `NR25`
 
@@ -264,7 +266,17 @@ bootstrap은 schema만 만드는 게 아니라 starter concept/node까지 만들
 - node-level metadata/occurrence 편집 surface
 - file node add flow
 
-### B4. Module root surface (`NR01`)
+### B4. Model / meaning / binding surface (`NR18`)
+
+필요한 것:
+
+- model CRUD가 schema 편집의 부속 기능이 아니라 project-level modeling operation으로 노출됨
+- model recipe가 meanings와 field recipes를 가진다는 계약
+- schema meaning 생성/수정/삭제와 meaning slot binding 수정 흐름
+- field definition 생성/수정 시 `meaning_bindings`를 여러 개 다룰 수 있는 tool/tester 계약
+- 같은 meaning을 여러 field로 표현하거나 하나의 field가 여러 meaning binding을 갖는 경우를 다루는 eval
+
+### B5. Module root surface (`NR01`)
 
 필요한 것:
 
@@ -308,7 +320,7 @@ tester 전략 문맥에서는 두 분류만 쓴다.
 ### C3. 신규 시나리오 우선순위
 
 1. `bootstrap-multiturn`
-   - 목표 표면: `NR02`, `NR03`, `NR05`, `NR16`, `NR24`
+   - 목표 표면: `NR02`, `NR03`, `NR05`, `NR16`, `NR18`, `NR24`
 
 2. `index-pdf`
    - 목표 표면: `NR21`, `NR22`, `NR25`
@@ -324,6 +336,10 @@ tester 전략 문맥에서는 두 분류만 쓴다.
 
 6. `edge-semantics`
    - 목표 표면: `NR09`, `NR10`, `NR11`
+
+7. `model-meaning-bindings`
+   - 목표 표면: `NR16`, `NR17`, `NR18`, `NR19`
+   - 검증 초점: 사용자 정의 model 생성, model meanings, field recipes, field `meaning_bindings`, schema_ref와 relation field 판단
 
 ### C4. Scenario metadata 강화
 

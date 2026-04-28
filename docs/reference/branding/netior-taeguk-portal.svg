@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior taeguk portal draft</title>
+  <desc>Portal-like taeguk mark using a square field, opposing gates, and a central Netior node.</desc>
+  <rect x="84" y="84" width="344" height="344" rx="116" stroke="#0F172A" stroke-width="20" />
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M186 126C142 154 116 203 116 258C116 313 142 362 186 390" stroke="#F25F5C" stroke-width="58" />
+    <path d="M326 122C370 150 396 199 396 254C396 309 370 358 326 386" stroke="#2563EB" stroke-width="58" />
+    <path d="M218 188C244 210 244 302 218 324" stroke="#0F172A" stroke-width="18" opacity="0.35" />
+    <path d="M294 188C268 210 268 302 294 324" stroke="#0F172A" stroke-width="18" opacity="0.35" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="186" cy="126" r="23" />
+    <circle cx="186" cy="390" r="23" />
+    <circle cx="326" cy="122" r="23" />
+    <circle cx="326" cy="386" r="23" />
+    <circle cx="256" cy="256" r="42" />
+  </g>
+  <g fill="#F8FAFC">
+    <circle cx="186" cy="126" r="10" />
+    <circle cx="186" cy="390" r="10" />
+    <circle cx="326" cy="122" r="10" />
+    <circle cx="326" cy="386" r="10" />
+    <circle cx="256" cy="256" r="15" />
+  </g>
+</svg>

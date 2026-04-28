@@ -27,7 +27,7 @@ export function toRelativePath(rootDir: string, absolutePath: string): string {
 }
 
 /**
- * Convert a relative path (from project root) to an absolute path.
+ * Convert a relative path from the project directory to an absolute path.
  * If the input is already absolute, return it normalized.
  * Both inputs are normalized to forward slashes.
  */

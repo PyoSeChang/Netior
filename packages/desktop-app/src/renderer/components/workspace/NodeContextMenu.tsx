@@ -6,7 +6,6 @@ import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
 import type { NetworkObjectType } from '@netior/shared/types';
 import type { WorkspaceMode } from '../../stores/ui-store';
-import { openNetworkViewerTab } from '../../lib/open-network-viewer-tab';
 
 interface NodeContextMenuProps {
   x: number;
@@ -56,10 +55,11 @@ export function NodeContextMenu({
     if (!objectType || !objectTargetId) return;
 
     if (objectType === 'network') {
-      void openNetworkViewerTab({
-        networkId: objectTargetId,
+      useEditorStore.getState().openTab({
+        type: 'network',
+        targetId: objectTargetId,
         title: objectTitle ?? t('network.name' as never),
-        projectId: currentNetwork?.project_id ?? null,
+        projectId: currentNetwork?.project_id ?? undefined,
       });
     } else if (objectType === 'project') {
       useEditorStore.getState().openTab({

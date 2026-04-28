@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior pure taeguk classic</title>
+  <desc>Pure taeguk direction with one central Netior dot and no extra nodes.</desc>
+  <defs>
+    <clipPath id="netior-taeguk-pure-classic-clip">
+      <circle cx="256" cy="256" r="176" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#netior-taeguk-pure-classic-clip)">
+    <circle cx="256" cy="256" r="176" fill="#D85A64" />
+    <path d="M256 80A176 176 0 0 1 256 432A88 88 0 0 0 256 256A88 88 0 0 1 256 80Z" fill="#3A6FB0" />
+    <circle cx="256" cy="168" r="88" fill="#3A6FB0" />
+    <circle cx="256" cy="344" r="88" fill="#D85A64" />
+  </g>
+  <circle cx="256" cy="256" r="14" fill="#0F172A" />
+</svg>

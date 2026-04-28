@@ -184,10 +184,11 @@ export function NetworkList({ projectId, kindFilter, title, canCreate }: Network
       label: t('editor.openInEditor'),
       icon: <ExternalLink size={14} />,
       onClick: () => {
-        useEditorStore.getState().openTab({
+        void useEditorStore.getState().openTab({
           type: 'network',
           targetId: contextMenu.networkId,
           title: contextMenu.networkName,
+          projectId: contextMenu.networkProjectId ?? projectId,
         });
       },
     },

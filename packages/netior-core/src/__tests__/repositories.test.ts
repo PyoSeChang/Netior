@@ -601,6 +601,28 @@ describe('Repositories', () => {
       expect(ontology!.parent_network_id).toBeNull();
       expect(ontology!.name).toBe('Ontology');
     });
+
+    it('should normalize legacy project entry network into ontology', () => {
+      const project = createProject({ name: 'Legacy', root_dir: '/tmp/legacy' });
+      const db = getTestDb();
+      const universe = getUniverseNetwork();
+      const legacyName = ['Project', 'Root'].join(' ');
+
+      db.prepare(
+        `UPDATE networks
+            SET kind = 'network',
+                name = ?,
+                parent_network_id = ?
+          WHERE project_id = ?
+            AND kind = 'ontology'`,
+      ).run(legacyName, universe!.id, project.id);
+
+      const ontology = getProjectOntologyNetwork(project.id);
+      expect(ontology).toBeDefined();
+      expect(ontology!.kind).toBe('ontology');
+      expect(ontology!.parent_network_id).toBeNull();
+      expect(ontology!.name).toBe('Ontology');
+    });
   });
 
   // --- File Entity ---

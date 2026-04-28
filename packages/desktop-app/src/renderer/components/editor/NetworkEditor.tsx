@@ -61,7 +61,7 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
   const currentNetwork = useNetworkStore((s) => s.currentNetwork);
   const nodes = useNetworkStore((s) => s.nodes);
   const edges = useNetworkStore((s) => s.edges);
-  const openEditorTab = useEditorStore((s) => s.openTab);
+  const navigateTab = useEditorStore((s) => s.navigateTab);
   const currentProject = useProjectStore((s) => s.currentProject);
 
   const network = networks.find((item) => item.id === networkId)
@@ -145,7 +145,7 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
 
   const handleOpenOntology = useCallback(async () => {
     const projectId = network?.project_id ?? currentProject?.id ?? 'global';
-    await openEditorTab({
+    navigateTab(tab.id, {
       type: 'ontology',
       targetId: projectId,
       title: t('sidebar.ontology' as never) === 'sidebar.ontology'
@@ -153,7 +153,7 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
         : t('sidebar.ontology' as never),
       projectId: projectId === 'global' ? undefined : projectId,
     });
-  }, [currentProject?.id, network?.project_id, openEditorTab, t]);
+  }, [currentProject?.id, navigateTab, network?.project_id, t, tab.id]);
 
   const handleDelete = useCallback(async () => {
     await deleteNetwork(networkId);
@@ -182,64 +182,67 @@ export function NetworkEditor({ tab }: NetworkEditorProps): JSX.Element {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-surface-editor text-default">
-      <div className="shrink-0 border-b border-subtle bg-surface-panel px-5 py-3">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            void handleOpenOntology();
-          }}
-        >
-          <ArrowLeft size={14} />
-          {t('network.backToOverview') === 'network.backToOverview' ? 'All networks' : t('network.backToOverview')}
-        </Button>
-      </div>
-
-      <div className="editor-scrollbar min-h-0 flex-1 overflow-y-scroll overflow-x-hidden">
+      <div className="editor-scrollbar editor-scrollbar--auto-gutter min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="mx-auto flex w-full max-w-[760px] px-6 pt-5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void handleOpenOntology();
+            }}
+          >
+            <ArrowLeft size={14} />
+            {t('network.backToOverview') === 'network.backToOverview' ? 'All networks' : t('network.backToOverview')}
+          </Button>
+        </div>
         <NetworkObjectEditorShell
           badge={t('sidebar.networks')}
           title={title}
           subtitle={getKindLabel(network.kind)}
           description={t('network.layoutSettings') === 'network.layoutSettings' ? 'Layout settings' : t('network.layoutSettings')}
-          actions={(
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  void openNetworkViewerTab({
-                    networkId,
-                    title,
-                    projectId: network.project_id ?? currentProject?.id ?? null,
-                  });
-                }}
-              >
-                {t('network.openViewer' as never) === 'network.openViewer' ? 'Open viewer' : t('network.openViewer' as never)}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={!session.isDirty}
-                onClick={() => {
-                  void session.save();
-                }}
-              >
-                {t('common.save')}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-status-error hover:text-status-error"
-                onClick={() => {
-                  void handleDelete();
-                }}
-              >
-                {t('common.delete')}
-              </Button>
-            </div>
-          )}
+          showHeader={false}
+          fillHeight={false}
         >
-          <NetworkObjectEditorSection title={t('editorShell.overview' as never)}>
+          <NetworkObjectEditorSection
+            title={t('editorShell.overview' as never)}
+            actions={(
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    void openNetworkViewerTab({
+                      networkId,
+                      title,
+                      projectId: network.project_id ?? currentProject?.id ?? null,
+                    });
+                  }}
+                >
+                  {t('network.openViewer' as never) === 'network.openViewer' ? 'Open viewer' : t('network.openViewer' as never)}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!session.isDirty}
+                  onClick={() => {
+                    void session.save();
+                  }}
+                >
+                  {t('common.save')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-status-error hover:text-status-error"
+                  onClick={() => {
+                    void handleDelete();
+                  }}
+                >
+                  {t('common.delete')}
+                </Button>
+              </div>
+            )}
+          >
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted">{t('network.name') === 'network.name' ? 'Name' : t('network.name')}</label>
               <Input

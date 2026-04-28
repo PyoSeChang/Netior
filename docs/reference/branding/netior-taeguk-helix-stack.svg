@@ -1,0 +1,11 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior stacked taeguk helix</title>
+  <desc>Two taeguk-like waves stack vertically and continue as a DNA-style helix around one central Netior node.</desc>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M244 92C204 96 184 120 184 164C184 202 212 226 256 242C300 258 328 282 328 320C328 370 296 408 248 448" stroke="#D85A64" stroke-width="32"/>
+    <path d="M268 92C308 96 328 120 328 164C328 202 300 226 256 242C212 258 184 282 184 320C184 370 216 408 264 448" stroke="#3A6FB0" stroke-width="32"/>
+    <path d="M214 168H298" stroke="#0F172A" stroke-width="12" opacity="0.38"/>
+    <path d="M214 318H298" stroke="#0F172A" stroke-width="12" opacity="0.38"/>
+  </g>
+  <circle cx="256" cy="256" r="12" fill="#0F172A"/>
+</svg>

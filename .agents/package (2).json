@@ -1,0 +1,36 @@
+{
+  "name": "@netior/root",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "predev:desktop": "node scripts/ensure-desktop-sidecars.mjs",
+    "dev:desktop": "node scripts/ensure-desktop-sidecars.mjs && pnpm --filter @netior/desktop-app dev",
+    "rebuild:native": "pnpm --filter @netior/core exec node scripts/rebuild-native.js",
+    "lint": "turbo run lint",
+    "postinstall": "pnpm run rebuild:native",
+    "clean": "turbo run clean && rimraf node_modules",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "eval": "pnpm --filter @netior/narre-eval eval:dev",
+    "worktree:list": "node scripts/worktree-debug.mjs list",
+    "worktree:new": "node scripts/worktree-debug.mjs create",
+    "worktree:debug": "node scripts/worktree-debug.mjs create-set debug",
+    "rename:brand:dry": "node scripts/rename-brand.mjs --rename-paths",
+    "rename:brand": "node scripts/rename-brand.mjs --apply --rename-paths"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "prettier": "^3.2.0",
+    "rimraf": "^5.0.5",
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@8.14.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

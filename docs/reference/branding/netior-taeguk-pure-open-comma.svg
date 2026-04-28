@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior pure taeguk open comma</title>
+  <desc>Open taeguk-comma direction with one central Netior dot and no enclosing disc.</desc>
+  <path d="M142 194C164 146 210 120 260 128C310 136 350 172 360 220C370 268 348 306 310 324C272 342 234 332 216 298C202 270 206 236 232 216C252 200 260 178 258 154C216 152 172 166 142 194Z" fill="#D85A64" />
+  <path d="M370 318C348 366 302 392 252 384C202 376 162 340 152 292C142 244 164 206 202 188C240 170 278 180 296 214C310 242 306 276 280 296C260 312 252 334 254 358C296 360 340 346 370 318Z" fill="#3A6FB0" />
+  <circle cx="256" cy="256" r="14" fill="#0F172A" />
+</svg>

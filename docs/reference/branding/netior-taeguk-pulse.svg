@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior taeguk pulse draft</title>
+  <desc>Signal-like taeguk mark with a diagonal field and a central node acting as an active relay.</desc>
+  <rect x="112" y="112" width="288" height="288" rx="88" transform="rotate(45 256 256)" stroke="#0F172A" stroke-width="18" />
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M162 140C214 140 256 182 256 234C256 286 298 328 350 328" stroke="#F25F5C" stroke-width="54" />
+    <path d="M350 372C298 372 256 330 256 278C256 226 214 184 162 184" stroke="#2563EB" stroke-width="54" />
+    <path d="M256 234V278" stroke="#0F172A" stroke-width="18" opacity="0.35" />
+  </g>
+  <g fill="#0F172A">
+    <circle cx="162" cy="140" r="22" />
+    <circle cx="350" cy="328" r="22" />
+    <circle cx="350" cy="372" r="22" />
+    <circle cx="162" cy="184" r="22" />
+    <circle cx="256" cy="234" r="18" />
+    <circle cx="256" cy="278" r="18" />
+    <circle cx="256" cy="256" r="38" />
+  </g>
+  <g fill="#F8FAFC">
+    <circle cx="162" cy="140" r="9" />
+    <circle cx="350" cy="328" r="9" />
+    <circle cx="350" cy="372" r="9" />
+    <circle cx="162" cy="184" r="9" />
+    <circle cx="256" cy="256" r="14" />
+  </g>
+</svg>

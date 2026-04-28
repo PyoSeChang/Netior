@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netior Taeguk Form + Palette Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #06101a;
+      --bg-deep: #040912;
+      --panel: rgba(10, 18, 29, 0.84);
+      --panel-strong: rgba(12, 22, 35, 0.92);
+      --border: rgba(148, 163, 184, 0.16);
+      --text: #eef5ff;
+      --muted: #92a6bb;
+      --accent: #67e8f9;
+      --accent-soft: rgba(103, 232, 249, 0.12);
+      --shadow: 0 30px 72px rgba(0, 0, 0, 0.34);
+      --font-display: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+      --font-body: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-body);
+      background:
+        radial-gradient(circle at 10% 8%, rgba(103, 232, 249, 0.10), transparent 24%),
+        radial-gradient(circle at 88% 16%, rgba(251, 191, 36, 0.08), transparent 22%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+    }
+
+    main {
+      width: min(1280px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 56px 0 80px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(38px, 5vw, 64px);
+      letter-spacing: -0.06em;
+      line-height: 0.96;
+    }
+
+    .lead {
+      max-width: 860px;
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.75;
+    }
+
+    .callout {
+      margin-top: 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid rgba(103, 232, 249, 0.22);
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .grid {
+      margin-top: 34px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      --tone-a: #0f766e;
+      --tone-b: #d4a017;
+      --dot: #111827;
+      --glow-a: rgba(15, 118, 110, 0.16);
+      --glow-b: rgba(212, 160, 23, 0.14);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(14, 24, 38, 0.92), rgba(7, 13, 22, 0.98));
+      box-shadow: var(--shadow);
+    }
+
+    .artboard {
+      position: relative;
+      padding: 24px;
+      border-bottom: 1px solid var(--border);
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        radial-gradient(circle at 24% 24%, var(--glow-a), transparent 32%),
+        radial-gradient(circle at 78% 28%, var(--glow-b), transparent 34%),
+        var(--panel-strong);
+      background-size: 28px 28px, 28px 28px, auto, auto, auto;
+    }
+
+    .mark-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 270px;
+    }
+
+    .mark-wrap svg {
+      display: block;
+      width: min(100%, 290px);
+      height: auto;
+    }
+
+    .content {
+      padding: 20px 20px 22px;
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .palette-meta {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-family: var(--font-display);
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.68;
+    }
+
+    .controls {
+      margin-top: 16px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .controls label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .controls select {
+      width: 100%;
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: var(--text);
+      background:
+        linear-gradient(180deg, rgba(18, 31, 48, 0.94), rgba(11, 18, 30, 0.98));
+      font: inherit;
+      outline: none;
+    }
+
+    .controls select:focus {
+      border-color: rgba(103, 232, 249, 0.42);
+      box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.12);
+    }
+
+    .sizes {
+      margin-top: 18px;
+      display: flex;
+      gap: 14px;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+
+    .size-chip {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .size-frame {
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 30% 30%, var(--glow-a), transparent 44%),
+        radial-gradient(circle at 70% 30%, var(--glow-b), transparent 40%),
+        linear-gradient(180deg, #0d1725 0%, #09111b 100%);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .size-frame svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .size-128 {
+      width: 128px;
+      height: 128px;
+      padding: 8px;
+    }
+
+    .size-48 {
+      width: 48px;
+      height: 48px;
+      padding: 3px;
+      border-radius: 12px;
+    }
+
+    .size-24 {
+      width: 24px;
+      height: 24px;
+      padding: 2px;
+      border-radius: 8px;
+    }
+
+    .notes {
+      margin-top: 34px;
+      padding: 20px 22px;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      background: rgba(10, 18, 29, 0.84);
+    }
+
+    .notes h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      font-family: var(--font-display);
+      letter-spacing: -0.03em;
+    }
+
+    .notes ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .mark .tone-a {
+      stroke: var(--tone-a);
+    }
+
+    .mark .tone-b {
+      stroke: var(--tone-b);
+    }
+
+    .mark .dot {
+      fill: var(--dot);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Netior Taeguk Lab</h1>
+    <p class="lead">A palette-switchable exploration space for minimal taeguk + DNA-helix directions. This lab now leans hard into form exploration: many different shape concepts live side by side, while each card lets you swap color strategy independently so you can separate “shape language” from “symbolic reading.” The latest additions push much harder on crossing, switching, splicing, and over-under motion around the center.</p>
+    <div class="callout">Form and palette are intentionally decoupled in this lab</div>
+
+    <section id="grid" class="grid"></section>
+
+    <section class="notes">
+      <h3>How To Read This</h3>
+      <ul>
+        <li>All concepts keep the same high-level constraint: minimal taeguk mood, helix or relational twist, and a single central Netior dot.</li>
+        <li>This page is intentionally broad. The goal is to generate shape vocabulary first, then narrow down to a smaller brand family.</li>
+        <li>The newest concepts bias toward crossing energy, because that feels closer to co-evolution and relational rewiring than clean parallelism.</li>
+        <li>Use the palette selector on each card to test whether the symbol reads as a tool, interface, instrument, ritual mark, or generic tech badge.</li>
+        <li>Color is doing a lot of symbolic work. If a form feels right but the meaning feels wrong, change palette first before discarding the concept.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script>
+    const palettes = {
+      jadeGold: {
+        label: "Jade Gold",
+        a: "#0F766E",
+        b: "#D4A017",
+        dot: "#111827",
+        glowA: "rgba(15, 118, 110, 0.16)",
+        glowB: "rgba(212, 160, 23, 0.14)"
+      },
+      coralTeal: {
+        label: "Coral Teal",
+        a: "#C96B4B",
+        b: "#1D9A8A",
+        dot: "#111827",
+        glowA: "rgba(201, 107, 75, 0.16)",
+        glowB: "rgba(29, 154, 138, 0.14)"
+      },
+      mintIndigo: {
+        label: "Mint Indigo",
+        a: "#10B981",
+        b: "#4F46E5",
+        dot: "#111827",
+        glowA: "rgba(16, 185, 129, 0.15)",
+        glowB: "rgba(79, 70, 229, 0.14)"
+      },
+      mossCopper: {
+        label: "Moss Copper",
+        a: "#5C7A45",
+        b: "#B86A3C",
+        dot: "#111827",
+        glowA: "rgba(92, 122, 69, 0.15)",
+        glowB: "rgba(184, 106, 60, 0.14)"
+      },
+      plumAmber: {
+        label: "Plum Amber",
+        a: "#7C3AED",
+        b: "#C58A14",
+        dot: "#111827",
+        glowA: "rgba(124, 58, 237, 0.15)",
+        glowB: "rgba(197, 138, 20, 0.14)"
+      },
+      slateIce: {
+        label: "Slate Ice",
+        a: "#5B6C8F",
+        b: "#CAD7E8",
+        dot: "#111827",
+        glowA: "rgba(91, 108, 143, 0.16)",
+        glowB: "rgba(202, 215, 232, 0.12)"
+      }
+    };
+
+    const marks = {
+      gate: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M176 132C132 162 108 208 108 256C108 304 132 350 176 380" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M336 132C380 162 404 208 404 256C404 304 380 350 336 380" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="14" />
+        </svg>
+      `,
+      knot: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M166 176C166 128 226 110 266 144C310 182 310 240 256 256C202 272 202 330 246 368C286 402 346 384 346 336" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M346 176C346 128 286 110 246 144C202 182 202 240 256 256C310 272 310 330 266 368C226 402 166 384 166 336" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="13" />
+        </svg>
+      `,
+      tide: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M116 214C162 170 220 170 256 206C292 242 350 242 396 198" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M396 298C350 342 292 342 256 306C220 270 162 270 116 314" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="13" />
+        </svg>
+      `,
+      ladder: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M198 144C244 174 244 338 198 368" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M314 144C268 174 268 338 314 368" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-a" d="M222 210H290" stroke-width="18" stroke-linecap="round" />
+          <path class="tone-b" d="M222 302H290" stroke-width="18" stroke-linecap="round" />
+          <circle class="dot" cx="256" cy="256" r="13" />
+        </svg>
+      `,
+      relay: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M152 182C198 182 236 214 248 256C260 298 300 330 346 330" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M360 182C314 182 276 214 264 256C252 298 212 330 166 330" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="13" />
+        </svg>
+      `,
+      spiral: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M210 124C158 146 146 210 190 242C218 262 220 304 198 344" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M302 124C354 146 366 210 322 242C294 262 292 304 314 344" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      lens: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M144 256C186 204 224 184 256 184C288 184 326 204 368 256" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M144 256C186 308 224 328 256 328C288 328 326 308 368 256" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      hinge: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M156 170L228 228C240 238 240 274 228 284L156 342" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M356 170L284 228C272 238 272 274 284 284L356 342" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      ribbon: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M148 208C196 166 244 166 256 214C268 262 316 262 364 220" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M364 304C316 346 268 346 256 298C244 250 196 250 148 292" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      seed: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M204 136C226 174 232 214 232 256C232 298 226 338 204 376" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M308 136C286 174 280 214 280 256C280 298 286 338 308 376" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      chevron: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M162 194L256 244L350 194" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M162 318L256 268L350 318" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      coil: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M206 140C236 164 236 218 206 242C180 264 180 320 206 346" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M306 140C276 164 276 218 306 242C332 264 332 320 306 346" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      brace: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M192 148C154 164 154 212 192 228C218 238 218 274 192 284C154 300 154 348 192 364" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M320 148C358 164 358 212 320 228C294 238 294 274 320 284C358 300 358 348 320 364" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      crossweave: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M156 158C190 186 218 220 244 252C270 284 304 320 356 354" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M356 158C322 186 294 220 268 252C242 284 208 320 156 354" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      switch: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M148 188C204 188 224 226 250 250C276 274 308 324 364 324" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M364 188C308 188 288 226 262 250C236 274 204 324 148 324" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      overunder: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M156 212C194 176 230 184 256 220C282 256 318 264 356 228" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M156 300C194 336 230 328 256 292C282 256 318 248 356 284" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      splice: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M164 156C214 182 230 224 248 248C266 272 290 316 348 356" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M348 156C298 182 282 224 264 248C246 272 222 316 164 356" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      braidX: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M170 150C206 186 224 214 244 244C264 274 286 304 342 362" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M342 150C306 186 288 214 268 244C248 274 226 304 170 362" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-a" d="M214 196L298 316" stroke-width="14" stroke-linecap="round" opacity="0.5" />
+          <path class="tone-b" d="M298 196L214 316" stroke-width="14" stroke-linecap="round" opacity="0.5" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      butterfly: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M152 192C208 192 232 226 256 256C232 286 208 320 152 320" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M360 192C304 192 280 226 256 256C280 286 304 320 360 320" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      interlace: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M156 164C208 198 222 232 244 256C266 280 294 316 356 348" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M356 164C304 198 290 232 268 256C246 280 218 316 156 348" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-a" d="M206 216C232 232 244 244 256 256" stroke-width="14" stroke-linecap="round" opacity="0.55" />
+          <path class="tone-b" d="M306 216C280 232 268 244 256 256" stroke-width="14" stroke-linecap="round" opacity="0.55" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      crossover: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M162 150C204 190 228 220 256 256C284 292 308 322 350 362" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M350 150C308 190 284 220 256 256C228 292 204 322 162 362" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      figure8: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M186 170C150 198 150 242 192 256C234 270 234 314 198 342" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M326 170C362 198 362 242 320 256C278 270 278 314 314 342" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-a" d="M192 256H256" stroke-width="14" stroke-linecap="round" opacity="0.55" />
+          <path class="tone-b" d="M320 256H256" stroke-width="14" stroke-linecap="round" opacity="0.55" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      offsetx: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M150 174C200 200 232 232 270 274C300 306 320 332 362 350" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M362 162C314 192 290 226 248 250C214 270 188 306 150 338" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      stitch: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M166 166L230 230C242 242 242 270 230 282L166 346" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M346 166L282 230C270 242 270 270 282 282L346 346" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-a" d="M230 230L282 282" stroke-width="12" stroke-linecap="round" opacity="0.55" />
+          <path class="tone-b" d="M282 230L230 282" stroke-width="12" stroke-linecap="round" opacity="0.55" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      loom: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M150 204C194 180 222 194 244 222C266 250 298 262 362 246" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M362 308C318 332 290 318 268 290C246 262 214 250 150 266" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-a" d="M244 222C252 234 256 244 256 256" stroke-width="12" stroke-linecap="round" opacity="0.55" />
+          <path class="tone-b" d="M268 290C260 278 256 268 256 256" stroke-width="12" stroke-linecap="round" opacity="0.55" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      handshake: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M150 200C194 180 226 198 248 228C270 258 296 290 350 314" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M362 200C318 180 286 198 264 228C242 258 216 290 162 314" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `,
+      helixcross: `
+        <svg class="mark" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="tone-a" d="M188 146C236 176 238 214 204 242C170 270 172 308 220 366" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-b" d="M324 146C276 176 274 214 308 242C342 270 340 308 292 366" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="tone-a" d="M220 198H292" stroke-width="12" stroke-linecap="round" opacity="0.55" />
+          <path class="tone-b" d="M220 314H292" stroke-width="12" stroke-linecap="round" opacity="0.55" />
+          <circle class="dot" cx="256" cy="256" r="12" />
+        </svg>
+      `
+    };
+
+    const concepts = [
+      {
+        id: "gate",
+        tag: "Portal",
+        name: "Minimal Gate",
+        palette: "jadeGold",
+        description: "Two opposed strands, one center. The simplest human/AI tension with the least ornament and the strongest interface read."
+      },
+      {
+        id: "knot",
+        tag: "Co-Evolve",
+        name: "Living Knot",
+        palette: "coralTeal",
+        description: "The most conceptually faithful version. Human and AI are not static halves but two paths crossing, deforming, and stabilizing through Netior."
+      },
+      {
+        id: "tide",
+        tag: "Context",
+        name: "Tidal Helix",
+        palette: "mossCopper",
+        description: "Less emblematic and more contextual. It feels like waves of activated relation sets moving through a shared cognitive center."
+      },
+      {
+        id: "ladder",
+        tag: "DNA",
+        name: "Signal Ladder",
+        palette: "mintIndigo",
+        description: "The clearest helix reference without going fully biotech. It reads like a DNA skeleton translated into a cleaner product mark."
+      },
+      {
+        id: "relay",
+        tag: "Routing",
+        name: "Pulse Relay",
+        palette: "plumAmber",
+        description: "The most technological option. It feels like Netior as an active relay, where two signal structures route through one center."
+      },
+      {
+        id: "spiral",
+        tag: "Spiral",
+        name: "Inner Spiral",
+        palette: "slateIce",
+        description: "The strongest inward-motion read. It suggests search tightening toward a shared center rather than two stable halves in balance."
+      },
+      {
+        id: "lens",
+        tag: "Lens",
+        name: "Context Lens",
+        palette: "jadeGold",
+        description: "An eye or aperture-like form. It reads less as a logo-symbol and more as a focusing surface where two fields meet at one point."
+      },
+      {
+        id: "hinge",
+        tag: "Joint",
+        name: "Hinge Mark",
+        palette: "mintIndigo",
+        description: "A more mechanical concept. Two articulated arms fold toward a center, making Netior feel like a joint or mediation mechanism."
+      },
+      {
+        id: "ribbon",
+        tag: "Ribbon",
+        name: "Split Ribbon",
+        palette: "coralTeal",
+        description: "A smoother conversational shape. It feels like two threads passing information across the same dynamic surface."
+      },
+      {
+        id: "seed",
+        tag: "Seed",
+        name: "Seed Helix",
+        palette: "mossCopper",
+        description: "The most embryonic form. It feels like a growing system or early-stage knowledge structure rather than a completed emblem."
+      },
+      {
+        id: "chevron",
+        tag: "Signal",
+        name: "Double Chevron",
+        palette: "plumAmber",
+        description: "Sharper and more directive. It reads like activation, routing, or directional emphasis rather than organic co-evolution."
+      },
+      {
+        id: "coil",
+        tag: "Coil",
+        name: "Twin Coil",
+        palette: "jadeGold",
+        description: "A compact DNA-like variant. It keeps the helix association, but in a tighter and more product-icon-friendly silhouette."
+      },
+      {
+        id: "brace",
+        tag: "Brace",
+        name: "Curly Brace",
+        palette: "slateIce",
+        description: "The most abstract of the set. It feels like two structuring operators holding a center rather than two visible organisms or strands."
+      },
+      {
+        id: "crossweave",
+        tag: "Cross",
+        name: "Cross Weave",
+        palette: "coralTeal",
+        description: "A direct crossing read. Two strands travel through the center and continue outward, making the crossing itself the primary event."
+      },
+      {
+        id: "switch",
+        tag: "Switch",
+        name: "Track Switch",
+        palette: "mintIndigo",
+        description: "Feels like two routes switching lanes through a shared relay. More infrastructural than organic, but strongly cross-driven."
+      },
+      {
+        id: "overunder",
+        tag: "Weave",
+        name: "Over Under",
+        palette: "jadeGold",
+        description: "A softer weaving concept. It keeps the sense of one strand passing over and another under, without becoming a thick braid."
+      },
+      {
+        id: "splice",
+        tag: "Splice",
+        name: "Signal Splice",
+        palette: "mossCopper",
+        description: "The most DNA-recombination-like idea. It reads as two structures being cut, exchanged, and rejoined around the center."
+      },
+      {
+        id: "braidX",
+        tag: "Braid",
+        name: "Braid X",
+        palette: "plumAmber",
+        description: "A harder crossing family with visible diagonals. It is closer to a woven emblem and pushes the crossing motif into a more iconic form."
+      },
+      {
+        id: "butterfly",
+        tag: "Fold",
+        name: "Butterfly Fold",
+        palette: "slateIce",
+        description: "A crossing form that feels folded rather than wired. It suggests two fields converging into one center and opening again."
+      },
+      {
+        id: "interlace",
+        tag: "Interlace",
+        name: "Interlace Join",
+        palette: "coralTeal",
+        description: "A softer double-weave. The strands cross and partially overlap, so the center feels joined rather than merely touched."
+      },
+      {
+        id: "crossover",
+        tag: "X-Flow",
+        name: "Crossover Arc",
+        palette: "mintIndigo",
+        description: "The cleanest explicit crossing. Two arcs commit to an X-shaped pass-through while still staying curved and minimal."
+      },
+      {
+        id: "figure8",
+        tag: "Loop",
+        name: "Figure Eight",
+        palette: "jadeGold",
+        description: "A more symbolic crossing family. It reads like two constrained loops resolving into a shared center without becoming a literal infinity sign."
+      },
+      {
+        id: "offsetx",
+        tag: "Offset",
+        name: "Offset Cross",
+        palette: "plumAmber",
+        description: "A deliberately unbalanced crossover. The crossing shifts off-axis, which makes it feel more like live navigation than static symmetry."
+      },
+      {
+        id: "stitch",
+        tag: "Stitch",
+        name: "Center Stitch",
+        palette: "slateIce",
+        description: "The center becomes a stitched join rather than an empty pass-through. It pushes the idea of two systems being sewn together at one working point."
+      },
+      {
+        id: "loom",
+        tag: "Loom",
+        name: "Loom Pass",
+        palette: "mossCopper",
+        description: "More horizontal and woven. It feels less like a logo drawn from two halves and more like a fabric of relations crossing through a center."
+      },
+      {
+        id: "handshake",
+        tag: "Handshake",
+        name: "Cross Handshake",
+        palette: "jadeGold",
+        description: "A crossing that feels cooperative rather than mechanical. The two paths meet, exchange direction, and continue changed."
+      },
+      {
+        id: "helixcross",
+        tag: "Helix",
+        name: "Helix Cross",
+        palette: "mintIndigo",
+        description: "The closest to the minimal taeguk plus DNA brief. It keeps the helix cue, but the crossing remains the primary read instead of pure twisting."
+      }
+    ];
+
+    function paletteOptions(selected) {
+      return Object.entries(palettes)
+        .map(([id, palette]) => `<option value="${id}" ${id === selected ? "selected" : ""}>${palette.label}</option>`)
+        .join("");
+    }
+
+    function sizePreview(markup, sizeClass, label) {
+      return `
+        <div class="size-chip">
+          <div class="size-frame ${sizeClass}">${markup}</div>
+          <span>${label}</span>
+        </div>
+      `;
+    }
+
+    function cardTemplate(concept) {
+      const markup = marks[concept.id];
+      return `
+        <article class="card" data-concept="${concept.id}">
+          <div class="artboard">
+            <div class="mark-wrap">${markup}</div>
+          </div>
+          <div class="content">
+            <div class="topline">
+              <div class="eyebrow">${concept.tag}</div>
+              <div class="palette-meta" data-palette-label></div>
+            </div>
+            <h2>${concept.name}</h2>
+            <p>${concept.description}</p>
+            <div class="controls">
+              <label for="palette-${concept.id}">Palette</label>
+              <select id="palette-${concept.id}" data-palette-select>
+                ${paletteOptions(concept.palette)}
+              </select>
+            </div>
+            <div class="sizes">
+              ${sizePreview(markup, "size-128", "128")}
+              ${sizePreview(markup, "size-48", "48")}
+              ${sizePreview(markup, "size-24", "24")}
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function applyPalette(card, paletteId) {
+      const palette = palettes[paletteId];
+      card.style.setProperty("--tone-a", palette.a);
+      card.style.setProperty("--tone-b", palette.b);
+      card.style.setProperty("--dot", palette.dot);
+      card.style.setProperty("--glow-a", palette.glowA);
+      card.style.setProperty("--glow-b", palette.glowB);
+      card.querySelector("[data-palette-label]").textContent = palette.label;
+    }
+
+    const grid = document.getElementById("grid");
+    grid.innerHTML = concepts.map(cardTemplate).join("");
+
+    Array.from(grid.querySelectorAll(".card")).forEach((card, index) => {
+      const concept = concepts[index];
+      const select = card.querySelector("[data-palette-select]");
+      applyPalette(card, concept.palette);
+      select.addEventListener("change", (event) => {
+        applyPalette(card, event.target.value);
+      });
+    });
+  </script>
+</body>
+</html>

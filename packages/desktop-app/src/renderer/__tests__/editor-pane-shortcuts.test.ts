@@ -520,6 +520,37 @@ describe('openFileTab smart pane routing', () => {
   });
 });
 
+describe('openTab active pane routing', () => {
+  beforeEach(() => {
+    useEditorStore.getState().clear();
+  });
+
+  it('opens network viewer tabs in the active side pane even when a full pane exists', async () => {
+    useEditorStore.setState({
+      tabs: [
+        makeTab('side:active'),
+        { ...makeTab('full:open'), viewMode: 'full' },
+      ],
+      activeTabId: 'side:active',
+      sideLayout: makeLeaf(['side:active'], 'side:active'),
+      fullLayout: makeLeaf(['full:open'], 'full:open'),
+    });
+
+    await useEditorStore.getState().openTab({
+      type: 'networkViewer',
+      targetId: 'network-1',
+      title: 'Network 1',
+    });
+
+    const state = useEditorStore.getState();
+    const tab = state.tabs.find((item) => item.id === 'networkViewer:network-1');
+
+    expect(tab?.viewMode).toBe('side');
+    expect(state.sideLayout && containsTab(state.sideLayout, 'networkViewer:network-1')).toBe(true);
+    expect(state.fullLayout && containsTab(state.fullLayout, 'networkViewer:network-1')).toBe(false);
+  });
+});
+
 describe('setStale idempotence', () => {
   beforeEach(() => {
     useEditorStore.getState().clear();

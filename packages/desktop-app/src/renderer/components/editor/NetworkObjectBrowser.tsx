@@ -47,6 +47,8 @@ interface NetworkObjectBrowserProps {
   searchPlaceholder: string;
   sections: NetworkBrowserSection[];
   selectedKey: string | null;
+  toolbar?: React.ReactNode;
+  showHeader?: boolean;
   onSelect: (item: NetworkBrowserItem) => void;
   onOpen: (item: NetworkBrowserItem) => void;
 }
@@ -69,6 +71,8 @@ export function NetworkObjectBrowser({
   searchPlaceholder,
   sections,
   selectedKey,
+  toolbar,
+  showHeader = true,
   onSelect,
   onOpen,
 }: NetworkObjectBrowserProps): JSX.Element {
@@ -86,7 +90,7 @@ export function NetworkObjectBrowser({
               item.title.toLowerCase().includes(normalized) || item.subtitle.toLowerCase().includes(normalized))
           : section.items,
       }))
-      .filter((section) => section.items.length > 0);
+      .filter((section) => !normalized || section.items.length > 0);
   }, [search, sections]);
 
   const totalCount = useMemo(
@@ -179,34 +183,58 @@ export function NetworkObjectBrowser({
   };
 
   return (
-    <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-surface-panel">
-      <div className="border-b border-subtle bg-surface-card px-5 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-secondary">{title}</div>
-            <div className="mt-1 text-lg font-semibold text-default">{totalCount} objects</div>
+    <section className={`flex h-full min-h-0 min-w-0 flex-1 flex-col ${showHeader ? 'bg-surface-panel' : 'bg-surface-editor'}`}>
+      {showHeader && (
+        <div className="border-b border-subtle bg-surface-card px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-secondary">{title}</div>
+              <div className="mt-1 text-lg font-semibold text-default">{totalCount} objects</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="default">{filteredSections.length} sections</Badge>
+              <Badge variant="accent">{totalCount} objects</Badge>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="default">{filteredSections.length} sections</Badge>
-            <Badge variant="accent">{totalCount} objects</Badge>
+          {toolbar && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {toolbar}
+            </div>
+          )}
+          <div className="mt-3 max-w-[360px]">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={searchPlaceholder}
+              inputSize="sm"
+            />
           </div>
         </div>
-        <div className="mt-3 max-w-[360px]">
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={searchPlaceholder}
-            inputSize="sm"
-          />
-        </div>
-      </div>
+      )}
 
       <div
-        className="editor-scrollbar min-h-0 flex-1 overflow-y-scroll overflow-x-hidden p-4 outline-none"
+        className="editor-scrollbar min-h-0 flex-1 overflow-y-scroll overflow-x-hidden p-5 outline-none"
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex flex-col gap-4">
+        {!showHeader && (
+          <div className="mx-auto mb-4 flex w-full max-w-[980px] flex-wrap items-center justify-between gap-3">
+            <div className="min-w-[220px] max-w-[360px] flex-1">
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={searchPlaceholder}
+                inputSize="sm"
+              />
+            </div>
+            {toolbar && (
+              <div className="flex flex-wrap gap-2">
+                {toolbar}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="mx-auto flex w-full max-w-[980px] flex-col gap-4">
           {filteredSections.map((section) => {
             const collapsed = collapsedSections.has(section.key);
             return (
@@ -231,49 +259,55 @@ export function NetworkObjectBrowser({
                 </button>
 
                 {!collapsed && (
-                  <div className="flex flex-col">
-                    {section.items.map((item) => {
-                      const Icon = item.objectType === 'network' && item.networkKind === 'ontology'
-                        ? Boxes
-                        : ICONS[item.objectType];
-                      const itemKey = `${item.objectType}:${item.id}`;
-                      const selected = selectedKey === itemKey;
-                      return (
-                        <button
-                          key={itemKey}
-                          ref={(element) => {
-                            if (element) itemRefs.current.set(itemKey, element);
-                            else itemRefs.current.delete(itemKey);
-                          }}
-                          type="button"
-                          className={`grid grid-cols-[auto,minmax(0,1fr),auto] items-center gap-3 border-t border-subtle px-4 py-3 text-left transition-colors first:border-t-0 ${
-                            selected
-                              ? 'bg-state-selected text-accent'
-                              : item.isActive
-                                ? 'bg-accent-muted/40 text-accent'
-                                : 'text-default hover:bg-state-hover'
-                          }`}
-                          onClick={() => onOpen(item)}
-                          onDoubleClick={() => onOpen(item)}
-                        >
-                          <div className={`rounded-lg p-2 ${selected ? 'bg-accent-muted text-accent' : 'bg-surface-editor text-secondary'}`}>
-                            <Icon size={16} className="shrink-0" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <div className="truncate text-sm font-medium">{item.title}</div>
-                              {item.isActive && <Badge variant="accent">Active</Badge>}
+                  section.items.length === 0 ? (
+                    <div className="border-t border-subtle px-4 py-6 text-xs text-muted">
+                      No objects yet
+                    </div>
+                  ) : (
+                    <div className="flex flex-col">
+                      {section.items.map((item) => {
+                        const Icon = item.objectType === 'network' && item.networkKind === 'ontology'
+                          ? Boxes
+                          : ICONS[item.objectType];
+                        const itemKey = `${item.objectType}:${item.id}`;
+                        const selected = selectedKey === itemKey;
+                        return (
+                          <button
+                            key={itemKey}
+                            ref={(element) => {
+                              if (element) itemRefs.current.set(itemKey, element);
+                              else itemRefs.current.delete(itemKey);
+                            }}
+                            type="button"
+                            className={`grid grid-cols-[auto,minmax(0,1fr),auto] items-center gap-3 border-t border-subtle px-4 py-3 text-left transition-colors first:border-t-0 ${
+                              selected
+                                ? 'bg-state-selected text-accent'
+                                : item.isActive
+                                  ? 'bg-accent-muted/40 text-accent'
+                                  : 'text-default hover:bg-state-hover'
+                            }`}
+                            onClick={() => onOpen(item)}
+                            onDoubleClick={() => onOpen(item)}
+                          >
+                            <div className={`rounded-lg p-2 ${selected ? 'bg-accent-muted text-accent' : 'bg-surface-editor text-secondary'}`}>
+                              <Icon size={16} className="shrink-0" />
                             </div>
-                            <div className="mt-0.5 truncate text-xs text-muted">{item.subtitle}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={selected ? 'accent' : 'default'}>{item.objectType}</Badge>
-                            <ChevronRight size={14} className={selected ? 'text-accent' : 'text-muted'} />
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <div className="truncate text-sm font-medium">{item.title}</div>
+                                {item.isActive && <Badge variant="accent">Active</Badge>}
+                              </div>
+                              <div className="mt-0.5 truncate text-xs text-muted">{item.subtitle}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={selected ? 'accent' : 'default'}>{item.objectType}</Badge>
+                              <ChevronRight size={14} className={selected ? 'text-accent' : 'text-muted'} />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )
                 )}
               </section>
             );

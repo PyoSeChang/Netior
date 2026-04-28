@@ -1,0 +1,11 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior horizontal taeguk seed helix</title>
+  <desc>Softer taeguk seeds travel left to right like an organic horizontal DNA helix around a single Netior core.</desc>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M94 232C128 184 180 170 220 190C258 208 278 246 308 256C342 268 384 286 418 328" stroke="#D85A64" stroke-width="28"/>
+    <path d="M94 280C128 328 180 342 220 322C258 304 278 266 308 256C342 244 384 226 418 184" stroke="#3A6FB0" stroke-width="28"/>
+    <path d="M186 218V294" stroke="#0F172A" stroke-width="10" opacity="0.26"/>
+    <path d="M352 228V284" stroke="#0F172A" stroke-width="10" opacity="0.26"/>
+  </g>
+  <circle cx="256" cy="256" r="12" fill="#0F172A"/>
+</svg>

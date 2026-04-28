@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior taeguk core draft</title>
+  <desc>Taeguk-based network mark with a central Netior dot inside a closed relational field.</desc>
+  <defs>
+    <clipPath id="netior-taeguk-core-clip">
+      <circle cx="256" cy="256" r="176" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#netior-taeguk-core-clip)">
+    <circle cx="256" cy="256" r="176" fill="#F45D5D" />
+    <path d="M256 80A176 176 0 0 1 256 432A88 88 0 0 0 256 256A88 88 0 0 1 256 80Z" fill="#2563EB" />
+    <circle cx="256" cy="168" r="88" fill="#2563EB" />
+    <circle cx="256" cy="344" r="88" fill="#F45D5D" />
+  </g>
+  <circle cx="256" cy="256" r="176" stroke="#0F172A" stroke-width="20" />
+  <circle cx="256" cy="168" r="18" fill="#0F172A" />
+  <circle cx="256" cy="344" r="18" fill="#0F172A" />
+  <circle cx="256" cy="256" r="38" fill="#0F172A" />
+  <circle cx="256" cy="256" r="14" fill="#F8FAFC" />
+</svg>

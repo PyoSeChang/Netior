@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior horizontal taper comma</title>
+  <desc>Horizontal taeguk-helix concept with stronger taeguk-comma motion and continuous taper.</desc>
+  <path d="M72 236C86 176 154 146 216 174C252 190 270 224 276 254C286 304 324 334 370 336C406 338 434 324 450 296C444 320 422 340 390 350C330 370 268 348 228 292C206 260 188 240 160 236C122 230 92 244 72 276C66 262 66 248 72 236Z" fill="#D85A64"/>
+  <path d="M72 276C86 336 154 366 216 338C252 322 270 288 276 258C286 208 324 178 370 176C406 174 434 188 450 216C444 192 422 172 390 162C330 142 268 164 228 220C206 252 188 272 160 276C122 282 92 268 72 236C66 250 66 264 72 276Z" fill="#3A6FB0"/>
+  <circle cx="256" cy="256" r="12" fill="#0F172A"/>
+</svg>

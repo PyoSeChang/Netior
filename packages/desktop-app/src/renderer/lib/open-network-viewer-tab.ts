@@ -18,7 +18,6 @@ export async function openNetworkViewerTab({
     targetId: networkId,
     title,
     projectId: projectId ?? undefined,
-    viewMode: 'full',
     isDirty,
   });
 }

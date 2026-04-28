@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Bot, FileText, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import type { EditorTab, NarreUserAgentType, UserAgentRecord, UserAgentSkillSummary } from '@netior/shared/types';
 import { agentService } from '../../services/agent-service';
 import { useI18n } from '../../hooks/useI18n';
@@ -366,34 +366,25 @@ export function AgentEditor({ tab }: AgentEditorProps): JSX.Element {
     return (
       <div className="editor-scrollbar h-full min-h-0 overflow-y-scroll bg-surface-editor text-default">
         <div className="mx-auto flex w-full max-w-[980px] flex-col gap-5 px-6 py-5">
-          <section className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <Badge variant="accent" className="mb-3">
-                {tk('agentEditor.title')}
-              </Badge>
-              <h2 className="text-xl font-semibold text-default">{tk('agentEditor.title')}</h2>
-              <p className="mt-1 max-w-[640px] text-sm text-secondary">{tk('agentEditor.agentSectionDescription')}</p>
-            </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button size="sm" variant="secondary" onClick={() => void loadAgents()}>
-                <RefreshCw size={14} />
-                {tk('agentEditor.refresh')}
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => startNewAgent('global')}>
-                <Plus size={14} />
-                {tk('agentEditor.newGlobal')}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={!canCreateProjectAgent}
-                onClick={() => startNewAgent('project')}
-              >
-                <Plus size={14} />
-                {tk('agentEditor.newProject')}
-              </Button>
-            </div>
-          </section>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button size="sm" variant="secondary" onClick={() => void loadAgents()}>
+              <RefreshCw size={14} />
+              {tk('agentEditor.refresh')}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => startNewAgent('global')}>
+              <Plus size={14} />
+              {tk('agentEditor.newGlobal')}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!canCreateProjectAgent}
+              onClick={() => startNewAgent('project')}
+            >
+              <Plus size={14} />
+              {tk('agentEditor.newProject')}
+            </Button>
+          </div>
 
           {error && (
             <div className="rounded-xl border border-subtle bg-surface-card px-4 py-3 text-sm text-status-error">
@@ -446,47 +437,42 @@ export function AgentEditor({ tab }: AgentEditorProps): JSX.Element {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface-editor text-default">
-      <div className="shrink-0 border-b border-subtle bg-surface-panel px-5 py-3">
-        <Button size="sm" variant="ghost" onClick={handleBackToList}>
-          <ArrowLeft size={14} />
-          {tk('agentEditor.backToList')}
-        </Button>
-      </div>
-
       <div className="editor-scrollbar min-h-0 flex-1 overflow-y-scroll overflow-x-hidden">
         <div className="mx-auto flex w-full max-w-[980px] flex-col gap-5 px-6 py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Button size="sm" variant="ghost" onClick={handleBackToList}>
+              <ArrowLeft size={14} />
+              {tk('agentEditor.backToList')}
+            </Button>
+            {agentDraft && (
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {selectedAgent && !isNewAgent && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => setPendingDelete({ type: 'agent', agent: selectedAgent })}
+                  >
+                    <Trash2 size={14} />
+                    {t('common.delete')}
+                  </Button>
+                )}
+                <Button size="sm" disabled={saving} isLoading={saving} onClick={() => void saveAgent()}>
+                  <Save size={14} />
+                  {t('common.save')}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="rounded-xl border border-subtle bg-surface-card px-4 py-3 text-sm text-status-error">
+              {error}
+            </div>
+          )}
+
           {agentDraft ? (
             <>
-              <section className="rounded-xl border border-default bg-surface-panel p-5 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <Badge variant={agentDraft.userAgentType === 'project' ? 'accent' : 'default'} className="mb-3">
-                      {agentDraft.userAgentType === 'project' ? tk('agentEditor.scopeProject') : tk('agentEditor.scopeGlobal')}
-                    </Badge>
-                    <h2 className="truncate text-xl font-semibold text-default">{agentDraft.name || tk('agentEditor.title')}</h2>
-                    <p className="mt-1 max-w-[620px] text-sm text-secondary">{agentDraft.description || tk('agentEditor.agentSectionDescription')}</p>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    {selectedAgent && !isNewAgent && (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        disabled={saving}
-                        onClick={() => setPendingDelete({ type: 'agent', agent: selectedAgent })}
-                      >
-                        <Trash2 size={14} />
-                        {t('common.delete')}
-                      </Button>
-                    )}
-                    <Button size="sm" disabled={saving} isLoading={saving} onClick={() => void saveAgent()}>
-                      <Save size={14} />
-                      {t('common.save')}
-                    </Button>
-                  </div>
-                </div>
-                {error && <div className="mt-4 text-sm text-status-error">{error}</div>}
-              </section>
-
               <section className="rounded-xl border border-subtle bg-surface-card p-5">
                 <div className="mb-4">
                   <h3 className="text-sm font-semibold text-default">{tk('agentEditor.agentSectionTitle')}</h3>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bug, SlidersHorizontal } from 'lucide-react';
+import { Bug, ExternalLink, SlidersHorizontal, Waypoints } from 'lucide-react';
 import { NodeLayer } from './NodeLayer';
 import { EdgeLayer } from './EdgeLayer';
 import { EdgeDebugOverlay } from './EdgeDebugOverlay';
@@ -46,6 +46,7 @@ interface NetworkWorkspaceProps {
   initialNetworkId?: string | null;
   onOpenLayoutSettings?: (() => void) | null;
   onControlsChange?: (controls: LayoutControlsRendererProps | null) => void;
+  showOpenViewerAction?: boolean;
 }
 
 interface ParsedNodePosition {
@@ -1291,6 +1292,7 @@ export function NetworkWorkspace({
   initialNetworkId = null,
   onOpenLayoutSettings = null,
   onControlsChange,
+  showOpenViewerAction = true,
 }: NetworkWorkspaceProps): JSX.Element {
   const isDev = import.meta.env.DEV;
   const {
@@ -3605,6 +3607,41 @@ export function NetworkWorkspace({
       }]
       : [];
 
+    const openViewerLabel = t('network.openViewer' as never);
+    const openViewerActionItems = currentNetwork && showOpenViewerAction
+      ? [{
+        key: `network-open-viewer:${currentNetwork.id}`,
+        icon: <Waypoints size={14} />,
+        label: openViewerLabel === 'network.openViewer' ? 'Open viewer' : openViewerLabel,
+        onClick: () => {
+          void openNetworkViewerTab({
+            networkId: currentNetwork.id,
+            title: currentNetwork.name,
+            projectId: currentNetwork.project_id ?? projectId ?? null,
+          });
+        },
+      }]
+      : [];
+
+    const networkActionItems = currentNetwork
+      ? [
+        ...openViewerActionItems,
+        {
+          key: `network-open-editor:${currentNetwork.id}`,
+          icon: <ExternalLink size={14} />,
+          label: t('editor.openInEditor'),
+          onClick: () => {
+            void useEditorStore.getState().openTab({
+              type: 'network',
+              targetId: currentNetwork.id,
+              title: currentNetwork.name,
+              projectId: currentNetwork.project_id ?? projectId ?? undefined,
+            });
+          },
+        },
+      ]
+      : [];
+
     return isDev ? [
       ...layoutSettingsItem,
       ...pluginItems,
@@ -3614,20 +3651,25 @@ export function NetworkWorkspace({
         label: showEdgeDebugOverlay ? t('network.hideEdgeDebugOverlay') : t('network.showEdgeDebugOverlay'),
         onClick: () => setShowEdgeDebugOverlay((value) => !value),
       },
+      ...networkActionItems,
     ] : [
       ...layoutSettingsItem,
       ...pluginItems,
+      ...networkActionItems,
     ];
   }, [
+    currentNetwork,
     isDev,
     layoutConfig,
     layoutPlugin.controlItems,
     onOpenLayoutSettings,
     panX,
     panY,
+    projectId,
     setPanX,
     setPanY,
     setZoom,
+    showOpenViewerAction,
     showEdgeDebugOverlay,
     t,
     updatePluginConfig,

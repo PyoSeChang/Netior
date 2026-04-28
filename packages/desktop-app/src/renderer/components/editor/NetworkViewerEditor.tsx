@@ -21,6 +21,7 @@ export function NetworkViewerEditor({ tab }: NetworkViewerEditorProps): JSX.Elem
       <NetworkWorkspace
         projectId={projectId}
         initialNetworkId={tab.targetId}
+        showOpenViewerAction={false}
         onOpenLayoutSettings={() => {
           void openTab({
             type: 'network',

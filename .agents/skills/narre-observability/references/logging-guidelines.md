@@ -6,6 +6,10 @@ Use logging to answer one concrete question first:
 
 - Where does a single Narre request stop?
 
+In this repo, dev logging should also answer:
+
+- Which worktree produced this runtime log?
+
 Do not start with a generic logging framework when the real gap is missing lifecycle visibility.
 
 ## Why Lifecycle-First Logging
@@ -169,11 +173,29 @@ Interpretation rules:
 Use the bundled script first:
 
 - `powershell -ExecutionPolicy Bypass -File .agents/skills/narre-observability/scripts/show_narre_logs.ps1`
+- `powershell -ExecutionPolicy Bypass -File .agents/skills/narre-observability/scripts/show_narre_logs.ps1 -ListScopes`
+- `powershell -ExecutionPolicy Bypass -File .agents/skills/narre-observability/scripts/show_narre_logs.ps1 -Worktree main`
+- `powershell -ExecutionPolicy Bypass -File .agents/skills/narre-observability/scripts/show_narre_logs.ps1 -Worktree narre-debug -Target narre`
 
 Use live follow when needed:
 
 - `Get-Content <desktop-main.log> -Tail 120 -Wait`
 - `Get-Content <narre-server.log> -Tail 120 -Wait`
+
+## Worktree-Aware Runtime Scopes
+
+Dev runtime logs are already stored under worktree-specific scope directories:
+
+- main repo example: `runtime/dev-main-<hash>/data/logs`
+- worktree example: `runtime/dev-desktop-debug-<hash>/data/logs`
+
+That means the primary isolation mechanism is the directory path, not post-hoc log parsing.
+
+The log viewer script should therefore select by:
+
+1. exact runtime scope when known
+2. worktree label when investigating a named worktree
+3. newest runtime scope only as a fallback
 
 ## When To Generalize
 

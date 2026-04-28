@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netior Taeguk Helix Study</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-top: #061018;
+      --bg-bottom: #03070d;
+      --panel: rgba(9, 16, 24, 0.9);
+      --panel-soft: rgba(12, 19, 29, 0.88);
+      --border: rgba(145, 164, 186, 0.18);
+      --text: #ecf3ff;
+      --muted: #96a8bb;
+      --accent: #9ed3ff;
+      --accent-soft: rgba(158, 211, 255, 0.12);
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 14%, rgba(216, 90, 100, 0.16), transparent 24%),
+        radial-gradient(circle at 82% 18%, rgba(58, 111, 176, 0.18), transparent 26%),
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 56px 0 72px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 58px);
+      letter-spacing: -0.05em;
+    }
+
+    .lead {
+      max-width: 780px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.72;
+    }
+
+    .callout {
+      margin-top: 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid rgba(158, 211, 255, 0.22);
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .grid {
+      margin-top: 34px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(13, 22, 34, 0.92), rgba(7, 12, 19, 0.98));
+      box-shadow: var(--shadow);
+    }
+
+    .artboard {
+      position: relative;
+      padding: 24px;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        radial-gradient(circle at 20% 20%, rgba(216, 90, 100, 0.08), transparent 28%),
+        radial-gradient(circle at 82% 24%, rgba(58, 111, 176, 0.1), transparent 30%),
+        var(--panel-soft);
+      background-size: 28px 28px, 28px 28px, auto, auto, auto;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .artboard img {
+      display: block;
+      width: 100%;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+
+    .content {
+      padding: 20px 20px 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow.recommended {
+      background: rgba(158, 211, 255, 0.14);
+    }
+
+    h2 {
+      margin: 14px 0 10px;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.66;
+    }
+
+    .sizes {
+      margin-top: 18px;
+      display: flex;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .size-chip {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .size-frame {
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #0c1623 0%, #09111a 100%);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .size-frame img {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .size-128 {
+      width: 128px;
+      height: 128px;
+      padding: 8px;
+    }
+
+    .size-48 {
+      width: 48px;
+      height: 48px;
+      padding: 3px;
+      border-radius: 12px;
+    }
+
+    .size-24 {
+      width: 24px;
+      height: 24px;
+      padding: 2px;
+      border-radius: 8px;
+    }
+
+    .notes {
+      margin-top: 34px;
+      padding: 20px 22px;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      background: rgba(10, 17, 26, 0.84);
+    }
+
+    .notes h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .notes ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Netior taeguk helix study</h1>
+    <p class="lead">A reset from the previous crossing and knot directions. This round is narrower and more literal: no outer border, one dot, and a taeguk motion that keeps traveling vertically until it reads like a DNA helix instead of a closed emblem.</p>
+    <div class="callout">Focused round - taeguk to helix only</div>
+
+    <section class="grid">
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-ribbon.svg" alt="Netior Taeguk Ribbon Helix draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Balanced</div>
+          <h2>Ribbon Helix</h2>
+          <p>The cleanest compromise. It keeps a taeguk rhythm in the bulges, but the overall silhouette already behaves like a usable DNA-style product mark.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-ribbon.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-ribbon.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-ribbon.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-stack.svg" alt="Netior Stacked Taeguk Helix draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow recommended">Most Literal</div>
+          <h2>Stacked Taeguk</h2>
+          <p>The strongest interpretation of your brief. It feels like one taeguk event continues downward and becomes the next twist of the helix.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-stack.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-stack.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-stack.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-ladder.svg" alt="Netior Taeguk Helix Ladder draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Most DNA</div>
+          <h2>Helix Ladder</h2>
+          <p>The most explicit DNA read. It is less ceremonial and more infrastructural, which may be useful if the icon should feel more software-like.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-ladder.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-ladder.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-ladder.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-comma.svg" alt="Netior Taeguk Comma Helix draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Taeguk Motion</div>
+          <h2>Comma Helix</h2>
+          <p>This pushes hardest toward the taeguk comma feel. It is less geometric and more calligraphic, which gives it more identity but also more risk.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-comma.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-comma.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-comma.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="artboard">
+          <img src="./netior-taeguk-helix-seed.svg" alt="Netior Taeguk Seed Helix draft" />
+        </div>
+        <div class="content">
+          <div class="eyebrow">Softest</div>
+          <h2>Seed Helix</h2>
+          <p>The most organic option. It feels less like an engineered helix and more like a living taeguk strand growing through the center.</p>
+          <div class="sizes">
+            <div class="size-chip">
+              <div class="size-frame size-128"><img src="./netior-taeguk-helix-seed.svg" alt="" /></div>
+              <span>128</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-48"><img src="./netior-taeguk-helix-seed.svg" alt="" /></div>
+              <span>48</span>
+            </div>
+            <div class="size-chip">
+              <div class="size-frame size-24"><img src="./netior-taeguk-helix-seed.svg" alt="" /></div>
+              <span>24</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="notes">
+      <h3>Reading Guide</h3>
+      <ul>
+        <li><strong>Stacked Taeguk</strong> is the closest match if the main ask is “taeguk itself becomes the helix”.</li>
+        <li><strong>Ribbon Helix</strong> is the safest if the icon still has to read clearly at app-icon sizes.</li>
+        <li><strong>Comma Helix</strong> has the strongest identity, but it is also the easiest to over-stylize.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

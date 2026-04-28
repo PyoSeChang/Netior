@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
+import { ExternalLink, Plus, RefreshCw } from 'lucide-react';
 import type { Project } from '@netior/shared/types';
 import { useNetworkStore } from '../../stores/network-store';
 import { useFileStore } from '../../stores/file-store';
@@ -24,6 +24,8 @@ import { useI18n } from '../../hooks/useI18n';
 import { openFileTab } from '../../lib/open-file-tab';
 import { ProjectCreateDialog } from '../home/ProjectCreateDialog';
 import { AgentSessionPanel } from './AgentSessionPanel';
+import { ContextMenu, type ContextMenuEntry } from '../ui/ContextMenu';
+import { useEditorStore } from '../../stores/editor-store';
 
 interface SidebarProps {
   project: Project | null;
@@ -46,6 +48,12 @@ function AppWorkspaceSidebar(): JSX.Element {
   const currentProject = useProjectStore((s) => s.currentProject);
   const createModule = useModuleStore((s) => s.createModule);
   const [showCreateProject, setShowCreateProject] = useState(false);
+  const [projectContextMenu, setProjectContextMenu] = useState<{
+    x: number;
+    y: number;
+    project: Project;
+  } | null>(null);
+  const universeIsActive = currentNetwork?.kind === 'universe';
 
   const handleCreateProject = async (name: string, rootDir: string) => {
     const project = await createProject(name, rootDir);
@@ -57,13 +65,28 @@ function AppWorkspaceSidebar(): JSX.Element {
     await openProject(project);
   };
 
+  const projectContextMenuItems: ContextMenuEntry[] = projectContextMenu
+    ? [
+      {
+        label: t('editor.openInEditor'),
+        icon: <ExternalLink size={14} />,
+        onClick: () => {
+          void useEditorStore.getState().openTab({
+            type: 'project',
+            targetId: projectContextMenu.project.id,
+            title: projectContextMenu.project.name,
+          });
+        },
+      },
+    ]
+    : [];
+
   return (
     <div className="flex min-h-full flex-col gap-4 py-2">
       <div className="px-2">
-        <div className="mb-2 text-xs font-medium text-secondary">{t('sidebar.networks' as never)}</div>
         <button
           className={`flex w-full items-center rounded px-2 py-1 text-left text-xs transition-colors ${
-            currentNetwork?.kind === 'universe'
+            universeIsActive
               ? 'bg-state-selected text-accent'
               : 'text-default hover:bg-state-hover'
           }`}
@@ -99,12 +122,17 @@ function AppWorkspaceSidebar(): JSX.Element {
               <button
                 key={project.id}
                 className={`flex w-full items-center rounded px-2 py-1 text-left text-xs transition-colors ${
-                  currentProject?.id === project.id
+                  currentProject?.id === project.id && !universeIsActive
                     ? 'bg-state-selected text-accent'
                     : 'text-default hover:bg-state-hover'
                 }`}
                 onClick={() => {
                   void handleOpenProject(project);
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setProjectContextMenu({ x: event.clientX, y: event.clientY, project });
                 }}
               >
                 <span className="truncate">{project.name}</span>
@@ -123,6 +151,14 @@ function AppWorkspaceSidebar(): JSX.Element {
         onClose={() => setShowCreateProject(false)}
         onCreate={handleCreateProject}
       />
+      {projectContextMenu && (
+        <ContextMenu
+          x={projectContextMenu.x}
+          y={projectContextMenu.y}
+          items={projectContextMenuItems}
+          onClose={() => setProjectContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

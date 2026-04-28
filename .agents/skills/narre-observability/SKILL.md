@@ -25,6 +25,11 @@ Use this skill to inspect one Narre request end to end before proposing broader 
 - Packaged logs: `%APPDATA%/netior/data/logs/desktop-main.log`
 - Packaged logs: `%APPDATA%/netior/data/logs/narre-server.log`
 
+In dev mode, `<scope>` is already worktree-aware:
+
+- main repo example: `dev-main-<hash>`
+- worktree example: `dev-narre-debug-<hash>`
+
 Use [references/logging-guidelines.md](references/logging-guidelines.md) for:
 
 - what to log
@@ -36,6 +41,9 @@ Use [references/logging-guidelines.md](references/logging-guidelines.md) for:
 
 - Run `powershell -ExecutionPolicy Bypass -File .agents/skills/narre-observability/scripts/show_narre_logs.ps1`
 - The script defaults to the newest `runtime` scope because this repo is usually debugged in dev mode
+- Use `-ListScopes` to see every detected runtime scope and its worktree label
+- Use `-Worktree <label>` to select one worktree's runtime logs directly
+- Use `-RuntimeScope <scope>` when you already know the exact runtime scope name
 - Use `-Scope packaged` when checking an installed build
 - Narrow to one side with `-Target main` or `-Target narre`
 - Increase context with `-Tail 200`

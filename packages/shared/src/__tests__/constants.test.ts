@@ -88,7 +88,6 @@ describe('NETIOR_MCP_TOOL_SPECS', () => {
   it('should expose Universe and Ontology network tool specs', () => {
     expect(getNetiorMcpToolSpec('get_universe_network')?.scope).toBe('app');
     expect(getNetiorMcpToolSpec('get_project_ontology_network')?.scope).toBe('project');
-    expect(getNetiorMcpToolSpec('get_app_root_network')).toBeNull();
   });
 
   it('should list registered MCP tool specs', () => {

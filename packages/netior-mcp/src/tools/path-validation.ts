@@ -24,7 +24,7 @@ export async function validatePath(projectId: string, targetPath: string): Promi
 }
 
 /**
- * Validates that a path is under the project's root directory.
+ * Validates that a path is under the project directory.
  * Use this for file-entity-based operations where the file may not be under a module directory.
  * Returns null on success, or error message string on failure.
  */
@@ -36,5 +36,5 @@ export async function validateProjectRootPath(projectId: string, targetPath: str
   if (resolved === rootDir || resolved.startsWith(rootDir + '/') || resolved.startsWith(rootDir + '\\')) {
     return null;
   }
-  return 'Path is outside the project root directory';
+  return 'Path is outside the project directory';
 }

@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior minimal tide draft</title>
+  <desc>Minimal wave-like taeguk field with a single central Netior dot and no outer frame.</desc>
+  <path d="M116 214C162 170 220 170 256 206C292 242 350 242 396 198" stroke="#F25F5C" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M396 298C350 342 292 342 256 306C220 270 162 270 116 314" stroke="#2563EB" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="256" cy="256" r="13" fill="#0F172A" />
+</svg>

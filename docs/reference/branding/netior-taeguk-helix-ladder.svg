@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior taeguk helix ladder</title>
+  <desc>Taeguk-driven strands with explicit ladder bars for the strongest DNA read while keeping a single Netior center.</desc>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M208 92C270 118 298 152 298 192C298 226 276 252 248 266C214 284 192 314 192 352C192 398 224 430 286 448" stroke="#D85A64" stroke-width="28"/>
+    <path d="M304 92C242 118 214 152 214 192C214 226 236 252 264 266C298 284 320 314 320 352C320 398 288 430 226 448" stroke="#3A6FB0" stroke-width="28"/>
+    <path d="M224 140H288" stroke="#0F172A" stroke-width="10" opacity="0.34"/>
+    <path d="M210 204H302" stroke="#0F172A" stroke-width="10" opacity="0.44"/>
+    <path d="M206 266H306" stroke="#0F172A" stroke-width="10" opacity="0.58"/>
+    <path d="M214 330H298" stroke="#0F172A" stroke-width="10" opacity="0.44"/>
+    <path d="M226 394H286" stroke="#0F172A" stroke-width="10" opacity="0.34"/>
+  </g>
+  <circle cx="256" cy="256" r="11" fill="#0F172A"/>
+</svg>

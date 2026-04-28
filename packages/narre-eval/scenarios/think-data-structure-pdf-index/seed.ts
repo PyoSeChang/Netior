@@ -18,7 +18,7 @@ export default async function seed(ctx: SeedContext): Promise<void> {
   });
   await ctx.createModule({
     project_id: project.id,
-    name: 'Project Root',
+    name: 'Ontology',
     path: ctx.tempDir,
   });
   const file = await ctx.createFileEntity({

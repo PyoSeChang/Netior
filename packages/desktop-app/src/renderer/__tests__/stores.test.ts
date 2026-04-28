@@ -115,7 +115,7 @@ describe('ProjectStore', () => {
     expect(useProjectStore.getState().currentProject).toBeNull();
   });
 
-  it('should validate relative file entity paths against the project root', async () => {
+  it('should validate relative file entity paths against the project directory', async () => {
     mockElectron.fileEntity.getByProject.mockResolvedValue({
       success: true,
       data: [{ id: 'f1', project_id: '1', path: 'docs/readme.md', type: 'file', metadata: null, created_at: '', updated_at: '' }],
@@ -134,7 +134,7 @@ describe('ProjectStore', () => {
     expect(useProjectStore.getState().missingFiles).toEqual([]);
   });
 
-  it('should validate absolute file entity paths without prepending the project root', async () => {
+  it('should validate absolute file entity paths without prepending the project directory', async () => {
     mockElectron.fileEntity.getByProject.mockResolvedValue({
       success: true,
       data: [{ id: 'f1', project_id: '1', path: 'C:/project/docs/readme.md', type: 'file', metadata: null, created_at: '', updated_at: '' }],

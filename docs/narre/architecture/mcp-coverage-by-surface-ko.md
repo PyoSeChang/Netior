@@ -29,7 +29,7 @@
 | NR06 | layout-aware placement | 없음 | 없음 | node position, size, collapsed, edge visual 저장 도구가 없음 |
 | NR07 | concept CRUD | 부분 | `list_concepts`, `create_concept`, `update_concept`, `delete_concept` | title/schema/visual은 가능. concept body/content는 MCP에 직접 노출되지 않음 |
 | NR08 | concept property CRUD | 강함 | `get_concept_properties`, `upsert_concept_property`, `delete_concept_property` | field value 저장은 가능 |
-| NR09 | recurrence와 virtual occurrence | 부분 | `upsert_concept_property`, `create_schema_field`, `update_schema_field` | recurrence slot property는 쓸 수 있으나 recurrence source/occurrence materialization 전용 tool은 없음 |
+| NR09 | recurrence와 virtual occurrence | 부분 | `upsert_concept_property`, `create_schema_field`, `update_schema_field` | recurrence를 여러 field와 meaning binding으로 표현할 수 있으나 recurrence source/occurrence materialization 전용 tool은 없음 |
 | NR10 | file/folder entity와 network placement | 부분 | `list_directory`, `glob_files`, `read_file`, `get_object_by_ref`, `create_network_node` | file entity 일반 create/update/delete 도구가 없음. 이미 있는 file object 배치만 저수준 조합 가능 |
 | NR11 | file metadata와 PDF TOC | 부분 | `get_file_metadata`, `update_file_pdf_toc` | PDF TOC는 가능. 일반 file metadata와 node-level metadata 전반은 부족 |
 | NR12 | edge CRUD | 강함 | `create_edge`, `get_edge`, `update_edge`, `delete_edge` | 직접 가능 |
@@ -37,8 +37,8 @@
 | NR14 | portal/subnetwork/navigation | 부분 | `create_network`, `create_network_node`, `create_edge`, `get_network_tree`, `get_network_ancestors` | portal 구조는 저수준 조합 가능. desktop open/switch UX는 MCP 밖 |
 | NR15 | group/hierarchy/containment semantics | 부분 | `create_network_node`, `update_network_node`, `create_edge`, `delete_edge` | `group`/`hierarchy` role과 relation meaning는 가능. layout/drag/drop 수준은 없음 |
 | NR16 | schema CRUD | 강함 | `list_schemas`, `create_schema`, `update_schema`, `delete_schema` | models까지 포함 |
-| NR17 | schema field definition CRUD | 강함 | `list_schema_fields`, `create_schema_field`, `update_schema_field`, `delete_schema_field`, `reorder_schema_fields` | field definition 핵심은 열려 있음 |
-| NR18 | model와 meaning slot | 강함 | `create_schema`, `update_schema`, `create_schema_field`, `update_schema_field` | model, meaning slot, slot lock, generated flag 지원 |
+| NR17 | schema field definition CRUD | 강함 | `list_schema_fields`, `create_schema_field`, `update_schema_field`, `delete_schema_field`, `reorder_schema_fields` | field definition과 `meaning_bindings` 입력이 열려 있음 |
+| NR18 | model / meaning / binding | 강함 | `list_models`, `get_model`, `create_model`, `update_model`, `delete_model`, `list_schema_meanings`, `ensure_schema_meaning`, `update_schema_meaning`, `delete_schema_meaning`, `update_schema_meaning_slot`, `create_schema_field`, `update_schema_field` | model CRUD, model meanings/recipes, schema meaning, field meaning bindings, meaning slot binding 지원 |
 | NR19 | ORM형 schema 관계와 property 모델링 | 강함 | `create_schema_field`, `update_schema_field`, `get_field_candidates`, `list_schema_fields` | `schema_ref`, relation field, candidate 조회 가능 |
 | NR20 | relation type CRUD | 강함 | `list_relation_types`, `create_relation_type`, `update_relation_type`, `delete_relation_type` | 직접 가능 |
 | NR21 | type group CRUD | 강함 | `list_type_groups`, `create_type_group`, `update_type_group`, `delete_type_group` | 직접 가능. type group object record와 Ontology network node 자동 투영은 core에서 처리한다 |
@@ -58,7 +58,8 @@
 - concept property CRUD
 - schema CRUD
 - field definition CRUD
-- model/meaning slot 조작
+- model CRUD와 model recipe 조작
+- schema meaning과 field meaning binding 조작
 - relation type CRUD
 - type group CRUD
 - Universe/Ontology system network 조회

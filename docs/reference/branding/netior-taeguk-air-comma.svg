@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior taeguk air comma</title>
+  <desc>Compact taeguk commas with more surrounding whitespace and one central Netior dot.</desc>
+  <path d="M176 202C194 160 232 138 274 144C314 150 346 176 354 212C362 248 346 278 316 292C286 306 254 298 238 276C226 258 228 236 244 224C258 214 264 202 262 184C226 182 196 188 176 202Z" fill="#D85A64" />
+  <path d="M336 310C318 352 280 374 238 368C198 362 166 336 158 300C150 264 166 234 196 220C226 206 258 214 274 236C286 254 284 276 268 288C254 298 248 310 250 328C286 330 316 324 336 310Z" fill="#3A6FB0" />
+  <circle cx="256" cy="256" r="12" fill="#0F172A" />
+</svg>

@@ -13,7 +13,6 @@ import {
 } from '../../lib/activity-bar-items';
 import {
   getProjectNetworkBookmarkIds,
-  getVisibleOrderedItems,
   type ActivityBarBottomItemKey,
   type ActivityBarTopItemKey,
 } from '../../lib/activity-bar-layout';
@@ -26,15 +25,10 @@ export function ActivityBar(): JSX.Element {
     setSidebarView,
     sidebarOpen,
     toggleSidebar,
-    bookmarkedSidebarNetworkId,
-    setBookmarkedSidebarNetworkId,
-    openBookmarkedSidebar,
   } = useUIStore();
   const currentProject = useProjectStore((state) => state.currentProject);
   const networks = useNetworkStore((state) => state.networks);
-  const activeEditorTab = useEditorStore((state) => (
-    state.tabs.find((tab) => tab.id === state.activeTabId) ?? null
-  ));
+  const openNetwork = useNetworkStore((state) => state.openNetwork);
   const config = useActivityBarStore((state) => state.config);
   const ensureLoaded = useActivityBarStore((state) => state.ensureLoaded);
   const shellClassName = sidebarOpen
@@ -57,7 +51,7 @@ export function ActivityBar(): JSX.Element {
   };
 
   const topItemKeys = useMemo(() => {
-    const available = currentProject
+    return currentProject
       ? ([
           'projects',
           'networks',
@@ -65,15 +59,13 @@ export function ActivityBar(): JSX.Element {
           'sessions',
         ] as const satisfies readonly ActivityBarTopItemKey[])
       : (['projects', 'networks'] as const satisfies readonly ActivityBarTopItemKey[]);
-    return getVisibleOrderedItems(config.topItemOrder, available);
-  }, [config.topItemOrder, currentProject]);
+  }, [currentProject]);
 
   const bottomItemKeys = useMemo(() => {
-    const available = currentProject
+    return currentProject
       ? (['ontology', 'narre', 'terminal', 'agents', 'settings'] as const satisfies readonly ActivityBarBottomItemKey[])
       : (['agents', 'settings'] as const satisfies readonly ActivityBarBottomItemKey[]);
-    return getVisibleOrderedItems(config.bottomItemOrder, available);
-  }, [config.bottomItemOrder, currentProject]);
+  }, [currentProject]);
 
   const bookmarkNetworks = useMemo(() => {
     if (!currentProject) {
@@ -87,44 +79,15 @@ export function ActivityBar(): JSX.Element {
       .filter((network) => network.kind === 'network');
   }, [config, currentProject, networks]);
 
-  useEffect(() => {
-    if (sidebarView !== 'bookmarkedNetwork') {
-      return;
-    }
-    if (bookmarkedSidebarNetworkId && bookmarkNetworks.some((network) => network.id === bookmarkedSidebarNetworkId)) {
-      return;
-    }
-    setBookmarkedSidebarNetworkId(null);
-    setSidebarView('networks');
-  }, [
-    bookmarkNetworks,
-    bookmarkedSidebarNetworkId,
-    setBookmarkedSidebarNetworkId,
-    setSidebarView,
-    sidebarView,
-  ]);
-
   const handleBookmarkedNetworkClick = (networkId: string) => {
-    if (
-      sidebarOpen
-      && sidebarView === 'bookmarkedNetwork'
-      && bookmarkedSidebarNetworkId === networkId
-    ) {
-      toggleSidebar();
-      return;
-    }
-
-    openBookmarkedSidebar(networkId);
-    if (!sidebarOpen) {
-      toggleSidebar();
-    }
+    void openNetwork(networkId);
   };
 
   const handleBottomAction = (key: ActivityBarBottomItemKey) => {
     switch (key) {
       case 'ontology':
         if (!currentProject) return;
-        useEditorStore.getState().openTab({
+        void useEditorStore.getState().openTab({
           type: 'ontology',
           targetId: currentProject.id,
           title: t('sidebar.ontology' as never),
@@ -133,20 +96,22 @@ export function ActivityBar(): JSX.Element {
         return;
       case 'narre':
         if (!currentProject) return;
-        useEditorStore.getState().openTab({
+        void useEditorStore.getState().openTab({
           type: 'narre',
           targetId: currentProject.id,
           title: t('narre.title'),
+          projectId: currentProject.id,
         });
         return;
       case 'terminal':
         openTerminalTab();
         return;
       case 'agents':
-        useEditorStore.getState().openTab({
+        void useEditorStore.getState().openTab({
           type: 'agent',
           targetId: currentProject?.id ?? 'global',
           title: t('agentEditor.title' as never),
+          projectId: currentProject?.id,
         });
         return;
       case 'settings':
@@ -185,49 +150,31 @@ export function ActivityBar(): JSX.Element {
         <>
           <div className="my-2 h-px w-5 bg-border-subtle opacity-50" />
           <div className="flex flex-col items-center gap-1">
-            {bookmarkNetworks.map((network) => {
-              const isActive = (
-                sidebarOpen
-                && sidebarView === 'bookmarkedNetwork'
-                && bookmarkedSidebarNetworkId === network.id
-              );
-
-              return (
-                <Tooltip key={network.id} content={network.name} position="left">
-                  <button
-                    className={`flex h-8 w-8 items-center justify-center rounded transition-colors ${
-                      isActive
-                        ? 'bg-state-selected text-accent'
-                        : 'text-secondary hover:bg-state-hover hover:text-default'
-                    }`}
-                    onClick={() => handleBookmarkedNetworkClick(network.id)}
-                  >
-                    <Waypoints size={18} />
-                  </button>
-                </Tooltip>
-              );
-            })}
+            {bookmarkNetworks.map((network) => (
+              <Tooltip key={network.id} content={network.name} position="left">
+                <button
+                  className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-state-hover hover:text-default"
+                  onClick={() => handleBookmarkedNetworkClick(network.id)}
+                >
+                  <Waypoints size={18} />
+                </button>
+              </Tooltip>
+            ))}
           </div>
-          <div className="my-2 h-px w-5 bg-border-subtle opacity-50" />
         </>
       )}
 
       <div className="flex-1" />
-      <div className="mb-2 h-px w-5 bg-border-subtle opacity-50" />
 
       <div className="flex flex-col items-center gap-1">
+        <div className="mb-2 h-px w-5 bg-border-subtle opacity-50" />
         {bottomItemKeys.map((key) => {
           const { icon: Icon, labelKey } = ACTIVITY_BAR_BOTTOM_ITEM_DEFINITIONS[key];
-          const isActive = key === 'ontology' && activeEditorTab?.type === 'ontology';
 
           return (
             <Tooltip key={key} content={t(labelKey)} position="left">
               <button
-                className={`flex h-8 w-8 items-center justify-center rounded transition-colors ${
-                  isActive
-                    ? 'bg-state-selected text-accent'
-                    : 'text-secondary hover:bg-state-hover hover:text-default'
-                }`}
+                className="flex h-8 w-8 items-center justify-center rounded text-secondary transition-colors hover:bg-state-hover hover:text-default"
                 onClick={() => handleBottomAction(key)}
               >
                 <Icon size={18} />

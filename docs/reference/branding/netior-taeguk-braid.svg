@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior braided taeguk draft</title>
+  <desc>Intertwined taeguk ribbons with endpoint nodes and a central Netior routing dot.</desc>
+  <circle cx="256" cy="256" r="176" stroke="#0F172A" stroke-width="18" />
+  <path d="M166 154C216 102 314 104 360 160C402 210 400 294 346 336C302 370 246 368 212 406" stroke="#F45D5D" stroke-width="56" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M346 358C296 410 198 408 152 352C110 302 112 218 166 176C210 142 266 144 300 106" stroke="#2563EB" stroke-width="56" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="166" cy="154" r="24" fill="#0F172A" />
+  <circle cx="166" cy="154" r="11" fill="#F45D5D" />
+  <circle cx="212" cy="406" r="24" fill="#0F172A" />
+  <circle cx="212" cy="406" r="11" fill="#F45D5D" />
+  <circle cx="346" cy="358" r="24" fill="#0F172A" />
+  <circle cx="346" cy="358" r="11" fill="#2563EB" />
+  <circle cx="300" cy="106" r="24" fill="#0F172A" />
+  <circle cx="300" cy="106" r="11" fill="#2563EB" />
+  <circle cx="256" cy="256" r="40" fill="#0F172A" />
+  <circle cx="256" cy="256" r="15" fill="#F8FAFC" />
+</svg>

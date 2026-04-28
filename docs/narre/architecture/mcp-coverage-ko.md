@@ -22,7 +22,7 @@
 | F05 | 그래프 편집 | 강함 | `create_network_node`, `update_network_node`, `delete_network_node`, `create_edge`, `get_edge`, `update_edge`, `delete_edge`, `get_object`, `get_object_by_ref` | node/edge 조작은 강하지만 UI gesture는 물론 MCP 범위 밖 |
 | F06 | 레이아웃 저장 | 없음 | 없음 | layout, layout node position, layout edge visual을 다루는 MCP tool이 없다 |
 | F07 | 개념 및 속성 | 강함 | `list_concepts`, `create_concept`, `update_concept`, `delete_concept`, `get_concept_properties`, `upsert_concept_property`, `delete_concept_property`, `get_field_candidates` | concept와 property 계층은 상당히 잘 열려 있다 |
-| F08 | 타입 시스템 | 강함 | `list_schemas`, `create_schema`, `update_schema`, `delete_schema`, field definition 계열, `list_type_groups`, `create_type_group`, `update_type_group`, `delete_type_group` | schema, field, model metadata, type group이 MCP에 노출되어 있다 |
+| F08 | 타입 시스템 | 강함 | `list_schemas`, `create_schema`, `update_schema`, `delete_schema`, field definition 계열, model 계열, schema meaning 계열, `list_type_groups`, `create_type_group`, `update_type_group`, `delete_type_group` | schema, field, model CRUD, schema meaning, field meaning bindings, type group이 MCP에 노출되어 있다 |
 | F09 | relation type 및 edge 의미 | 강함 | `list_relation_types`, `create_relation_type`, `update_relation_type`, `delete_relation_type`, edge 계열 | relation type과 edge 모두 가능 |
 | F10 | 컨텍스트 | 없음 | 없음 | context 및 context member 관리 도구가 MCP에 없다 |
 | F11 | 파일 엔터티 및 PDF 메타데이터 | 부분 | `get_file_metadata`, `read_pdf_pages`, `read_pdf_pages_vision`, `update_file_pdf_toc` | file entity 일반 CRUD는 없고 PDF/metadata 일부만 열린 상태 |
@@ -106,8 +106,8 @@ desktop-app IPC에는 `layout:getByNetwork`, `layout:update`, `layoutNode:setPos
 
 - schema CRUD
 - field definition CRUD/reorder
-- model metadata
-- slot metadata
+- model CRUD와 model recipe
+- schema meaning과 field meaning bindings
 - type group CRUD
 
 즉 “스키마 조작기”로서의 Narre는 꽤 강하다.

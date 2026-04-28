@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Netior horizontal taeguk ribbon helix</title>
+  <desc>Two continuous taeguk-like strands resolve into a horizontal DNA-style helix around one Netior core.</desc>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M92 210C114 270 150 308 204 308C240 308 266 286 280 256C298 218 326 192 362 192C404 192 432 220 448 286" stroke="#D85A64" stroke-width="30"/>
+    <path d="M92 302C114 242 150 204 204 204C240 204 266 226 280 256C298 294 326 320 362 320C404 320 432 292 448 226" stroke="#3A6FB0" stroke-width="30"/>
+    <path d="M154 224V288" stroke="#0F172A" stroke-width="12" opacity="0.42"/>
+    <path d="M246 208V304" stroke="#0F172A" stroke-width="12" opacity="0.56"/>
+    <path d="M338 220V292" stroke="#0F172A" stroke-width="12" opacity="0.42"/>
+  </g>
+  <circle cx="256" cy="256" r="12" fill="#0F172A"/>
+</svg>
