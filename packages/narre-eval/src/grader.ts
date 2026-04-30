@@ -665,7 +665,7 @@ async function runLlmJudge(
 ## Product Context
 Netior is a graph-based desktop app for modeling typed objects such as schemas, relation types, concepts, files, networks, and their relationships.
 In these eval scenarios, the assistant is usually asked to inspect or mutate project schema and graph state through tools.
-The important product assumption is that the user usually knows their domain better than Netior internals, but does not necessarily know how networks, semantic models, ORM-style schema_ref fields, or node placement should be designed.
+The important product assumption is that the user usually knows their domain better than Netior internals, but does not necessarily know how networks, models, ORM-style schema_ref fields, or node placement should be designed.
 Narre is expected to infer and lead those structural choices from the domain brief instead of pushing internal Netior design back to the user.
 Judge whether the assistant handled the user's request well in that context.
 

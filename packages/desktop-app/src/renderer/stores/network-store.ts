@@ -2,12 +2,19 @@ import { create } from 'zustand';
 import type {
   Network, NetworkCreate, NetworkUpdate,
   NetworkNode, NetworkNodeCreate, NetworkNodeUpdate,
-  Edge, EdgeCreate, ObjectRecord, Concept, FileEntity, RelationType,
+  Edge, EdgeCreate, ObjectRecord, Concept, FileEntity,
   NetworkBreadcrumbItem, NetworkTreeNode, Layout,
 } from '@netior/shared/types';
 import { networkService, layoutService } from '../services';
 import type { NetworkFullData, NodePosition, EdgeVisual } from '../services/network-service';
-import { HIERARCHY_PARENT_MEANING, isHierarchyParentMeaning } from '../lib/hierarchy-meaning';
+import {
+  CONTAINS_MODEL_KEY,
+  HIERARCHY_PARENT_MODEL_KEY,
+  isContainsEdge,
+  isHierarchyParentEdge,
+  systemEdgeModelId,
+} from '../lib/edge-models';
+import type { EdgeWithModel } from '../lib/edge-models';
 
 export interface NetworkNodeWithObject extends NetworkNode {
   object?: ObjectRecord;
@@ -15,7 +22,7 @@ export interface NetworkNodeWithObject extends NetworkNode {
   file?: FileEntity;
 }
 
-export type EdgeWithRelationType = Edge & { relation_type?: RelationType };
+export type EdgeWithRelationType = EdgeWithModel;
 
 interface ParsedNodePosition {
   x: number;
@@ -51,7 +58,7 @@ function buildPositionMap(positions: NodePosition[]): Map<string, ParsedNodePosi
 function buildContainsParentMap(edges: EdgeWithRelationType[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const edge of edges) {
-    if (edge.relation_meaning !== 'structure.contains') continue;
+    if (!isContainsEdge(edge)) continue;
     if (edge.source_node_id === edge.target_node_id) continue;
     map.set(edge.target_node_id, edge.source_node_id);
   }
@@ -97,8 +104,7 @@ function buildHierarchyParentMap(
   const map = new Map<string, string>();
 
   for (const edge of edges) {
-    const meaning = edge.relation_meaning ?? '';
-    if (!isHierarchyParentMeaning(meaning)) continue;
+    if (!isHierarchyParentEdge(edge)) continue;
 
     const targetHierarchyId = getHierarchyContainerIdForNode(edge.target_node_id, containsParentByChild, hierarchyContainerIds);
     if (!targetHierarchyId) continue;
@@ -206,7 +212,7 @@ async function healHierarchyOrphans(networkId: string): Promise<void> {
     if (!hierarchyContainerIds.has(directContainerId)) continue;
 
     const structuralEdges = edges.filter(
-      (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === node.id,
+      (edge) => isHierarchyParentEdge(edge) && edge.target_node_id === node.id,
     );
 
     const validExplicitParents = structuralEdges.filter((edge) =>
@@ -231,7 +237,7 @@ async function healHierarchyOrphans(networkId: string): Promise<void> {
         network_id: networkId,
         source_node_id: directContainerId,
         target_node_id: node.id,
-        relation_meaning: HIERARCHY_PARENT_MEANING,
+        model_id: systemEdgeModelId(full.network.project_id, HIERARCHY_PARENT_MODEL_KEY),
       });
     }
   }
@@ -467,13 +473,15 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     const nodeById = new Map(nodes.map((candidate) => [candidate.id, candidate]));
     const hierarchyContainerIds = getHierarchyContainerIds(nodes);
     const hierarchyParentByChild = buildHierarchyParentMap(nodes, edges, containsParentByChild);
+    const containsModelId = systemEdgeModelId(currentNetwork?.project_id, CONTAINS_MODEL_KEY);
+    const hierarchyParentModelId = systemEdgeModelId(currentNetwork?.project_id, HIERARCHY_PARENT_MODEL_KEY);
 
     const outerContainerId = containsParentByChild.get(id) ?? null;
     const directContainedEdges = edges.filter(
-      (edge) => edge.relation_meaning === 'structure.contains' && edge.source_node_id === id,
+      (edge) => isContainsEdge(edge) && edge.source_node_id === id,
     );
     const directTreeChildEdges = edges.filter(
-      (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.source_node_id === id,
+      (edge) => isHierarchyParentEdge(edge) && edge.source_node_id === id,
     );
     const directTreeChildTargetIds = new Set(directTreeChildEdges.map((edge) => edge.target_node_id));
     const deletedNodeHierarchyId = getHierarchyContainerIdForNode(id, containsParentByChild, hierarchyContainerIds);
@@ -506,8 +514,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           network_id: networkId ?? node.network_id,
           source_node_id: outerContainerId,
           target_node_id: childId,
-          relation_type_id: undefined,
-          relation_meaning: 'structure.contains',
+          model_id: containsModelId,
         });
 
         const targetNodeType = nodeById.get(outerContainerId)?.node_type as string | undefined;
@@ -519,7 +526,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
               ? true
             : edges.some(
               (edge) =>
-                isHierarchyParentMeaning(edge.relation_meaning)
+                isHierarchyParentEdge(edge)
                 && edge.target_node_id === childId
                 && edge.source_node_id !== id,
             );
@@ -528,7 +535,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
               network_id: networkId ?? node.network_id,
               source_node_id: outerContainerId,
               target_node_id: childId,
-              relation_meaning: HIERARCHY_PARENT_MEANING,
+              model_id: hierarchyParentModelId,
             });
           }
         }
@@ -537,7 +544,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
     if ((node.node_type as string) === 'hierarchy') {
       for (const edge of edges) {
-        if (!isHierarchyParentMeaning(edge.relation_meaning)) continue;
+        if (!isHierarchyParentEdge(edge)) continue;
         if (!affectedHierarchyNodeIds.has(edge.target_node_id)) continue;
         await networkService.edge.delete(edge.id);
       }
@@ -554,7 +561,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           network_id: networkId ?? node.network_id,
           source_node_id: fallbackParentId ?? fallbackHierarchyId,
           target_node_id: childId,
-          relation_meaning: HIERARCHY_PARENT_MEANING,
+          model_id: hierarchyParentModelId,
         });
       }
     }
@@ -607,7 +614,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
     await networkService.edge.delete(id);
 
-    if (isHierarchyParentMeaning(edge.relation_meaning)) {
+    if (isHierarchyParentEdge(edge)) {
       const remainingEdges = edges.filter((candidate) => candidate.id !== id);
       const containsParentByChild = buildContainsParentMap(remainingEdges);
       const hierarchyContainerId = getHierarchyContainerIdForNode(
@@ -617,7 +624,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       );
       const stillHasHierarchyParent = remainingEdges.some(
         (candidate) =>
-          isHierarchyParentMeaning(candidate.relation_meaning)
+          isHierarchyParentEdge(candidate)
           && candidate.target_node_id === edge.target_node_id,
       );
 
@@ -626,7 +633,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           network_id: edge.network_id,
           source_node_id: hierarchyContainerId,
           target_node_id: edge.target_node_id,
-          relation_meaning: HIERARCHY_PARENT_MEANING,
+          model_id: systemEdgeModelId(currentNetwork?.project_id, HIERARCHY_PARENT_MODEL_KEY),
         });
       }
     }

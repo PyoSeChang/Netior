@@ -5,15 +5,15 @@ import type {
   EditorTab,
   SemanticCategoryRefKey,
   SemanticMeaningKey,
-  SemanticModelKey,
-  SemanticModelRefKey,
+  ModelKey,
+  ModelRefKey,
   MeaningSlotKey,
   TypeGroup,
 } from '@netior/shared/types';
 import {
-  SEMANTIC_MODEL_DEFINITIONS,
-  getSemanticModelDescriptionKey,
-  getSemanticModelLabelKey,
+  MODEL_DEFINITIONS,
+  getModelDescriptionKey,
+  getModelLabelKey,
   getMeaningSlotDefinition,
   getMeaningSlotLabelKey,
   fieldMeaningToMeaningBindings,
@@ -31,7 +31,7 @@ import { IconSelector } from '../ui/IconSelector';
 import { ColorPicker } from '../ui/ColorPicker';
 import { Select } from '../ui/Select';
 import { ScrollArea } from '../ui/ScrollArea';
-import { SchemaSlotDesigner, type SemanticModelOptionDefinition } from './SchemaSlotDesigner';
+import { SchemaSlotDesigner, type ModelOptionDefinition } from './SchemaSlotDesigner';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useUIStore } from '../../stores/ui-store';
 import { stringifySchemaFieldOptions } from '../../lib/schema-field-options';
@@ -54,7 +54,7 @@ interface SchemaState {
   color: string | null;
   node_shape: string | null;
   file_template: string | null;
-  semantic_models: SemanticModelRefKey[];
+  models: ModelRefKey[];
 }
 
 const EMPTY_SCHEMA_STATE: SchemaState = {
@@ -65,19 +65,19 @@ const EMPTY_SCHEMA_STATE: SchemaState = {
   color: null,
   node_shape: null,
   file_template: null,
-  semantic_models: [],
+  models: [],
 };
 
-function normalizeSemanticModels(value: unknown): SemanticModelRefKey[] {
+function normalizeModelRefs(value: unknown): ModelRefKey[] {
   if (Array.isArray(value)) {
-    return value.filter((item): item is SemanticModelRefKey => typeof item === 'string');
+    return value.filter((item): item is ModelRefKey => typeof item === 'string');
   }
 
   if (typeof value === 'string') {
     try {
-      return normalizeSemanticModels(JSON.parse(value));
+      return normalizeModelRefs(JSON.parse(value));
     } catch {
-      return value.trim() ? [value as SemanticModelRefKey] : [];
+      return value.trim() ? [value as ModelRefKey] : [];
     }
   }
 
@@ -149,30 +149,30 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
         color: a.color,
         node_shape: a.node_shape,
         file_template: a.file_template,
-        semantic_models: normalizeSemanticModels(a.semantic_models ?? a.semantic_models),
+        models: normalizeModelRefs(a.models),
       };
     },
     save: async (state) => {
       await updateSchema(schemaId, {
         ...state,
-        semantic_models: normalizeSemanticModels(state.semantic_models),
+        models: normalizeModelRefs(state.models),
       });
       useEditorStore.getState().updateTitle(tab.id, state.name);
     },
     deps: [schemaId],
   });
   const editorState = session.state ?? EMPTY_SCHEMA_STATE;
-  const semanticModels = useMemo(
-    () => normalizeSemanticModels(editorState.semantic_models),
-    [editorState.semantic_models],
+  const selectedModels = useMemo(
+    () => normalizeModelRefs(editorState.models),
+    [editorState.models],
   );
-  const semanticModelDefinitions = useMemo<readonly SemanticModelOptionDefinition[]>(() => {
+  const modelDefinitions = useMemo<readonly ModelOptionDefinition[]>(() => {
     if (projectModels.length > 0) {
       return projectModels.map((model) => ({
         key: model.key,
         category: model.category,
-        label: model.built_in ? t(getSemanticModelLabelKey(model.key as SemanticModelKey) as never) : model.name,
-        description: model.built_in ? t(getSemanticModelDescriptionKey(model.key as SemanticModelKey) as never) : model.description,
+        label: model.built_in ? t(getModelLabelKey(model.key as ModelKey) as never) : model.name,
+        description: model.built_in ? t(getModelDescriptionKey(model.key as ModelKey) as never) : model.description,
         meanings: model.meaning_keys,
         coreSlots: model.core_slots,
         optionalSlots: model.optional_slots,
@@ -180,24 +180,24 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
       }));
     }
 
-    return SEMANTIC_MODEL_DEFINITIONS.map((definition) => ({
+    return MODEL_DEFINITIONS.map((definition) => ({
       key: definition.key,
       category: definition.category,
-      label: t(getSemanticModelLabelKey(definition.key) as never),
-      description: t(getSemanticModelDescriptionKey(definition.key) as never),
+      label: t(getModelLabelKey(definition.key) as never),
+      description: t(getModelDescriptionKey(definition.key) as never),
       meanings: definition.meanings,
       coreSlots: definition.coreSlots,
       optionalSlots: definition.optionalSlots,
       builtIn: true,
     }));
   }, [projectModels, t]);
-  const semanticModelDefinitionByKey = useMemo(
-    () => new Map(semanticModelDefinitions.map((definition) => [definition.key, definition])),
-    [semanticModelDefinitions],
+  const modelDefinitionByKey = useMemo(
+    () => new Map(modelDefinitions.map((definition) => [definition.key, definition])),
+    [modelDefinitions],
   );
-  const semanticModelSignature = useMemo(
-    () => [...semanticModels].sort().join('|'),
-    [semanticModels],
+  const modelSignature = useMemo(
+    () => [...selectedModels].sort().join('|'),
+    [selectedModels],
   );
   const modelFieldSyncSignatureRef = useRef('');
 
@@ -207,7 +207,7 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
 
   const handleEnsureMeaning = useCallback(async (
     meaning: SemanticMeaningKey,
-    options: { sourceModel?: SemanticModelRefKey | null } = {},
+    options: { sourceModel?: ModelRefKey | null } = {},
   ) => {
     useEditorStore.getState().setDirty(tab.id, true);
     await ensureMeaning({
@@ -220,7 +220,7 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
 
   const handleCreateFieldForSlot = useCallback(async (
     binding: SchemaMeaningSlotBinding,
-    meaning: { source: string; source_model?: SemanticModelRefKey | null },
+    meaning: { source: string; source_model?: ModelRefKey | null },
     options: { markEditorDirty?: boolean } = {},
   ) => {
     const slot = binding.slot_key;
@@ -262,9 +262,9 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
   }, [schemaId]);
 
   useEffect(() => {
-    if (!semanticModelSignature) return;
+    if (!modelSignature) return;
 
-    const signature = `${schemaId}:${semanticModelSignature}`;
+    const signature = `${schemaId}:${modelSignature}`;
     if (modelFieldSyncSignatureRef.current === signature) return;
 
     let cancelled = false;
@@ -272,8 +272,8 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
       await loadFields(schemaId);
       if (cancelled) return;
 
-      for (const model of semanticModels) {
-        const modelDefinition = semanticModelDefinitionByKey.get(model);
+      for (const model of selectedModels) {
+        const modelDefinition = modelDefinitionByKey.get(model);
         if (!modelDefinition) continue;
 
         for (const meaningKey of modelDefinition.meanings) {
@@ -303,9 +303,9 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
     ensureMeaning,
     handleCreateFieldForSlot,
     loadFields,
-    semanticModelDefinitionByKey,
-    semanticModelSignature,
-    semanticModels,
+    modelDefinitionByKey,
+    modelSignature,
+    selectedModels,
   ]);
 
   const handleUpdateField = useCallback(
@@ -324,17 +324,17 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
     [schemaId, tab.id, deleteField],
   );
 
-  const handleToggleModel = useCallback(async (model: SemanticModelRefKey, checked: boolean) => {
+  const handleToggleModel = useCallback(async (model: ModelRefKey, checked: boolean) => {
     const nextModels = checked
-      ? [...new Set([...semanticModels, model])]
-      : semanticModels.filter((item) => item !== model);
+      ? [...new Set([...selectedModels, model])]
+      : selectedModels.filter((item) => item !== model);
 
     useEditorStore.getState().setDirty(tab.id, true);
-    session.setState((prev) => ({ ...prev, semantic_models: nextModels }));
+    session.setState((prev) => ({ ...prev, models: nextModels }));
 
     if (!checked) return;
 
-    const modelDefinition = semanticModelDefinitionByKey.get(model);
+    const modelDefinition = modelDefinitionByKey.get(model);
     if (!modelDefinition) return;
 
     for (const meaningKey of modelDefinition.meanings) {
@@ -348,7 +348,7 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
         await handleCreateFieldForSlot(binding, meaning);
       }
     }
-  }, [schemaId, ensureMeaning, handleCreateFieldForSlot, semanticModelDefinitionByKey, semanticModels, session, tab.id]);
+  }, [schemaId, ensureMeaning, handleCreateFieldForSlot, modelDefinitionByKey, selectedModels, session, tab.id]);
 
   const nodeShapeOptions = [
     { value: 'rectangle', label: t('schema.rectangle') },
@@ -467,8 +467,8 @@ export function SchemaEditor({ tab }: SchemaEditorProps): JSX.Element {
             tabId={tab.id}
             fields={fields}
             meanings={meanings}
-            semanticModels={semanticModels}
-            modelDefinitions={semanticModelDefinitions}
+            selectedModels={selectedModels}
+            modelDefinitions={modelDefinitions}
             activeCategory={activeSemanticCategory}
             fieldComplexityLevel={fieldComplexityLevel}
             onActiveCategoryChange={setActiveSemanticCategory}

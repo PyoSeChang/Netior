@@ -7,27 +7,23 @@
 
 ## 현재 활성 시나리오 수
 
-현재 manifest가 있는 활성 시나리오는 총 `6개`다.
+현재 manifest가 있는 활성 시나리오는 총 `4개`다.
 
-- `init-project`
-- `type-update`
-- `cascade-delete`
-- `fantasy-character-orm`
-- `fantasy-quest-orm`
+- `custom-model-authoring-foreshadowing`
 - `fantasy-world-bootstrap`
+- `research-builtin-model-reuse`
+- `think-data-structure-pdf-index`
 
-추가로 `toc-index/` 디렉터리는 있으나 현재 manifest가 없어 활성 시나리오로 계산하지 않는다.
+구형 단일 파일 시나리오는 현재 활성 manifest 목록에 포함하지 않는다.
 
 ## 시나리오 카탈로그
 
 | Scenario ID | 타입 | Target Skill | 주 목적 | 성격 |
 |---|---|---|---|---|
-| `init-project` | `single-turn` | 없음 | 빈 프로젝트에 역사 도메인 타입 초기 세팅 | 기본 회귀 / schema init |
-| `type-update` | `single-turn` | 없음 | 기존 schema 이름 변경 | 기본 회귀 / schema update |
-| `cascade-delete` | `conversation` | 없음 | 종속 concept가 있는 schema 삭제와 확인 흐름 | 기본 회귀 / destructive confirmation |
-| `fantasy-character-orm` | `single-turn` | 없음 | `Character`, `City` 중심 typed `schema_ref` 설계 | product scenario / ORM |
-| `fantasy-quest-orm` | `single-turn` | 없음 | `Quest` schema과 workflow형 field 설계 | product scenario / ORM + workflow field |
+| `custom-model-authoring-foreshadowing` | `single-turn` | `bootstrap` | built-in으로 충분하지 않은 도메인 의미를 custom model로 만들고 schema에 적용 | product scenario / custom model + meaning binding |
 | `fantasy-world-bootstrap` | `single-turn` | `bootstrap` | 판타지 도메인 브리프만으로 bootstrap skill 평가 | product scenario / bootstrap skill |
+| `research-builtin-model-reuse` | `single-turn` | `bootstrap` | 연구 도메인에서 built-in model 재사용과 중복 custom model 방지 평가 | product scenario / built-in model reuse |
+| `think-data-structure-pdf-index` | `single-turn` | `index` | PDF 목차를 읽고 file metadata `pdf_toc`에 저장 | product scenario / index skill |
 
 ## 기능별 시나리오 커버리지
 
@@ -46,74 +42,55 @@
 | F05 | 그래프 편집 | `fantasy-world-bootstrap` | 부분 | starter node와 graph 초기화는 일부 보지만 edge 중심 시나리오는 없다 |
 | F06 | 레이아웃 저장 | 없음 | 없음 | layout 관련 시나리오가 전혀 없다 |
 | F07 | 개념 및 속성 | `fantasy-world-bootstrap` | 부분 | starter concept 생성은 보지만 concept property 값 조작 시나리오는 없다 |
-| F08 | 타입 시스템 | `init-project`, `type-update`, `cascade-delete`, `fantasy-character-orm`, `fantasy-quest-orm`, `fantasy-world-bootstrap` | 강함 | 현재 eval의 중심축은 schema/field/schema다 |
-| F09 | relation type 및 edge 의미 | `init-project`, `fantasy-world-bootstrap` | 부분 | relation type 생성은 일부 보지만 edge 의미/편집 시나리오는 약하다 |
+| F08 | 타입 시스템 | `fantasy-world-bootstrap`, `research-builtin-model-reuse`, `custom-model-authoring-foreshadowing` | 강함 | schema/field뿐 아니라 model, model recipe, meaning binding을 직접 본다 |
+| F09 | relation type 및 edge 의미 | `fantasy-world-bootstrap` | 부분 | relation type 생성은 일부 보지만 edge 의미/편집 시나리오는 약하다 |
 | F10 | 컨텍스트 | 없음 | 없음 | context 생성/멤버 관리 시나리오가 없다 |
-| F11 | 파일 엔터티 및 PDF 메타데이터 | 없음 | 없음 | `toc-index`가 비어 있어 file/PDF/index skill 시나리오가 사실상 없다 |
+| F11 | 파일 엔터티 및 PDF 메타데이터 | `think-data-structure-pdf-index` | 강함 | PDF TOC 추출과 file metadata 저장을 직접 검증한다 |
 | F12 | 에디터 워크벤치 | 없음 | 없음 | 탭/split/detached/workbench는 eval 범위 밖 |
 | F13 | 파일 편집기 | 없음 | 없음 | Markdown/PDF/Image editor 시나리오가 없다 |
 | F14 | 터미널 및 에이전트 런타임 | 없음 | 없음 | 터미널/agent runtime 시나리오가 없다 |
 | F15 | 설정 및 단축키 | 없음 | 없음 | 설정/shortcut 시나리오가 없다 |
 | F16 | Narre 기본 채팅 | 모든 시나리오 | 부분 | Narre 응답은 모두 거치지만, 일반 conversational quality를 전용으로 보는 시나리오는 없다 |
-| F17 | Narre `/bootstrap` | `fantasy-world-bootstrap` | 부분 | target skill까지 걸려 있으나 현재 single-turn 중심이고 staged bootstrap realism이 부족하다 |
-| F18 | Narre `/index` | 없음 | 없음 | `toc-index`가 활성화되지 않아 index skill을 실제로 검증하지 못한다 |
+| F17 | Narre `/bootstrap` | `fantasy-world-bootstrap`, `research-builtin-model-reuse`, `custom-model-authoring-foreshadowing` | 강함 | ontology bootstrap, built-in model reuse, custom model authoring을 분리해서 본다 |
+| F18 | Narre `/index` | `think-data-structure-pdf-index` | 강함 | index skill로 실제 PDF TOC를 읽고 저장하는 흐름을 검증한다 |
 
 ## 시나리오별 상세 메모
 
-### 1. `init-project`
+### 1. `fantasy-world-bootstrap`
 
 - 강점
-  - 빈 프로젝트 초기 schema 세팅 회귀에 유용
-- 한계
-  - bootstrap처럼 도메인에서 구조를 추론하는 능력은 거의 보지 않는다
-  - 네트워크, models, starter graph를 실질적으로 보지 않는다
-
-### 2. `type-update`
-
-- 강점
-  - 기존 스키마 변경 회귀에 유용
-- 한계
-  - 이름 변경 중심이라 field migration, model refactor, graph side-effect는 깊게 못 본다
-
-### 3. `cascade-delete`
-
-- 강점
-  - confirmation turn을 가진 유일한 conversation 시나리오
-  - destructive action 전 확인과 side-effect 검증이 들어 있다
-- 한계
-  - bootstrap류 멀티턴 설계 대화와는 성격이 다르다
-
-### 4. `fantasy-character-orm`
-
-- 강점
-  - typed `schema_ref` 설계 검증이 명확하다
-  - ORM-style field를 Narre가 제대로 쓰는지 보기 좋다
-- 한계
-  - 네트워크/models/starter graph는 거의 안 본다
-
-### 5. `fantasy-quest-orm`
-
-- 강점
-  - workflow형 schema 설계와 cross-schema reference를 함께 본다
-- 한계
-  - model보다 일반 field 설계에 치우치기 쉽다
-
-### 6. `fantasy-world-bootstrap`
-
-- 강점
-  - 현재 세트 중 유일하게 `/bootstrap` target skill을 명시한다
   - ontology / network / models / ORM / starter graph를 한 번에 보려는 시도다
 - 한계
-  - 아직 `single-turn`
-  - 진짜 staged bootstrap(인터뷰 -> proposal -> 승인 -> 생성) 강제가 약하다
-  - 현재 시나리오 realism이 충분하지 않아 지속적인 개편 대상이다
+  - fantasy domain에 넓게 걸쳐 있어 model/meaning/binding 전용 회귀로는 신호가 흐릴 수 있다
+
+### 2. `research-builtin-model-reuse`
+
+- 강점
+  - 시간, 반복, 워크플로, 출처, 첨부, 버전처럼 built-in model이 이미 담당하는 의미를 재사용하는지 본다
+  - 중복 custom model 생성을 금지하고, structured recurrence field binding까지 검증한다
+- 한계
+  - 실제 concept property 값 입력과 recurrence occurrence materialization은 보지 않는다
+
+### 3. `custom-model-authoring-foreshadowing`
+
+- 강점
+  - built-in model로 충분하지 않은 도메인 의미를 custom model로 만드는지 본다
+  - model recipe, 복수 허용 field type, schema_ref, custom field meaning binding을 함께 검증한다
+- 한계
+  - schema meaning slot binding은 built-in meaning 중심 도구라 custom meaning의 slot binding은 아직 제한적으로만 본다
+
+### 4. `think-data-structure-pdf-index`
+
+- 강점
+  - `/index` target skill, PDF page read, approval-before-save, `pdf_toc` metadata 저장을 직접 검증한다
+- 한계
+  - file/network placement와 broader artifact organization은 보지 않는다
 
 ## 현재 공백
 
 다음 기능은 시나리오가 전혀 없거나 사실상 비어 있다.
 
 - module / module directory / filesystem registration
-- file entity / PDF metadata / `/index`
 - layout
 - context
 - edge editing semantics
@@ -121,7 +98,7 @@
 - terminal / agent runtime
 - settings / shortcuts
 
-즉 현재 시나리오 세트는 **스키마 중심**이며, 제품 전체 기능 대비 편향이 매우 크다.
+즉 현재 시나리오 세트는 **schema/model/bootstrap/index 중심**이며, 그래프 편집과 concept property 실제 값 흐름은 아직 약하다.
 
 ## 우선 보강 대상
 
@@ -134,15 +111,15 @@
 - 네트워크/스키마 proposal
 - 승인 후 생성
 
-2. `index` skill 시나리오
-- PDF 읽기
-- TOC 추출
-- file metadata 저장
-
-3. file/module registration 시나리오
+2. file/module registration 시나리오
 - module 선택
 - moduleDir 추가/변경
 - file tree 반영
+
+3. concept property value 시나리오
+- schema field type별 값 입력
+- meaning binding 기반 property 입력
+- recurrence 값과 virtual occurrence 연결
 
 4. context 시나리오
 - context 생성
@@ -159,7 +136,7 @@
 현재 Narre eval은 `타입 시스템`과 `ORM형 field 설계`는 어느 정도 테스트하지만,
 
 - Netior 전체 제품 기능 관점에서는 커버리지가 매우 불균형하다.
-- `/bootstrap`은 이미 시나리오가 하나 있지만 아직 충분히 멀티턴/ontology-first하지 않다.
-- `/index`는 사실상 아직 테스트 세트에 없다.
+- `/bootstrap`은 ontology bootstrap, built-in model reuse, custom model authoring으로 분리되기 시작했다.
+- `/index`는 PDF TOC 저장 흐름을 직접 보는 시나리오가 생겼다.
 
-즉 현재 시나리오 인덱스는 “제품 전체 회귀 세트”라기보다 **schema-heavy Narre regression set**에 가깝다.
+즉 현재 시나리오 인덱스는 “제품 전체 회귀 세트”라기보다는 아직 **schema/model-heavy Narre regression set**에 가깝다.

@@ -7,14 +7,13 @@ import { useConceptStore } from '../../stores/concept-store';
 import { useNetworkStore } from '../../stores/network-store';
 import { useSchemaStore } from '../../stores/schema-store';
 import { useModelStore } from '../../stores/model-store';
-import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useContextStore } from '../../stores/context-store';
 import { useProjectStore } from '../../stores/project-store';
 import { useI18n } from '../../hooks/useI18n';
 import {
-  getSemanticModelDisplayDescription,
-  getSemanticModelDisplayName,
-} from '../../lib/semantic-model-i18n';
+  getModelDisplayDescription,
+  getModelDisplayName,
+} from '../../lib/model-i18n';
 
 interface ObjectPickerModalProps {
   open: boolean;
@@ -24,9 +23,9 @@ interface ObjectPickerModalProps {
   allowedTabs?: PickerTab[];
 }
 
-type PickerTab = 'concept' | 'network' | 'project' | 'schema' | 'model' | 'relation_type' | 'context';
+type PickerTab = 'concept' | 'network' | 'project' | 'schema' | 'model' | 'context';
 
-const TABS: PickerTab[] = ['concept', 'network', 'project', 'schema', 'model', 'relation_type', 'context'];
+const TABS: PickerTab[] = ['concept', 'network', 'project', 'schema', 'model', 'context'];
 
 export function ObjectPickerModal({
   open,
@@ -50,7 +49,6 @@ export function ObjectPickerModal({
   const projects = useProjectStore((s) => s.projects);
   const schemas = useSchemaStore((s) => s.schemas);
   const models = useModelStore((s) => s.models);
-  const relationTypes = useRelationTypeStore((s) => s.relationTypes);
   const contexts = useContextStore((s) => s.contexts);
 
   const tabLabels: Record<PickerTab, string> = {
@@ -59,7 +57,6 @@ export function ObjectPickerModal({
     project: t('project.title' as never) ?? 'Projects',
     schema: t('schema.title'),
     model: t('model.title' as never),
-    relation_type: t('relationType.title'),
     context: t('context.title'),
   };
 
@@ -94,19 +91,15 @@ export function ObjectPickerModal({
       case 'model':
         return models
           .filter((model) => {
-            const title = getSemanticModelDisplayName(model, t);
-            const description = getSemanticModelDisplayDescription(model, t);
+            const title = getModelDisplayName(model, t);
+            const description = getModelDisplayDescription(model, t);
             return !query || matches(title) || matches(model.key) || (description ? matches(description) : false);
           })
           .map((model) => ({
             id: model.id,
-            title: getSemanticModelDisplayName(model, t),
-            subtitle: getSemanticModelDisplayDescription(model, t) ?? t('model.title' as never),
+            title: getModelDisplayName(model, t),
+            subtitle: getModelDisplayDescription(model, t) ?? t('model.title' as never),
           }));
-      case 'relation_type':
-        return relationTypes
-          .filter((relationType) => !query || matches(relationType.name))
-          .map((relationType) => ({ id: relationType.id, title: relationType.name, subtitle: t('relationType.title') }));
       case 'context':
         return contexts
           .filter((context) => !query || matches(context.name))
@@ -114,7 +107,7 @@ export function ObjectPickerModal({
       default:
         return [];
     }
-  }, [activeTab, schemas, concepts, contexts, currentNetwork?.id, models, networks, projects, relationTypes, search, t]);
+  }, [activeTab, schemas, concepts, contexts, currentNetwork?.id, models, networks, projects, search, t]);
 
   const handleSelect = (refId: string) => {
     onSelect(activeTab, refId);

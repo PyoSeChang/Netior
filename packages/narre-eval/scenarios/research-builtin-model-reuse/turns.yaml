@@ -1,0 +1,5 @@
+turns:
+  - role: user
+    content: "/bootstrap 연구 랩에서 실험(Experiment), 문헌(Literature), 데이터셋(Dataset)을 정리하려고 해요. 실험은 시작/종료 시점, 반복 측정 주기, 진행 상태, 담당자, 우선순위가 필요하고, 문헌은 출처 URL/인용/첨부 파일이 필요해요. 데이터셋은 버전과 출처, 첨부 파일이 중요합니다. Netior 내부 구조는 잘 모르니 필요한 것만 먼저 물어보고, 기본으로 제공되는 의미 모델이 있으면 새로 만들지 말고 재사용해서 초기 구조를 제안하고 만들어 주세요."
+  - role: user
+    content: "/bootstrap 방금 제안한 방향으로 진행해 주세요. 새 custom model은 만들지 말고, built-in model을 조회해서 Experiment, Literature, Dataset schema와 필요한 field/meaning binding을 실제로 생성해 주세요."

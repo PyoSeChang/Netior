@@ -1,7 +1,7 @@
 import type {
-  SemanticModel,
-  SemanticModelCreate,
-  SemanticModelUpdate,
+  Model,
+  ModelCreate,
+  ModelUpdate,
 } from '@netior/shared/types';
 import { unwrapIpc } from './ipc';
 
@@ -12,19 +12,19 @@ function getModelApi(): NonNullable<typeof window.electron.model> {
   return window.electron.model;
 }
 
-export async function createModel(data: SemanticModelCreate): Promise<SemanticModel> {
+export async function createModel(data: ModelCreate): Promise<Model> {
   return unwrapIpc(await getModelApi().create(data as unknown as Record<string, unknown>));
 }
 
-export async function listModels(projectId: string): Promise<SemanticModel[]> {
+export async function listModels(projectId: string): Promise<Model[]> {
   return unwrapIpc(await getModelApi().list(projectId));
 }
 
-export async function getModel(id: string): Promise<SemanticModel | undefined> {
+export async function getModel(id: string): Promise<Model | undefined> {
   return unwrapIpc(await getModelApi().get(id));
 }
 
-export async function updateModel(id: string, data: SemanticModelUpdate): Promise<SemanticModel> {
+export async function updateModel(id: string, data: ModelUpdate): Promise<Model> {
   return unwrapIpc(await getModelApi().update(id, data as unknown as Record<string, unknown>));
 }
 

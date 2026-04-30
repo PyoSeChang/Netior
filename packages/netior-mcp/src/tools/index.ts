@@ -5,7 +5,6 @@ import { registerSchemaMeaningTools } from './schema-meaning-tools.js';
 import { registerCandidateSourceTools } from './candidate-source-tools.js';
 import { registerConceptPropertyTools } from './concept-property-tools.js';
 import { registerEdgeTools } from './edge-tools.js';
-import { registerRelationTypeTools } from './relation-type-tools.js';
 import { registerConceptTools } from './concept-tools.js';
 import { registerNetworkNodeTools } from './network-node-tools.js';
 import { registerNetworkTools } from './network-tools.js';
@@ -23,7 +22,6 @@ export function registerAllTools(server: McpServer): void {
   registerSchemaMeaningTools(server);
   registerModelTools(server);
   registerCandidateSourceTools(server);
-  registerRelationTypeTools(server);
   registerTypeGroupTools(server);
   registerConceptTools(server);
   registerConceptPropertyTools(server);

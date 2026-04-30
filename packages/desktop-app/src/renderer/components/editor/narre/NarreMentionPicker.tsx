@@ -20,7 +20,7 @@ const MENTION_CATEGORIES = [
   { key: 'concept', i18nKey: 'narre.mentionConcept' },
   { key: 'network', i18nKey: 'narre.mentionNetwork' },
   { key: 'schema', i18nKey: 'narre.mentionSchema' },
-  { key: 'relationType', i18nKey: 'narre.mentionRelationType' },
+  { key: 'model', i18nKey: 'narre.mentionModel' },
   { key: 'file', i18nKey: 'narre.mentionFile' },
 ] as const;
 
@@ -28,8 +28,8 @@ function PreviewPanel({ item, t }: { item: MentionResult; t: (key: TranslationKe
   const catLabel = MENTION_CATEGORIES.find((c) => c.key === item.type)?.i18nKey;
   const conceptSchema = item.type === 'concept' && typeof item.meta?.schema === 'string' ? item.meta.schema : null;
   const schemaNodeShape = item.type === 'schema' && typeof item.meta?.nodeShape === 'string' ? item.meta.nodeShape : null;
-  const relationDirected = item.type === 'relationType' && typeof item.meta?.directed === 'boolean' ? item.meta.directed : null;
-  const relationLineStyle = item.type === 'relationType' && typeof item.meta?.lineStyle === 'string' ? item.meta.lineStyle : null;
+  const modelDirected = item.type === 'model' && typeof item.meta?.directed === 'boolean' ? item.meta.directed : null;
+  const modelLineStyle = item.type === 'model' && typeof item.meta?.lineStyle === 'string' ? item.meta.lineStyle : null;
   const filePath = item.type === 'file' && typeof item.meta?.path === 'string' ? item.meta.path : null;
 
   return (
@@ -68,18 +68,18 @@ function PreviewPanel({ item, t }: { item: MentionResult; t: (key: TranslationKe
               <span className="text-default">{schemaNodeShape}</span>
             </div>
           )}
-          {item.type === 'relationType' && (
+          {item.type === 'model' && (
             <>
-              {relationDirected !== null && (
+              {modelDirected !== null && (
                 <div className="flex items-center gap-1.5">
-                  {relationDirected ? <ArrowRight size={10} /> : <Minus size={10} />}
-                  <span>{relationDirected ? 'Directed' : 'Undirected'}</span>
+                  {modelDirected ? <ArrowRight size={10} /> : <Minus size={10} />}
+                  <span>{modelDirected ? 'Directed' : 'Undirected'}</span>
                 </div>
               )}
-              {relationLineStyle && (
+              {modelLineStyle && (
                 <div className="flex items-center gap-1">
                   <span className="text-secondary">Style:</span>
-                  <span className="text-default">{relationLineStyle}</span>
+                  <span className="text-default">{modelLineStyle}</span>
                 </div>
               )}
             </>

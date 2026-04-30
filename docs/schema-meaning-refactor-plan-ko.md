@@ -40,7 +40,7 @@
 ```text
 schema_fields.meaning_slot
 edges.relation_meaning
-schemas.semantic_models
+schemas.models
 ```
 
 새 모델에서는 이들을 하나의 vocabulary로 읽는다.
@@ -90,7 +90,7 @@ Model을 제거할 때는 1차 리팩터링에서 Slot과 Property 값을 삭제
 기존 DB 컬럼은 즉시 제거하지 않는다.
 
 ```text
-semantic_models -> models
+models
 meaning_slot -> meaning_key
 relation_meaning -> meaning_key
 ```
@@ -98,7 +98,7 @@ relation_meaning -> meaning_key
 리포지토리는 새 필드와 기존 필드를 동시에 round-trip한다.
 
 ```text
-write models and semantic_models
+write models
 write meaning_key and meaning_slot
 write meaning_key and relation_meaning
 ```
@@ -147,7 +147,7 @@ Calendar는 `time.start`, `time.end`, `time.all_day`만 읽으면 되고, hierar
 ## 8. 완료 기준
 
 - 기존 `schema` 데이터가 `schema` 용어로 설명될 수 있다.
-- `semantic_models`와 `models`가 같은 의미를 유지한다.
+- schema의 model 참조는 `models`로만 유지한다.
 - `meaning_slot`과 `meaning_key`이 같은 의미를 유지한다.
 - `edge.relation_meaning`와 relation meaning이 같은 의미를 유지한다.
 - layout plugin이 raw field/edge 의미를 직접 조합하지 않고 projection helper를 통해 읽는다.

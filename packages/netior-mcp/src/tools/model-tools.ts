@@ -3,21 +3,21 @@ import { z } from 'zod';
 import { SEMANTIC_MEANING_DEFINITIONS } from '@netior/shared/constants';
 import type {
   FieldType,
-  SemanticModelFieldRecipe,
-  SemanticModelMeaningRecipe,
-  SemanticModelRecipe,
-  SemanticModelRefKey,
+  ModelFieldRecipe,
+  ModelMeaningRecipe,
+  ModelRecipe,
+  ModelRefKey,
 } from '@netior/shared/types';
 import {
-  createSemanticModel,
-  deleteSemanticModel,
-  getSemanticModel,
-  listSemanticModels,
-  updateSemanticModel,
+  createModel,
+  deleteModel,
+  getModel,
+  listModels,
+  updateModel,
 } from '../netior-service-client.js';
 import { emitChange } from '../events.js';
 import { projectIdSchema, registerNetiorTool, resolveProjectId } from './shared-tool-registry.js';
-import { fromAgentFieldType, toAgentSemanticModel, type AgentFieldType } from './schema-surface.js';
+import { fromAgentFieldType, toAgentModel, type AgentFieldType } from './schema-surface.js';
 
 const fieldTypeSchema = z.enum([
   'text',
@@ -52,6 +52,8 @@ const builtInMeaningKeySchema = z.string().refine(
   'Unknown built-in meaning key',
 );
 const representationSchema = z.enum(['single_field', 'field_group', 'relation', 'computed']);
+const targetKindSchema = z.enum(['object', 'edge', 'both']);
+const lineStyleSchema = z.enum(['solid', 'dashed', 'dotted']);
 
 const modelFieldRecipeSchema = z.object({
   id: z.string().optional().describe('Stable field recipe ID. Omit to derive from key.'),
@@ -92,7 +94,7 @@ function normalizeRecipeKey(value: string): string {
     .replace(/^_+|_+$/g, '') || 'item';
 }
 
-function normalizeFieldRecipe(input: ModelFieldRecipeInput, index: number): SemanticModelFieldRecipe {
+function normalizeFieldRecipe(input: ModelFieldRecipeInput, index: number): ModelFieldRecipe {
   const key = normalizeRecipeKey(input.key || input.name);
   return {
     id: input.id?.trim() || key || `field-${index + 1}`,
@@ -107,7 +109,7 @@ function normalizeFieldRecipe(input: ModelFieldRecipeInput, index: number): Sema
   };
 }
 
-function normalizeMeaningRecipe(input: ModelMeaningRecipeInput, index: number): SemanticModelMeaningRecipe {
+function normalizeMeaningRecipe(input: ModelMeaningRecipeInput, index: number): ModelMeaningRecipe {
   const key = normalizeRecipeKey(input.key || input.name);
   const fields = (input.fields ?? []).map(normalizeFieldRecipe);
   return {
@@ -120,7 +122,7 @@ function normalizeMeaningRecipe(input: ModelMeaningRecipeInput, index: number): 
   };
 }
 
-function normalizeRecipe(input: ModelRecipeInput | undefined): SemanticModelRecipe | undefined {
+function normalizeRecipe(input: ModelRecipeInput | undefined): ModelRecipe | undefined {
   if (!input) return undefined;
   return {
     meanings: (input.meanings ?? []).map(normalizeMeaningRecipe),
@@ -138,7 +140,7 @@ export function registerModelTools(server: McpServer): void {
     { project_id: projectIdSchema() },
     async ({ project_id }) => {
       try {
-        const result = (await listSemanticModels(resolveProjectId(project_id))).map(toAgentSemanticModel);
+        const result = (await listModels(resolveProjectId(project_id))).map(toAgentModel);
         return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
         return {
@@ -155,14 +157,14 @@ export function registerModelTools(server: McpServer): void {
     { model_id: z.string().describe('The model ID') },
     async ({ model_id }) => {
       try {
-        const result = await getSemanticModel(model_id);
+        const result = await getModel(model_id);
         if (!result) {
           return {
             content: [{ type: 'text' as const, text: `Error: Model not found: ${model_id}` }],
             isError: true,
           };
         }
-        return { content: [{ type: 'text' as const, text: JSON.stringify(toAgentSemanticModel(result), null, 2) }] };
+        return { content: [{ type: 'text' as const, text: JSON.stringify(toAgentModel(result), null, 2) }] };
       } catch (error) {
         return {
           content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
@@ -181,26 +183,32 @@ export function registerModelTools(server: McpServer): void {
       name: z.string().describe('Model name'),
       description: z.string().nullable().optional().describe('What this model means and when to use it'),
       category: categorySchema.optional().describe('Model category'),
+      target_kind: targetKindSchema.optional().describe('Whether this model describes objects, edges, or both'),
       meaning_keys: z.array(builtInMeaningKeySchema).optional().describe('Built-in meanings this model includes'),
       recipe: modelRecipeSchema.optional().describe('Custom meaning and field recipe for this model'),
       color: z.string().nullable().optional().describe('Optional color value'),
       icon: z.string().nullable().optional().describe('Optional icon identifier'),
+      line_style: lineStyleSchema.nullable().optional().describe('Default edge line style when target_kind includes edge'),
+      directed: z.boolean().nullable().optional().describe('Default edge direction when target_kind includes edge'),
     },
-    async ({ project_id, key, name, description, category, meaning_keys, recipe, color, icon }) => {
+    async ({ project_id, key, name, description, category, target_kind, meaning_keys, recipe, color, icon, line_style, directed }) => {
       try {
-        const result = await createSemanticModel({
+        const result = await createModel({
           project_id: resolveProjectId(project_id),
-          key: key as SemanticModelRefKey | undefined,
+          key: key as ModelRefKey | undefined,
           name,
           description,
           category,
+          target_kind,
           meaning_keys: meaning_keys as never,
           recipe: normalizeRecipe(recipe),
           color,
           icon,
+          line_style,
+          directed,
         });
         emitChange({ type: 'model', action: 'create', id: result.id });
-        return { content: [{ type: 'text' as const, text: JSON.stringify(toAgentSemanticModel(result), null, 2) }] };
+        return { content: [{ type: 'text' as const, text: JSON.stringify(toAgentModel(result), null, 2) }] };
       } catch (error) {
         return {
           content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
@@ -219,22 +227,28 @@ export function registerModelTools(server: McpServer): void {
       name: z.string().optional().describe('New model name'),
       description: z.string().nullable().optional().describe('New model description'),
       category: categorySchema.optional().describe('New model category'),
+      target_kind: targetKindSchema.optional().describe('Whether this model describes objects, edges, or both'),
       meaning_keys: z.array(builtInMeaningKeySchema).optional().describe('Built-in meanings this model includes'),
       recipe: modelRecipeSchema.optional().describe('Custom meaning and field recipe for this model'),
       color: z.string().nullable().optional().describe('New color value'),
       icon: z.string().nullable().optional().describe('New icon identifier'),
+      line_style: lineStyleSchema.nullable().optional().describe('Default edge line style when target_kind includes edge'),
+      directed: z.boolean().nullable().optional().describe('Default edge direction when target_kind includes edge'),
     },
-    async ({ model_id, key, name, description, category, meaning_keys, recipe, color, icon }) => {
+    async ({ model_id, key, name, description, category, target_kind, meaning_keys, recipe, color, icon, line_style, directed }) => {
       try {
-        const result = await updateSemanticModel(model_id, {
-          key: key as SemanticModelRefKey | undefined,
+        const result = await updateModel(model_id, {
+          key: key as ModelRefKey | undefined,
           name,
           description,
           category,
+          target_kind,
           meaning_keys: meaning_keys as never,
           recipe: normalizeRecipe(recipe),
           color,
           icon,
+          line_style,
+          directed,
         });
         if (!result) {
           return {
@@ -243,7 +257,7 @@ export function registerModelTools(server: McpServer): void {
           };
         }
         emitChange({ type: 'model', action: 'update', id: model_id });
-        return { content: [{ type: 'text' as const, text: JSON.stringify(toAgentSemanticModel(result), null, 2) }] };
+        return { content: [{ type: 'text' as const, text: JSON.stringify(toAgentModel(result), null, 2) }] };
       } catch (error) {
         return {
           content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }],
@@ -259,7 +273,7 @@ export function registerModelTools(server: McpServer): void {
     { model_id: z.string().describe('The model ID to delete') },
     async ({ model_id }) => {
       try {
-        const deleted = await deleteSemanticModel(model_id);
+        const deleted = await deleteModel(model_id);
         if (!deleted) {
           return {
             content: [{ type: 'text' as const, text: `Error: Model not found: ${model_id}` }],

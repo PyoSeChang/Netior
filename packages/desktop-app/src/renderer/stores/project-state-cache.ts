@@ -4,11 +4,10 @@ import { useModuleStore } from './module-store';
 import { useConceptStore } from './concept-store';
 import { useSchemaStore } from './schema-store';
 import { useModelStore } from './model-store';
-import { useRelationTypeStore } from './relation-type-store';
 import { useTypeGroupStore } from './type-group-store';
 import { useFileStore, type OpenFile, type ClipboardAction, type ClipboardState } from './file-store';
 import type {
-  Network, NetworkNode, Edge, Concept, RelationType, SemanticModel,
+  Network, NetworkNode, Edge, Concept, Model,
   NetworkBreadcrumbItem, NetworkTreeNode,
   EditorTab, SplitNode,
   Module, ModuleDirectory,
@@ -55,19 +54,14 @@ interface SchemaSnapshot {
   fields: Record<string, SchemaField[]>;
 }
 
-interface RelationTypeSnapshot {
-  relationTypes: RelationType[];
-}
-
 interface ModelSnapshot {
-  models: SemanticModel[];
+  models: Model[];
   loading: boolean;
 }
 
 interface TypeGroupSnapshot {
   groupsByKind: {
     schema: TypeGroup[];
-    relation_type: TypeGroup[];
   };
 }
 
@@ -86,7 +80,6 @@ interface WorkspaceSnapshot {
   concept: ConceptSnapshot;
   schema: SchemaSnapshot;
   model: ModelSnapshot;
-  relationType: RelationTypeSnapshot;
   typeGroup: TypeGroupSnapshot;
   file: FileSnapshot;
 }
@@ -129,7 +122,6 @@ function capture(): WorkspaceSnapshot {
   const concept = useConceptStore.getState();
   const schema = useSchemaStore.getState();
   const model = useModelStore.getState();
-  const relationType = useRelationTypeStore.getState();
   const typeGroup = useTypeGroupStore.getState();
   const file = useFileStore.getState();
 
@@ -170,9 +162,6 @@ function capture(): WorkspaceSnapshot {
       models: model.models,
       loading: model.loading,
     },
-    relationType: {
-      relationTypes: relationType.relationTypes,
-    },
     typeGroup: {
       groupsByKind: typeGroup.groupsByKind,
     },
@@ -193,7 +182,6 @@ function restore(snapshot: WorkspaceSnapshot): void {
   useConceptStore.setState(snapshot.concept);
   useSchemaStore.setState(snapshot.schema);
   useModelStore.setState(snapshot.model);
-  useRelationTypeStore.setState(snapshot.relationType);
   useTypeGroupStore.setState(snapshot.typeGroup);
   useFileStore.setState(snapshot.file);
 }
@@ -205,7 +193,6 @@ export function clearAllProjectStores(): void {
   useConceptStore.getState().clear();
   useSchemaStore.getState().clear();
   useModelStore.getState().clear();
-  useRelationTypeStore.getState().clear();
   useTypeGroupStore.getState().clear();
   useFileStore.getState().clear();
 }

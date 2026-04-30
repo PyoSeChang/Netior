@@ -48,12 +48,9 @@ import type {
   Project,
   ProjectCreate,
   ProjectUpdate,
-  RelationType,
-  RelationTypeCreate,
-  RelationTypeUpdate,
-  SemanticModel,
-  SemanticModelCreate,
-  SemanticModelUpdate,
+  Model,
+  ModelCreate,
+  ModelUpdate,
   TypeGroup,
   TypeGroupCreate,
   TypeGroupKind,
@@ -372,58 +369,30 @@ export async function updateRemoteSchemaMeaningSlotBinding(
   });
 }
 
-export async function listRemoteRelationTypes(projectId: string): Promise<RelationType[]> {
-  return requestJson<RelationType[]>(`/relation-types${toQueryString({ projectId })}`);
+export async function listRemoteModels(projectId: string): Promise<Model[]> {
+  return requestJson<Model[]>(`/models${toQueryString({ projectId })}`);
 }
 
-export async function createRemoteRelationType(data: RelationTypeCreate): Promise<RelationType> {
-  return requestJson<RelationType>('/relation-types', {
+export async function createRemoteModel(data: ModelCreate): Promise<Model> {
+  return requestJson<Model>('/models', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function getRemoteRelationType(id: string): Promise<RelationType | null> {
-  return requestJson<RelationType | null>(`/relation-types/${encodeURIComponent(id)}`);
+export async function getRemoteModel(id: string): Promise<Model | null> {
+  return requestJson<Model | null>(`/models/${encodeURIComponent(id)}`);
 }
 
-export async function updateRemoteRelationType(id: string, data: RelationTypeUpdate): Promise<RelationType | null> {
-  return requestJson<RelationType | null>(`/relation-types/${encodeURIComponent(id)}`, {
+export async function updateRemoteModel(id: string, data: ModelUpdate): Promise<Model | null> {
+  return requestJson<Model | null>(`/models/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteRemoteRelationType(id: string): Promise<boolean> {
-  return requestJson<boolean>(`/relation-types/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  });
-}
-
-export async function listRemoteSemanticModels(projectId: string): Promise<SemanticModel[]> {
-  return requestJson<SemanticModel[]>(`/semantic-models${toQueryString({ projectId })}`);
-}
-
-export async function createRemoteSemanticModel(data: SemanticModelCreate): Promise<SemanticModel> {
-  return requestJson<SemanticModel>('/semantic-models', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function getRemoteSemanticModel(id: string): Promise<SemanticModel | null> {
-  return requestJson<SemanticModel | null>(`/semantic-models/${encodeURIComponent(id)}`);
-}
-
-export async function updateRemoteSemanticModel(id: string, data: SemanticModelUpdate): Promise<SemanticModel | null> {
-  return requestJson<SemanticModel | null>(`/semantic-models/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function deleteRemoteSemanticModel(id: string): Promise<boolean> {
-  return requestJson<boolean>(`/semantic-models/${encodeURIComponent(id)}`, {
+export async function deleteRemoteModel(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/models/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }

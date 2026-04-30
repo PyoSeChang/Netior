@@ -40,9 +40,9 @@ import { TypeGroupModal } from './TypeGroupModal';
 import { NodeVisual } from '../workspace/node-components/NodeVisual';
 import { openNetworkViewerTab } from '../../lib/open-network-viewer-tab';
 import {
-  getSemanticModelDisplayDescription,
-  getSemanticModelDisplayName,
-} from '../../lib/semantic-model-i18n';
+  getModelDisplayDescription,
+  getModelDisplayName,
+} from '../../lib/model-i18n';
 
 type PanelObjectType = 'concept' | 'network' | 'schema' | 'model' | 'relation_type' | 'context';
 type GroupablePanelObjectType = Extract<PanelObjectType, 'schema' | 'relation_type'>;
@@ -532,7 +532,7 @@ export function ObjectPanel({ types }: ObjectPanelProps = {}): JSX.Element {
 
   const modelRows = useMemo<PanelRow[]>(() => (
     [...models]
-      .sort((a, b) => getSemanticModelDisplayName(a, t).localeCompare(getSemanticModelDisplayName(b, t)))
+      .sort((a, b) => getModelDisplayName(a, t).localeCompare(getModelDisplayName(b, t)))
       .map((model) => ({
         key: `object:model:${model.id}`,
         depth: 0,
@@ -540,8 +540,8 @@ export function ObjectPanel({ types }: ObjectPanelProps = {}): JSX.Element {
           id: model.id,
           kind: 'object',
           objectType: 'model',
-          title: getSemanticModelDisplayName(model, t),
-          subtitle: getSemanticModelDisplayDescription(model, t) ?? model.key,
+          title: getModelDisplayName(model, t),
+          subtitle: getModelDisplayDescription(model, t) ?? model.key,
           color: model.color,
           iconName: model.icon,
         },

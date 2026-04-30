@@ -10,7 +10,6 @@ const objectTypeSchema = z.enum([
   'project',
   'schema',
   'model',
-  'relation_type',
   'type_group',
   'agent',
   'context',

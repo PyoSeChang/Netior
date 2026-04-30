@@ -9,7 +9,6 @@ import type { NarreToolCall, NarreToolCategory } from '@netior/shared/types';
 const COUNT_NOUNS: Record<string, { ko: string; en: string }> = {
   list_concepts: { ko: '개념', en: 'concept' },
   list_schemas: { ko: '스키마', en: 'schema' },
-  list_relation_types: { ko: '관계 유형', en: 'relation type' },
   list_networks: { ko: '네트워크', en: 'network' },
   list_modules: { ko: '모듈', en: 'module' },
   list_type_groups: { ko: '타입 그룹', en: 'type group' },

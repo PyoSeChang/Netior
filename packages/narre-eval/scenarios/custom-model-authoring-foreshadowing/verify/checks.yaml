@@ -1,0 +1,106 @@
+verify:
+  - name: "custom foreshadowing model exists"
+    db:
+      table: semantic_models
+      condition: "project_id = '{{project_id}}' AND built_in = 0 AND key = 'foreshadowing'"
+      expect:
+        count: 1
+        not_null: [description, recipe_json]
+
+  - name: "custom model recipe contains meanings and multi-type field choices"
+    db:
+      table: semantic_models
+      condition: "project_id = '{{project_id}}' AND built_in = 0 AND key = 'foreshadowing' AND recipe_json LIKE '%\"meanings\"%' AND recipe_json LIKE '%\"field_types\"%' AND recipe_json LIKE '%select%' AND recipe_json LIKE '%number%'"
+      expect:
+        count: 1
+
+  - name: "Clue and Scene schemas exist"
+    db:
+      table: schemas
+      expect:
+        count_min: 2
+        column_includes:
+          name: ["Clue", "Scene"]
+
+  - name: "Clue schema uses custom foreshadowing model"
+    db:
+      table: schemas
+      condition: "project_id = '{{project_id}}' AND name = 'Clue' AND semantic_models LIKE '%foreshadowing%'"
+      expect:
+        count: 1
+
+  - name: "foreshadowing fields are generated on Clue"
+    db:
+      table: schema_fields
+      condition: "schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Clue') AND name IN ('hinted_event', 'payoff_scene', 'certainty', 'payoff_conditions')"
+      expect:
+        count_min: 4
+
+  - name: "payoff_scene is a typed Scene reference"
+    db:
+      table: schema_fields
+      condition: "name = 'payoff_scene' AND field_type = 'schema_ref' AND schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Clue') AND ref_schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Scene')"
+      expect:
+        count: 1
+
+  - name: "custom model fields carry custom recipe meaning bindings"
+    db:
+      table: field_meaning_bindings
+      condition: "meaning_key LIKE 'foreshadowing_pattern.%' AND field_id IN (SELECT sf.id FROM schema_fields sf JOIN schemas s ON s.id = sf.schema_id WHERE s.project_id = '{{project_id}}' AND s.name = 'Clue')"
+      expect:
+        count_min: 3
+
+  - name: "model-generated Clue fields are marked"
+    db:
+      table: schema_fields
+      condition: "schema_id IN (SELECT id FROM schemas WHERE project_id = '{{project_id}}' AND name = 'Clue') AND generated_by_model = 1"
+      expect:
+        count_min: 3
+
+  - name: "no response error"
+    response:
+      no_error: true
+
+  - name: "bootstrap inspects existing models before custom authoring"
+    tool:
+      name: get_model
+      expect:
+        count_min: 1
+        count_max: 24
+
+  - name: "custom model creation is bounded"
+    tool:
+      name: create_model
+      expect:
+        count_min: 1
+        count_max: 1
+
+  - name: "schema creation tool usage is bounded"
+    tool:
+      name: create_schema
+      expect:
+        count_min: 2
+        count_max: 8
+
+  - name: "field creation tool usage is bounded"
+    tool:
+      name: create_schema_field
+      expect:
+        count_min: 4
+        count_max: 24
+
+  - name: "bootstrap asks and proposes before building"
+    tool:
+      name: propose
+      expect:
+        count_min: 1
+        count_max: 4
+        sequence: [ask, propose, create_model]
+
+  - name: "analysis: project binding violation absent"
+    analysis:
+      tool_use:
+        findings_absent: [bootstrap_missing_interview, bootstrap_missing_proposal, project_binding_violation]
+        summary:
+          project_binding_violation_count:
+            count: 0

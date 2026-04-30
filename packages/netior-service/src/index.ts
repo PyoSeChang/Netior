@@ -14,8 +14,7 @@ import {
   createModule,
   createNetwork,
   createProject,
-  createRelationType,
-  createSemanticModel,
+  createModel,
   createTypeGroup,
   deleteProject,
   deleteSchema,
@@ -27,8 +26,7 @@ import {
   deleteModule,
   deleteNetwork,
   deleteProperty,
-  deleteRelationType,
-  deleteSemanticModel,
+  deleteModel,
   deleteTypeGroup,
   getContext,
   getContextMembers,
@@ -51,8 +49,7 @@ import {
   getObjectByRef,
   getProjectOntologyNetwork,
   getProjectById,
-  getRelationType,
-  getSemanticModel,
+  getModel,
   getSetting,
   getUniverseNetwork,
   getDatabase,
@@ -65,8 +62,7 @@ import {
   listModules,
   listNetworks,
   listProjects,
-  listRelationTypes,
-  listSemanticModels,
+  listModels,
   listTypeGroups,
   parseFromAgent,
   removeEdgeVisual,
@@ -98,8 +94,7 @@ import {
   updateNetworkNode,
   updateProject,
   updateProjectRootDir,
-  updateRelationType,
-  updateSemanticModel,
+  updateModel,
   updateTypeGroup,
 } from '@netior/core';
 import type {
@@ -135,16 +130,14 @@ import type {
   NetworkUpdate,
   ProjectCreate,
   ProjectUpdate,
-  RelationTypeCreate,
-  RelationTypeUpdate,
-  SemanticModelCreate,
-  SemanticModelUpdate,
+  ModelCreate,
+  ModelUpdate,
   TypeGroupCreate,
   TypeGroupKind,
   TypeGroupUpdate,
   NetiorServiceResponse,
   FieldMeaningBindingKey,
-  SemanticModelKey,
+  ModelKey,
   FieldMeaningKey,
   MeaningSlotKey,
 } from '@netior/shared/types';
@@ -499,16 +492,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  if (pathname === '/semantic-models') {
+  if (pathname === '/models') {
     if (method === 'GET') {
       const projectId = getRequiredSearchParam(url, 'projectId');
-      sendJson(res, 200, { ok: true, data: listSemanticModels(projectId) });
+      sendJson(res, 200, { ok: true, data: listModels(projectId) });
       return;
     }
 
     if (method === 'POST') {
-      const body = await readJsonBody<SemanticModelCreate>(req);
-      sendJson(res, 200, { ok: true, data: createSemanticModel(body) });
+      const body = await readJsonBody<ModelCreate>(req);
+      sendJson(res, 200, { ok: true, data: createModel(body) });
       return;
     }
 
@@ -516,62 +509,22 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     return;
   }
 
-  if (pathname.startsWith('/semantic-models/')) {
-    const id = decodeURIComponent(pathname.slice('/semantic-models/'.length));
+  if (pathname.startsWith('/models/')) {
+    const id = decodeURIComponent(pathname.slice('/models/'.length));
 
     if (method === 'GET') {
-      sendJson(res, 200, { ok: true, data: getSemanticModel(id) });
+      sendJson(res, 200, { ok: true, data: getModel(id) });
       return;
     }
 
     if (method === 'PATCH') {
-      const body = await readJsonBody<SemanticModelUpdate>(req);
-      sendJson(res, 200, { ok: true, data: updateSemanticModel(id, body) });
+      const body = await readJsonBody<ModelUpdate>(req);
+      sendJson(res, 200, { ok: true, data: updateModel(id, body) });
       return;
     }
 
     if (method === 'DELETE') {
-      sendJson(res, 200, { ok: true, data: deleteSemanticModel(id) });
-      return;
-    }
-
-    sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
-    return;
-  }
-
-  if (pathname === '/relation-types') {
-    if (method === 'GET') {
-      const projectId = getRequiredSearchParam(url, 'projectId');
-      sendJson(res, 200, { ok: true, data: listRelationTypes(projectId) });
-      return;
-    }
-
-    if (method === 'POST') {
-      const body = await readJsonBody<RelationTypeCreate>(req);
-      sendJson(res, 200, { ok: true, data: createRelationType(body) });
-      return;
-    }
-
-    sendJson(res, 405, { ok: false, error: `Method ${method} not allowed for ${pathname}` });
-    return;
-  }
-
-  if (pathname.startsWith('/relation-types/')) {
-    const id = decodeURIComponent(pathname.slice('/relation-types/'.length));
-
-    if (method === 'GET') {
-      sendJson(res, 200, { ok: true, data: getRelationType(id) });
-      return;
-    }
-
-    if (method === 'PATCH') {
-      const body = await readJsonBody<RelationTypeUpdate>(req);
-      sendJson(res, 200, { ok: true, data: updateRelationType(id, body) });
-      return;
-    }
-
-    if (method === 'DELETE') {
-      sendJson(res, 200, { ok: true, data: deleteRelationType(id) });
+      sendJson(res, 200, { ok: true, data: deleteModel(id) });
       return;
     }
 
@@ -1213,9 +1166,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   sendJson(res, 404, { ok: false, error: `Route not found: ${method} ${pathname}` });
 }
 
-type SchemaRow = Omit<Schema, 'semantic_models' | 'models'> & {
-  semantic_models: string | null;
-  models?: string | null;
+type SchemaRow = Omit<Schema, 'models'> & {
+  models: string | null;
 };
 type SchemaFieldRow = Omit<SchemaField, 'required' | 'slot_binding_locked' | 'generated_by_model' | 'meaning_bindings'> & {
   required: number;
@@ -1225,22 +1177,20 @@ type SchemaFieldRow = Omit<SchemaField, 'required' | 'slot_binding_locked' | 'ge
   meaning_key?: FieldMeaningKey | null;
 };
 
-function parseSemanticModels(raw: string | null | undefined): SemanticModelKey[] {
+function parseModels(raw: string | null | undefined): ModelKey[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((item): item is SemanticModelKey => typeof item === 'string') : [];
+    return Array.isArray(parsed) ? parsed.filter((item): item is ModelKey => typeof item === 'string') : [];
   } catch {
     return [];
   }
 }
 
 function toSchema(row: SchemaRow): Schema {
-  const semanticModels = parseSemanticModels(row.semantic_models ?? row.models);
   return {
     ...row,
-    semantic_models: semanticModels,
-    models: row.models == null ? semanticModels : parseSemanticModels(row.models),
+    models: parseModels(row.models),
   };
 }
 

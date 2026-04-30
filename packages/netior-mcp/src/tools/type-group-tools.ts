@@ -16,7 +16,7 @@ import {
 } from './shared-tool-registry.js';
 import { fromAgentTypeGroupKind, toAgentTypeGroup, type AgentTypeGroupKind } from './schema-surface.js';
 
-const typeGroupKindSchema = z.enum(['schema', 'relation_type']);
+const typeGroupKindSchema = z.enum(['schema']);
 
 export function registerTypeGroupTools(server: McpServer): void {
   registerNetiorTool(
@@ -24,7 +24,7 @@ export function registerTypeGroupTools(server: McpServer): void {
     'list_type_groups',
     {
       project_id: projectIdSchema(),
-      kind: typeGroupKindSchema.describe('Whether to list schema groups or relation type groups'),
+      kind: typeGroupKindSchema.describe('Type-group kind. Model groups are no longer separate; use schema groups only.'),
     },
     async ({ project_id, kind }) => {
       try {

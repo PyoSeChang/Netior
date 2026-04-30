@@ -26,16 +26,15 @@ import type {
   FieldMeaningBindingKey,
   FieldMeaningBindingSource,
   MeaningSourceKind,
-  SemanticModelRefKey,
+  ModelRefKey,
   SemanticMeaningKey,
   SlotBindingTargetKind,
   FieldMeaningKey,
   MeaningSlotKey,
 } from '@netior/shared/types';
 
-type SchemaRow = Omit<Schema, 'semantic_models' | 'models'> & {
-  semantic_models: string | null;
-  models?: string | null;
+type SchemaRow = Omit<Schema, 'models'> & {
+  models: string | null;
 };
 type SchemaFieldRow = Omit<SchemaField, 'required' | 'slot_binding_locked' | 'generated_by_model' | 'meaning_bindings'> & {
   meaning_slot: MeaningSlotKey | null;
@@ -49,26 +48,24 @@ type SchemaMeaningSlotBindingRow = Omit<SchemaMeaningSlotBinding, 'required'> & 
   required: number;
 };
 
-function parseSemanticModels(raw: string | null | undefined): SemanticModelRefKey[] {
+function parseModels(raw: string | null | undefined): ModelRefKey[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((item): item is SemanticModelRefKey => typeof item === 'string') : [];
+    return Array.isArray(parsed) ? parsed.filter((item): item is ModelRefKey => typeof item === 'string') : [];
   } catch {
     return [];
   }
 }
 
-function serializeSemanticModels(models: readonly SemanticModelRefKey[] | undefined): string {
+function serializeModels(models: readonly ModelRefKey[] | undefined): string {
   return JSON.stringify(models ?? []);
 }
 
 function toSchema(row: SchemaRow): Schema {
-  const semanticModels = parseSemanticModels(row.semantic_models ?? row.models);
   return {
     ...row,
-    semantic_models: semanticModels,
-    models: row.models == null ? semanticModels : parseSemanticModels(row.models),
+    models: parseModels(row.models),
   };
 }
 
@@ -347,11 +344,11 @@ export function createSchema(data: SchemaCreate): Schema {
   const db = getDatabase();
   const id = randomUUID();
   const now = new Date().toISOString();
-  const semanticModels = data.semantic_models ?? data.models ?? [];
+  const models = data.models ?? [];
 
   db.prepare(
-    `INSERT INTO schemas (id, project_id, group_id, name, description, icon, color, node_shape, file_template, semantic_models, models, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO schemas (id, project_id, group_id, name, description, icon, color, node_shape, file_template, models, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     data.project_id,
@@ -362,8 +359,7 @@ export function createSchema(data: SchemaCreate): Schema {
     data.color ?? null,
     data.node_shape ?? null,
     data.file_template ?? null,
-    serializeSemanticModels(semanticModels),
-    serializeSemanticModels(semanticModels),
+    serializeModels(models),
     now,
     now,
   );
@@ -395,20 +391,12 @@ export function updateSchema(id: string, data: SchemaUpdate): Schema | undefined
   if (!existing) return undefined;
 
   const now = new Date().toISOString();
-  const existingModels = existing.semantic_models ?? existing.models;
-  const nextSemanticModels = data.semantic_models !== undefined
-    ? serializeSemanticModels(data.semantic_models)
-    : data.models !== undefined
-      ? serializeSemanticModels(data.models)
-      : existingModels;
-  const nextModelsAlias = data.models !== undefined
-    ? serializeSemanticModels(data.models)
-    : data.semantic_models !== undefined
-      ? serializeSemanticModels(data.semantic_models)
-      : (existing.models ?? existingModels);
+  const nextModels = data.models !== undefined
+    ? serializeModels(data.models)
+    : existing.models;
 
   db.prepare(
-    `UPDATE schemas SET group_id = ?, name = ?, description = ?, icon = ?, color = ?, node_shape = ?, file_template = ?, semantic_models = ?, models = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE schemas SET group_id = ?, name = ?, description = ?, icon = ?, color = ?, node_shape = ?, file_template = ?, models = ?, updated_at = ? WHERE id = ?`,
   ).run(
     data.group_id !== undefined ? data.group_id : existing.group_id,
     data.name !== undefined ? data.name : existing.name,
@@ -417,8 +405,7 @@ export function updateSchema(id: string, data: SchemaUpdate): Schema | undefined
     data.color !== undefined ? data.color : existing.color,
     data.node_shape !== undefined ? data.node_shape : existing.node_shape,
     data.file_template !== undefined ? data.file_template : existing.file_template,
-    nextSemanticModels,
-    nextModelsAlias,
+    nextModels,
     now,
     id,
   );

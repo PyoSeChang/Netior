@@ -88,12 +88,6 @@ export function NodeContextMenu({
         title: objectTitle ?? t('model.title' as never),
         projectId: currentNetwork?.project_id ?? undefined,
       });
-    } else if (objectType === 'relation_type') {
-      useEditorStore.getState().openTab({
-        type: 'relationType',
-        targetId: objectTargetId,
-        title: objectTitle ?? t('relationType.title'),
-      });
     } else if (objectType === 'context') {
       useEditorStore.getState().openTab({
         type: 'context',
@@ -113,7 +107,7 @@ export function NodeContextMenu({
   const canOpenEditor =
     !!objectType &&
     !!objectTargetId &&
-    ['network', 'project', 'concept', 'schema', 'model', 'relation_type', 'context', 'file'].includes(objectType);
+    ['network', 'project', 'concept', 'schema', 'model', 'context', 'file'].includes(objectType);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

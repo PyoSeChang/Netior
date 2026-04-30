@@ -23,7 +23,7 @@
 
 이번 1차는 아래까지만 한다.
 
-- schema에 `semantic_models`를 붙일 수 있게 한다.
+- schema에 `models`를 붙일 수 있게 한다.
 - schema field에 `meaning_slot`를 붙일 수 있게 한다.
 - model 부착 시 필요한 slot field를 자동 생성할 수 있게 한다.
 - concept editor가 slot-aware 입력과 기본 검증을 한다.
@@ -109,10 +109,10 @@
 
 - `packages/shared/src/types/index.ts`
   - `SemanticCategoryKey`
-  - `SemanticModelKey`
+  - `ModelKey`
   - `MeaningSlotKey`
   - `SlotConstraintLevel`
-  - `Schema.semantic_models`
+  - `Schema.models`
   - `SchemaField.meaning_slot`
   - `SchemaField.generated_by_model`
   - `SchemaField.slot_binding_locked`
@@ -333,7 +333,7 @@
 
 이번 1차 개발이 끝났다고 보려면 아래 조건을 만족해야 한다.
 
-- schema에 `semantic_models`를 붙일 수 있다
+- schema에 `models`를 붙일 수 있다
 - schema field에 `meaning_slot`를 부여할 수 있다
 - model 부착 시 core slot field가 자동 생성된다
 - concept editor가 slot-aware validation을 한다

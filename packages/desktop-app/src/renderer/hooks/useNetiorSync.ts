@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import type { NetiorChangeEvent } from '@netior/shared/types';
 import { useSchemaStore } from '../stores/schema-store';
 import { useConceptStore } from '../stores/concept-store';
-import { useRelationTypeStore } from '../stores/relation-type-store';
 import { useModelStore } from '../stores/model-store';
 import { useNetworkStore } from '../stores/network-store';
 import { useContextStore } from '../stores/context-store';
@@ -20,9 +19,6 @@ export function useNetiorSync(projectId: string | null): void {
           break;
         case 'concepts':
           useConceptStore.getState().loadByProject(projectId);
-          break;
-        case 'relationTypes':
-          useRelationTypeStore.getState().loadByProject(projectId);
           break;
         case 'models':
           useModelStore.getState().loadByProject(projectId);

@@ -1,6 +1,6 @@
 rubrics:
   - rubric: "Narre가 사용자의 도메인 설명만 바탕으로 두 번의 짧은 interview를 수행해 entity, artifact, relation, workflow 관점의 ontology를 적절하게 확인했는가?"
   - rubric: "Narre가 사용자가 Netior 내부 구조를 설계하게 만들지 않고, 추론한 ontology를 캐릭터/세계관/플롯/스토리 축의 네트워크 구조로 스스로 투영했는가?"
-  - rubric: "Narre가 semantic model와 ORM 스타일 schema_ref 필드를 판타지 소설 ontology와 실제 작업 흐름에 도움이 되게 설계했는가?"
+  - rubric: "Narre가 model과 ORM 스타일 schema_ref 필드를 판타지 소설 ontology와 실제 작업 흐름에 도움이 되게 설계했는가?"
   - rubric: "Narre가 단순 타입 생성에서 멈추지 않고, starter concept와 starter node까지 포함한 실제 사용 가능한 초기 작업공간을 만들었는가?"
   - rubric: "Narre가 선택한 ontology, workspace 구조, 이유를 Netior 헤비 유저가 아닌 사람도 이해할 수 있게 설명했는가?"

@@ -5,9 +5,10 @@ import type {
   FieldMeaningKey,
   MeaningBindingKey,
   MeaningSlotKey,
-  RelationMeaningKey,
   SemanticMeaningKey,
-  SemanticModelKey,
+  ModelKey,
+  ModelTargetKind,
+  EdgeLineStyle,
   FieldMeaningBindingKey,
   SlotConstraintLevel,
 } from '../types/index.js';
@@ -315,14 +316,17 @@ export interface SemanticMeaningDefinition {
   fallbackSlots?: readonly MeaningSlotKey[];
 }
 
-export interface SemanticModelDefinition {
-  key: SemanticModelKey;
+export interface ModelDefinition {
+  key: ModelKey;
   category: SemanticCategoryKey;
+  targetKind?: ModelTargetKind;
   label: string;
   description?: string;
   meanings: readonly SemanticMeaningKey[];
   coreSlots: readonly MeaningSlotKey[];
   optionalSlots: readonly MeaningSlotKey[];
+  lineStyle?: EdgeLineStyle;
+  directed?: boolean;
 }
 
 export const SEMANTIC_CATEGORY_LABELS: Readonly<Record<SemanticCategoryKey, string>> = {
@@ -408,7 +412,7 @@ export const SEMANTIC_MEANING_DEFINITIONS: readonly SemanticMeaningDefinition[] 
   { key: 'approval', category: 'governance', label: 'Approval', coreSlots: ['approval_state'], optionalSlots: ['approved_by_ref', 'approved_at'] },
 ] as const;
 
-export const SEMANTIC_MODEL_DEFINITIONS: readonly SemanticModelDefinition[] = [
+export const MODEL_DEFINITIONS: readonly ModelDefinition[] = [
   { key: 'temporal', category: 'time', label: 'Temporal', description: 'Represents objects that occupy time with a start point and optional end context.', meanings: ['time_interval'], coreSlots: ['start_at'], optionalSlots: ['end_at', 'all_day', 'timezone'] },
   { key: 'dueable', category: 'time', label: 'Dueable', description: 'Represents objects that have one deadline or due point.', meanings: ['deadline'], coreSlots: ['due_at'], optionalSlots: [] },
   { key: 'recurring', category: 'time', label: 'Recurring', description: 'Represents objects that repeat through frequency, interval, calendar constraints, and end conditions.', meanings: ['recurrence'], coreSlots: ['recurrence_frequency', 'recurrence_interval'], optionalSlots: ['recurrence_weekdays', 'recurrence_monthday', 'recurrence_until', 'recurrence_count'] },
@@ -429,6 +433,9 @@ export const SEMANTIC_MODEL_DEFINITIONS: readonly SemanticModelDefinition[] = [
   { key: 'budgeted', category: 'quant', label: 'Budgeted', description: 'Represents objects with budget amount, currency, and limit metadata.', meanings: ['budget'], coreSlots: ['budget_amount'], optionalSlots: ['budget_currency', 'budget_limit'] },
   { key: 'ownable', category: 'governance', label: 'Ownable', description: 'Represents objects with an accountable owner.', meanings: ['ownership'], coreSlots: ['owner_ref'], optionalSlots: [] },
   { key: 'approvable', category: 'governance', label: 'Approvable', description: 'Represents objects with approval state, approver, and approval time.', meanings: ['approval'], coreSlots: ['approval_state'], optionalSlots: ['approved_by_ref', 'approved_at'] },
+  { key: 'contains_relation', category: 'structure', targetKind: 'edge', label: 'Contains', description: 'Represents containment, composition, or membership between two nodes.', meanings: [], coreSlots: [], optionalSlots: [], lineStyle: 'solid', directed: true },
+  { key: 'entry_portal_relation', category: 'structure', targetKind: 'edge', label: 'Entry Portal', description: 'Marks the node that should open as the entry point for a contained structure.', meanings: [], coreSlots: [], optionalSlots: [], lineStyle: 'dashed', directed: true },
+  { key: 'parent_relation', category: 'structure', targetKind: 'edge', label: 'Parent Relation', description: 'Represents a hierarchy parent-child relation between nodes.', meanings: [], coreSlots: [], optionalSlots: [], lineStyle: 'solid', directed: true },
 ] as const;
 
 export const MEANING_SLOT_TO_FIELD_MEANING: Readonly<Record<MeaningSlotKey, FieldMeaningKey>> =
@@ -467,12 +474,6 @@ export const FIELD_MEANING_TO_MEANING_BINDINGS: Readonly<Record<FieldMeaningKey,
     dedupeMeaningBindings(FIELD_MEANING_BINDING_OVERRIDES[definition.fieldMeaning] ?? [definition.fieldMeaning]),
   ])) as unknown as Record<FieldMeaningKey, readonly FieldMeaningBindingKey[]>;
 
-const RELATION_MEANING_DEFINITIONS: readonly MeaningBindingDefinition[] = [
-  { key: 'structure.contains', scope: 'relation', category: 'structure', label: 'Contains' },
-  { key: 'structure.entry_portal', scope: 'relation', category: 'structure', label: 'Entry Portal' },
-  { key: 'structure.parent', scope: 'relation', category: 'structure', label: 'Parent Relation' },
-] as const;
-
 export const MEANING_BINDING_DEFINITIONS: readonly MeaningBindingDefinition[] = [
   ...MEANING_SLOT_DEFINITIONS.map((definition) => ({
     key: definition.fieldMeaning,
@@ -483,7 +484,6 @@ export const MEANING_BINDING_DEFINITIONS: readonly MeaningBindingDefinition[] = 
     constraintLevel: definition.constraintLevel,
     multiValue: definition.multiValue,
   })),
-  ...RELATION_MEANING_DEFINITIONS,
 ] as const;
 
 const EXTRA_FIELD_MEANING_BINDING_DEFINITIONS: readonly FieldMeaningBindingDefinition[] = [
@@ -563,8 +563,8 @@ export function meaningBindingToMeaningSlot(meaning: FieldMeaningBindingKey | nu
   return fieldMeaningToMeaningSlot(meaning as FieldMeaningKey | null | undefined);
 }
 
-export function getSemanticModelDefinition(model: SemanticModelKey): SemanticModelDefinition | undefined {
-  return SEMANTIC_MODEL_DEFINITIONS.find((definition) => definition.key === model);
+export function getModelDefinition(model: ModelKey): ModelDefinition | undefined {
+  return MODEL_DEFINITIONS.find((definition) => definition.key === model);
 }
 
 export function getSemanticCategoryLabelKey(category: SemanticCategoryKey): string {
@@ -575,11 +575,11 @@ export function getSemanticCategoryDescriptionKey(category: SemanticCategoryKey)
   return `semantic.category.${category}.description`;
 }
 
-export function getSemanticModelLabelKey(model: SemanticModelKey): string {
+export function getModelLabelKey(model: ModelKey): string {
   return `semantic.model.${model}.label`;
 }
 
-export function getSemanticModelDescriptionKey(model: SemanticModelKey): string {
+export function getModelDescriptionKey(model: ModelKey): string {
   return `semantic.model.${model}.description`;
 }
 

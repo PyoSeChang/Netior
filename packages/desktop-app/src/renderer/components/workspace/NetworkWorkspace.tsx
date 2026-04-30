@@ -20,7 +20,6 @@ import { useEditorStore } from '../../stores/editor-store';
 import { useUIStore } from '../../stores/ui-store';
 import { useSchemaStore } from '../../stores/schema-store';
 import { useModelStore } from '../../stores/model-store';
-import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useTypeGroupStore } from '../../stores/type-group-store';
 import { useContextStore } from '../../stores/context-store';
 import { useProjectStore } from '../../stores/project-store';
@@ -36,10 +35,18 @@ import { dateToEpochDays, isoToEpochDays } from './layout-plugins/time-axis/scal
 import { formatTemporalSlotValueForWriteback, getOccurrenceKey, getSourceNodeId } from './layout-plugins/temporal-utils';
 import { applyConceptSemanticProjection } from './semantic-projection';
 import { useNetworkShortcuts } from './useNetworkShortcuts';
-import { HIERARCHY_PARENT_MEANING, isHierarchyParentMeaning } from '../../lib/hierarchy-meaning';
 import { openNetworkViewerTab } from '../../lib/open-network-viewer-tab';
-import { getSemanticModelDisplayName } from '../../lib/semantic-model-i18n';
+import { getModelDisplayName } from '../../lib/model-i18n';
 import { getFieldMeaningSlot } from '../../lib/field-meaning-bindings';
+import {
+  CONTAINS_MODEL_KEY,
+  ENTRY_PORTAL_MODEL_KEY,
+  HIERARCHY_PARENT_MODEL_KEY,
+  isContainsEdge,
+  isEntryPortalEdge,
+  isHierarchyParentEdge,
+  systemEdgeModelId,
+} from '../../lib/edge-models';
 
 interface NetworkWorkspaceProps {
   projectId: string | null;
@@ -318,7 +325,7 @@ function buildPositionMap(positions: NodePosition[]): Map<string, ParsedNodePosi
 function buildContainsParentMap(edges: EdgeWithRelationType[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const edge of edges) {
-    if (edge.relation_meaning !== 'structure.contains') continue;
+    if (!isContainsEdge(edge)) continue;
     if (edge.source_node_id === edge.target_node_id) continue;
     map.set(edge.target_node_id, edge.source_node_id);
   }
@@ -433,8 +440,7 @@ function buildHierarchyParentMap(
   const map = new Map<string, string>();
 
   for (const edge of edges) {
-    const meaning = edge.relation_meaning ?? '';
-    if (!isHierarchyParentMeaning(meaning)) continue;
+    if (!isHierarchyParentEdge(edge)) continue;
 
     const targetHierarchyId = getHierarchyContainerIdForNode(edge.target_node_id, containsParentByChild, hierarchyContainerIds);
     if (!targetHierarchyId) continue;
@@ -670,7 +676,6 @@ function getGenericObjectPresentation(
   projectNames?: Map<string, string>,
   schemaNames?: Map<string, string>,
   modelNames?: Map<string, string>,
-  relationTypeNames?: Map<string, string>,
   typeGroupNames?: Map<string, string>,
   contextNames?: Map<string, string>,
 ): { label: string; icon: string; semanticTypeLabel: string } {
@@ -698,12 +703,6 @@ function getGenericObjectPresentation(
         label: (objectRefId ? modelNames?.get(objectRefId) : undefined) ?? 'Model',
         icon: 'boxes',
         semanticTypeLabel: 'Model',
-      };
-    case 'relation_type':
-      return {
-        label: (objectRefId ? relationTypeNames?.get(objectRefId) : undefined) ?? 'Relation Type',
-        icon: 'link-2',
-        semanticTypeLabel: 'Relation Type',
       };
     case 'type_group':
       return {
@@ -737,7 +736,6 @@ function toRenderNodes(
   projectNames: Map<string, string>,
   schemaNames: Map<string, string>,
   modelNames: Map<string, string>,
-  relationTypeNames: Map<string, string>,
   typeGroupNames: Map<string, string>,
   contextNames: Map<string, string>,
   portalChipsBySource: Map<string, EntryPortalChipSpec[]>,
@@ -872,7 +870,6 @@ function toRenderNodes(
       projectNames,
       schemaNames,
       modelNames,
-      relationTypeNames,
       typeGroupNames,
       contextNames,
     );
@@ -976,9 +973,9 @@ function parseFileDropItems(raw: string): FileDropItem[] {
 }
 
 function resolveEdgePresentation(edge: EdgeWithRelationType): Pick<RenderEdge, 'hidden' | 'route' | 'relationMeaning'> {
-  const relationMeaning = edge.relation_meaning ?? null;
+  const relationMeaning = edge.model?.key ?? null;
 
-  if (relationMeaning === 'structure.contains' || relationMeaning === 'structure.entry_portal') {
+  if (isContainsEdge(edge) || isEntryPortalEdge(edge)) {
     return {
       hidden: true,
       route: 'hidden',
@@ -1004,10 +1001,10 @@ function toRenderEdges(
       id: e.id,
       sourceId: e.source_node_id,
       targetId: e.target_node_id,
-      directed: vis?.directed != null ? vis.directed : (e.relation_type?.directed ?? false),
-      label: e.relation_type?.name ?? '',
-      color: vis?.color ?? e.relation_type?.color ?? undefined,
-      lineStyle: (vis?.lineStyle ?? e.relation_type?.line_style ?? undefined) as 'solid' | 'dashed' | 'dotted' | undefined,
+      directed: vis?.directed != null ? vis.directed : (e.model?.directed ?? false),
+      label: e.model?.name ?? '',
+      color: vis?.color ?? e.model?.color ?? undefined,
+      lineStyle: (vis?.lineStyle ?? e.model?.line_style ?? undefined) as 'solid' | 'dashed' | 'dotted' | undefined,
       relationMeaning: presentation.relationMeaning,
       route: presentation.route === 'straight' ? (vis?.route ?? 'straight') : presentation.route,
       routePoints: vis?.routePoints,
@@ -1246,7 +1243,7 @@ function resolveOrthogonalEdgeHints(
   const targetHierarchyId = getClosestHierarchyAncestorId(edge.targetId, containsParentByChild, hierarchyContainerIds);
   const sharesHierarchy = !!sourceHierarchyId && sourceHierarchyId === targetHierarchyId;
 
-  if (sharesHierarchy && isHierarchyParentMeaning(edge.relationMeaning ?? '')) {
+  if (sharesHierarchy && edge.relationMeaning === HIERARCHY_PARENT_MODEL_KEY) {
     const downward = targetNode.y >= sourceNode.y;
     const sourceAnchor: RenderEdgeAnchor = edge.sourceId === sourceHierarchyId
       ? (downward ? 'root-bottom' : 'root-top')
@@ -1511,7 +1508,6 @@ export function NetworkWorkspace({
   const schemaFieldsById = useSchemaStore((s) => s.fields);
   const loadSchemaFields = useSchemaStore((s) => s.loadFields);
   const models = useModelStore((s) => s.models);
-  const relationTypes = useRelationTypeStore((s) => s.relationTypes);
   const typeGroupsByKind = useTypeGroupStore((s) => s.groupsByKind);
   const contexts = useContextStore((s) => s.contexts);
   const membersByContext = useContextStore((s) => s.membersByContext);
@@ -1525,7 +1521,7 @@ export function NetworkWorkspace({
   const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
   const schemaNames = useMemo(() => new Map(schemas.map((schema) => [schema.id, schema.name])), [schemas]);
   const modelNames = useMemo(
-    () => new Map(models.map((model) => [model.id, getSemanticModelDisplayName(model, t)])),
+    () => new Map(models.map((model) => [model.id, getModelDisplayName(model, t)])),
     [models, t],
   );
   const typeGroupNames = useMemo(() => new Map(Object.values(typeGroupsByKind).flat().map((group) => [group.id, group.name])), [typeGroupsByKind]);
@@ -1538,7 +1534,6 @@ export function NetworkWorkspace({
       .filter((schema) => (schemaFieldsById[schema.id] ?? []).some((field) => getFieldMeaningSlot(field) === 'start_at'))
       .map((schema) => schema.id)
   ), [schemaFieldsById, schemas]);
-  const relationTypeNames = useMemo(() => new Map(relationTypes.map((relationType) => [relationType.id, relationType.name])), [relationTypes]);
   const contextNames = useMemo(() => new Map(contexts.map((context) => [context.id, context.name])), [contexts]);
   const entryPortalData = useMemo(() => {
     const nodeById = new Map(nodes.map((node) => [node.id, node]));
@@ -1546,7 +1541,7 @@ export function NetworkWorkspace({
     const entryPortalTargetNodeIds = new Set<string>();
 
     for (const edge of edges) {
-      if (edge.relation_meaning !== 'structure.entry_portal') continue;
+      if (!isEntryPortalEdge(edge)) continue;
 
       const sourceNode = nodeById.get(edge.source_node_id);
       const targetNode = nodeById.get(edge.target_node_id);
@@ -1682,7 +1677,6 @@ export function NetworkWorkspace({
       projectNames,
       schemaNames,
       modelNames,
-      relationTypeNames,
       typeGroupNames,
         contextNames,
         entryPortalData.portalChipsBySource,
@@ -1718,7 +1712,6 @@ export function NetworkWorkspace({
     projectNames,
     schemaNames,
     modelNames,
-    relationTypeNames,
     typeGroupNames,
     contextNames,
     entryPortalData,
@@ -1768,7 +1761,7 @@ export function NetworkWorkspace({
           edge.route === 'straight' &&
           !explicitRoute &&
           sharesHierarchy &&
-          isHierarchyParentMeaning(edge.relationMeaning ?? '');
+          edge.relationMeaning === HIERARCHY_PARENT_MODEL_KEY;
         const route = shouldUseHierarchyRoute ? 'orthogonal' : edge.route;
         const orthogonalHints = route === 'orthogonal' && !edge.routePoints
           ? resolveOrthogonalEdgeHints(edge, visibleNodeMap, containsParentByChild, hierarchyContainerIds)
@@ -1917,7 +1910,7 @@ export function NetworkWorkspace({
         semantic = applyConceptSemanticProjection({
           metadata,
           schemaId: schemaId,
-          models: schema?.semantic_models ?? schema?.semantic_models ?? [],
+          models: schema?.models ?? [],
           fields: schemaFields,
           propertyValues: propMap,
         });
@@ -2046,7 +2039,7 @@ export function NetworkWorkspace({
     const nextParentNode = nextParentGroupId ? nodeById.get(nextParentGroupId) : undefined;
     const nextHierarchyParentId = nextParentNode?.node_type === 'hierarchy' ? nextParentGroupId : null;
     const existingHierarchyParentEdges = edges.filter(
-      (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === nodeId,
+      (edge) => isHierarchyParentEdge(edge) && edge.target_node_id === nodeId,
     );
     const hasExplicitParentInNextHierarchy = !!nextHierarchyParentId && existingHierarchyParentEdges.some((edge) => (
       edge.source_node_id !== nextHierarchyParentId
@@ -2075,7 +2068,7 @@ export function NetworkWorkspace({
         network_id: currentNetwork.id,
         source_node_id: nextHierarchyParentId,
         target_node_id: nodeId,
-        relation_meaning: HIERARCHY_PARENT_MEANING,
+        model_id: systemEdgeModelId(currentNetwork.project_id, HIERARCHY_PARENT_MODEL_KEY),
       });
     }
   }, [allHierarchyContainerIds, containsParentByChild, currentNetwork, edges, nodeById]);
@@ -2093,9 +2086,9 @@ export function NetworkWorkspace({
       childHierarchyId === parentHierarchyId &&
       childNode?.node_type !== 'hierarchy';
 
-    let relationMeaning: 'structure.parent' | undefined;
+    let modelId: string | null | undefined;
     if (shouldCreateHierarchyParent) {
-      relationMeaning = HIERARCHY_PARENT_MEANING;
+      modelId = systemEdgeModelId(currentNetwork.project_id, HIERARCHY_PARENT_MODEL_KEY);
 
       let current: string | undefined = parentNodeId;
       while (current) {
@@ -2106,7 +2099,7 @@ export function NetworkWorkspace({
       }
 
       const existingHierarchyParents = edges.filter(
-        (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === childNodeId,
+        (edge) => isHierarchyParentEdge(edge) && edge.target_node_id === childNodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -2117,7 +2110,7 @@ export function NetworkWorkspace({
       network_id: currentNetwork.id,
       source_node_id: shouldCreateHierarchyParent ? parentNodeId : sourceNodeId,
       target_node_id: shouldCreateHierarchyParent ? childNodeId : targetNodeId,
-      ...(relationMeaning ? { relation_meaning: relationMeaning } : {}),
+      ...(modelId ? { model_id: modelId } : {}),
     });
     if (shouldCreateHierarchyParent && currentLayout) {
       const currentPosition = rawPosMap.get(childNodeId);
@@ -2166,13 +2159,13 @@ export function NetworkWorkspace({
       entryPortalData.entryPortalTargetNodeIds.has(node.id)
       && node.object?.object_type === 'network'
       && node.object.ref_id === networkRefId
-      && edges.some((edge) => edge.relation_meaning === 'structure.entry_portal' && edge.source_node_id === sourceNodeId && edge.target_node_id === node.id)
+      && edges.some((edge) => isEntryPortalEdge(edge) && edge.source_node_id === sourceNodeId && edge.target_node_id === node.id)
     ));
     if (targetNodeForNetwork) return false;
 
     if (targetNodeId) {
       const existingContainmentEdges = edges.filter(
-        (edge) => edge.relation_meaning === 'structure.contains' && edge.target_node_id === targetNodeId,
+        (edge) => isContainsEdge(edge) && edge.target_node_id === targetNodeId,
       );
       for (const edge of existingContainmentEdges) {
         await networkService.edge.delete(edge.id);
@@ -2183,7 +2176,7 @@ export function NetworkWorkspace({
         network_id: currentNetwork.id,
         source_node_id: sourceNodeId,
         target_node_id: targetNodeId,
-        relation_meaning: 'structure.entry_portal',
+        model_id: systemEdgeModelId(currentNetwork.project_id, ENTRY_PORTAL_MODEL_KEY),
       });
       await openNetwork(currentNetwork.id);
       return true;
@@ -2212,7 +2205,7 @@ export function NetworkWorkspace({
       network_id: currentNetwork.id,
       source_node_id: sourceNodeId,
       target_node_id: targetNode.id,
-      relation_meaning: 'structure.entry_portal',
+      model_id: systemEdgeModelId(currentNetwork.project_id, ENTRY_PORTAL_MODEL_KEY),
     });
     await openNetwork(currentNetwork.id);
     return true;
@@ -2277,15 +2270,6 @@ export function NetworkWorkspace({
       return;
     }
 
-    if (node.object?.object_type === 'relation_type') {
-      useEditorStore.getState().openTab({
-        type: 'relationType',
-        targetId: node.object.ref_id,
-        title: relationTypeNames.get(node.object.ref_id) ?? t('relationType.title'),
-      });
-      return;
-    }
-
     if (node.object?.object_type === 'context') {
       useEditorStore.getState().openTab({
         type: 'context',
@@ -2293,7 +2277,7 @@ export function NetworkWorkspace({
         title: contextNames.get(node.object.ref_id) ?? t('context.title'),
       });
     }
-  }, [schemaNames, contextNames, currentNetwork?.project_id, modelNames, navigateToChild, openProject, projects, relationTypeNames, t]);
+  }, [schemaNames, contextNames, currentNetwork?.project_id, modelNames, navigateToChild, openProject, projects, t]);
 
   const showNodeContextMenu = useCallback((node: NetworkNodeWithObject, x: number, y: number) => {
     const isConcept = node.object?.object_type === 'concept';
@@ -2338,7 +2322,7 @@ export function NetworkWorkspace({
       return;
     }
     const objectType = node.object.object_type;
-    if (!['network', 'project', 'concept', 'schema', 'model', 'relation_type', 'context'].includes(objectType)) {
+    if (!['network', 'project', 'concept', 'schema', 'model', 'context'].includes(objectType)) {
       useNetworkObjectSelectionStore.getState().clearSelection();
       return;
     }
@@ -2349,22 +2333,21 @@ export function NetworkWorkspace({
       projectNames.get(node.object.ref_id) ??
       schemaNames.get(node.object.ref_id) ??
       modelNames.get(node.object.ref_id) ??
-      relationTypeNames.get(node.object.ref_id) ??
       contextNames.get(node.object.ref_id);
     useNetworkObjectSelectionStore.getState().setSelection({
-      objectType: objectType as 'network' | 'project' | 'concept' | 'schema' | 'model' | 'relation_type' | 'context',
+      objectType: objectType as 'network' | 'project' | 'concept' | 'schema' | 'model' | 'context',
       id: node.object.ref_id,
       title,
     });
-  }, [schemaNames, contextNames, modelNames, networkNames, projectNames, relationTypeNames]);
+  }, [schemaNames, contextNames, modelNames, networkNames, projectNames]);
 
   const syncSelectionFromNodeIds = useCallback((nodeIds: string[]) => {
     const selectedObjects = nodeIds
       .map((id) => nodes.find((node) => node.id === id))
       .filter((node): node is NetworkNodeWithObject =>
-        !!node?.object?.ref_id && ['network', 'project', 'concept', 'schema', 'model', 'relation_type', 'context'].includes(node.object.object_type))
+        !!node?.object?.ref_id && ['network', 'project', 'concept', 'schema', 'model', 'context'].includes(node.object.object_type))
       .map((node) => ({
-        objectType: node.object!.object_type as 'network' | 'project' | 'concept' | 'schema' | 'model' | 'relation_type' | 'context',
+        objectType: node.object!.object_type as 'network' | 'project' | 'concept' | 'schema' | 'model' | 'context',
         id: node.object!.ref_id,
         title:
           node.concept?.title ??
@@ -2373,7 +2356,6 @@ export function NetworkWorkspace({
           projectNames.get(node.object!.ref_id) ??
           schemaNames.get(node.object!.ref_id) ??
           modelNames.get(node.object!.ref_id) ??
-          relationTypeNames.get(node.object!.ref_id) ??
           contextNames.get(node.object!.ref_id),
       }))
       .filter((item, index, list) => list.findIndex((candidate) => `${candidate.objectType}:${candidate.id}` === `${item.objectType}:${item.id}`) === index);
@@ -2382,7 +2364,7 @@ export function NetworkWorkspace({
       selection: selectedObjects[0] ?? null,
       selectedItems: selectedObjects,
     });
-  }, [schemaNames, contextNames, modelNames, networkNames, nodes, projectNames, relationTypeNames]);
+  }, [schemaNames, contextNames, modelNames, networkNames, nodes, projectNames]);
 
   // --- Mouse interaction (via useInteraction, same pattern as Culturium) ---
 
@@ -2593,7 +2575,7 @@ export function NetworkWorkspace({
           network_id: currentNetwork.id,
           source_node_id: parentGroupId,
           target_node_id: createdNode.id,
-          relation_meaning: 'structure.contains',
+          model_id: systemEdgeModelId(currentNetwork.project_id, CONTAINS_MODEL_KEY),
         });
       }
 
@@ -2604,14 +2586,14 @@ export function NetworkWorkspace({
           network_id: currentNetwork.id,
           source_node_id: sourceHierarchyParentId,
           target_node_id: createdNode.id,
-          relation_meaning: HIERARCHY_PARENT_MEANING,
+          model_id: systemEdgeModelId(currentNetwork.project_id, HIERARCHY_PARENT_MODEL_KEY),
         });
       } else if (parentGroupNode?.node_type === 'hierarchy' && parentGroupId) {
         await networkService.edge.create({
           network_id: currentNetwork.id,
           source_node_id: parentGroupId,
           target_node_id: createdNode.id,
-          relation_meaning: HIERARCHY_PARENT_MEANING,
+          model_id: systemEdgeModelId(currentNetwork.project_id, HIERARCHY_PARENT_MODEL_KEY),
         });
       }
 
@@ -2868,11 +2850,11 @@ export function NetworkWorkspace({
       network_id: currentNetwork.id,
       source_node_id: targetContainer.id,
       target_node_id: nodeId,
-      relation_meaning: 'structure.contains',
+      model_id: systemEdgeModelId(currentNetwork.project_id, CONTAINS_MODEL_KEY),
     });
     if (targetContainer.isHierarchy) {
       const existingHierarchyParents = edges.filter(
-        (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === nodeId,
+        (edge) => isHierarchyParentEdge(edge) && edge.target_node_id === nodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -2882,7 +2864,7 @@ export function NetworkWorkspace({
         network_id: currentNetwork.id,
         source_node_id: hierarchyParentTarget?.id ?? targetContainer.id,
         target_node_id: nodeId,
-        relation_meaning: HIERARCHY_PARENT_MEANING,
+        model_id: systemEdgeModelId(currentNetwork.project_id, HIERARCHY_PARENT_MODEL_KEY),
       });
     } else {
       await syncHierarchyParentEdge(nodeId, targetContainer.id);
@@ -3198,7 +3180,7 @@ export function NetworkWorkspace({
         if (detachExternalContainment && containmentParentId && !movedSubtreeIds.has(containmentParentId)) {
           const existingDescendantContainsEdges = edges.filter(
             (edge) =>
-              edge.relation_meaning === 'structure.contains'
+              isContainsEdge(edge)
               && edge.target_node_id === descendantId
               && !movedSubtreeIds.has(edge.source_node_id),
           );
@@ -3244,7 +3226,7 @@ export function NetworkWorkspace({
     setPendingWorldPositionOverrides(nextWorldPositions);
     try {
       const existingContainsEdges = edges.filter(
-        (edge) => edge.relation_meaning === 'structure.contains' && edge.target_node_id === nodeId,
+        (edge) => isContainsEdge(edge) && edge.target_node_id === nodeId,
       );
 
       for (const edge of existingContainsEdges) {
@@ -3256,12 +3238,12 @@ export function NetworkWorkspace({
           network_id: currentNetwork.id,
           source_node_id: nextParentGroupId,
           target_node_id: nodeId,
-          relation_meaning: 'structure.contains',
+          model_id: systemEdgeModelId(currentNetwork.project_id, CONTAINS_MODEL_KEY),
         });
       }
 
       const existingHierarchyParents = edges.filter(
-        (edge) => isHierarchyParentMeaning(edge.relation_meaning) && edge.target_node_id === nodeId,
+        (edge) => isHierarchyParentEdge(edge) && edge.target_node_id === nodeId,
       );
       for (const edge of existingHierarchyParents) {
         await networkService.edge.delete(edge.id);
@@ -3272,12 +3254,12 @@ export function NetworkWorkspace({
           network_id: currentNetwork.id,
           source_node_id: effectiveHierarchyParentId ?? nextParentGroup.id,
           target_node_id: nodeId,
-          relation_meaning: HIERARCHY_PARENT_MEANING,
+          model_id: systemEdgeModelId(currentNetwork.project_id, HIERARCHY_PARENT_MODEL_KEY),
         });
       } else if (currentHierarchyContainerId && !nextHierarchyContainerId) {
         const movedHierarchyEdges = edges.filter(
           (edge) =>
-            isHierarchyParentMeaning(edge.relation_meaning)
+            isHierarchyParentEdge(edge)
             && movedSubtreeIds.has(edge.target_node_id),
         );
         for (const edge of movedHierarchyEdges) {

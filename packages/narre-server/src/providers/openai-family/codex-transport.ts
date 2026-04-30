@@ -116,6 +116,10 @@ export function normalizeCodexRuntimeSettings(value: unknown): NarreCodexSetting
   };
 }
 
+function isNetiorMcpServerName(serverName: string): boolean {
+  return serverName === 'netior' || serverName.startsWith('netior-');
+}
+
 export class CodexTransport implements OpenAIFamilyTransport {
   readonly name = 'codex';
 
@@ -673,7 +677,7 @@ class CodexAppServerClient {
       return;
     }
 
-    if (serverName === 'netior' && requestedToolName) {
+    if (isNetiorMcpServerName(serverName) && requestedToolName) {
       const metadata = getNarreToolMetadata(requestedToolName);
       const alwaysAllowed = await this.approvalStore.isToolAllowed(this.context.projectId, requestedToolName);
 
@@ -696,7 +700,7 @@ class CodexAppServerClient {
         message,
         actions: [
           { key: 'accept', label: 'Approve' },
-          ...(serverName === 'netior' && requestedToolName
+          ...(isNetiorMcpServerName(serverName) && requestedToolName
             ? [{ key: 'accept_project', label: 'Always allow in this project' as const }]
             : []),
           { key: 'decline', label: 'Decline', variant: 'danger' },
@@ -709,7 +713,7 @@ class CodexAppServerClient {
     const action = isActionResponse(response) ? response.action : null;
     const approved = action === 'accept' || action === 'accept_project';
 
-    if (approved && action === 'accept_project' && serverName === 'netior' && requestedToolName) {
+    if (approved && action === 'accept_project' && isNetiorMcpServerName(serverName) && requestedToolName) {
       await this.approvalStore.allowTool(this.context.projectId, requestedToolName);
     }
 
@@ -943,7 +947,7 @@ function buildDynamicToolSpecs(): Array<Record<string, unknown>> {
   return [
     {
       name: 'propose',
-      description: 'Present an editable draft block to the user. Use this when suggesting schemas, relation types, concepts, or any structured plan that benefits from inline revision.',
+      description: 'Present an editable draft block to the user. Use this when suggesting schemas, models, concepts, or any structured plan that benefits from inline revision.',
       inputSchema: {
         type: 'object',
         additionalProperties: false,

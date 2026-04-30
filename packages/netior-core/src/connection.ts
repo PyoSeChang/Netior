@@ -34,6 +34,9 @@ import { migrate030 } from './migrations/030-semantic-model-recipes';
 import { migrate031 } from './migrations/031-field-meaning-bindings';
 import { migrate032 } from './migrations/032-domain-term-cleanup';
 import { migrate033 } from './migrations/033-ontology-network-name-cleanup';
+import { migrate034 } from './migrations/034-model-storage-canonicalization';
+import { migrate035 } from './migrations/035-node-config-meaning-binding-canonicalization';
+import { migrate036 } from './migrations/036-edge-models-and-relation-type-retirement';
 import {
   ensureProjectNodeInUniverseForDb,
   ensureProjectOntologyNetworkForDb,
@@ -81,6 +84,9 @@ const migrations: Migration[] = [
   { version: 31, migrate: migrate031 },
   { version: 32, migrate: migrate032 },
   { version: 33, migrate: migrate033 },
+  { version: 34, migrate: migrate034 },
+  { version: 35, migrate: migrate035 },
+  { version: 36, migrate: migrate036 },
 ];
 
 export function hasColumn(db: Database.Database, table: string, column: string): boolean {

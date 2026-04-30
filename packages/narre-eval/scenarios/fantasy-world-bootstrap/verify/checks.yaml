@@ -17,14 +17,14 @@ verify:
   - name: "Quest uses workflow models"
     db:
       table: schemas
-      condition: "project_id = '{{project_id}}' AND name = 'Quest' AND semantic_models LIKE '%statusful%' AND semantic_models LIKE '%prioritizable%'"
+      condition: "project_id = '{{project_id}}' AND name = 'Quest' AND models LIKE '%statusful%' AND models LIKE '%prioritizable%'"
       expect:
         count: 1
 
   - name: "Scene uses temporal model"
     db:
       table: schemas
-      condition: "project_id = '{{project_id}}' AND name = 'Scene' AND semantic_models LIKE '%temporal%'"
+      condition: "project_id = '{{project_id}}' AND name = 'Scene' AND models LIKE '%temporal%'"
       expect:
         count: 1
 

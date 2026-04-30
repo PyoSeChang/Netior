@@ -17,16 +17,16 @@ export function registerEdgeTools(server: McpServer): void {
       network_id: z.string().describe('The network ID'),
       source_node_id: z.string().describe('Source node ID'),
       target_node_id: z.string().describe('Target node ID'),
-      relation_type_id: z.string().optional().describe('Optional relation type ID'),
+      model_id: z.string().optional().describe('Optional edge model ID'),
       description: z.string().optional().describe('Optional edge description'),
     },
-    async ({ network_id, source_node_id, target_node_id, relation_type_id, description }) => {
+    async ({ network_id, source_node_id, target_node_id, model_id, description }) => {
       try {
         const result = await createEdge({
           network_id,
           source_node_id,
           target_node_id,
-          relation_type_id,
+          model_id,
           description,
         });
         emitChange({ type: 'edge', action: 'create', id: result.id });
@@ -72,13 +72,13 @@ export function registerEdgeTools(server: McpServer): void {
     'update_edge',
     {
       edge_id: z.string().describe('The edge ID'),
-      relation_type_id: z.string().nullable().optional().describe('Relation type ID or null'),
+      model_id: z.string().nullable().optional().describe('Edge model ID or null'),
       description: z.string().nullable().optional().describe('Edge description or null'),
     },
-    async ({ edge_id, relation_type_id, description }) => {
+    async ({ edge_id, model_id, description }) => {
       try {
         const result = await updateEdge(edge_id, {
-          relation_type_id,
+          model_id,
           description,
         });
         if (!result) {

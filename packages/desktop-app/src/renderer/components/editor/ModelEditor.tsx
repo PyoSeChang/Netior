@@ -6,18 +6,18 @@ import type {
   FieldType,
   SemanticCategoryRefKey,
   SemanticMeaningKey,
-  SemanticModelKey,
-  SemanticModelFieldRecipe,
-  SemanticModelMeaningRecipe,
-  SemanticModelRecipe,
-  SemanticModelRefKey,
-  SemanticModelRepresentationKind,
-  SemanticModelRuleRecipe,
+  ModelKey,
+  ModelFieldRecipe,
+  ModelMeaningRecipe,
+  ModelRecipe,
+  ModelRefKey,
+  ModelRepresentationKind,
+  ModelRuleRecipe,
   MeaningSlotKey,
 } from '@netior/shared/types';
 import {
-  getSemanticModelDescriptionKey,
-  getSemanticModelLabelKey,
+  getModelDescriptionKey,
+  getModelLabelKey,
   getSemanticMeaningLabelKey,
   getMeaningSlotLabelKey,
 } from '@netior/shared/constants';
@@ -49,14 +49,14 @@ interface ModelEditorProps {
 }
 
 interface ModelEditorState {
-  key: SemanticModelRefKey;
+  key: ModelRefKey;
   name: string;
   description: string | null;
   category: SemanticCategoryRefKey;
   meaning_keys: SemanticMeaningKey[];
   core_slots: MeaningSlotKey[];
   optional_slots: MeaningSlotKey[];
-  recipe: SemanticModelRecipe;
+  recipe: ModelRecipe;
   color: string | null;
   icon: string | null;
   built_in: boolean;
@@ -83,7 +83,7 @@ const EMPTY_MODEL_STATE: ModelEditorState = {
   built_in: false,
 };
 
-const REPRESENTATION_OPTIONS: Array<{ value: SemanticModelRepresentationKind; labelKey: string }> = [
+const REPRESENTATION_OPTIONS: Array<{ value: ModelRepresentationKind; labelKey: string }> = [
   { value: 'single_field', labelKey: 'model.representation.singleField' },
   { value: 'field_group', labelKey: 'model.representation.fieldGroup' },
   { value: 'relation', labelKey: 'model.representation.relation' },
@@ -156,7 +156,7 @@ function countKeys(keys: readonly string[]): Map<string, number> {
   return counts;
 }
 
-function hasInvalidRecipeKeys(recipe: SemanticModelRecipe): boolean {
+function hasInvalidRecipeKeys(recipe: ModelRecipe): boolean {
   const activeMeanings = recipe.meanings.filter((meaning) => meaning.name.trim().length > 0);
   const meaningKeyCounts = countKeys(activeMeanings.map((meaning) => meaning.key));
   return activeMeanings.some((meaning) => {
@@ -172,7 +172,7 @@ function hasInvalidRecipeKeys(recipe: SemanticModelRecipe): boolean {
   });
 }
 
-function normalizeRecipe(recipe: SemanticModelRecipe): SemanticModelRecipe {
+function normalizeRecipe(recipe: ModelRecipe): ModelRecipe {
   return {
     meanings: recipe.meanings
       .map((meaning, meaningIndex) => ({
@@ -204,7 +204,7 @@ function normalizeRecipe(recipe: SemanticModelRecipe): SemanticModelRecipe {
   };
 }
 
-function makeEmptyMeaning(existingKeys: readonly string[] = []): SemanticModelMeaningRecipe {
+function makeEmptyMeaning(existingKeys: readonly string[] = []): ModelMeaningRecipe {
   return {
     id: createLocalId('meaning'),
     key: getNextKey('meaning', existingKeys),
@@ -215,7 +215,7 @@ function makeEmptyMeaning(existingKeys: readonly string[] = []): SemanticModelMe
   };
 }
 
-function makeEmptyField(existingKeys: readonly string[] = []): SemanticModelFieldRecipe {
+function makeEmptyField(existingKeys: readonly string[] = []): ModelFieldRecipe {
   return {
     id: createLocalId('field'),
     key: getNextKey('field', existingKeys),
@@ -227,23 +227,23 @@ function makeEmptyField(existingKeys: readonly string[] = []): SemanticModelFiel
   };
 }
 
-function makeEmptyRule(): SemanticModelRuleRecipe {
+function makeEmptyRule(): ModelRuleRecipe {
   return {
     id: createLocalId('rule'),
     description: '',
   };
 }
 
-function normalizeModelRefs(value: unknown): SemanticModelRefKey[] {
+function normalizeModelRefs(value: unknown): ModelRefKey[] {
   if (Array.isArray(value)) {
-    return value.filter((item): item is SemanticModelRefKey => typeof item === 'string' && item.trim().length > 0);
+    return value.filter((item): item is ModelRefKey => typeof item === 'string' && item.trim().length > 0);
   }
 
   if (typeof value === 'string') {
     try {
       return normalizeModelRefs(JSON.parse(value));
     } catch {
-      return value.trim() ? [value as SemanticModelRefKey] : [];
+      return value.trim() ? [value as ModelRefKey] : [];
     }
   }
 
@@ -322,7 +322,7 @@ export function ModelEditor({ tab }: ModelEditorProps): JSX.Element {
     },
     save: async (state) => {
       const normalizedRecipe = normalizeRecipe(state.recipe);
-      const modelKey = String(state.key) as SemanticModelRefKey;
+      const modelKey = String(state.key) as ModelRefKey;
       const duplicateModelKey = models.some((item) => item.id !== modelId && item.key === modelKey);
       if (!isValidQueryKey(modelKey) || duplicateModelKey || hasInvalidRecipeKeys(state.recipe)) {
         throw new Error('Invalid model query keys');
@@ -356,8 +356,6 @@ export function ModelEditor({ tab }: ModelEditorProps): JSX.Element {
 
     return projectSchemas.flatMap((schema) => {
       const schemaModelRefs = [
-        ...normalizeModelRefs(schema.semantic_models),
-        ...normalizeModelRefs(schema.semantic_models),
         ...normalizeModelRefs(schema.models),
       ];
       const linkedToSchema = schemaModelRefs.includes(modelKey);
@@ -405,10 +403,10 @@ export function ModelEditor({ tab }: ModelEditorProps): JSX.Element {
 
   const isBuiltInModel = session.state.built_in;
   const displayName = isBuiltInModel
-    ? t(getSemanticModelLabelKey(session.state.key as SemanticModelKey) as never)
+    ? t(getModelLabelKey(session.state.key as ModelKey) as never)
     : session.state.name;
   const displayDescription = isBuiltInModel
-    ? t(getSemanticModelDescriptionKey(session.state.key as SemanticModelKey) as never)
+    ? t(getModelDescriptionKey(session.state.key as ModelKey) as never)
     : session.state.description ?? '';
   const duplicateModelKey = models.some((item) => item.id !== modelId && item.key === session.state.key);
   const getKeyError = (key: string, duplicate: boolean): string | null => {
@@ -442,11 +440,11 @@ export function ModelEditor({ tab }: ModelEditorProps): JSX.Element {
     session.setState((prev) => ({ ...prev, ...patch }));
   };
 
-  const updateRecipe = (recipe: SemanticModelRecipe) => {
+  const updateRecipe = (recipe: ModelRecipe) => {
     update({ recipe });
   };
 
-  const updateMeaning = (meaningId: string, patch: Partial<SemanticModelMeaningRecipe>) => {
+  const updateMeaning = (meaningId: string, patch: Partial<ModelMeaningRecipe>) => {
     updateRecipe({
       ...session.state.recipe,
       meanings: session.state.recipe.meanings.map((meaning) => (
@@ -456,14 +454,14 @@ export function ModelEditor({ tab }: ModelEditorProps): JSX.Element {
   };
 
   const updateField = (
-    roleId: string,
+    meaningId: string,
     fieldId: string,
-    patch: Partial<SemanticModelFieldRecipe>,
+    patch: Partial<ModelFieldRecipe>,
   ) => {
     updateRecipe({
       ...session.state.recipe,
       meanings: session.state.recipe.meanings.map((meaning) => (
-        meaning.id === roleId
+        meaning.id === meaningId
           ? {
             ...meaning,
             fields: meaning.fields.map((field) => (
@@ -475,14 +473,14 @@ export function ModelEditor({ tab }: ModelEditorProps): JSX.Element {
     });
   };
 
-  const toggleFieldType = (roleId: string, field: SemanticModelFieldRecipe, fieldType: FieldType) => {
+  const toggleFieldType = (meaningId: string, field: ModelFieldRecipe, fieldType: FieldType) => {
     const current = new Set(field.field_types ?? []);
     if (current.has(fieldType)) {
       current.delete(fieldType);
     } else {
       current.add(fieldType);
     }
-    updateField(roleId, field.id, {
+    updateField(meaningId, field.id, {
       field_types: current.size > 0 ? [...current] : ['text'],
     });
   };
@@ -523,7 +521,7 @@ export function ModelEditor({ tab }: ModelEditorProps): JSX.Element {
               <label className="text-xs font-medium text-secondary">{t('model.key' as never)}</label>
               <Input
                 value={session.state.key}
-                onChange={(event) => update({ key: formatKeyInput(event.target.value) as SemanticModelRefKey })}
+                onChange={(event) => update({ key: formatKeyInput(event.target.value) as ModelRefKey })}
                 inputSize="sm"
                 disabled={isBuiltInModel}
                 error={Boolean(modelKeyError)}
@@ -639,7 +637,7 @@ export function ModelEditor({ tab }: ModelEditorProps): JSX.Element {
                         label: t(option.labelKey as never),
                       }))}
                       onChange={(event) => updateMeaning(meaning.id, {
-                        representation: event.target.value as SemanticModelRepresentationKind,
+                        representation: event.target.value as ModelRepresentationKind,
                       })}
                     />
                   </div>

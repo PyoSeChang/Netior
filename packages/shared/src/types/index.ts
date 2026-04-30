@@ -174,7 +174,7 @@ export interface ContextMember {
 
 export type NetworkObjectType =
   | 'concept' | 'network' | 'project' | 'schema' | 'model'
-  | 'relation_type' | 'type_group' | 'agent' | 'context'
+  | 'type_group' | 'agent' | 'context'
   | 'file' | 'module' | 'folder';
 
 export type NodeType = 'basic' | 'portal' | 'group' | 'hierarchy';
@@ -268,8 +268,7 @@ export interface Edge {
   network_id: string;
   source_node_id: string;
   target_node_id: string;
-  relation_type_id: string | null;
-  relation_meaning: RelationMeaningKey | null;
+  model_id: string | null;
   description: string | null;
   created_at: string;
 }
@@ -278,14 +277,12 @@ export interface EdgeCreate {
   network_id: string;
   source_node_id: string;
   target_node_id: string;
-  relation_type_id?: string;
-  relation_meaning?: RelationMeaningKey;
+  model_id?: string | null;
   description?: string;
 }
 
 export interface EdgeUpdate {
-  relation_type_id?: string | null;
-  relation_meaning?: RelationMeaningKey | null;
+  model_id?: string | null;
   description?: string | null;
 }
 
@@ -304,7 +301,7 @@ export type SemanticCategoryKey =
 
 export type SemanticCategoryRefKey = SemanticCategoryKey | (string & {});
 
-export type SemanticModelKey =
+export type ModelKey =
   | 'temporal'
   | 'dueable'
   | 'recurring'
@@ -324,9 +321,12 @@ export type SemanticModelKey =
   | 'measurable'
   | 'budgeted'
   | 'ownable'
-  | 'approvable';
+  | 'approvable'
+  | 'contains_relation'
+  | 'entry_portal_relation'
+  | 'parent_relation';
 
-export type SemanticModelRefKey = SemanticModelKey | (string & {});
+export type ModelRefKey = ModelKey | (string & {});
 
 export type SemanticMeaningKey =
   | 'time_interval'
@@ -448,22 +448,19 @@ export type FieldMeaningKey =
   | 'governance.approved_by'
   | 'governance.approved_at';
 
-export type RelationMeaningKey =
-  | 'structure.contains'
-  | 'structure.entry_portal'
-  | 'structure.parent';
-
 export type FieldMeaningBindingKey = FieldMeaningKey | `${string}.${string}`;
 export type FieldMeaningBindingSource = 'manual' | 'model' | 'migration' | 'system';
-export type MeaningBindingKey = FieldMeaningBindingKey | RelationMeaningKey;
+export type MeaningBindingKey = FieldMeaningBindingKey;
 export type MeaningSourceKind = 'manual' | 'model' | 'migration' | 'system';
 export type SlotBindingTargetKind = 'field' | 'edge' | 'derived';
 
 export type SlotConstraintLevel = 'strict' | 'constrained' | 'loose';
 
-export type SemanticModelRepresentationKind = 'single_field' | 'field_group' | 'relation' | 'computed';
+export type ModelRepresentationKind = 'single_field' | 'field_group' | 'relation' | 'computed';
+export type ModelTargetKind = 'object' | 'edge' | 'both';
+export type EdgeLineStyle = 'solid' | 'dashed' | 'dotted';
 
-export interface SemanticModelFieldRecipe {
+export interface ModelFieldRecipe {
   id: string;
   key: string;
   name: string;
@@ -473,69 +470,78 @@ export interface SemanticModelFieldRecipe {
   options?: string | null;
 }
 
-export interface SemanticModelMeaningRecipe {
+export interface ModelMeaningRecipe {
   id: string;
   key: string;
   name: string;
   description?: string | null;
-  representation: SemanticModelRepresentationKind;
-  fields: SemanticModelFieldRecipe[];
+  representation: ModelRepresentationKind;
+  fields: ModelFieldRecipe[];
 }
 
-export interface SemanticModelRuleRecipe {
+export interface ModelRuleRecipe {
   id: string;
   description: string;
 }
 
-export interface SemanticModelRecipe {
-  meanings: SemanticModelMeaningRecipe[];
-  rules: SemanticModelRuleRecipe[];
+export interface ModelRecipe {
+  meanings: ModelMeaningRecipe[];
+  rules: ModelRuleRecipe[];
 }
 
-export interface SemanticModel {
+export interface Model {
   id: string;
   project_id: string;
-  key: SemanticModelRefKey;
+  key: ModelRefKey;
   name: string;
   description: string | null;
   category: SemanticCategoryRefKey;
+  target_kind: ModelTargetKind;
   meaning_keys: SemanticMeaningKey[];
   core_slots: MeaningSlotKey[];
   optional_slots: MeaningSlotKey[];
-  recipe: SemanticModelRecipe;
+  recipe: ModelRecipe;
   color: string | null;
   icon: string | null;
+  line_style: EdgeLineStyle | null;
+  directed: boolean | null;
   built_in: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export interface SemanticModelCreate {
+export interface ModelCreate {
   project_id: string;
-  key?: SemanticModelRefKey;
+  key?: ModelRefKey;
   name: string;
   description?: string | null;
   category?: SemanticCategoryRefKey;
+  target_kind?: ModelTargetKind;
   meaning_keys?: SemanticMeaningKey[];
   core_slots?: MeaningSlotKey[];
   optional_slots?: MeaningSlotKey[];
-  recipe?: SemanticModelRecipe;
+  recipe?: ModelRecipe;
   color?: string | null;
   icon?: string | null;
+  line_style?: EdgeLineStyle | null;
+  directed?: boolean | null;
   built_in?: boolean;
 }
 
-export interface SemanticModelUpdate {
-  key?: SemanticModelRefKey;
+export interface ModelUpdate {
+  key?: ModelRefKey;
   name?: string;
   description?: string | null;
   category?: SemanticCategoryRefKey;
+  target_kind?: ModelTargetKind;
   meaning_keys?: SemanticMeaningKey[];
   core_slots?: MeaningSlotKey[];
   optional_slots?: MeaningSlotKey[];
-  recipe?: SemanticModelRecipe;
+  recipe?: ModelRecipe;
   color?: string | null;
   icon?: string | null;
+  line_style?: EdgeLineStyle | null;
+  directed?: boolean | null;
   built_in?: boolean;
 }
 
@@ -596,7 +602,7 @@ export interface NetworkFullData {
     concept?: Concept;
     file?: FileEntity;
   })[];
-  edges: (Edge & { relation_type?: RelationType })[];
+  edges: (Edge & { model?: Model })[];
   nodePositions: NodePosition[];
   edgeVisuals: EdgeVisual[];
 }
@@ -685,8 +691,7 @@ export interface Schema {
   color: string | null;
   node_shape: string | null;
   file_template: string | null;
-  semantic_models: SemanticModelRefKey[];
-  models?: SemanticModelRefKey[];
+  models: ModelRefKey[];
   created_at: string;
   updated_at: string;
 }
@@ -700,8 +705,7 @@ export interface SchemaCreate {
   color?: string;
   node_shape?: string;
   file_template?: string;
-  semantic_models?: SemanticModelRefKey[];
-  models?: SemanticModelRefKey[];
+  models?: ModelRefKey[];
 }
 
 export interface SchemaUpdate {
@@ -712,8 +716,7 @@ export interface SchemaUpdate {
   color?: string | null;
   node_shape?: string | null;
   file_template?: string | null;
-  semantic_models?: SemanticModelRefKey[];
-  models?: SemanticModelRefKey[];
+  models?: ModelRefKey[];
 }
 
 // ============================================
@@ -798,7 +801,7 @@ export interface SchemaMeaning {
   meaning_key: SemanticMeaningKey;
   label: string | null;
   source: MeaningSourceKind;
-  source_model: SemanticModelRefKey | null;
+  source_model: ModelRefKey | null;
   sort_order: number;
   slots: SchemaMeaningSlotBinding[];
   created_at: string;
@@ -810,7 +813,7 @@ export interface SchemaMeaningCreate {
   meaning_key: SemanticMeaningKey;
   label?: string | null;
   source?: MeaningSourceKind;
-  source_model?: SemanticModelRefKey | null;
+  source_model?: ModelRefKey | null;
   sort_order?: number;
 }
 
@@ -832,7 +835,7 @@ export type SchemaSlotUpdate = SchemaFieldUpdate;
 // Type Group
 // ============================================
 
-export type TypeGroupKind = 'schema' | 'relation_type';
+export type TypeGroupKind = 'schema';
 
 export interface TypeGroup {
   id: string;
@@ -879,44 +882,6 @@ export interface ConceptPropertyUpsert {
 }
 
 // ============================================
-// RelationType
-// ============================================
-
-export type LineStyle = 'solid' | 'dashed' | 'dotted';
-
-export interface RelationType {
-  id: string;
-  project_id: string;
-  group_id: string | null;
-  name: string;
-  description: string | null;
-  color: string | null;
-  line_style: LineStyle;
-  directed: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface RelationTypeCreate {
-  project_id: string;
-  group_id?: string | null;
-  name: string;
-  description?: string;
-  color?: string;
-  line_style?: LineStyle;
-  directed?: boolean;
-}
-
-export interface RelationTypeUpdate {
-  group_id?: string | null;
-  name?: string;
-  description?: string | null;
-  color?: string | null;
-  line_style?: LineStyle;
-  directed?: boolean;
-}
-
-// ============================================
 // Network Tree
 // ============================================
 
@@ -939,7 +904,7 @@ export interface NetworkBreadcrumbItem {
 // ============================================
 
 export type EditorViewMode = 'float' | 'full' | 'side' | 'detached';
-export type EditorTabType = 'concept' | 'file' | 'schema' | 'model' | 'terminal' | 'edge' | 'relationType' | 'network' | 'networkViewer' | 'ontology' | 'project' | 'narre' | 'agent' | 'fileMetadata' | 'context';
+export type EditorTabType = 'concept' | 'file' | 'schema' | 'model' | 'terminal' | 'edge' | 'network' | 'networkViewer' | 'ontology' | 'project' | 'narre' | 'agent' | 'fileMetadata' | 'context';
 
 /** Identifies a window that hosts editor tabs (main window or detached window) */
 export interface EditorHostState {
@@ -1058,7 +1023,7 @@ export interface NarreMessage {
 }
 
 export interface NarreMention {
-  type: 'concept' | 'network' | 'edge' | 'schema' | 'relationType' | 'module' | 'file';
+  type: 'concept' | 'network' | 'edge' | 'schema' | 'model' | 'module' | 'file';
   id?: string;
   path?: string;
   display: string;

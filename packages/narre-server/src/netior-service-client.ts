@@ -6,8 +6,7 @@ import type {
   Network,
   NetworkTreeNode,
   Project,
-  RelationType,
-  SemanticModel,
+  Model,
   TypeGroup,
   TypeGroupKind,
 } from '@netior/shared/types';
@@ -75,12 +74,8 @@ export async function listSchemaMeanings(schemaId: string): Promise<SchemaMeanin
   return requestJson<SchemaMeaning[]>(`/schema-meanings${toQueryString({ schemaId })}`);
 }
 
-export async function listSemanticModels(projectId: string): Promise<SemanticModel[]> {
-  return requestJson<SemanticModel[]>(`/semantic-models${toQueryString({ projectId })}`);
-}
-
-export async function listRelationTypes(projectId: string): Promise<RelationType[]> {
-  return requestJson<RelationType[]>(`/relation-types${toQueryString({ projectId })}`);
+export async function listModels(projectId: string): Promise<Model[]> {
+  return requestJson<Model[]>(`/models${toQueryString({ projectId })}`);
 }
 
 export async function listTypeGroups(projectId: string, kind: TypeGroupKind): Promise<TypeGroup[]> {

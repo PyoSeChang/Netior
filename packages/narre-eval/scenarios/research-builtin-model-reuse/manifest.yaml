@@ -1,0 +1,37 @@
+id: research-builtin-model-reuse
+title: "Research Built-in Model Reuse"
+description: "Evaluates whether Narre discovers and reuses built-in models for common research metadata instead of creating redundant custom models."
+scenario_version: "1.0.0"
+schema_version: 1
+type: conversation
+lifecycle: active
+labels: [product, research, bootstrap, schema, model, meaning, binding, builtins, skill]
+responsibility_surfaces: [NR16, NR17, NR18, NR19, NR22, NR23, NR25]
+
+execution:
+  supported_agents: [narre-server]
+  required_capabilities: [tool_call_trace]
+  target_skill: bootstrap
+  scenario_kind: interpretive
+  agent_id: narre-basic
+  provider: codex
+  tester: codex-tester
+  analysis_targets: [tool_use, schema, models, meanings, field_bindings]
+
+turn_plan:
+  file: turns.yaml
+
+entrypoints:
+  seed: seed.ts
+
+assets:
+  verify:
+    - verify/checks.yaml
+  rubrics:
+    - rubrics/quality.yaml
+
+provenance:
+  created_by:
+    id: netior-team
+    name: Netior Team
+    source: repo-scenario

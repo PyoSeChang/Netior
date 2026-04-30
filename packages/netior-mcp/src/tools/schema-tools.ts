@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import type { SemanticModelRefKey } from '@netior/shared/types';
+import type { ModelRefKey } from '@netior/shared/types';
 import {
   listSchemas,
   createSchema,
@@ -62,7 +62,7 @@ export function registerSchemaTools(server: McpServer): void {
           node_shape,
           description,
           file_template: file_template ?? undefined,
-          semantic_models: models as SemanticModelRefKey[] | undefined,
+          models: models as ModelRefKey[] | undefined,
         });
         emitChange({ type: 'schema', action: 'create', id: result.id });
         return {
@@ -101,7 +101,7 @@ export function registerSchemaTools(server: McpServer): void {
           node_shape,
           description,
           file_template,
-          semantic_models: models as SemanticModelRefKey[] | undefined,
+          models: models as ModelRefKey[] | undefined,
         });
         if (!result) {
           return {

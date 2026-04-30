@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { getDatabase } from '../connection';
 import { createObject, deleteObjectByRef } from './objects';
 import { ensureProjectNodeInUniverseForDb, ensureProjectOntologyNetworkForDb } from './system-networks';
-import { seedBuiltInSemanticModelsForProjectDb } from './semantic-model';
+import { seedBuiltInModelsForProjectDb } from './model';
 import type { Project, ProjectCreate, ProjectUpdate } from '@netior/shared/types';
 
 export function createProject(data: ProjectCreate): Project {
@@ -16,7 +16,7 @@ export function createProject(data: ProjectCreate): Project {
     ).run(id, data.name, data.root_dir, now, now);
 
     createObject('project', 'app', null, id);
-    seedBuiltInSemanticModelsForProjectDb(db, id);
+    seedBuiltInModelsForProjectDb(db, id);
     ensureProjectOntologyNetworkForDb(db, id);
     ensureProjectNodeInUniverseForDb(db, id);
   })();

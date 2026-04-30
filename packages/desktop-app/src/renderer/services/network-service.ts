@@ -2,7 +2,7 @@ import type {
   Network, NetworkCreate, NetworkUpdate,
   NetworkNode, NetworkNodeCreate, NetworkNodeUpdate,
   Edge, EdgeCreate, EdgeUpdate,
-  ObjectRecord, Concept, FileEntity, RelationType, NetworkBreadcrumbItem,
+  ObjectRecord, Concept, FileEntity, Model, NetworkBreadcrumbItem,
   NetworkTreeNode, Layout,
 } from '@netior/shared/types';
 
@@ -24,7 +24,7 @@ export interface NetworkFullData {
     concept?: Concept;
     file?: FileEntity;
   })[];
-  edges: (Edge & { relation_type?: RelationType })[];
+  edges: (Edge & { model?: Model })[];
   nodePositions: NodePosition[];
   edgeVisuals: EdgeVisual[];
 }

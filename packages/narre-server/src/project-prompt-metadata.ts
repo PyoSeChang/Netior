@@ -1,4 +1,4 @@
-import type { SchemaField, SchemaMeaning, NetworkTreeNode, SemanticModel, TypeGroup } from '@netior/shared/types';
+import type { SchemaField, SchemaMeaning, NetworkTreeNode, Model, TypeGroup } from '@netior/shared/types';
 import type { SystemPromptParams, SystemPromptTypeGroupSummary } from './system-prompt.js';
 import {
   getProjectOntologyNetwork,
@@ -8,8 +8,7 @@ import {
   listSchemaFields,
   listSchemaMeanings,
   listSchemas,
-  listRelationTypes,
-  listSemanticModels,
+  listModels,
   listTypeGroups,
 } from './netior-service-client.js';
 
@@ -110,14 +109,17 @@ function mapSchemaMeanings(
   }));
 }
 
-function mapModels(models: SemanticModel[]): SystemPromptParams['models'] {
+function mapModels(models: Model[]): SystemPromptParams['models'] {
   return models.map((model) => ({
     id: model.id,
     key: model.key,
     name: model.name,
     description: model.description,
     category: model.category,
+    target_kind: model.target_kind,
     meaning_keys: model.meaning_keys,
+    line_style: model.line_style,
+    directed: model.directed,
     built_in: model.built_in,
     recipe_meanings: model.recipe.meanings.map((meaning) => ({
       key: meaning.key,
@@ -142,18 +144,14 @@ export async function buildProjectPromptMetadata(projectId: string): Promise<Sys
   const [
     schemas,
     models,
-    relationTypes,
     schemaGroups,
-    relationTypeGroups,
     universeNetwork,
     ontologyNetwork,
     networkTree,
   ] = await Promise.all([
     listSchemas(projectId),
-    listSemanticModels(projectId),
-    listRelationTypes(projectId),
+    listModels(projectId),
     listTypeGroups(projectId, 'schema'),
-    listTypeGroups(projectId, 'relation_type'),
     getUniverseNetwork(),
     getProjectOntologyNetwork(projectId),
     getNetworkTree(projectId),
@@ -170,7 +168,7 @@ export async function buildProjectPromptMetadata(projectId: string): Promise<Sys
       schemas.map(async (schema) => [schema.id, await listSchemaMeanings(schema.id)] as const),
     ),
   );
-  const typeGroups = mapTypeGroups([...schemaGroups, ...relationTypeGroups]);
+  const typeGroups = mapTypeGroups(schemaGroups);
 
   return {
     projectId,
@@ -184,18 +182,9 @@ export async function buildProjectPromptMetadata(projectId: string): Promise<Sys
       color: schema.color,
       node_shape: schema.node_shape,
       description: schema.description,
-      models: schema.semantic_models ?? schema.models ?? schema.semantic_models,
-      semantic_models: schema.semantic_models,
+      models: schema.models,
       meanings: mapSchemaMeanings(schemaMeaningsById.get(schema.id) ?? []),
       fields: mapSchemaFields(schemaFieldsById.get(schema.id) ?? [], schemaNameMap),
-    })),
-    relationTypes: relationTypes.map((relationType) => ({
-      id: relationType.id,
-      name: relationType.name,
-      directed: relationType.directed,
-      line_style: relationType.line_style,
-      color: relationType.color,
-      description: relationType.description,
     })),
     typeGroups,
     universeNetwork: universeNetwork

@@ -28,7 +28,12 @@ import { ConceptPropertiesPanel, ConceptPropertyInputs } from './ConceptProperti
 import { ConceptBodyEditor } from './ConceptBodyEditor';
 import { ConceptAgentView } from './ConceptAgentView';
 import { useI18n } from '../../hooks/useI18n';
-import { HIERARCHY_PARENT_MEANING } from '../../lib/hierarchy-meaning';
+import {
+  CONTAINS_MODEL_KEY,
+  HIERARCHY_PARENT_MODEL_KEY,
+  isContainsEdge,
+  systemEdgeModelId,
+} from '../../lib/edge-models';
 import { isImageSourceValue } from '../workspace/node-components/node-visual-utils';
 import { NodeVisual } from '../workspace/node-components/NodeVisual';
 import {
@@ -391,14 +396,14 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
                   network_id: draft.networkId,
                   source_node_id: draft.parentGroupNodeId,
                   target_node_id: node.id,
-                  relation_meaning: 'structure.contains',
+                  model_id: systemEdgeModelId(currentProject.id, CONTAINS_MODEL_KEY),
                 });
                 if (parentGroupNode?.node_type === 'hierarchy') {
                   await networkService.edge.create({
                     network_id: draft.networkId,
                     source_node_id: draft.parentGroupNodeId,
                     target_node_id: node.id,
-                    relation_meaning: HIERARCHY_PARENT_MEANING,
+                    model_id: systemEdgeModelId(currentProject.id, HIERARCHY_PARENT_MODEL_KEY),
                   });
                 }
               }
@@ -551,7 +556,7 @@ export function ConceptEditor({ tab }: ConceptEditorProps): JSX.Element {
     if (!selectedOccurrenceNetworkData || !selectedNodeOccurrence) return new Set<string>();
     return new Set(
       selectedOccurrenceNetworkData.edges
-        .filter((edge) => edge.relation_meaning === 'structure.contains' && edge.source_node_id === selectedNodeOccurrence.nodeId)
+        .filter((edge) => isContainsEdge(edge) && edge.source_node_id === selectedNodeOccurrence.nodeId)
         .map((edge) => edge.target_node_id),
     );
   }, [selectedOccurrenceNetworkData, selectedNodeOccurrence]);

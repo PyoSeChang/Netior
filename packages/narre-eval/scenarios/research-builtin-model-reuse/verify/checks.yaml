@@ -1,0 +1,109 @@
+verify:
+  - name: "built-in models are seeded with descriptions and recipes"
+    db:
+      table: semantic_models
+      condition: "project_id = '{{project_id}}' AND built_in = 1"
+      expect:
+        count_min: 20
+        not_null: [description, recipe_json]
+
+  - name: "no custom model is created for common research metadata"
+    db_absent:
+      table: semantic_models
+      condition: "built_in = 0"
+
+  - name: "core research schemas exist"
+    db:
+      table: schemas
+      expect:
+        count_min: 3
+        column_includes:
+          name: ["Experiment", "Literature", "Dataset"]
+
+  - name: "Experiment reuses time and workflow built-in models"
+    db:
+      table: schemas
+      condition: "project_id = '{{project_id}}' AND name = 'Experiment' AND semantic_models LIKE '%temporal%' AND semantic_models LIKE '%recurring%' AND semantic_models LIKE '%statusful%'"
+      expect:
+        count: 1
+
+  - name: "Literature reuses source and attachment built-in models"
+    db:
+      table: schemas
+      condition: "project_id = '{{project_id}}' AND name = 'Literature' AND semantic_models LIKE '%sourceable%' AND semantic_models LIKE '%attachable%'"
+      expect:
+        count: 1
+
+  - name: "Dataset reuses source attachment and version built-in models"
+    db:
+      table: schemas
+      condition: "project_id = '{{project_id}}' AND name = 'Dataset' AND semantic_models LIKE '%sourceable%' AND semantic_models LIKE '%attachable%' AND semantic_models LIKE '%versioned%'"
+      expect:
+        count: 1
+
+  - name: "Experiment recurrence is represented by structured meaning-bound fields"
+    db:
+      table: field_meaning_bindings
+      condition: "meaning_key IN ('time.recurrence_frequency', 'time.recurrence_interval', 'time.recurrence_weekdays', 'time.recurrence_until', 'time.recurrence_count') AND field_id IN (SELECT sf.id FROM schema_fields sf JOIN schemas s ON s.id = sf.schema_id WHERE s.project_id = '{{project_id}}' AND s.name = 'Experiment')"
+      expect:
+        count_min: 2
+
+  - name: "Literature has source citation or attachment meaning bindings"
+    db:
+      table: field_meaning_bindings
+      condition: "meaning_key IN ('knowledge.source_url', 'knowledge.citation', 'knowledge.attachments') AND field_id IN (SELECT sf.id FROM schema_fields sf JOIN schemas s ON s.id = sf.schema_id WHERE s.project_id = '{{project_id}}' AND s.name = 'Literature')"
+      expect:
+        count_min: 2
+
+  - name: "no response error"
+    response:
+      no_error: true
+
+  - name: "bootstrap inspects available models"
+    tool:
+      name: get_model
+      expect:
+        count_min: 1
+        count_max: 24
+
+  - name: "custom model creation is avoided"
+    tool:
+      name: create_model
+      expect:
+        count_max: 0
+
+  - name: "bootstrap asks domain interview rounds"
+    tool:
+      name: ask
+      expect:
+        count_min: 1
+        count_max: 4
+
+  - name: "bootstrap presents a proposal before mutation"
+    tool:
+      name: propose
+      expect:
+        count_min: 1
+        count_max: 4
+
+  - name: "schema creation tool usage is bounded"
+    tool:
+      name: create_schema
+      expect:
+        count_min: 3
+        count_max: 12
+
+  - name: "field creation tool usage is bounded"
+    tool:
+      name: create_schema_field
+      expect:
+        count_min: 8
+        count_max: 40
+
+  - name: "analysis: project binding violation absent"
+    analysis:
+      tool_use:
+        findings_absent: [bootstrap_missing_interview, bootstrap_missing_proposal, project_binding_violation]
+        summary:
+          project_binding_violation_count:
+            count: 0

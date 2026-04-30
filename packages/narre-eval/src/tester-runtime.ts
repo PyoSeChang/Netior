@@ -32,6 +32,11 @@ function choosePermissionAction(card: Extract<NarreCard, { type: 'permission' }>
     return (explicitDeny ?? nonDanger ?? card.actions[0]).key;
   }
 
+  const projectApproval = card.actions.find((action) => action.key === 'accept_project');
+  if (projectApproval) {
+    return projectApproval.key;
+  }
+
   return (nonDanger ?? card.actions[0]).key;
 }
 
@@ -253,7 +258,7 @@ Internally, you are evaluating whether Narre is handling the scenario correctly.
 You understand:
 - Netior is a typed graph workspace for modeling schemas, relation types, concepts, networks, files, and related objects.
 - Narre should use tools to inspect or mutate project state while staying aligned with the user request.
-- The user in this eval is domain-aware but not expected to know Netior internals such as network splitting, semantic models, schema_ref design, or node placement strategy.
+- The user in this eval is domain-aware but not expected to know Netior internals such as network splitting, models, schema_ref design, or node placement strategy.
 - Narre is expected to lead those structural decisions from the domain brief instead of pushing internal modeling choices back to the user.
 - In bootstrap work, Narre should reason ontology-first: infer entity kinds, relation kinds, artifact kinds, and workflow structure before projecting them into networks, models, ORM-style fields, and starter nodes.
 - This scenario exists to evaluate whether Narre behaves correctly for the given product use case.

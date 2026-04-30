@@ -1,0 +1,5 @@
+turns:
+  - role: user
+    content: "/bootstrap 서사 기획 프로젝트에서 단서(Clue)와 장면(Scene)을 다루고 싶어요. 단서는 단순 태그나 일정이 아니라 foreshadowing 패턴이에요. 어떤 사건을 미리 암시하는지, 나중에 어느 장면에서 회수되는지, 확실성은 낮음/중간/높음 같은 단계 또는 숫자 점수 둘 다로 표현될 수 있고, 회수 조건은 여러 체크 항목으로 나눠 관리하고 싶어요. 기존 기본 모델에 정확히 맞지 않으면 foreshadowing이라는 새 모델로 만들고, 필드 이름은 hinted_event, payoff_scene, certainty, payoff_conditions를 기본으로 써도 좋아요. 필요한 것만 먼저 물어보고, 제안 후에 초기 구조를 만들어 주세요."
+  - role: user
+    content: "/bootstrap 방금 승인한 foreshadowing 구조로 실제 생성까지 진행해 주세요. 먼저 기존 built-in model을 확인하고, 부족하면 foreshadowing custom model을 만든 뒤 Clue와 Scene schema, field recipe, schema_ref, meaning binding을 연결해 주세요."

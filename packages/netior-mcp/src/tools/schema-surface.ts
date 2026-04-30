@@ -6,13 +6,13 @@ import type {
   Concept,
   FieldType,
   ObjectRecord,
-  SemanticModel,
+  Model,
   TypeGroup,
   TypeGroupKind,
 } from '@netior/shared/types';
 
 export type AgentFieldType = Exclude<FieldType, 'schema_ref'> | 'schema_ref';
-export type AgentTypeGroupKind = 'schema' | 'relation_type';
+export type AgentTypeGroupKind = 'schema';
 export type AgentObjectType = Exclude<ObjectRecord['object_type'], 'schema'> | 'schema';
 
 export function toAgentFieldType(fieldType: FieldType): AgentFieldType {
@@ -24,11 +24,11 @@ export function fromAgentFieldType(fieldType: AgentFieldType): FieldType {
 }
 
 export function toAgentTypeGroupKind(kind: TypeGroupKind): AgentTypeGroupKind {
-  return kind === 'schema' ? 'schema' : kind;
+  return kind;
 }
 
 export function fromAgentTypeGroupKind(kind: AgentTypeGroupKind): TypeGroupKind {
-  return kind === 'schema' ? 'schema' : kind;
+  return kind;
 }
 
 export function toAgentObjectType(objectType: ObjectRecord['object_type']): AgentObjectType {
@@ -41,14 +41,11 @@ export function fromAgentObjectType(objectType: AgentObjectType): ObjectRecord['
 
 export function toAgentSchema(schema: Schema) {
   const {
-    semantic_models,
-    models: _models,
     ...rest
   } = schema;
 
   return {
     ...rest,
-    models: semantic_models,
   };
 }
 
@@ -122,7 +119,7 @@ export function toAgentObject(record: ObjectRecord) {
   };
 }
 
-export function toAgentSemanticModel(model: SemanticModel) {
+export function toAgentModel(model: Model) {
   return {
     ...model,
     recipe: {

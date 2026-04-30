@@ -11,7 +11,6 @@ import { registerConceptPropertyIpc } from './concept-property-ipc';
 import { registerConceptContentIpc } from './concept-content-ipc';
 import { registerPtyIpc } from './pty-ipc';
 import { registerConfigIpc } from './config-ipc';
-import { registerRelationTypeIpc } from './relation-type-ipc';
 import { registerModelIpc } from './model-ipc';
 import { registerObjectIpc } from './object-ipc';
 import { registerNarreIpc } from './narre-ipc';
@@ -33,7 +32,6 @@ export function registerAllIpc(): void {
   registerConceptContentIpc();
   registerPtyIpc();
   registerConfigIpc();
-  registerRelationTypeIpc();
   registerModelIpc();
   registerObjectIpc();
   registerNarreIpc();

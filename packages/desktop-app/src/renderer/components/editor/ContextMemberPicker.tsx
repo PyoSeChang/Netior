@@ -23,8 +23,8 @@ function getEdgeLabel(edge: EdgeWithRelationType, nodes: NetworkNodeWithObject[]
   const targetNode = nodes.find((node) => node.id === edge.target_node_id);
   const sourceLabel = sourceNode ? getNodeLabel(sourceNode) : '?';
   const targetLabel = targetNode ? getNodeLabel(targetNode) : '?';
-  return edge.relation_type?.name
-    ? `${sourceLabel} -[${edge.relation_type.name}]-> ${targetLabel}`
+  return edge.model?.name
+    ? `${sourceLabel} -[${edge.model.name}]-> ${targetLabel}`
     : `${sourceLabel} -> ${targetLabel}`;
 }
 

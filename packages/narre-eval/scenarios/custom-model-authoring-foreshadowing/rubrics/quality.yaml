@@ -1,0 +1,6 @@
+rubrics:
+  - rubric: "Narre가 사용자의 foreshadowing 설명을 단순 태그나 일정이 아니라 별도의 의미 패턴으로 해석하고, built-in model로 충분한지 먼저 검토하는가?"
+  - rubric: "Narre가 필요할 때 project-level custom model을 만들고, name/key/description/category/recipe를 일관된 도메인 모델로 채우는가?"
+  - rubric: "Narre가 하나의 의미가 여러 필드로 표현될 수 있음을 반영해 hinted_event, payoff_scene, certainty, payoff_conditions 같은 field group을 설계하는가?"
+  - rubric: "Narre가 certainty처럼 하나의 필드 recipe가 select와 number 등 복수 허용 타입을 가질 수 있음을 model recipe에 표현하는가?"
+  - rubric: "Narre가 payoff_scene을 단순 텍스트가 아니라 Scene schema_ref로 모델링하고, field meaning_bindings로 custom model과 실제 field를 연결하는가?"

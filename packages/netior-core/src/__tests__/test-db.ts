@@ -36,6 +36,9 @@ import { migrate030 } from '../migrations/030-semantic-model-recipes';
 import { migrate031 } from '../migrations/031-field-meaning-bindings';
 import { migrate032 } from '../migrations/032-domain-term-cleanup';
 import { migrate033 } from '../migrations/033-ontology-network-name-cleanup';
+import { migrate034 } from '../migrations/034-model-storage-canonicalization';
+import { migrate035 } from '../migrations/035-node-config-meaning-binding-canonicalization';
+import { migrate036 } from '../migrations/036-edge-models-and-relation-type-retirement';
 
 let testDb: Database.Database | null = null;
 
@@ -77,6 +80,9 @@ export function setupTestDb(): Database.Database {
   migrate031(testDb);
   migrate032(testDb);
   migrate033(testDb);
+  migrate034(testDb);
+  migrate035(testDb);
+  migrate036(testDb);
   testDb.pragma('foreign_keys = ON');
   return testDb;
 }

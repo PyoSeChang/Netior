@@ -34,7 +34,7 @@ import {
   updateModule,
 } from '../repositories/module';
 import { getEditorPrefs, upsertEditorPrefs } from '../repositories/editor-prefs';
-import { createSemanticModel, deleteSemanticModel, getSemanticModel, listSemanticModels, updateSemanticModel } from '../repositories/semantic-model';
+import { createModel, deleteModel, getModel, listModels, updateModel } from '../repositories/model';
 import { createRelationType, listRelationTypes, getRelationType, updateRelationType, deleteRelationType } from '../repositories/relation-type';
 import { createObject, getObject, getObjectByRef, deleteObject, deleteObjectByRef } from '../repositories/objects';
 import { createContext, listContexts, getContext, updateContext, deleteContext, addContextMember, removeContextMember, getContextMembers } from '../repositories/context';
@@ -849,7 +849,7 @@ describe('Repositories', () => {
     });
   });
 
-  describe('SemanticModel', () => {
+  describe('Model', () => {
     let projectId: string;
 
     beforeEach(() => {
@@ -858,7 +858,7 @@ describe('Repositories', () => {
     });
 
     it('should seed built-in models for new projects', () => {
-      const models = listSemanticModels(projectId);
+      const models = listModels(projectId);
       const temporal = models.find((model) => model.key === 'temporal');
 
       expect(models.length).toBeGreaterThan(0);
@@ -874,7 +874,7 @@ describe('Repositories', () => {
     });
 
     it('should create, update, and delete custom models', () => {
-      const model = createSemanticModel({
+      const model = createModel({
         project_id: projectId,
         name: 'Experiment Rhythm',
         category: 'experiment',
@@ -902,7 +902,7 @@ describe('Repositories', () => {
       expect(model.recipe.meanings[0]?.fields[0]?.field_types).toEqual(['select', 'text']);
       expect(getObjectByRef('model', model.id)).toBeDefined();
 
-      const updated = updateSemanticModel(model.id, {
+      const updated = updateModel(model.id, {
         name: 'Experiment Cadence',
         recipe: {
           ...model.recipe,
@@ -912,15 +912,15 @@ describe('Repositories', () => {
 
       expect(updated?.name).toBe('Experiment Cadence');
       expect(updated?.recipe.rules[0]?.description).toContain('interval');
-      expect(getSemanticModel(model.id)?.name).toBe('Experiment Cadence');
+      expect(getModel(model.id)?.name).toBe('Experiment Cadence');
 
-      expect(deleteSemanticModel(model.id)).toBe(true);
-      expect(getSemanticModel(model.id)).toBeUndefined();
+      expect(deleteModel(model.id)).toBe(true);
+      expect(getModel(model.id)).toBeUndefined();
       expect(getObjectByRef('model', model.id)).toBeUndefined();
     });
 
     it('should keep schema model references aligned when a custom model key changes', () => {
-      const model = createSemanticModel({
+      const model = createModel({
         project_id: projectId,
         name: 'Evidence Lifecycle',
         category: 'knowledge',
@@ -929,19 +929,17 @@ describe('Repositories', () => {
       const schema = createSchema({
         project_id: projectId,
         name: 'Evidence',
-        semantic_models: [model.key],
+        models: [model.key],
       });
 
-      const updated = updateSemanticModel(model.id, { key: 'evidence_state' });
+      const updated = updateModel(model.id, { key: 'evidence_state' });
 
       expect(updated?.key).toBe('evidence_state');
-      expect(getSchema(schema.id)?.semantic_models).toEqual(['evidence_state']);
-      expect(getSchema(schema.id)?.semantic_models).toEqual(['evidence_state']);
       expect(getSchema(schema.id)?.models).toEqual(['evidence_state']);
     });
 
     it('should remove deleted custom model keys from schemas', () => {
-      const model = createSemanticModel({
+      const model = createModel({
         project_id: projectId,
         name: 'Evidence Lifecycle',
         category: 'knowledge',
@@ -950,14 +948,12 @@ describe('Repositories', () => {
       const schema = createSchema({
         project_id: projectId,
         name: 'Evidence',
-        semantic_models: [model.key],
+        models: [model.key],
       });
 
-      expect(schema.semantic_models).toEqual([model.key]);
+      expect(schema.models).toEqual([model.key]);
 
-      expect(deleteSemanticModel(model.id)).toBe(true);
-      expect(getSchema(schema.id)?.semantic_models).toEqual([]);
-      expect(getSchema(schema.id)?.semantic_models).toEqual([]);
+      expect(deleteModel(model.id)).toBe(true);
       expect(getSchema(schema.id)?.models).toEqual([]);
     });
   });
@@ -1435,26 +1431,22 @@ describe('Repositories', () => {
       projectId = createProject({ name: 'Semantic', root_dir: '/semantic-test' }).id;
     });
 
-    it('should bridge semantic models with legacy models and models on schema create/update', () => {
+    it('should attach models to schema on create/update', () => {
       const schema = createSchema({
         project_id: projectId,
         name: 'Event',
-        semantic_models: ['temporal'],
+        models: ['temporal'],
       });
 
-      expect(schema.semantic_models).toEqual(['temporal']);
       expect(schema.models).toEqual(['temporal']);
-      expect(schema.semantic_models).toEqual(['temporal']);
 
       const updated = createSchema({
         project_id: projectId,
         name: 'Task',
-        semantic_models: ['dueable'],
+        models: ['dueable'],
       });
 
-      expect(updated.semantic_models).toEqual(['dueable']);
       expect(updated.models).toEqual(['dueable']);
-      expect(updated.semantic_models).toEqual(['dueable']);
     });
 
     it('should bind fields to meanings and read legacy semantic annotations', () => {

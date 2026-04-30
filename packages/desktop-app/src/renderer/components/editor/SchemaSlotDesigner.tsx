@@ -8,20 +8,20 @@ import type {
   SemanticCategoryKey,
   SemanticCategoryRefKey,
   SemanticMeaningKey,
-  SemanticModelKey,
-  SemanticModelRefKey,
+  ModelKey,
+  ModelRefKey,
   MeaningSlotKey,
 } from '@netior/shared/types';
 import {
   SEMANTIC_CATEGORY_LABELS,
   SEMANTIC_MEANING_DEFINITIONS,
-  SEMANTIC_MODEL_DEFINITIONS,
+  MODEL_DEFINITIONS,
   getSemanticCategoryDescriptionKey,
   getSemanticCategoryLabelKey,
   getSemanticMeaningDescriptionKey,
   getSemanticMeaningLabelKey,
-  getSemanticModelDescriptionKey,
-  getSemanticModelLabelKey,
+  getModelDescriptionKey,
+  getModelLabelKey,
   getMeaningSlotDefinition,
   getMeaningSlotDescriptionKey,
   getMeaningSlotLabelKey,
@@ -47,15 +47,15 @@ interface SchemaSlotDesignerProps {
   tabId: string;
   fields: SchemaField[];
   meanings: SchemaMeaning[];
-  semanticModels: SemanticModelRefKey[];
-  modelDefinitions?: readonly SemanticModelOptionDefinition[];
+  selectedModels: ModelRefKey[];
+  modelDefinitions?: readonly ModelOptionDefinition[];
   activeCategory: SemanticCategoryRefKey;
   fieldComplexityLevel: string;
   onActiveCategoryChange: (category: SemanticCategoryRefKey) => void;
-  onToggleModel: (model: SemanticModelRefKey, checked: boolean) => void | Promise<void>;
+  onToggleModel: (model: ModelRefKey, checked: boolean) => void | Promise<void>;
   onEnsureMeaning: (
     meaning: SemanticMeaningKey,
-    options?: { sourceModel?: SemanticModelRefKey | null },
+    options?: { sourceModel?: ModelRefKey | null },
   ) => void | Promise<void>;
   onCreateFieldForSlot: (
     binding: SchemaMeaningSlotBinding,
@@ -68,8 +68,8 @@ interface SchemaSlotDesignerProps {
 
 const CATEGORY_KEYS = Object.keys(SEMANTIC_CATEGORY_LABELS) as SemanticCategoryKey[];
 
-export interface SemanticModelOptionDefinition {
-  key: SemanticModelRefKey;
+export interface ModelOptionDefinition {
+  key: ModelRefKey;
   category: SemanticCategoryRefKey;
   label: string;
   description?: string | null;
@@ -117,7 +117,7 @@ export function SchemaSlotDesigner({
   tabId,
   fields,
   meanings,
-  semanticModels,
+  selectedModels,
   modelDefinitions,
   activeCategory,
   fieldComplexityLevel,
@@ -143,8 +143,8 @@ export function SchemaSlotDesigner({
   const meaningByKey = useMemo(() => (
     new Map(meanings.map((meaning) => [meaning.meaning_key, meaning]))
   ), [meanings]);
-  const availableModelDefinitions = useMemo<readonly SemanticModelOptionDefinition[]>(
-    () => modelDefinitions ?? SEMANTIC_MODEL_DEFINITIONS.map((definition) => ({
+  const availableModelDefinitions = useMemo<readonly ModelOptionDefinition[]>(
+    () => modelDefinitions ?? MODEL_DEFINITIONS.map((definition) => ({
       key: definition.key,
       category: definition.category,
       label: definition.label,
@@ -156,13 +156,13 @@ export function SchemaSlotDesigner({
     [modelDefinitions],
   );
 
-  const getModelLabel = (definition: SemanticModelOptionDefinition): string => {
-    if (definition.builtIn) return t(getSemanticModelLabelKey(definition.key as SemanticModelKey) as never);
+  const getModelLabel = (definition: ModelOptionDefinition): string => {
+    if (definition.builtIn) return t(getModelLabelKey(definition.key as ModelKey) as never);
     return definition.label;
   };
 
-  const getModelDescription = (definition: SemanticModelOptionDefinition): string => {
-    if (definition.builtIn) return t(getSemanticModelDescriptionKey(definition.key as SemanticModelKey) as never);
+  const getModelDescription = (definition: ModelOptionDefinition): string => {
+    if (definition.builtIn) return t(getModelDescriptionKey(definition.key as ModelKey) as never);
     return definition.description ?? '';
   };
 
@@ -313,7 +313,7 @@ export function SchemaSlotDesigner({
                 {`${activeModel.activeMeanings.length} ${t('semantic.ui.activeMeanings' as never)}`}
               </span>
               <span className="rounded-md bg-surface-editor px-2 py-1">
-                {`${semanticModels.length} ${t('semantic.ui.selectedModels' as never)}`}
+                {`${selectedModels.length} ${t('semantic.ui.selectedModels' as never)}`}
               </span>
             </div>
           </div>
@@ -325,7 +325,7 @@ export function SchemaSlotDesigner({
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               {activeModel.modelDefinitions.map((modelDefinition) => {
-                const enabled = semanticModels.includes(modelDefinition.key);
+                const enabled = selectedModels.includes(modelDefinition.key);
                 return (
                   <div
                     key={modelDefinition.key}

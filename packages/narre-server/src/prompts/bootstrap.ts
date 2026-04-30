@@ -13,17 +13,18 @@ export function buildBootstrapPrompt(
   behavior: NarreBehaviorSettings = DEFAULT_NARRE_BEHAVIOR_SETTINGS,
   historyTurns: NarreTranscriptTurn[] = [],
 ): string {
-  const { projectName, models, schemas, relationTypes } = params;
+  const { projectName, models, schemas } = params;
   const networkTree = params.networkTree ?? [];
+  const edgeModels = models.filter((model) => model.target_kind === 'edge' || model.target_kind === 'both');
   const bootstrapHistory = summarizeBootstrapHistory(historyTurns);
 
-  const hasExistingStructure = schemas.length > 0 || relationTypes.length > 0 || networkTree.length > 1;
+  const hasExistingStructure = schemas.length > 0 || edgeModels.length > 0 || networkTree.length > 1;
 
   const existingState = hasExistingStructure
     ? `## Existing Project State
 Models (${models.length}): ${models.map((model) => model.name).join(', ') || 'none'}
 Schemas (${schemas.length}): ${schemas.map((a) => a.name).join(', ') || 'none'}
-Relation Types (${relationTypes.length}): ${relationTypes.map((r) => r.name).join(', ') || 'none'}
+Edge Models (${edgeModels.length}): ${edgeModels.map((model) => model.name).join(', ') || 'none'}
 Networks (${networkTree.length} top-level entries in digest): ${networkTree.map((n) => n.name).join(', ') || 'none'}
 
 This project is not empty. Bootstrap should refine or extend the structure instead of blindly recreating everything.`
@@ -90,11 +91,11 @@ Follow this order unless the user explicitly narrows the task:
 - Infer how the user will likely navigate between those spaces.
 - Do not ask the user to design the network split unless domain ambiguity makes that impossible.
 
-### Stage 4: Schema, Model, and Relation Projection
+### Stage 4: Schema and Model Projection
 - Infer core schemas from the ontology, not from Netior jargon.
 - Apply models and meanings when they materially improve structure, navigation, or workflow.
 - Add typed cross-schema reference fields where the user will need durable navigation between entity types.
-- Add relation types when graph edges carry independent meaning beyond typed fields.
+- Add edge-target models when graph edges carry independent meaning beyond typed fields.
 
 ### Stage 5: Starter Graph
 - Infer a small starter graph the user can begin with immediately.
@@ -105,7 +106,7 @@ Follow this order unless the user explicitly narrows the task:
 - Present a concise bootstrap proposal before making high-impact changes.
 - After confirmation, create the workspace in this order:
   1. networks
-  2. schemas, models, and relation types
+  2. schemas and models, including edge-target models
   3. fields and meaning bindings
   4. starter concepts and starter nodes
 - After execution, summarize what was created and why.
@@ -145,7 +146,7 @@ When presenting a bootstrap plan, prefer these sections:
 - projected models and meanings
 - projected schemas
 - projected typed reference fields
-- projected relation types
+- projected edge models
 - projected starter concepts and starter nodes
 - rationale
 

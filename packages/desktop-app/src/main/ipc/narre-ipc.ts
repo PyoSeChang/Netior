@@ -23,7 +23,7 @@ import {
   listRemoteSchemas,
   listRemoteFilesByProject,
   listRemoteNetworks,
-  listRemoteRelationTypes,
+  listRemoteModels,
   searchRemoteConcepts,
 } from '../netior-service/netior-service-client';
 import {
@@ -579,14 +579,15 @@ export function registerNarreIpc(): void {
         }
       }
 
-      // Search relation types
-      const relationTypes = await listRemoteRelationTypes(projectId);
-      for (const rt of relationTypes) {
+      // Search models
+      const models = await listRemoteModels(projectId);
+      for (const model of models) {
         if (results.length >= maxResults) break;
-        if (rt.name.toLowerCase().includes(lowerQuery)) {
+        if (model.name.toLowerCase().includes(lowerQuery) || model.key.toLowerCase().includes(lowerQuery)) {
           results.push({
-            type: 'relationType', id: rt.id, display: rt.name, color: rt.color,
-            description: rt.description, meta: { directed: rt.directed, lineStyle: rt.line_style },
+            type: 'model', id: model.id, display: model.name, color: model.color, icon: model.icon,
+            description: model.description,
+            meta: { key: model.key, targetKind: model.target_kind, directed: model.directed, lineStyle: model.line_style },
           });
         }
       }

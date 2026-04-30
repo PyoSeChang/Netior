@@ -106,7 +106,7 @@
   - `space`
   - `quant`
   - `governance`
-- `SemanticModelKey`
+- `ModelKey`
   - `temporal`
   - `dueable`
   - `recurring`
@@ -149,7 +149,7 @@
 
 API 레벨에서는 schema이 아래 필드를 가져야 한다.
 
-- `semantic_models: SemanticModelKey[]`
+- `models: ModelKey[]`
 
 DB 내부 저장 형식은 초기에 `JSON TEXT`여도 괜찮지만, renderer와 service에서는 배열로 다룬다.
 
@@ -188,13 +188,13 @@ Netior의 타입 추가는 기본적으로 아래 순서를 따른다.
 작업:
 
 - model/category/slot 관련 타입 추가
-- `Schema`, `SchemaCreate`, `SchemaUpdate`에 `semantic_models` 추가
+- `Schema`, `SchemaCreate`, `SchemaUpdate`에 `models` 추가
 - `SchemaField`, `SchemaFieldCreate`, `SchemaFieldUpdate`에 slot 바인딩 관련 필드 추가
 - slot constraint registry export
 
 완료 기준:
 
-- renderer와 core가 공통 타입으로 `semantic_models`, `meaning_slot`를 읽을 수 있다.
+- renderer와 core가 공통 타입으로 `models`, `meaning_slot`를 읽을 수 있다.
 
 ### 6.2 netior-core
 
@@ -466,7 +466,7 @@ calendar는 해당 schema이 `temporal` model를 가지고 있고, 필요한 `me
 
 아래 조건이 만족되면 1차 도입이 완료된 것으로 본다.
 
-- schema이 `semantic_models`를 저장하고 조회할 수 있다
+- schema이 `models`를 저장하고 조회할 수 있다
 - schema field가 `meaning_slot`를 가질 수 있다
 - schema editor에서 model 부착 시 slot field가 자동 생성된다
 - concept editor가 slot-aware 입력을 제공한다

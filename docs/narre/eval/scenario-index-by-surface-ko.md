@@ -14,7 +14,9 @@
 
 manifest 기준 활성 시나리오:
 
+- `custom-model-authoring-foreshadowing`
 - `fantasy-world-bootstrap`
+- `research-builtin-model-reuse`
 - `think-data-structure-pdf-index`
 
 비활성:
@@ -25,7 +27,9 @@ manifest 기준 활성 시나리오:
 
 | Scenario ID | 타입 | 핵심 검증 초점 |
 |---|---|---|
+| `custom-model-authoring-foreshadowing` | `single-turn + dynamic tester interaction` | `/bootstrap` skill, custom model 생성, model recipe, 복수 허용 field type, field meaning binding, schema_ref 적용 |
 | `fantasy-world-bootstrap` | `single-turn + dynamic tester interaction` | `/bootstrap` skill, fantasy domain ontology, two-round interview, network split, model/meaning/ORM/starter graph 시도 |
+| `research-builtin-model-reuse` | `single-turn + dynamic tester interaction` | `/bootstrap` skill, built-in model 조회/재사용, 중복 custom model 방지, structured recurrence field binding |
 | `think-data-structure-pdf-index` | `single-turn + approval card` | `/index` skill, PDF TOC extraction, file metadata `pdf_toc` 저장, approval-before-save |
 
 ## 표면별 커버리지
@@ -46,21 +50,21 @@ manifest 기준 활성 시나리오:
 | NR06 | layout-aware placement | 없음 | 없음 | 위치/크기/edge visual 검증 없음 |
 | NR07 | concept CRUD | `fantasy-world-bootstrap` | 부분 | starter concept 생성은 보지만 concept content/update/delete는 없음 |
 | NR08 | concept property CRUD | `fantasy-world-bootstrap` | 부분 | property/field value를 기대하지만 field type별 dedicated 검증은 없음 |
-| NR09 | recurrence와 virtual occurrence | 없음 | 없음 | recurrence를 여러 field/meaning binding으로 모델링하거나 occurrence materialization하는 시나리오 없음 |
+| NR09 | recurrence와 virtual occurrence | `research-builtin-model-reuse` | 부분 | recurrence를 structured field/meaning binding으로 모델링하는지는 보지만 occurrence materialization은 없음 |
 | NR10 | file/folder entity와 network placement | `think-data-structure-pdf-index` | 부분 | file entity를 seed하고 target PDF로 사용하지만 network placement는 없음 |
 | NR11 | file metadata와 PDF TOC | `think-data-structure-pdf-index` | 강함 | `get_file_metadata`, `update_file_pdf_toc`, `pdf_toc.entries/pageCount/sourceMethod` 저장을 검증 |
 | NR12 | edge CRUD | `fantasy-world-bootstrap` | 부분 | starter edge 생성은 볼 수 있으나 update/delete는 없음 |
 | NR13 | edge semantics와 visual override | `fantasy-world-bootstrap` | 부분 | relation type/description 기대는 있으나 edge visual override는 없음 |
 | NR14 | portal/subnetwork/navigation | `fantasy-world-bootstrap` | 부분 | network split 의도만 있고 portal/subnetwork interaction 검증은 약함 |
 | NR15 | group/hierarchy/containment semantics | 없음 | 없음 | group/hierarchy/contains/hierarchy_parent 전용 검증 없음 |
-| NR16 | schema CRUD | `fantasy-world-bootstrap` | 부분 | schema 생성은 보지만 update/delete는 없음 |
-| NR17 | schema field definition CRUD | `fantasy-world-bootstrap` | 부분 | field definition 생성은 보지만 reorder/update/delete는 없음 |
-| NR18 | model / meaning / binding | `fantasy-world-bootstrap` | 부분 | model 사용은 보려 하지만 model CRUD, schema meaning, field meaning bindings, meaning slot binding 전용 검증은 없음 |
-| NR19 | ORM형 schema 관계와 property 모델링 | `fantasy-world-bootstrap` | 부분 | ORM형 관계 기대는 있으나 cycle/candidate/field-vs-edge 판단 검증은 약함 |
+| NR16 | schema CRUD | `fantasy-world-bootstrap`, `research-builtin-model-reuse`, `custom-model-authoring-foreshadowing` | 부분 | schema 생성은 보지만 update/delete는 없음 |
+| NR17 | schema field definition CRUD | `fantasy-world-bootstrap`, `research-builtin-model-reuse`, `custom-model-authoring-foreshadowing` | 부분 | field definition 생성과 model-generated field는 보지만 reorder/update/delete는 없음 |
+| NR18 | model / meaning / binding | `research-builtin-model-reuse`, `custom-model-authoring-foreshadowing`, `fantasy-world-bootstrap` | 강함 | built-in model 재사용, custom model CRUD, model recipe, field meaning bindings를 직접 검증한다. schema meaning slot binding은 아직 부분적 |
+| NR19 | ORM형 schema 관계와 property 모델링 | `fantasy-world-bootstrap`, `custom-model-authoring-foreshadowing` | 부분 | schema_ref 적용은 보지만 cycle/candidate/field-vs-edge 판단 검증은 약함 |
 | NR20 | relation type CRUD | `fantasy-world-bootstrap` | 부분 | relation type 생성은 보지만 update/delete/visual default는 약함 |
 | NR21 | type group CRUD | `fantasy-world-bootstrap` | 부분 | type group 생성 정도만 걸릴 수 있음. Ontology network 자동 투영 검증은 없음 |
-| NR22 | discovery/search/candidate resolution | `fantasy-world-bootstrap` | 부분 | project summary와 중복 방지 여부를 강하게 검증하지 않음 |
-| NR23 | `/bootstrap` domain interview와 실행 | `fantasy-world-bootstrap` | 강함 | target skill을 명시하고 `ask, ask, propose, create_type_group` 순서를 검증한다 |
+| NR22 | discovery/search/candidate resolution | `fantasy-world-bootstrap`, `research-builtin-model-reuse`, `custom-model-authoring-foreshadowing` | 부분 | model 조회와 중복 방지는 보지만 일반 candidate resolution 전용 검증은 약함 |
+| NR23 | `/bootstrap` domain interview와 실행 | `fantasy-world-bootstrap`, `research-builtin-model-reuse`, `custom-model-authoring-foreshadowing` | 강함 | target skill을 명시하고 interview/proposal 이후 생성하는 흐름을 검증한다 |
 | NR24 | `/index` artifact indexing | `think-data-structure-pdf-index` | 강함 | 실제 루트 PDF `Think Data Structure.pdf`의 목차 페이지를 읽고 저장하는 흐름 검증 |
 | NR25 | Narre interaction과 safety | 모든 시나리오 | 부분 | Narre flow는 거치지만 approval card/transcript/tool log 품질 검증은 약함 |
 

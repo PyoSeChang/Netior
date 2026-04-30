@@ -15,9 +15,15 @@ import type {
   ObjectRecord,
   Concept,
   FileEntity,
-  RelationType,
+  Model,
+  EdgeLineStyle,
   NetworkBreadcrumbItem,
   NetworkFullData,
+  ModelRefKey,
+  SemanticCategoryRefKey,
+  SemanticMeaningKey,
+  MeaningSlotKey,
+  ModelTargetKind,
 } from '@netior/shared/types';
 
 // ── Network ──
@@ -190,13 +196,54 @@ export function ensureProjectOntologyNetwork(projectId: string): Network {
 
 // ── Network Full Data ──
 
-type RelationTypeRow = Omit<RelationType, 'directed'> & { directed: number };
+type ModelRow = Omit<Model, 'meaning_keys' | 'core_slots' | 'optional_slots' | 'recipe' | 'built_in' | 'directed'> & {
+  meaning_keys: string | null;
+  core_slots: string | null;
+  optional_slots: string | null;
+  recipe_json: string | null;
+  built_in: number;
+  directed: number | null;
+};
 type EdgeRow = Edge;
 
-function toEdge(row: EdgeRow): Edge {
+function parseStringArray<T extends string>(raw: string | null | undefined): T[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is T => typeof item === 'string' && item.trim().length > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseModelRecipe(raw: string | null | undefined): Model['recipe'] {
+  if (!raw) return { meanings: [], rules: [] };
+  try {
+    const parsed = JSON.parse(raw) as Model['recipe'];
+    return {
+      meanings: Array.isArray(parsed.meanings) ? parsed.meanings : [],
+      rules: Array.isArray(parsed.rules) ? parsed.rules : [],
+    };
+  } catch {
+    return { meanings: [], rules: [] };
+  }
+}
+
+function toModel(row: ModelRow): Model {
   return {
     ...row,
-    relation_meaning: row.relation_meaning ?? null,
+    key: row.key as ModelRefKey,
+    category: row.category as SemanticCategoryRefKey,
+    target_kind: (row.target_kind ?? 'object') as ModelTargetKind,
+    meaning_keys: parseStringArray<SemanticMeaningKey>(row.meaning_keys),
+    core_slots: parseStringArray<MeaningSlotKey>(row.core_slots),
+    optional_slots: parseStringArray<MeaningSlotKey>(row.optional_slots),
+    recipe: parseModelRecipe(row.recipe_json),
+    line_style: (row.line_style ?? null) as EdgeLineStyle | null,
+    directed: row.directed == null ? null : !!row.directed,
+    built_in: !!row.built_in,
   };
 }
 
@@ -273,38 +320,50 @@ export function getNetworkFull(networkId: string): NetworkFullData | undefined {
   });
 
   const edgeRows = db.prepare(
-    `SELECT e.*, rt.id as rt_id, rt.project_id as rt_project_id, rt.name as rt_name,
-            rt.description as rt_description, rt.color as rt_color,
-            rt.line_style as rt_line_style, rt.directed as rt_directed,
-            rt.created_at as rt_created_at, rt.updated_at as rt_updated_at
+    `SELECT e.*,
+            m.id as m_id, m.project_id as m_project_id, m.key as m_key, m.name as m_name,
+            m.description as m_description, m.category as m_category, m.target_kind as m_target_kind,
+            m.meaning_keys as m_meaning_keys, m.core_slots as m_core_slots,
+            m.optional_slots as m_optional_slots, m.recipe_json as m_recipe_json,
+            m.color as m_color, m.icon as m_icon, m.line_style as m_line_style,
+            m.directed as m_directed, m.built_in as m_built_in,
+            m.created_at as m_created_at, m.updated_at as m_updated_at
      FROM edges e
-     LEFT JOIN relation_types rt ON e.relation_type_id = rt.id
+     LEFT JOIN models m ON e.model_id = m.id
      WHERE e.network_id = ?`,
   ).all(networkId) as (Record<string, unknown>)[];
 
   const edges = edgeRows.map((row) => {
-    const hasRelationType = row.rt_id != null;
+    const hasModel = row.m_id != null;
     return {
       id: row.id as string,
       network_id: row.network_id as string,
       source_node_id: row.source_node_id as string,
       target_node_id: row.target_node_id as string,
-      relation_type_id: (row.relation_type_id as string | null) ?? null,
-      relation_meaning: (row.relation_meaning as Edge['relation_meaning'] | null) ?? null,
+      model_id: (row.model_id as string | null) ?? null,
       description: (row.description as string | null) ?? null,
       created_at: row.created_at as string,
-      ...(hasRelationType ? {
-        relation_type: {
-          id: row.rt_id as string,
-          project_id: row.rt_project_id as string,
-          name: row.rt_name as string,
-          description: (row.rt_description as string | null) ?? null,
-          color: (row.rt_color as string | null) ?? null,
-          line_style: row.rt_line_style as string,
-          directed: !!(row.rt_directed as number),
-          created_at: row.rt_created_at as string,
-          updated_at: row.rt_updated_at as string,
-        },
+      ...(hasModel ? {
+        model: toModel({
+          id: row.m_id as string,
+          project_id: row.m_project_id as string,
+          key: row.m_key as string,
+          name: row.m_name as string,
+          description: (row.m_description as string | null) ?? null,
+          category: row.m_category as string,
+          target_kind: ((row.m_target_kind as string | null) ?? 'object') as ModelTargetKind,
+          meaning_keys: (row.m_meaning_keys as string | null) ?? null,
+          core_slots: (row.m_core_slots as string | null) ?? null,
+          optional_slots: (row.m_optional_slots as string | null) ?? null,
+          recipe_json: (row.m_recipe_json as string | null) ?? null,
+          color: (row.m_color as string | null) ?? null,
+          icon: (row.m_icon as string | null) ?? null,
+          line_style: ((row.m_line_style as string | null) ?? null) as EdgeLineStyle | null,
+          directed: (row.m_directed as number | null) ?? null,
+          built_in: (row.m_built_in as number | null) ?? 0,
+          created_at: row.m_created_at as string,
+          updated_at: row.m_updated_at as string,
+        }),
       } : {}),
     };
   });
@@ -376,40 +435,34 @@ export function createEdge(data: EdgeCreate): Edge {
   const now = new Date().toISOString();
 
   db.prepare(
-    `INSERT INTO edges (id, network_id, source_node_id, target_node_id, relation_type_id, relation_meaning, description, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO edges (id, network_id, source_node_id, target_node_id, model_id, description, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id, data.network_id, data.source_node_id, data.target_node_id,
-    data.relation_type_id ?? null, data.relation_meaning ?? null, data.description ?? null,
+    data.model_id ?? null, data.description ?? null,
     now,
   );
 
-  return toEdge(db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow);
+  return db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow;
 }
 
 export function getEdge(id: string): Edge | undefined {
   const db = getDatabase();
-  const row = db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow | undefined;
-  return row ? toEdge(row) : undefined;
+  return db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow | undefined;
 }
 
 export function updateEdge(id: string, data: EdgeUpdate): Edge | undefined {
   const db = getDatabase();
   const existingRow = db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow | undefined;
   if (!existingRow) return undefined;
-  const existing = toEdge(existingRow);
-  const nextRelationMeaning = data.relation_meaning !== undefined
-    ? data.relation_meaning
-    : existing.relation_meaning;
 
-  db.prepare('UPDATE edges SET relation_type_id = ?, relation_meaning = ?, description = ? WHERE id = ?').run(
-    data.relation_type_id !== undefined ? data.relation_type_id : existing.relation_type_id,
-    nextRelationMeaning ?? null,
-    data.description !== undefined ? data.description : existing.description,
+  db.prepare('UPDATE edges SET model_id = ?, description = ? WHERE id = ?').run(
+    data.model_id !== undefined ? data.model_id : existingRow.model_id,
+    data.description !== undefined ? data.description : existingRow.description,
     id,
   );
 
-  return toEdge(db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow);
+  return db.prepare('SELECT * FROM edges WHERE id = ?').get(id) as EdgeRow;
 }
 
 export function deleteEdge(id: string): boolean {

@@ -4,7 +4,7 @@ import {
 import type {
   SchemaField,
   FieldMeaningBindingKey,
-  SemanticModelRefKey,
+  ModelRefKey,
   FieldMeaningKey,
   MeaningSlotKey,
 } from '@netior/shared/types';
@@ -28,7 +28,7 @@ interface ParsedDateTimeParts {
 interface ApplyConceptSemanticProjectionInput {
   metadata: Record<string, unknown>;
   schemaId?: string;
-  models?: SemanticModelRefKey[];
+  models?: ModelRefKey[];
   fields: SchemaField[];
   propertyValues: Map<string, string | null>;
 }
@@ -219,10 +219,10 @@ export function applyConceptSemanticProjection({
   fields,
   propertyValues,
 }: ApplyConceptSemanticProjectionInput): LayoutSemanticProjection {
-  const semanticModels = models ?? [];
+  const selectedModels = models ?? [];
   const semantic: LayoutSemanticProjection = {
     schemaId,
-    models: semanticModels,
+    models: selectedModels,
     meaningBindings: {},
     meaningFieldIds: {},
     meaningSlotFieldIds: {},

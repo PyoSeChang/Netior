@@ -1,0 +1,6 @@
+rubrics:
+  - rubric: "Narre가 사용자의 연구 도메인 설명을 실험, 문헌, 데이터셋의 실제 작업 흐름으로 해석하고 필요한 최소 질문을 통해 빠진 구조를 확인하는가?"
+  - rubric: "Narre가 시간, 반복, 상태, 담당자, 우선순위, 출처, 첨부, 버전처럼 이미 존재하는 built-in model을 먼저 조회하고 재사용하며 중복 custom model을 만들지 않는가?"
+  - rubric: "Narre가 schema에 model을 붙이는 것에서 멈추지 않고 field definition과 meaning_bindings까지 이어서 실제로 검색/필터/입력 가능한 구조를 만드는가?"
+  - rubric: "Narre가 반복 규칙을 단일 문자열 필드로 뭉개지 않고 frequency, interval, weekday, until/count 같은 구조화된 필드로 표현하려고 하는가?"
+  - rubric: "Narre가 Netior 내부 용어를 사용자에게 과도하게 넘기지 않고 제안, 이유, 생성 결과를 도메인 언어로 설명하는가?"

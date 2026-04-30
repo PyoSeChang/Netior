@@ -90,32 +90,32 @@ export const NETIOR_MCP_TOOL_SPECS = {
     kind: 'mutation',
   },
   list_models: {
-    description: 'List semantic models for a project',
+    description: 'List models for a project',
     category: 'types',
     kind: 'query',
-    profiles: ['discovery'],
+    profiles: ['discovery', 'bootstrap-execution'],
     scope: 'project',
     defaultProjectBinding: true,
   },
   get_model: {
-    description: 'Get a semantic model by ID',
+    description: 'Get a model by ID',
     category: 'types',
     kind: 'query',
   },
   create_model: {
-    description: 'Create a semantic model with meanings and field recipes',
+    description: 'Create a model with meanings and field recipes',
     category: 'types',
     kind: 'mutation',
     scope: 'project',
     defaultProjectBinding: true,
   },
   update_model: {
-    description: 'Update a semantic model with meanings and field recipes',
+    description: 'Update a model with meanings and field recipes',
     category: 'types',
     kind: 'mutation',
   },
   delete_model: {
-    description: 'Delete a semantic model and detach it from schemas',
+    description: 'Delete a model and detach it from schemas',
     category: 'types',
     kind: 'mutation',
   },
@@ -169,7 +169,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
     kind: 'query',
   },
   update_edge: {
-    description: 'Update an edge relation type, description, or visual metadata',
+    description: 'Update an edge model binding or description',
     category: 'graph',
     kind: 'mutation',
   },
@@ -351,32 +351,9 @@ export const NETIOR_MCP_TOOL_SPECS = {
     profiles: ['index-skill'],
     scope: 'file',
   },
-  list_relation_types: {
-    description: 'List all relation types for a project',
-    category: 'types',
-    kind: 'query',
-    profiles: ['discovery'],
-    scope: 'project',
-    defaultProjectBinding: true,
-  },
-  create_relation_type: {
-    description: 'Create a new relation type for a project',
-    category: 'types',
-    kind: 'mutation',
-  },
-  update_relation_type: {
-    description: 'Update an existing relation type',
-    category: 'types',
-    kind: 'mutation',
-  },
-  delete_relation_type: {
-    description: 'Delete a relation type',
-    category: 'types',
-    kind: 'mutation',
-  },
   get_project_summary: {
     displayName: 'Project Summary',
-    description: 'Get a summary of a project including schema, relation, type-group, concept, and network context',
+    description: 'Get a summary of a project including schema, model, type-group, concept, and network context',
     category: 'project',
     kind: 'analysis',
     profiles: ['discovery'],
@@ -384,7 +361,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
     defaultProjectBinding: true,
   },
   list_type_groups: {
-    description: 'List type groups for schemas or relation types in a project',
+    description: 'List schema type groups in a project',
     category: 'types',
     kind: 'query',
     profiles: ['discovery'],
@@ -392,7 +369,7 @@ export const NETIOR_MCP_TOOL_SPECS = {
     defaultProjectBinding: true,
   },
   create_type_group: {
-    description: 'Create a folder-like type organization group for schemas or relation types',
+    description: 'Create a folder-like organization group for schemas',
     category: 'types',
     kind: 'mutation',
     scope: 'project',
@@ -422,7 +399,7 @@ function humanizeToolName(toolName: string): string {
 }
 
 function inferToolCategory(toolName: string): NarreToolCategory {
-  if (toolName.includes('schema') || toolName.includes('relation_type') || toolName.includes('type_group') || toolName.includes('field')) {
+  if (toolName.includes('schema') || toolName.includes('model') || toolName.includes('type_group') || toolName.includes('field')) {
     return 'types';
   }
   if (toolName.includes('concept')) {
@@ -472,7 +449,7 @@ function inferToolScope(toolName: string): NetiorMcpToolScope {
   if (
     toolName.includes('project')
     || toolName.includes('schema')
-    || toolName.includes('relation_type')
+    || toolName.includes('model')
     || toolName.includes('type_group')
     || toolName.includes('concept')
     || toolName.includes('module')

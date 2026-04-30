@@ -6,7 +6,6 @@ import type {
   NodeSortDirection,
   NodeSortEmptyPlacement,
 } from '@netior/shared/types';
-import { meaningSlotToFieldMeaning } from '@netior/shared/constants';
 
 export const NODE_CONFIG_METADATA_KEY = 'nodeConfig';
 
@@ -28,44 +27,6 @@ function normalizeEmptyPlacement(value: unknown): NodeSortEmptyPlacement | undef
 
 function normalizeSortConfig(raw: unknown): NodeSortConfig | null {
   if (!isRecord(raw) || typeof raw.kind !== 'string') return null;
-
-  if (raw.kind === 'meaning_slot' && typeof raw.slot === 'string' && raw.slot.trim() !== '') {
-    const meaning = meaningSlotToFieldMeaning(raw.slot as never);
-    if (!meaning) return null;
-    return {
-      kind: 'meaning_binding',
-      meaning,
-      direction: normalizeDirection(raw.direction),
-      emptyPlacement: normalizeEmptyPlacement(raw.emptyPlacement),
-    };
-  }
-
-  if (raw.kind === 'meaning_key' && typeof raw.annotation === 'string' && raw.annotation.trim() !== '') {
-    return {
-      kind: 'meaning_binding',
-      meaning: raw.annotation as FieldMeaningBindingKey,
-      direction: normalizeDirection(raw.direction),
-      emptyPlacement: normalizeEmptyPlacement(raw.emptyPlacement),
-    };
-  }
-
-  if (raw.kind === 'semantic_role' && typeof raw.role === 'string' && raw.role.trim() !== '') {
-    return {
-      kind: 'meaning_binding',
-      meaning: raw.role as FieldMeaningBindingKey,
-      direction: normalizeDirection(raw.direction),
-      emptyPlacement: normalizeEmptyPlacement(raw.emptyPlacement),
-    };
-  }
-
-  if (raw.kind === 'semantic_aspect' && typeof raw.aspect === 'string' && raw.aspect.trim() !== '') {
-    return {
-      kind: 'meaning_binding',
-      meaning: raw.aspect as FieldMeaningBindingKey,
-      direction: normalizeDirection(raw.direction),
-      emptyPlacement: normalizeEmptyPlacement(raw.emptyPlacement),
-    };
-  }
 
   if (raw.kind === 'meaning_binding' && typeof raw.meaning === 'string' && raw.meaning.trim() !== '') {
     return {

@@ -31,7 +31,6 @@ export interface SystemPromptSchemaSummary {
   node_shape?: string | null;
   description?: string | null;
   models?: string[];
-  semantic_models?: string[];
   meanings?: SystemPromptSchemaMeaningSummary[];
   fields?: SystemPromptSchemaFieldSummary[];
 }
@@ -42,7 +41,10 @@ export interface SystemPromptModelSummary {
   name: string;
   description?: string | null;
   category?: string | null;
+  target_kind?: 'object' | 'edge' | 'both' | string;
   meaning_keys?: string[];
+  line_style?: string | null;
+  directed?: boolean | null;
   built_in?: boolean;
   recipe_meanings?: Array<{
     key: string;
@@ -57,18 +59,9 @@ export interface SystemPromptModelSummary {
   }>;
 }
 
-export interface SystemPromptRelationTypeSummary {
-  id: string;
-  name: string;
-  directed: boolean;
-  line_style: string;
-  color?: string | null;
-  description?: string | null;
-}
-
 export interface SystemPromptTypeGroupSummary {
   id: string;
-  kind: 'schema' | 'relation_type';
+  kind: 'schema';
   path: string;
 }
 
@@ -90,7 +83,6 @@ export interface SystemPromptParams {
   projectRootDir?: string | null;
   models: SystemPromptModelSummary[];
   schemas: SystemPromptSchemaSummary[];
-  relationTypes: SystemPromptRelationTypeSummary[];
   typeGroups?: SystemPromptTypeGroupSummary[];
   universeNetwork?: SystemPromptNetworkSummary | null;
   ontologyNetwork?: SystemPromptNetworkSummary | null;
@@ -124,7 +116,7 @@ export function normalizeNarreBehaviorSettings(value: unknown): NarreBehaviorSet
 
 export function buildBehaviorGuidanceSection(behavior: NarreBehaviorSettings): string {
   return [
-    '- Your primary job is to manage Netior modeling state: schemas, models, meanings, fields, relation types, concepts, networks, edges, files, and related instance metadata.',
+    '- Your primary job is to manage Netior modeling state: schemas, models, meanings, fields, concepts, networks, edges, files, and related instance metadata.',
     '- Treat requests as Netior modeling work by default, not as general software engineering or local coding work.',
     '- Prefer Netior/MCP tools and graph-object operations over browsing arbitrary local workspace files.',
     '- Interpret the user intent before naming implementation details. Start from the user\'s expected outcome, not from internal field or route names.',
@@ -252,10 +244,28 @@ function buildModelList(models: SystemPromptModelSummary[]): string {
     const details = [
       `key=${model.key}`,
       `category=${model.category ?? 'none'}`,
+      `target=${model.target_kind ?? 'object'}`,
       model.built_in ? 'built_in=true' : 'built_in=false',
       ...(model.description ? [`description=${model.description}`] : []),
     ];
     return `- ${model.name} [id=${model.id}]: ${details.join(', ')}; meanings=${meaningLabels}`;
+  }).join('\n');
+}
+
+function buildEdgeModelList(models: SystemPromptModelSummary[]): string {
+  const edgeModels = models.filter((model) => model.target_kind === 'edge' || model.target_kind === 'both');
+  if (edgeModels.length === 0) {
+    return '- (none defined yet)';
+  }
+
+  return edgeModels.map((model) => {
+    const details = [
+      `key=${model.key}`,
+      `directed=${model.directed ?? false}`,
+      `style=${model.line_style ?? 'solid'}`,
+      ...(model.description ? [`description=${model.description}`] : []),
+    ];
+    return `- ${model.name} [id=${model.id}]: ${details.join(', ')}`;
   }).join('\n');
 }
 
@@ -285,24 +295,6 @@ function buildRelationalSchemaSection(schemas: SystemPromptSchemaSummary[]): str
   }
 
   return lines.join('\n');
-}
-
-function buildRelationTypeList(relationTypes: SystemPromptRelationTypeSummary[]): string {
-  if (relationTypes.length === 0) {
-    return '- (none defined yet)';
-  }
-
-  return relationTypes.map((relationType) => {
-    const details = [
-      `directed=${relationType.directed}`,
-      `style=${relationType.line_style}`,
-      `color=${relationType.color ?? 'none'}`,
-    ];
-    if (relationType.description) {
-      details.push(`description=${relationType.description}`);
-    }
-    return `- ${relationType.name} [id=${relationType.id}]: ${details.join(', ')}`;
-  }).join('\n');
 }
 
 function buildTypeGroupSection(typeGroups: SystemPromptTypeGroupSummary[] | undefined): string {
@@ -344,7 +336,7 @@ function buildNetworkContextSection(
     `- universe=${universeNetwork ? `${universeNetwork.name} [id=${universeNetwork.id}]` : 'none'}`,
     `- ontology=${ontologyNetwork ? `${ontologyNetwork.name} [id=${ontologyNetwork.id}]` : 'none'}`,
     '- universe_role=app-wide project portal network; do not edit it like a normal network',
-    '- ontology_role=project type network for schemas, models, relation types, type groups, and their relations',
+    '- ontology_role=project model network for schemas, models, type groups, and their relations',
   ];
 
   const treeLines: string[] = [];
@@ -371,7 +363,6 @@ export function buildSystemPrompt(
     projectRootDir,
     models,
     schemas,
-    relationTypes,
     typeGroups,
     networkTree,
   } = params;
@@ -381,7 +372,7 @@ export function buildSystemPrompt(
   const modelList = buildModelList(models);
   const schemaList = buildSchemaList(schemas);
   const relationalSchema = buildRelationalSchemaSection(schemas);
-  const relationTypeList = buildRelationTypeList(relationTypes);
+  const edgeModelList = buildEdgeModelList(models);
   const typeGroupList = buildTypeGroupSection(typeGroups);
   const networkContext = buildNetworkContextSection(universeNetwork, ontologyNetwork, networkTree);
 
@@ -407,8 +398,8 @@ ${schemaList}
 ## Field Relation Map
 ${relationalSchema}
 
-## Relation Types (${relationTypes.length})
-${relationTypeList}
+## Edge Models (${models.filter((model) => model.target_kind === 'edge' || model.target_kind === 'both').length})
+${edgeModelList}
 
 ## Type Groups
 ${typeGroupList}
@@ -417,7 +408,7 @@ ${typeGroupList}
 ${networkContext}
 
 ## Search Strategy
-- Start from the modeling digest in this prompt: models, meanings, fields, meaning bindings, field relations, relation types, and network hierarchy.
+- Start from the modeling digest in this prompt: models, meanings, fields, meaning bindings, field relations, edge models, and network hierarchy.
 - For bootstrap or early-structure work, reason ontology-first: infer entity kinds, relation kinds, artifact kinds, and workflow structure before deciding network splits or schemas.
 - Treat networks as a workspace projection of inferred ontology, not as the first thing the user must specify.
 - Before searching concepts, infer these three things first:
@@ -433,7 +424,7 @@ ${networkContext}
   - node placement or network structure change
   - layout/view change
   - type organization change
-- Use relation types for graph-edge meaning.
+- Use edge-target models for graph-edge meaning.
 - Use schema fields for concept property filtering, typed references, and type-level relations.
 - Ask a short confirmation only when the structural meaning can materially diverge:
   - field vs edge
@@ -450,7 +441,7 @@ ${networkContext}
   3. targeted lookup
   4. broad discovery
 - Use tools for live state, IDs that are still missing, membership, current values, ambiguity resolution, candidate sets, and destructive-change verification.
-- Do not re-fetch schema lists, model lists, relation type lists, type groups, or network hierarchy just because those tools exist.
+- Do not re-fetch schema lists, model lists, type groups, or network hierarchy just because those tools exist.
 - The active project is already bound for this run. Do not search for project identity or pass raw 'project_id' values unless the user explicitly asks for cross-project work.
 - When a tool supports default project binding, omit 'project_id' and use the current project by default.
 - Prefer one precise inspection over multiple exploratory searches.

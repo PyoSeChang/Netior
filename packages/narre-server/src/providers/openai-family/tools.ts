@@ -10,7 +10,7 @@ export function createOpenAIFamilyConversationTools(
   return [
     tool({
       name: 'propose',
-      description: 'Present an editable draft block to the user. Use this when suggesting schemas, relation types, concepts, or any plan that benefits from inline revision.',
+      description: 'Present an editable draft block to the user. Use this when suggesting schemas, models, concepts, or any plan that benefits from inline revision.',
       parameters: draftToolSchema,
       strict: true,
       execute: async (args, _runContext, details) => uiBridge.requestDraft(

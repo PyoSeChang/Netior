@@ -12,15 +12,14 @@ import type {
   ConceptCreate,
   ConceptUpdate,
   FieldMeaningBindingKey,
-  SemanticModelRefKey,
+  ModelRefKey,
   FieldMeaningKey,
   MeaningSlotKey,
 } from '@netior/shared/types';
 import { renderTemplate, serializeToAgent } from '../services/concept-content-sync';
 
-type SchemaRow = Omit<Schema, 'semantic_models' | 'models'> & {
-  semantic_models: string | null;
-  models?: string | null;
+type SchemaRow = Omit<Schema, 'models'> & {
+  models: string | null;
 };
 type SchemaFieldRow = Omit<SchemaField, 'required' | 'slot_binding_locked' | 'generated_by_model' | 'meaning_bindings'> & {
   meaning_slot: MeaningSlotKey | null;
@@ -30,22 +29,20 @@ type SchemaFieldRow = Omit<SchemaField, 'required' | 'slot_binding_locked' | 'ge
   generated_by_model: number;
 };
 
-function parseSemanticModels(raw: string | null | undefined): SemanticModelRefKey[] {
+function parseModels(raw: string | null | undefined): ModelRefKey[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((item): item is SemanticModelRefKey => typeof item === 'string') : [];
+    return Array.isArray(parsed) ? parsed.filter((item): item is ModelRefKey => typeof item === 'string') : [];
   } catch {
     return [];
   }
 }
 
 function toSchema(row: SchemaRow): Schema {
-  const semanticModels = parseSemanticModels(row.semantic_models ?? row.models);
   return {
     ...row,
-    semantic_models: semanticModels,
-    models: row.models == null ? semanticModels : parseSemanticModels(row.models),
+    models: parseModels(row.models),
   };
 }
 

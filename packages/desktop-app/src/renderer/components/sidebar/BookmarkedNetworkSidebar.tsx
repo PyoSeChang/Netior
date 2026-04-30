@@ -12,9 +12,9 @@ import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useI18n } from '../../hooks/useI18n';
 import { openFileTab } from '../../lib/open-file-tab';
 import {
-  getSemanticModelDisplayDescription,
-  getSemanticModelDisplayName,
-} from '../../lib/semantic-model-i18n';
+  getModelDisplayDescription,
+  getModelDisplayName,
+} from '../../lib/model-i18n';
 import {
   NetworkObjectBrowser,
   type NetworkBrowserItem,
@@ -238,8 +238,8 @@ export function BookmarkedNetworkSidebar({ networkId }: BookmarkedNetworkSidebar
           nextItems.push({
             id: object.ref_id,
             objectType: 'model',
-            title: model ? getSemanticModelDisplayName(model, t) : object.ref_id,
-            subtitle: model ? getSemanticModelDisplayDescription(model, t) ?? t('model.title' as never) : t('model.title' as never),
+            title: model ? getModelDisplayName(model, t) : object.ref_id,
+            subtitle: model ? getModelDisplayDescription(model, t) ?? t('model.title' as never) : t('model.title' as never),
           });
           break;
         }

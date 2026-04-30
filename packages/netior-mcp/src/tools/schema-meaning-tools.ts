@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { SEMANTIC_MEANING_DEFINITIONS } from '@netior/shared/constants';
-import type { MeaningSourceKind, SemanticMeaningKey, SemanticModelRefKey, SlotBindingTargetKind } from '@netior/shared/types';
+import type { MeaningSourceKind, SemanticMeaningKey, ModelRefKey, SlotBindingTargetKind } from '@netior/shared/types';
 import {
   deleteSchemaMeaning,
   ensureSchemaMeaning,
@@ -57,7 +57,7 @@ export function registerSchemaMeaningTools(server: McpServer): void {
           meaning_key: meaning_key as SemanticMeaningKey,
           label,
           source: source as MeaningSourceKind | undefined,
-          source_model: source_model as SemanticModelRefKey | null | undefined,
+          source_model: source_model as ModelRefKey | null | undefined,
           sort_order,
         });
         if (!result) {

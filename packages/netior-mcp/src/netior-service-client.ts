@@ -33,12 +33,9 @@ import type {
   NetworkObjectType,
   ObjectRecord,
   Project,
-  RelationType,
-  RelationTypeCreate,
-  RelationTypeUpdate,
-  SemanticModel,
-  SemanticModelCreate,
-  SemanticModelUpdate,
+  Model,
+  ModelCreate,
+  ModelUpdate,
   NetiorServiceResponse,
   TypeGroup,
   TypeGroupCreate,
@@ -211,30 +208,30 @@ export async function deleteSchema(id: string): Promise<boolean> {
   });
 }
 
-export async function listSemanticModels(projectId: string): Promise<SemanticModel[]> {
-  return requestJson<SemanticModel[]>(`/semantic-models${toQueryString({ projectId })}`);
+export async function listModels(projectId: string): Promise<Model[]> {
+  return requestJson<Model[]>(`/models${toQueryString({ projectId })}`);
 }
 
-export async function createSemanticModel(data: SemanticModelCreate): Promise<SemanticModel> {
-  return requestJson<SemanticModel>('/semantic-models', {
+export async function createModel(data: ModelCreate): Promise<Model> {
+  return requestJson<Model>('/models', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
-export async function getSemanticModel(id: string): Promise<SemanticModel | null> {
-  return requestJson<SemanticModel | null>(`/semantic-models/${encodeURIComponent(id)}`);
+export async function getModel(id: string): Promise<Model | null> {
+  return requestJson<Model | null>(`/models/${encodeURIComponent(id)}`);
 }
 
-export async function updateSemanticModel(id: string, data: SemanticModelUpdate): Promise<SemanticModel | null> {
-  return requestJson<SemanticModel | null>(`/semantic-models/${encodeURIComponent(id)}`, {
+export async function updateModel(id: string, data: ModelUpdate): Promise<Model | null> {
+  return requestJson<Model | null>(`/models/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteSemanticModel(id: string): Promise<boolean> {
-  return requestJson<boolean>(`/semantic-models/${encodeURIComponent(id)}`, {
+export async function deleteModel(id: string): Promise<boolean> {
+  return requestJson<boolean>(`/models/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }
@@ -267,10 +264,6 @@ export async function deleteConcept(id: string): Promise<boolean> {
   });
 }
 
-export async function listRelationTypes(projectId: string): Promise<RelationType[]> {
-  return requestJson<RelationType[]>(`/relation-types${toQueryString({ projectId })}`);
-}
-
 export async function listTypeGroups(projectId: string, kind: TypeGroupKind): Promise<TypeGroup[]> {
   return requestJson<TypeGroup[]>(`/type-groups${toQueryString({ projectId, kind })}`);
 }
@@ -291,26 +284,6 @@ export async function updateTypeGroup(id: string, data: TypeGroupUpdate): Promis
 
 export async function deleteTypeGroup(id: string): Promise<boolean> {
   return requestJson<boolean>(`/type-groups/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  });
-}
-
-export async function createRelationType(data: RelationTypeCreate): Promise<RelationType> {
-  return requestJson<RelationType>('/relation-types', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function updateRelationType(id: string, data: RelationTypeUpdate): Promise<RelationType | null> {
-  return requestJson<RelationType | null>(`/relation-types/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function deleteRelationType(id: string): Promise<boolean> {
-  return requestJson<boolean>(`/relation-types/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }

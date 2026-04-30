@@ -8,7 +8,7 @@ import {
   getNetworkTree,
   listSchemaFields,
   listSchemas,
-  listRelationTypes,
+  listModels,
   listTypeGroups,
   getConceptsByProject,
   listNetworks,
@@ -126,21 +126,19 @@ export function registerProjectTools(server: McpServer): void {
 
         const [
           schemas,
-          relationTypes,
+          models,
           concepts,
           networks,
           schemaGroups,
-          relationTypeGroups,
           universeNetwork,
           ontologyNetwork,
           networkTree,
         ] = await Promise.all([
           listSchemas(targetProjectId),
-          listRelationTypes(targetProjectId),
+          listModels(targetProjectId),
           getConceptsByProject(targetProjectId),
           listNetworks(targetProjectId),
           listTypeGroups(targetProjectId, 'schema'),
-          listTypeGroups(targetProjectId, 'relation_type'),
           getUniverseNetwork(),
           getProjectOntologyNetwork(targetProjectId),
           getNetworkTree(targetProjectId),
@@ -151,7 +149,8 @@ export function registerProjectTools(server: McpServer): void {
             schemas.map(async (schema) => [schema.id, await listSchemaFields(schema.id)] as const),
           ),
         );
-        const typeGroups = mapTypeGroups([...schemaGroups, ...relationTypeGroups]);
+        const typeGroups = mapTypeGroups(schemaGroups);
+        const edgeModels = models.filter((model) => model.target_kind === 'edge' || model.target_kind === 'both');
 
         const summary = {
           project: {
@@ -171,15 +170,16 @@ export function registerProjectTools(server: McpServer): void {
               fields: mapSchemaFields(schemaFieldsById.get(schema.id) ?? [], schemaNameMap),
             })),
           },
-          relation_types: {
-            count: relationTypes.length,
-            items: relationTypes.map((relationType) => ({
-              id: relationType.id,
-              name: relationType.name,
-              directed: relationType.directed,
-              line_style: relationType.line_style,
-              color: relationType.color,
-              description: relationType.description,
+          edge_models: {
+            count: edgeModels.length,
+            items: edgeModels.map((model) => ({
+              id: model.id,
+              key: model.key,
+              name: model.name,
+              directed: model.directed,
+              line_style: model.line_style,
+              color: model.color,
+              description: model.description,
             })),
           },
           type_groups: {

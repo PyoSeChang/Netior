@@ -2,7 +2,7 @@ import type React from 'react';
 import type { RenderNode, RenderEdge } from '../types';
 import type {
   FieldMeaningBindingKey,
-  SemanticModelRefKey,
+  ModelRefKey,
   MeaningSlotKey,
 } from '@netior/shared/types';
 
@@ -41,7 +41,7 @@ export interface LayoutSemanticSlotValue {
 
 export interface LayoutSemanticProjection {
   schemaId?: string;
-  models: SemanticModelRefKey[];
+  models: ModelRefKey[];
   meaningBindings: Partial<Record<FieldMeaningBindingKey, LayoutSemanticSlotValue[]>>;
   meaningFieldIds: Partial<Record<FieldMeaningBindingKey, string[]>>;
   meaningSlotFieldIds: Partial<Record<MeaningSlotKey, string>>;

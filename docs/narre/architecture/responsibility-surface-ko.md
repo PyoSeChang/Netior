@@ -79,7 +79,7 @@
 | `network` | `networks` | 포함 | `kind = network`인 일반 네트워크 생성, 수정, 삭제, hierarchy 구성, portal/subnetwork 연결 |
 | `project` | `projects` | 부분 포함 | 프로젝트 생성/삭제는 제외. Universe에서 project object를 portal node로 이해하고 탐색하는 것은 포함 |
 | `schema` | `schemas` | 포함 | CRUD, model, field definition, file template, visual default 설계 |
-| `model` | `semantic_models` | 포함 | CRUD, description, category, meanings, field recipes를 설계하고 schema에 부착 |
+| `model` | `models` | 포함 | CRUD, description, category, meanings, field recipes를 설계하고 schema에 부착 |
 | `relation_type` | `relation_types` | 포함 | CRUD, edge semantic default, line style, directed, color 설계 |
 | `type_group` | `type_groups` | 포함 | Ontology network에 투영되는 schema organization object로 이해하고 CRUD를 수행 |
 | `file` | `files` | 포함 | file/directory entity 조회/생성/metadata 수정, network node 배치, PDF TOC 저장 |

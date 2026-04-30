@@ -1,14 +1,14 @@
 import { create } from 'zustand';
-import type { SemanticModel, SemanticModelCreate, SemanticModelUpdate } from '@netior/shared/types';
+import type { Model, ModelCreate, ModelUpdate } from '@netior/shared/types';
 import { modelService } from '../services/model-service';
 
 interface ModelStore {
-  models: SemanticModel[];
+  models: Model[];
   loading: boolean;
 
   loadByProject: (projectId: string) => Promise<void>;
-  createModel: (data: SemanticModelCreate) => Promise<SemanticModel>;
-  updateModel: (id: string, data: SemanticModelUpdate) => Promise<void>;
+  createModel: (data: ModelCreate) => Promise<Model>;
+  updateModel: (id: string, data: ModelUpdate) => Promise<void>;
   deleteModel: (id: string) => Promise<void>;
   clear: () => void;
 }

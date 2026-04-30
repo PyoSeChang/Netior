@@ -11,9 +11,9 @@ import { useRelationTypeStore } from '../../stores/relation-type-store';
 import { useSchemaStore } from '../../stores/schema-store';
 import { useI18n } from '../../hooks/useI18n';
 import {
-  getSemanticModelDisplayDescription,
-  getSemanticModelDisplayName,
-} from '../../lib/semantic-model-i18n';
+  getModelDisplayDescription,
+  getModelDisplayName,
+} from '../../lib/model-i18n';
 import { networkService } from '../../services';
 import { Button } from '../ui/Button';
 import {
@@ -196,7 +196,7 @@ export function OntologyEditor({ tab }: OntologyEditorProps): JSX.Element {
         await openEditorTab({
           type: 'model',
           targetId: created.id,
-          title: getSemanticModelDisplayName(created, t),
+          title: getModelDisplayName(created, t),
           projectId,
           isDirty: true,
         });
@@ -320,12 +320,12 @@ export function OntologyEditor({ tab }: OntologyEditorProps): JSX.Element {
         key: 'model' as const,
         label: t('model.title' as never),
         items: [...models]
-          .sort((a, b) => getSemanticModelDisplayName(a, t).localeCompare(getSemanticModelDisplayName(b, t)))
+          .sort((a, b) => getModelDisplayName(a, t).localeCompare(getModelDisplayName(b, t)))
           .map((item) => ({
             id: item.id,
             objectType: 'model' as const,
-            title: getSemanticModelDisplayName(item, t),
-            subtitle: getSemanticModelDisplayDescription(item, t) ?? item.key,
+            title: getModelDisplayName(item, t),
+            subtitle: getModelDisplayDescription(item, t) ?? item.key,
           })),
       },
       {

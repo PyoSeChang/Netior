@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
-import type { EditorTab, RelationMeaningKey } from '@netior/shared/types';
+import type { EditorTab } from '@netior/shared/types';
 import { useNetworkStore } from '../../stores/network-store';
-import { useRelationTypeStore } from '../../stores/relation-type-store';
+import { useModelStore } from '../../stores/model-store';
 import { useEditorStore } from '../../stores/editor-store';
 import { useEditorSession } from '../../hooks/useEditorSession';
 import { networkService } from '../../services';
@@ -12,7 +12,7 @@ import { ColorPicker } from '../ui/ColorPicker';
 import { Toggle } from '../ui/Toggle';
 import { Button } from '../ui/Button';
 import { ScrollArea } from '../ui/ScrollArea';
-import { isHierarchyParentMeaning } from '../../lib/hierarchy-meaning';
+import { isHierarchyParentEdge } from '../../lib/edge-models';
 
 interface EdgeEditorProps {
   tab: EditorTab;
@@ -25,8 +25,7 @@ interface EdgeVisualState {
 }
 
 interface EdgeState {
-  relation_type_id: string | null;
-  relation_meaning: RelationMeaningKey | null;
+  model_id: string | null;
   description: string | null;
   visual: EdgeVisualState;
 }
@@ -37,7 +36,7 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
   const edges = useNetworkStore((s) => s.edges);
   const nodes = useNetworkStore((s) => s.nodes);
   const { removeEdge, openNetwork, currentNetwork } = useNetworkStore();
-  const relationTypes = useRelationTypeStore((s) => s.relationTypes);
+  const models = useModelStore((s) => s.models);
 
   const edge = edges.find((e) => e.id === edgeId);
   const edgeVisuals = useNetworkStore((s) => s.edgeVisuals);
@@ -47,20 +46,18 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
     tabId: tab.id,
     load: () => {
       const e = useNetworkStore.getState().edges.find((ed) => ed.id === edgeId);
-      if (!e) return { relation_type_id: null, relation_meaning: null, description: null, visual: { color: null, line_style: null, directed: null } };
+      if (!e) return { model_id: null, description: null, visual: { color: null, line_style: null, directed: null } };
       const ev = useNetworkStore.getState().edgeVisuals.find((v) => v.edgeId === edgeId);
       const parsed: EdgeVisualState = ev ? JSON.parse(ev.visualJson) : { color: null, line_style: null, directed: null };
       return {
-        relation_type_id: e.relation_type_id,
-        relation_meaning: e.relation_meaning,
+        model_id: e.model_id,
         description: e.description,
         visual: parsed,
       };
     },
     save: async (state) => {
       await networkService.edge.update(edgeId, {
-        relation_type_id: state.relation_type_id,
-        relation_meaning: state.relation_meaning,
+        model_id: state.model_id,
         description: state.description,
       });
       await setEdgeVisual(edgeId, JSON.stringify(state.visual));
@@ -76,12 +73,14 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
 
   const sourceLabel = sourceNode?.concept?.title ?? sourceNode?.file?.path?.replace(/\\/g, '/').split('/').pop() ?? '?';
   const targetLabel = targetNode?.concept?.title ?? targetNode?.file?.path?.replace(/\\/g, '/').split('/').pop() ?? '?';
-  const isHierarchyMeaning = isHierarchyParentMeaning(sessionState?.relation_meaning);
+  const isHierarchyMeaning = edge ? isHierarchyParentEdge(edge) : false;
 
-  const relationTypeOptions = useMemo(() => [
+  const modelOptions = useMemo(() => [
     { value: '', label: t('edge.noRelationType') },
-    ...relationTypes.map((rt) => ({ value: rt.id, label: rt.name })),
-  ], [relationTypes, t]);
+    ...models
+      .filter((model) => model.target_kind === 'edge' || model.target_kind === 'both')
+      .map((model) => ({ value: model.id, label: model.name })),
+  ], [models, t]);
 
   const lineStyleOptions = [
     { value: '', label: t('edge.inheritFromType') ?? 'Inherit' },
@@ -113,9 +112,9 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
     session.setState((prev) => ({ ...prev, visual: { ...prev.visual, ...patch } }));
   };
 
-  // Resolve effective values for display (edge override > relation type default)
-  const rt = edge.relation_type;
-  const effectiveDirected = session.state.visual.directed != null ? session.state.visual.directed : (rt?.directed ?? false);
+  // Resolve effective values for display (edge override > model default)
+  const selectedModel = models.find((model) => model.id === session.state.model_id) ?? edge.model;
+  const effectiveDirected = session.state.visual.directed != null ? session.state.visual.directed : (selectedModel?.directed ?? false);
 
   return (
     <ScrollArea>
@@ -146,22 +145,12 @@ export function EdgeEditor({ tab }: EdgeEditorProps): JSX.Element {
             </div>
           </div>
 
-          {/* Relation Type */}
-          {session.state.relation_meaning && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-secondary">System Meaning</label>
-              <div className="rounded-md border border-subtle bg-surface-editor px-3 py-2 text-xs text-default">
-                {session.state.relation_meaning}
-              </div>
-            </div>
-          )}
-
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-secondary">{t('edge.relationType')}</label>
+            <label className="text-xs font-medium text-secondary">{t('model.title')}</label>
             <Select
-              options={relationTypeOptions}
-              value={session.state.relation_type_id ?? ''}
-              onChange={(e) => update({ relation_type_id: e.target.value || null })}
+              options={modelOptions}
+              value={session.state.model_id ?? ''}
+              onChange={(e) => update({ model_id: e.target.value || null })}
               selectSize="sm"
             />
           </div>
